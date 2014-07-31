@@ -1,0 +1,83 @@
+PROJECT(OpenNIGrabber)
+
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8 FATAL_ERROR)
+if(COMMAND cmake_policy)
+      cmake_policy(SET CMP0003 NEW)  # Required by CMake 2.7+
+endif(COMMAND cmake_policy)
+
+# Set the output directory for the build executables
+#SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build)
+
+# Set the OPENNIGRABBER_SOURCE_DIR variable to the current source directory
+set(OPENNIGRABBER_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
+#Add here your project dependencies
+#FIND_PACKAGE(MRPT REQUIRED hwdrivers maps graphslam)
+#FIND_PACKAGE(MRPT REQUIRED base hwdrivers slam maps graphslam)
+FIND_PACKAGE(PCL REQUIRED)
+FIND_PACKAGE(OpenCV REQUIRED )
+INCLUDE_DIRECTORIES( ${OPENCV_INCLUDE_DIR} )
+link_directories(${OpenCV_LIBS_DIR})
+
+FIND_PACKAGE( Boost 1.46.0 REQUIRED COMPONENTS serialization )
+INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
+
+INCLUDE_DIRECTORIES(${PCL_INCLUDE_DIRS})
+LINK_DIRECTORIES(${PCL_LIBRARY_DIRS})
+ADD_DEFINITIONS(${PCL_DEFINITIONS})
+
+# OpenMP library
+FIND_PACKAGE(OpenMP)
+if(OPENMP_FOUND)
+ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
+
+# Include the grabber include files
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/grabber)
+
+# Make sure the linker can find the "grabber" libraries once it is built.
+LINK_DIRECTORIES(${CMAKE_BINARY_DIR})
+LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/OpenNI2/Drivers)
+
+# Include the third party include files
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/third_party)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/third_party/include)
+INCLUDE_DIRECTORIES(../OpenNI2/Include)
+
+# Select the "apps" to be built
+SET( BUILD_PAIR_CALIBRATION ON CACHE BOOL "Build PairCalibration application")
+
+#ADD_SUBDIRECTORY(third_party/intrinsic_calibration)
+
+ADD_SUBDIRECTORY(apps)
+
+
+# Declare the target (an executable)
+ADD_EXECUTABLE(OpenNIGrabber OpenNIGrabber_App.cpp
+./grabber/FrameRGBD.h
+#./grabber/RGBDGrabber.h
+./grabber/RGBDGrabber_OpenNI2.h		#./grabber/RGBDGrabber_OpenNI2.cpp
+./grabber/SerializeFrameRGBD.h
+./grabber/DownsampleRGBD.h	#./grabber/DownsampleRGBD.cpp
+
+./third_party/cvmat_serialization.h
+./third_party/include/clams/discrete_depth_distortion_model.h	  
+./third_party/discrete_depth_distortion_model.cpp
+)
+
+TARGET_LINK_LIBRARIES(OpenNIGrabber
+#					${MRPT_LIBS}
+					${OpenCV_LIBS}
+					${PCL_LIBRARIES}
+					${Boost_SERIALIZATION_LIBRARY}
+					libOpenNI2.so 
+					libOniFile.so 
+					libPS1080.so 
+				   )
+
+# Set optimized building:
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -mtune=native")
+ENDIF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")

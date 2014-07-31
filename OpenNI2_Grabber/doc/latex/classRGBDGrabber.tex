@@ -1,0 +1,88 @@
+\hypertarget{classRGBDGrabber}{\section{R\-G\-B\-D\-Grabber Class Reference}
+\label{classRGBDGrabber}\index{R\-G\-B\-D\-Grabber@{R\-G\-B\-D\-Grabber}}
+}
+
+
+{\ttfamily \#include $<$R\-G\-B\-D\-Grabber.\-h$>$}
+
+Inheritance diagram for R\-G\-B\-D\-Grabber\-:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=2.000000cm]{classRGBDGrabber}
+\end{center}
+\end{figure}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+virtual void \hyperlink{classRGBDGrabber_ad4f514ef7ef4cb30f88691576cd2a415}{init} ()=0
+\item 
+virtual void \hyperlink{classRGBDGrabber_a5421d2f64b001189aaddb517bd50f973}{grab} (Frame\-R\-G\-B\-D $\ast$)=0
+\item 
+virtual void \hyperlink{classRGBDGrabber_aa835859ea230e1ca302adaa4cb054207}{stop} ()=0
+\end{DoxyCompactItemize}
+\subsection*{Protected Attributes}
+\begin{DoxyCompactItemize}
+\item 
+int \hyperlink{classRGBDGrabber_aafd74a114077376b2326476e1b65ce20}{width}
+\item 
+\hypertarget{classRGBDGrabber_a5b03f2b35c58d70db79db90728558f7f}{int {\bfseries height}}\label{classRGBDGrabber_a5b03f2b35c58d70db79db90728558f7f}
+
+\item 
+cv\-::\-Mat \hyperlink{classRGBDGrabber_a077f46c80736207093874e307e53b269}{current\-R\-G\-B\-Img}
+\item 
+\hypertarget{classRGBDGrabber_a942fbb8ab02ac4d30fef4dadd20a0e7c}{cv\-::\-Mat {\bfseries current\-Depth\-Img}}\label{classRGBDGrabber_a942fbb8ab02ac4d30fef4dadd20a0e7c}
+
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+Abstract class that especifies the functionality of a generic R\-G\-B\-D grabber. 
+
+\subsection{Member Function Documentation}
+\hypertarget{classRGBDGrabber_a5421d2f64b001189aaddb517bd50f973}{\index{R\-G\-B\-D\-Grabber@{R\-G\-B\-D\-Grabber}!grab@{grab}}
+\index{grab@{grab}!RGBDGrabber@{R\-G\-B\-D\-Grabber}}
+\subsubsection[{grab}]{\setlength{\rightskip}{0pt plus 5cm}virtual void R\-G\-B\-D\-Grabber\-::grab (
+\begin{DoxyParamCaption}
+\item[{Frame\-R\-G\-B\-D $\ast$}]{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}}\label{classRGBDGrabber_a5421d2f64b001189aaddb517bd50f973}
+Retains the current R\-G\-B\-D frame. 
+
+Implemented in \hyperlink{classRGBDGrabber__OpenNI2_affad3812ddfff63085e03a30686db3ac}{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}.
+
+\hypertarget{classRGBDGrabber_ad4f514ef7ef4cb30f88691576cd2a415}{\index{R\-G\-B\-D\-Grabber@{R\-G\-B\-D\-Grabber}!init@{init}}
+\index{init@{init}!RGBDGrabber@{R\-G\-B\-D\-Grabber}}
+\subsubsection[{init}]{\setlength{\rightskip}{0pt plus 5cm}virtual void R\-G\-B\-D\-Grabber\-::init (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}}\label{classRGBDGrabber_ad4f514ef7ef4cb30f88691576cd2a415}
+Initializes the grabber object 
+
+Implemented in \hyperlink{classRGBDGrabber__OpenNI2_afbf7a0c2b858bad4d660104386073bb8}{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}.
+
+\hypertarget{classRGBDGrabber_aa835859ea230e1ca302adaa4cb054207}{\index{R\-G\-B\-D\-Grabber@{R\-G\-B\-D\-Grabber}!stop@{stop}}
+\index{stop@{stop}!RGBDGrabber@{R\-G\-B\-D\-Grabber}}
+\subsubsection[{stop}]{\setlength{\rightskip}{0pt plus 5cm}virtual void R\-G\-B\-D\-Grabber\-::stop (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [pure virtual]}}}\label{classRGBDGrabber_aa835859ea230e1ca302adaa4cb054207}
+Stop grabing R\-G\-B\-D frames. 
+
+Implemented in \hyperlink{classRGBDGrabber__OpenNI2_af986000241075e4e7cc0343b391d2eb6}{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}.
+
+
+
+\subsection{Member Data Documentation}
+\hypertarget{classRGBDGrabber_a077f46c80736207093874e307e53b269}{\index{R\-G\-B\-D\-Grabber@{R\-G\-B\-D\-Grabber}!current\-R\-G\-B\-Img@{current\-R\-G\-B\-Img}}
+\index{current\-R\-G\-B\-Img@{current\-R\-G\-B\-Img}!RGBDGrabber@{R\-G\-B\-D\-Grabber}}
+\subsubsection[{current\-R\-G\-B\-Img}]{\setlength{\rightskip}{0pt plus 5cm}cv\-::\-Mat R\-G\-B\-D\-Grabber\-::current\-R\-G\-B\-Img\hspace{0.3cm}{\ttfamily [protected]}}}\label{classRGBDGrabber_a077f46c80736207093874e307e53b269}
+Resolution mode of the device (default is Q\-V\-G\-A = 320x240) \hypertarget{classRGBDGrabber_aafd74a114077376b2326476e1b65ce20}{\index{R\-G\-B\-D\-Grabber@{R\-G\-B\-D\-Grabber}!width@{width}}
+\index{width@{width}!RGBDGrabber@{R\-G\-B\-D\-Grabber}}
+\subsubsection[{width}]{\setlength{\rightskip}{0pt plus 5cm}int R\-G\-B\-D\-Grabber\-::width\hspace{0.3cm}{\ttfamily [protected]}}}\label{classRGBDGrabber_aafd74a114077376b2326476e1b65ce20}
+Frame dimensions. 
+
+The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+grabber/R\-G\-B\-D\-Grabber.\-h\end{DoxyCompactItemize}

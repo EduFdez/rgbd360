@@ -1,0 +1,153 @@
+\hypertarget{index_intro_sec}{}\section{Introduction}\label{index_intro_sec}
+This is the documentation of the R\-G\-B\-D360 Project. This project integrates the functionality to do image acquisition, localization and mapping using an omnidirectional R\-G\-B-\/\-D sensor developed in I\-N\-R\-I\-A Sophia-\/\-Antipolis by the team L\-A\-G\-A\-D\-I\-C, and with the collaboration of the University of Malaga. This functionality comprises\-: reading and serializing the data streaming from the omnidirectional R\-G\-B-\/\-D sensor; registering frames based on a compact planar description of the scene (\href{http://www.mrpt.org/pbmap}{\tt http\-://www.\-mrpt.\-org/pbmap}); loop closure detection; performing human-\/guided semi-\/automatic labelization of the scene; Pb\-Map-\/based hybrid S\-L\-A\-M (i.\-e. using metric-\/topological-\/semantic information) with the omnidirectional R\-G\-B-\/\-D sensor moving freely with 6 Do\-F, or in planar movement with 3 Do\-F. Also, some visualization tools are provided to show the results from the above applications.
+
+  \par
+\hypertarget{index_project_sec}{}\section{Project tree}\label{index_project_sec}
+This project contains a previous one named 'Open\-N\-I2\-\_\-\-Grabber', which is used to access and read Open\-N\-I2 sensors like Asus Xtion Pro Live (Asus X\-P\-L). Only the header files are used by 'R\-G\-B\-D360', thus it does not require to compile 'Open\-N\-I2\-\_\-\-Grabber'. However, this project can be compiled independently to use its test applications. The documentation of this project can be browsed in 'Open\-N\-I2\-\_\-\-Grabber/doc/html/index.\-html'. \par
+
+
+The main functionality provided by this project is implemented in a set of header files that are found in the directory 'include/'
+\begin{DoxyItemize}
+\item \hyperlink{Calib360_8h_source}{Calib360.\-h}
+\item \hyperlink{Calibrator_8h_source}{Calibrator.\-h}
+\item \hyperlink{Frame360_8h_source}{Frame360.\-h}
+\item \hyperlink{Frame360__Visualizer_8h_source}{Frame360\-\_\-\-Visualizer.\-h}
+\item \hyperlink{RegisterRGBD360_8h_source}{Register\-R\-G\-B\-D360.\-h}
+\item \hyperlink{FilterPointCloud_8h_source}{Filter\-Point\-Cloud.\-h}
+\item \hyperlink{Map360_8h_source}{Map360.\-h}
+\item \hyperlink{Map360__Visualizer_8h_source}{Map360\-\_\-\-Visualizer.\-h}
+\item \hyperlink{TopologicalMap360_8h_source}{Topological\-Map360.\-h}
+\item \hyperlink{LoopClosure360_8h_source}{Loop\-Closure360.\-h}
+\item \hyperlink{GraphOptimizer_8h_source}{Graph\-Optimizer.\-h}
+\item \hyperlink{Miscellaneous_8h_source}{Miscellaneous.\-h}
+\end{DoxyItemize}
+
+The project applications are structured in different sections depending on its utility\-:
+\begin{DoxyItemize}
+\item Calibration/ \par
+ -\/$>$ Contains the applications to calibrate the extrinsic parameters of the sensor.
+\item Grabber/ \par
+ -\/$>$ Grab and serialize the omnidirectional R\-G\-B-\/\-D image stream.
+\item Labelization/ \par
+ -\/$>$ Write semantic labels on the images.
+\item Registration/ \par
+ -\/$>$ Register (align) pairs of spherical R\-G\-B-\/\-D images. Odometry applications.
+\item S\-L\-A\-M/ \par
+ -\/$>$ Hybrid pose-\/graph S\-L\-A\-M using metric-\/topological-\/semantic information.
+\item Visualization/ \par
+ -\/$>$ Load a serialized image stream. Load and build the spheres.
+\end{DoxyItemize}\hypertarget{index_dependencies_sec}{}\section{Dependencies}\label{index_dependencies_sec}
+This project depends on several open-\/source libraries to build the whole solution. The main dependencies are\-:
+\begin{DoxyItemize}
+\item Open\-C\-V\-: \href{http://opencv.org/}{\tt http\-://opencv.\-org/} (Installing the binaries is recommended. This project has also been tested with the version 2.\-4.\-5 compiled from sources.)
+\item P\-C\-L\-: \href{http://pointclouds.org/}{\tt http\-://pointclouds.\-org/} (This project uses the version of Eduardo Fernandez, which can be downloaded from \href{https://github.com/EduFdez/pcl.git}{\tt https\-://github.\-com/\-Edu\-Fdez/pcl.\-git})
+\item M\-R\-P\-T\-: \href{http://www.mrpt.org/}{\tt http\-://www.\-mrpt.\-org/} (This project uses the version of Eduardo Fernandez, which can be downloaded from \href{https://github.com/EduFdez/mrpt.git}{\tt https\-://github.\-com/\-Edu\-Fdez/mrpt.\-git})
+\item Eigen\-: \href{http://eigen.tuxfamily.org}{\tt http\-://eigen.\-tuxfamily.\-org} (Install the current version for your system)
+\end{DoxyItemize}
+
+This project also contains some third party code and dependencies which are provided here to facilitate compilation and to avoid possible compatibility issues in the future. They are found in the directory 'Open\-N\-I2\-\_\-\-Grabber/third\-\_\-party/'. These dependencies are\-:
+\begin{DoxyItemize}
+\item Open\-N\-I2\-: \href{http://www.openni.org/}{\tt http\-://www.\-openni.\-org/} (This library is needed to open and read the sensor, it is not required to work with data already recorded in datasets.)
+\item C\-L\-A\-M\-S\-: \href{http://www.alexteichman.com/octo/clams/}{\tt http\-://www.\-alexteichman.\-com/octo/clams/} (This project performs the intrinsic calibration of R\-G\-B-\/\-D sensors (see \char`\"{}paper\char`\"{}). It is used here to undistort the depth images captured with our device.)
+\end{DoxyItemize}\hypertarget{index_install_sec}{}\section{Installation}\label{index_install_sec}
+This project has been implemented and tested in Ubuntu 12.\-04 and 13.\-04. This project contains a C\-Malelists.\-txt file to facilitate the integration of the different dependencies. Thus, the software C\-Make is required to produce the configuration file 'Makefile' for compilation. To compile the source code the above dependencies must be installed first (make sure that their dependencies are also installed, for that, follow the instructions given in the website of each library). M\-R\-P\-T and P\-C\-L must be compiled using the sources referred above. A version of Open\-N\-I2 (downloaded on November 8th, 2013) is provided within this project to avoid possible compatibility problems in the future. After that, the following steps will guide you to compile the project. \begin{DoxyVerb}cd yourPathTo/RGBD360
+\end{DoxyVerb}
+ \begin{DoxyVerb}  - Generate the Makefile with CMake.
+       -# Open CMake (the following instructions are for cmake-gui).
+       -# Set the source directory to RGBD360 and the build directory to RGBD360/build.
+       -# Set OpenCV_DIR, PCL_DIR and MRPT_DIR to the directories containing the built packages from OpenCV, PCL and MRPT respectively.
+       -# Set the application packages to build (Grabber, Visualizer, etc.). To reckon which packages you need, go to the next section to find out a more detailed description of each package's applications.
+       -# Configure.
+       -# Generate.
+
+  - Compile the RGBD360 project.
+       -# Go to the directory RGBD360/build/
+       -# Compile with 'make'.
+\end{DoxyVerb}
+
+
+Important notes\-:
+\begin{DoxyItemize}
+\item the library Boost is a dependency of P\-C\-L, the version 1.\-46 (or newer) of Boost is required here.
+\item the executable files that access the omnidirectional R\-G\-B-\/\-D sensor link dynamically against the library Open\-N\-I2, this requires that those executables and the Open\-N\-I2 library files are found in the same directory. Thus, if you do not build the project in the default 'build/' directory, then you must copy the original content of the 'build/' directory to the directory containing your executables (e.\-g. R\-G\-B\-D30\-\_\-\-Grabber, or Online\-Calibrator\-R\-G\-B\-D360).
+\item compilation errors occur when different versions of the dependencies (Open\-C\-V, P\-C\-L or M\-R\-P\-T) are installed in the machine and they are not correctly specified in C\-Make (so that include and lib files of different versions are mixed). To solve this problem, make sure that the paths given in C\-Make-\/\-G\-U\-I refer to the correct libraries.
+\end{DoxyItemize}\hypertarget{index_usage_sec}{}\section{Software usage}\label{index_usage_sec}
+After compiling this project, a number of directories containing the different application packages will be created. The applications of these packages are described below ({\bfseries a brief description of each application and its syntaxis is shown on executing ./application -\/h'})\-: \hypertarget{index_Calibration}{}\subsection{Calibration}\label{index_Calibration}
+This package contains the applications to calibrate the extrinsic parameters of the sensor
+
+\begin{DoxyVerb}./Calibrator
+\end{DoxyVerb}
+
+
+This program calibrates the extrinsic parameters of the omnidirectional R\-G\-B-\/\-D device. The key idea is to match planar observations, assuming that the dominant planes (e.\-g. walls, ceiling or floor) can be observed at the same time by several contiguous sensors (take into account that the overlapping between the different sensors is negligible). The planes are segmented from the depth images using a region growing approach (thus, color information is not used for calibration). These planes are matched automatically according to the device construction specifications, which are refined by this program. This program opens the sensor, which has to be moved to take different plane observations at different angles and distances. When enough information has been collected, a Gauss-\/\-Newtown optimization is launched to obtain the extrinsic calibration, which can be saved if the user demands it after visual validation of the calibrated images.\hypertarget{index_Grabber}{}\subsection{Grabber}\label{index_Grabber}
+Read the omnidirectional R\-G\-B-\/\-D image stream from the R\-G\-B\-D360 sensor.
+
+\begin{DoxyVerb}./RGBD360_Grabber <pathToSaveToDisk>
+\end{DoxyVerb}
+
+
+This program accesses the omnidirectional R\-G\-B-\/\-D sensor, and reads the image streaming it captures. The image stream is recorded in the path specified by the user. \hypertarget{index_Labelization}{}\subsection{Labelization}\label{index_Labelization}
+This package contains applications to annotate semantic labels on the spherical R\-G\-B-\/\-D images and on the planes extracted from them.
+
+\begin{DoxyVerb}./LabelizeFrame <pathToPbMap>
+\end{DoxyVerb}
+
+
+This program loads a Pb\-Map (a its corresponding point cloud) and asks the user to labelize the planes before saving the annotated Pb\-Map to disk.
+
+\begin{DoxyVerb}./LabelizeSequence <pathToFolderWithSpheres>
+\end{DoxyVerb}
+
+
+This program loads a stream of previously built spheres (Pb\-Map+\-Point\-Cloud) partially labelized, and expands the labels by doing consecutive frame registration.\hypertarget{index_Registration}{}\subsection{Registration}\label{index_Registration}
+This package contains applications based on the registration of pairs of R\-G\-B-\/\-D images through the matching and alignment of the Pb\-Maps extracted from them.
+
+\begin{DoxyVerb}./OdometryRGBD360 <pathToRawRGBDImagesDir> <pathToResults> <sampleStream>
+\end{DoxyVerb}
+
+
+This program performs Pb\-Map-\/based Odometry from the data stream recorded by an omnidirectional R\-G\-B-\/\-D sensor.
+
+\begin{DoxyVerb}./RegisterPairRGBD360 <frame360_1_1.bin> <frame360_1_2.bin>
+\end{DoxyVerb}
+
+
+This program loads two raw omnidireactional R\-G\-B-\/\-D images and aligns them using Pb\-Map-\/based registration.\hypertarget{index_SLAM}{}\subsection{S\-L\-A\-M}\label{index_SLAM}
+This package is dedicated to S\-L\-A\-M applications.
+
+\begin{DoxyVerb}./SphereGraphSLAM <pathToRawRGBDImagesDir>
+\end{DoxyVerb}
+
+
+This program performs metric-\/topological S\-L\-A\-M from the data stream recorded by an omnidirectional R\-G\-B-\/\-D sensor. The directory containing the input raw omnidireactional R\-G\-B-\/\-D images (.frame360 files) has to be specified.\hypertarget{index_Visualization}{}\subsection{Visualization}\label{index_Visualization}
+This package contains applications to read and visualize the spherical R\-G\-B-\/\-D images, and the point clouds and Pb\-Maps built from them.
+
+\begin{DoxyVerb}./LoadFrame360 <pathToFrame360.bin>
+\end{DoxyVerb}
+
+
+This program loads a Frame360.\-bin (an omnidirectional R\-G\-B-\/\-D image in raw binary format). It builds the point\-Cloud and creates a Pb\-Map from it. The spherical frame is shown\-: the keys 'k' and 'l' are used to switch between visualization modes.
+
+\begin{DoxyVerb}./LoadSequence <mode> <pathToData> <pathToResultsFolder>
+\end{DoxyVerb}
+
+
+This program loads a sequence of observations 'R\-G\-B\-D360.\-bin' and visualizes and/or saves the spherical images, the point\-Cloud or the Pb\-Map extracted from it according to the command options. \par
+ mode = 1 -\/$>$ Show the reconstructed spherical images \par
+ mode = 2 -\/$>$ Show and save the reconstructed spherical images \par
+ mode = 3 -\/$>$ Show the reconstructed Point\-Cloud and the Pb\-Map \par
+ mode = 4 -\/$>$ Save the reconstructed Point\-Cloud and the Pb\-Map \par
+ mode = 5 -\/$>$ Show a video streaming of the reconstructed Point\-Cloud \par
+
+
+\begin{DoxyVerb}./LoadSphere <pathToPointCloud> <pathToPbMap>
+\end{DoxyVerb}
+
+
+This program loads the point\-Cloud and the Pb\-Map from a R\-G\-B\-D360 observation. \par
+ \par
+
+
+\begin{DoxyAuthor}{Author}
+Eduardo Fernandez-\/\-Moral 
+\end{DoxyAuthor}

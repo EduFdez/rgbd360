@@ -1,0 +1,63 @@
+\hypertarget{classCloudVisualization}{\section{\-Cloud\-Visualization \-Class \-Reference}
+\label{classCloudVisualization}\index{\-Cloud\-Visualization@{\-Cloud\-Visualization}}
+}
+
+
+{\ttfamily \#include $<$\-Cloud\-Visualization.\-h$>$}
+
+\subsection*{\-Public \-Member \-Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classCloudVisualization_aecb0d8a62730eff91f93dff4fc8ff705}{\-Cloud\-Visualization} (\hyperlink{classCloudRGBD}{\-Cloud\-R\-G\-B\-D} $\ast$cloud)
+\item 
+void \hyperlink{classCloudVisualization_a8ef8a1cd84e7ed677147fe1f85c295bd}{run} ()
+\end{DoxyCompactItemize}
+\subsection*{\-Public \-Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classCloudRGBD}{\-Cloud\-R\-G\-B\-D} $\ast$ \hyperlink{classCloudVisualization_afda3094aaee3c06cbe5fb004b9a14f68}{cloud\-R\-G\-B\-D}
+\item 
+boost\-::mutex \hyperlink{classCloudVisualization_a60ec9169f4b99d64b6a9248f2e4f469c}{mtx\-\_\-visualization}
+\item 
+pcl\-::visualization\-::\-Cloud\-Viewer \hyperlink{classCloudVisualization_af2d2977ac87ebe1bf9ae8dbf34851e15}{cloud\-Viewer}
+\end{DoxyCompactItemize}
+
+
+\subsection{\-Detailed \-Description}
+\-This class creates a visualizer to display a \hyperlink{classCloudRGBD}{\-Cloud\-R\-G\-B\-D} object. \-The visualizer runs in a separate thread, and can be sychronized using the mtx\-\_\-visualization. 
+
+\subsection{\-Constructor \& \-Destructor \-Documentation}
+\hypertarget{classCloudVisualization_aecb0d8a62730eff91f93dff4fc8ff705}{\index{\-Cloud\-Visualization@{\-Cloud\-Visualization}!\-Cloud\-Visualization@{\-Cloud\-Visualization}}
+\index{\-Cloud\-Visualization@{\-Cloud\-Visualization}!CloudVisualization@{\-Cloud\-Visualization}}
+\subsubsection[{\-Cloud\-Visualization}]{\setlength{\rightskip}{0pt plus 5cm}{\bf \-Cloud\-Visualization\-::\-Cloud\-Visualization} (
+\begin{DoxyParamCaption}
+\item[{{\bf \-Cloud\-R\-G\-B\-D} $\ast$}]{cloud}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classCloudVisualization_aecb0d8a62730eff91f93dff4fc8ff705}
+\-Constructor 
+
+\subsection{\-Member \-Function \-Documentation}
+\hypertarget{classCloudVisualization_a8ef8a1cd84e7ed677147fe1f85c295bd}{\index{\-Cloud\-Visualization@{\-Cloud\-Visualization}!run@{run}}
+\index{run@{run}!CloudVisualization@{\-Cloud\-Visualization}}
+\subsubsection[{run}]{\setlength{\rightskip}{0pt plus 5cm}void {\bf \-Cloud\-Visualization\-::run} (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classCloudVisualization_a8ef8a1cd84e7ed677147fe1f85c295bd}
+\-Run the visualization in a different thread 
+
+\subsection{\-Member \-Data \-Documentation}
+\hypertarget{classCloudVisualization_afda3094aaee3c06cbe5fb004b9a14f68}{\index{\-Cloud\-Visualization@{\-Cloud\-Visualization}!cloud\-R\-G\-B\-D@{cloud\-R\-G\-B\-D}}
+\index{cloud\-R\-G\-B\-D@{cloud\-R\-G\-B\-D}!CloudVisualization@{\-Cloud\-Visualization}}
+\subsubsection[{cloud\-R\-G\-B\-D}]{\setlength{\rightskip}{0pt plus 5cm}{\bf \-Cloud\-R\-G\-B\-D}$\ast$ {\bf \-Cloud\-Visualization\-::cloud\-R\-G\-B\-D}}}\label{classCloudVisualization_afda3094aaee3c06cbe5fb004b9a14f68}
+\-Point \-Cloud from \-R\-G\-B-\/\-D image to be displayed \hypertarget{classCloudVisualization_af2d2977ac87ebe1bf9ae8dbf34851e15}{\index{\-Cloud\-Visualization@{\-Cloud\-Visualization}!cloud\-Viewer@{cloud\-Viewer}}
+\index{cloud\-Viewer@{cloud\-Viewer}!CloudVisualization@{\-Cloud\-Visualization}}
+\subsubsection[{cloud\-Viewer}]{\setlength{\rightskip}{0pt plus 5cm}pcl\-::visualization\-::\-Cloud\-Viewer {\bf \-Cloud\-Visualization\-::cloud\-Viewer}}}\label{classCloudVisualization_af2d2977ac87ebe1bf9ae8dbf34851e15}
+\-Visualizer object \hypertarget{classCloudVisualization_a60ec9169f4b99d64b6a9248f2e4f469c}{\index{\-Cloud\-Visualization@{\-Cloud\-Visualization}!mtx\-\_\-visualization@{mtx\-\_\-visualization}}
+\index{mtx\-\_\-visualization@{mtx\-\_\-visualization}!CloudVisualization@{\-Cloud\-Visualization}}
+\subsubsection[{mtx\-\_\-visualization}]{\setlength{\rightskip}{0pt plus 5cm}boost\-::mutex {\bf \-Cloud\-Visualization\-::mtx\-\_\-visualization}}}\label{classCloudVisualization_a60ec9169f4b99d64b6a9248f2e4f469c}
+\-Mutex to syncrhronize eventual changes in cloud\-R\-G\-B\-D 
+
+\-The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+frame\-R\-G\-B\-D/\-Cloud\-Visualization.\-h\end{DoxyCompactItemize}

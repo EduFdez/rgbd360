@@ -1,0 +1,73 @@
+\hypertarget{classCloudGrabber}{\section{Cloud\-Grabber Class Reference}
+\label{classCloudGrabber}\index{Cloud\-Grabber@{Cloud\-Grabber}}
+}
+
+
+{\ttfamily \#include $<$Cloud\-Grabber.\-h$>$}
+
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classCloudGrabber_a0588e520a70880ab4ac1f8052954b956}{Cloud\-Grabber} (const std\-::string device\-\_\-id=\char`\"{}\char`\"{}, const pcl\-::\-Open\-N\-I\-Grabber\-::\-Mode mode=pcl\-::\-Open\-N\-I\-Grabber\-::\-Open\-N\-I\-\_\-\-Q\-V\-G\-A\-\_\-30\-Hz)
+\item 
+void \hyperlink{classCloudGrabber_aa43eeeef0931d284e5fcf65669e3cbb8}{grab} (pcl\-::\-Point\-Cloud$<$ Point\-T $>$\-::Ptr \&current\-Point\-Cloud\-Ptr)
+\item 
+void \hyperlink{classCloudGrabber_af97ce184e7835e93b19819a46247b168}{stop} ()
+\end{DoxyCompactItemize}
+\subsection*{Private Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hypertarget{classCloudGrabber_aa3e4c82f3a31773886c4dbcfc730cfe7}{void {\bfseries cloud\-\_\-cb\-\_\-} (const pcl\-::\-Point\-Cloud$<$ Point\-T $>$\-::Const\-Ptr \&cloud)}\label{classCloudGrabber_aa3e4c82f3a31773886c4dbcfc730cfe7}
+
+\end{DoxyCompactItemize}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\hypertarget{classCloudGrabber_ad5e62e8d31c15d6056fba6c368affb53}{boost\-::mutex {\bfseries mtx\-\_\-grabbing}}\label{classCloudGrabber_ad5e62e8d31c15d6056fba6c368affb53}
+
+\item 
+\hypertarget{classCloudGrabber_a639880bfe515621f38ba444b46e0cc3a}{pcl\-::\-Open\-N\-I\-Grabber $\ast$ {\bfseries interface}}\label{classCloudGrabber_a639880bfe515621f38ba444b46e0cc3a}
+
+\item 
+\hypertarget{classCloudGrabber_a645b63c865c72b86361b0b774189788a}{pcl\-::\-Point\-Cloud$<$ Point\-T $>$\-::Const\-Ptr {\bfseries point\-Cloud\-Ptr\-\_\-aux}}\label{classCloudGrabber_a645b63c865c72b86361b0b774189788a}
+
+\item 
+\hypertarget{classCloudGrabber_a5e9576b78ebec129c753299e0f304c2d}{boost\-::signals2\-::connection {\bfseries cloud\-\_\-connection}}\label{classCloudGrabber_a5e9576b78ebec129c753299e0f304c2d}
+
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+This class is used to grab frames from an R\-G\-B-\/\-D sensor (e.\-g. Asus X\-P\-L or Kinect) using Open\-N\-I-\/1.\-X 
+
+\subsection{Constructor \& Destructor Documentation}
+\hypertarget{classCloudGrabber_a0588e520a70880ab4ac1f8052954b956}{\index{Cloud\-Grabber@{Cloud\-Grabber}!Cloud\-Grabber@{Cloud\-Grabber}}
+\index{Cloud\-Grabber@{Cloud\-Grabber}!CloudGrabber@{Cloud\-Grabber}}
+\subsubsection[{Cloud\-Grabber}]{\setlength{\rightskip}{0pt plus 5cm}Cloud\-Grabber\-::\-Cloud\-Grabber (
+\begin{DoxyParamCaption}
+\item[{const std\-::string}]{device\-\_\-id = {\ttfamily \char`\"{}\char`\"{}}, }
+\item[{const pcl\-::\-Open\-N\-I\-Grabber\-::\-Mode}]{mode = {\ttfamily pcl\-:\-:OpenNIGrabber\-:\-:OpenNI\-\_\-QVGA\-\_\-30Hz}}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCloudGrabber_a0588e520a70880ab4ac1f8052954b956}
+Conastructor. 
+
+\subsection{Member Function Documentation}
+\hypertarget{classCloudGrabber_aa43eeeef0931d284e5fcf65669e3cbb8}{\index{Cloud\-Grabber@{Cloud\-Grabber}!grab@{grab}}
+\index{grab@{grab}!CloudGrabber@{Cloud\-Grabber}}
+\subsubsection[{grab}]{\setlength{\rightskip}{0pt plus 5cm}void Cloud\-Grabber\-::grab (
+\begin{DoxyParamCaption}
+\item[{pcl\-::\-Point\-Cloud$<$ Point\-T $>$\-::Ptr \&}]{current\-Point\-Cloud\-Ptr}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCloudGrabber_aa43eeeef0931d284e5fcf65669e3cbb8}
+Get the current frame. \hypertarget{classCloudGrabber_af97ce184e7835e93b19819a46247b168}{\index{Cloud\-Grabber@{Cloud\-Grabber}!stop@{stop}}
+\index{stop@{stop}!CloudGrabber@{Cloud\-Grabber}}
+\subsubsection[{stop}]{\setlength{\rightskip}{0pt plus 5cm}void Cloud\-Grabber\-::stop (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCloudGrabber_af97ce184e7835e93b19819a46247b168}
+Stop grabing R\-G\-B\-D frames. 
+
+The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+include/Cloud\-Grabber.\-h\end{DoxyCompactItemize}

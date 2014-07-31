@@ -1,0 +1,2 @@
+export OPENNI2_INCLUDE=/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Packaging/Linux/Include
+export OPENNI2_REDIST=/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Packaging/Linux/Redist

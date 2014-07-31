@@ -1,0 +1,207 @@
+\hypertarget{classRegisterRGBD360}{\section{Register\-R\-G\-B\-D360 Class Reference}
+\label{classRegisterRGBD360}\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}}
+}
+
+
+{\ttfamily \#include $<$Register\-R\-G\-B\-D360.\-h$>$}
+
+\subsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+enum \hyperlink{classRegisterRGBD360_a919695c4544733673afeecdddd7f4937}{registration\-Type} \{ {\bfseries D\-E\-F\-A\-U\-L\-T\-\_\-6\-Do\-F}, 
+{\bfseries O\-D\-O\-M\-E\-T\-R\-Y\-\_\-6\-Do\-F}, 
+{\bfseries P\-L\-A\-N\-A\-R\-\_\-3\-Do\-F}, 
+{\bfseries P\-L\-A\-N\-A\-R\-\_\-\-O\-D\-O\-M\-E\-T\-R\-Y\-\_\-3\-Do\-F}
+ \}
+\end{DoxyCompactItemize}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classRegisterRGBD360_a0d2d0751710062d3d1a3cf4c9c642cdf}{Register\-R\-G\-B\-D360} (const std\-::string \&config\-File)
+\item 
+void \hyperlink{classRegisterRGBD360_af5b95ea47aa8787aac3a7a2adb853081}{set\-Reference} (\hyperlink{classFrame360}{Frame360} $\ast$ref, const size\-\_\-t max\-\_\-match\-\_\-planes=0)
+\item 
+void \hyperlink{classRegisterRGBD360_ab294206b1649007362fcb1cf58829f61}{set\-Target} (\hyperlink{classFrame360}{Frame360} $\ast$trg, const size\-\_\-t max\-\_\-match\-\_\-planes=0)
+\item 
+Eigen\-::\-Matrix4f \hyperlink{classRegisterRGBD360_a0841292296042084066ef9ca190da5e2}{get\-Pose} ()
+\item 
+Eigen\-::\-Matrix$<$ float, 6, 6 $>$ \hyperlink{classRegisterRGBD360_a2ad0276675ecdf745a864ceec44857c9}{get\-Cov\-Mat} ()
+\item 
+Eigen\-::\-Matrix$<$ float, 6, 6 $>$ \hyperlink{classRegisterRGBD360_a2d30249957556470e79524a981f32ebd}{get\-Info\-Mat} ()
+\item 
+float \hyperlink{classRegisterRGBD360_a1d38a8534a4648ae820c86c274f73c54}{calc\-Entropy} ()
+\item 
+std\-::map$<$ unsigned, unsigned $>$ \hyperlink{classRegisterRGBD360_af5e999e694818baf9b0ffc439ddd9869}{get\-Matched\-Planes} ()
+\item 
+float \hyperlink{classRegisterRGBD360_a960acb2d7cec9dcb5adfacf6cbefb5b3}{get\-Area\-Matched} ()
+\item 
+bool \hyperlink{classRegisterRGBD360_a68bf6709559cdcdc79fd328b37300f6d}{Register} (\hyperlink{classFrame360}{Frame360} $\ast$frame1=N\-U\-L\-L, \hyperlink{classFrame360}{Frame360} $\ast$frame2=N\-U\-L\-L, const size\-\_\-t max\-\_\-match\-\_\-planes=0, \hyperlink{classRegisterRGBD360_a919695c4544733673afeecdddd7f4937}{registration\-Type} regist\-Mode=D\-E\-F\-A\-U\-L\-T\-\_\-6\-Do\-F)
+\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+float \hyperlink{classRegisterRGBD360_a30f71035c229331a8b9eb3ee5b9855b0}{area\-Source}
+\item 
+float \hyperlink{classRegisterRGBD360_a8b6a2ee36d5a37d7ad6b8c612e66cb2a}{area\-Target}
+\end{DoxyCompactItemize}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classFrame360}{Frame360} $\ast$ \hyperlink{classRegisterRGBD360_ad6545ecea17082a932f1d0b4484e6b0c}{p\-Ref360}
+\item 
+\hyperlink{classFrame360}{Frame360} $\ast$ \hyperlink{classRegisterRGBD360_a9ce56d7214d0f133c77f58fc3530e89a}{p\-Trg360}
+\item 
+mrpt\-::pbmap\-::\-Subgraph \hyperlink{classRegisterRGBD360_a203bdc0dc64df15f3ec48e43957c62fc}{ref\-Graph}
+\item 
+mrpt\-::pbmap\-::\-Subgraph \hyperlink{classRegisterRGBD360_ab91b2df6d1b7d557fc1a81278ecf15fa}{trg\-Graph}
+\item 
+Eigen\-::\-Matrix4f \hyperlink{classRegisterRGBD360_ac096bcae62d7e9db6dac8335a4f19e70}{rigid\-Transf}
+\item 
+Eigen\-::\-Matrix$<$ float, 6, 6 $>$ \hyperlink{classRegisterRGBD360_a8181c64807ede9dc94c357daa392d9b4}{covariance\-M}
+\item 
+Eigen\-::\-Matrix$<$ float, 6, 6 $>$ \hyperlink{classRegisterRGBD360_ad4eefda981429bfa865d1887ba11139c}{information\-M}
+\item 
+std\-::map$<$ unsigned, unsigned $>$ \hyperlink{classRegisterRGBD360_a9f73ec9a03579dd95f8228083ef73e86}{best\-Match}
+\item 
+float \hyperlink{classRegisterRGBD360_aa2ab5e4f34ecdfebd3eb10902086a04b}{area\-Matched}
+\item 
+bool \hyperlink{classRegisterRGBD360_ad2e72787086da0c82c3fb4f187aab10b}{b\-Registration\-Done}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+This class implements the functionality to register the Pb\-Maps from two spherical R\-G\-B-\/\-D frames 
+
+\subsection{Member Enumeration Documentation}
+\hypertarget{classRegisterRGBD360_a919695c4544733673afeecdddd7f4937}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!registration\-Type@{registration\-Type}}
+\index{registration\-Type@{registration\-Type}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{registration\-Type}]{\setlength{\rightskip}{0pt plus 5cm}enum {\bf Register\-R\-G\-B\-D360\-::registration\-Type}}}\label{classRegisterRGBD360_a919695c4544733673afeecdddd7f4937}
+Different registration modes for pairs of Pb\-Maps from spherical R\-G\-B-\/\-D observations 
+
+\subsection{Constructor \& Destructor Documentation}
+\hypertarget{classRegisterRGBD360_a0d2d0751710062d3d1a3cf4c9c642cdf}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}}
+\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{Register\-R\-G\-B\-D360}]{\setlength{\rightskip}{0pt plus 5cm}Register\-R\-G\-B\-D360\-::\-Register\-R\-G\-B\-D360 (
+\begin{DoxyParamCaption}
+\item[{const std\-::string \&}]{config\-File}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRegisterRGBD360_a0d2d0751710062d3d1a3cf4c9c642cdf}
+Constructor 
+
+\subsection{Member Function Documentation}
+\hypertarget{classRegisterRGBD360_a1d38a8534a4648ae820c86c274f73c54}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!calc\-Entropy@{calc\-Entropy}}
+\index{calc\-Entropy@{calc\-Entropy}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{calc\-Entropy}]{\setlength{\rightskip}{0pt plus 5cm}float Register\-R\-G\-B\-D360\-::calc\-Entropy (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRegisterRGBD360_a1d38a8534a4648ae820c86c274f73c54}
+Calculate entropy of the planar matching. This is the differential entropy of a multivariate normal distribution given by the matched planes. The formula to calculate it is the one used in the paper \mbox{[}\char`\"{}\-Dense Visual S\-L\-A\-M for R\-G\-B-\/\-D Cameras\char`\"{}, by C. Kerl et al., in I\-R\-O\-S 2013\mbox{]}. \hypertarget{classRegisterRGBD360_a960acb2d7cec9dcb5adfacf6cbefb5b3}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!get\-Area\-Matched@{get\-Area\-Matched}}
+\index{get\-Area\-Matched@{get\-Area\-Matched}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{get\-Area\-Matched}]{\setlength{\rightskip}{0pt plus 5cm}float Register\-R\-G\-B\-D360\-::get\-Area\-Matched (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRegisterRGBD360_a960acb2d7cec9dcb5adfacf6cbefb5b3}
+Return the total area of the matched planes measured in the source frame \hypertarget{classRegisterRGBD360_a2ad0276675ecdf745a864ceec44857c9}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!get\-Cov\-Mat@{get\-Cov\-Mat}}
+\index{get\-Cov\-Mat@{get\-Cov\-Mat}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{get\-Cov\-Mat}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Matrix$<$float,6,6$>$ Register\-R\-G\-B\-D360\-::get\-Cov\-Mat (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRegisterRGBD360_a2ad0276675ecdf745a864ceec44857c9}
+Return the 6x6 covariance matrix of the pose of p\-Trg360 as seen from p\-Ref360 \hypertarget{classRegisterRGBD360_a2d30249957556470e79524a981f32ebd}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!get\-Info\-Mat@{get\-Info\-Mat}}
+\index{get\-Info\-Mat@{get\-Info\-Mat}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{get\-Info\-Mat}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Matrix$<$float,6,6$>$ Register\-R\-G\-B\-D360\-::get\-Info\-Mat (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRegisterRGBD360_a2d30249957556470e79524a981f32ebd}
+Return the 6x6 information matrix of the pose of p\-Trg360 as seen from p\-Ref360 \hypertarget{classRegisterRGBD360_af5e999e694818baf9b0ffc439ddd9869}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!get\-Matched\-Planes@{get\-Matched\-Planes}}
+\index{get\-Matched\-Planes@{get\-Matched\-Planes}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{get\-Matched\-Planes}]{\setlength{\rightskip}{0pt plus 5cm}std\-::map$<$unsigned, unsigned$>$ Register\-R\-G\-B\-D360\-::get\-Matched\-Planes (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRegisterRGBD360_af5e999e694818baf9b0ffc439ddd9869}
+Get matched planes \hypertarget{classRegisterRGBD360_a0841292296042084066ef9ca190da5e2}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!get\-Pose@{get\-Pose}}
+\index{get\-Pose@{get\-Pose}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{get\-Pose}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Matrix4f Register\-R\-G\-B\-D360\-::get\-Pose (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRegisterRGBD360_a0841292296042084066ef9ca190da5e2}
+Return the pose of p\-Trg360 as seen from p\-Ref360 \hypertarget{classRegisterRGBD360_a68bf6709559cdcdc79fd328b37300f6d}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!Register@{Register}}
+\index{Register@{Register}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{Register}]{\setlength{\rightskip}{0pt plus 5cm}bool Register\-R\-G\-B\-D360\-::\-Register (
+\begin{DoxyParamCaption}
+\item[{{\bf Frame360} $\ast$}]{frame1 = {\ttfamily NULL}, }
+\item[{{\bf Frame360} $\ast$}]{frame2 = {\ttfamily NULL}, }
+\item[{const size\-\_\-t}]{max\-\_\-match\-\_\-planes = {\ttfamily 0}, }
+\item[{{\bf registration\-Type}}]{regist\-Mode = {\ttfamily DEFAULT\-\_\-6DoF}}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRegisterRGBD360_a68bf6709559cdcdc79fd328b37300f6d}
+Set the target frame and source frames for registration if specified. If the parameter 'max\-\_\-match\-\_\-planes' is set, only the number 'max\-\_\-match\-\_\-planes' planes with the largest area are selected for registration. If this parameter is 0 (default) all the planes are used. The parameter 'regist\-Mode' is used constraint the plane matching as 0(D\-E\-F\-A\-U\-L\-T\-\_\-6\-Do\-F)\-: unconstrained movement between frames, 1(O\-D\-O\-M\-E\-T\-R\-Y\-\_\-6\-Do\-F)\-: odometry (small displacement between the two frames/places), 2(P\-L\-A\-N\-A\-R\-\_\-3\-Do\-F)\-: planar movement (the camera is fixed in height) 3(P\-L\-A\-N\-A\-R\-\_\-\-O\-D\-O\-M\-E\-T\-R\-Y\-\_\-3\-Do\-F)\-: odometry + planar movement (small displacementes + the camera is fixed in height) \hypertarget{classRegisterRGBD360_af5b95ea47aa8787aac3a7a2adb853081}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!set\-Reference@{set\-Reference}}
+\index{set\-Reference@{set\-Reference}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{set\-Reference}]{\setlength{\rightskip}{0pt plus 5cm}void Register\-R\-G\-B\-D360\-::set\-Reference (
+\begin{DoxyParamCaption}
+\item[{{\bf Frame360} $\ast$}]{ref, }
+\item[{const size\-\_\-t}]{max\-\_\-match\-\_\-planes = {\ttfamily 0}}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRegisterRGBD360_af5b95ea47aa8787aac3a7a2adb853081}
+Set the reference frame for registration. If the parameter 'max\-\_\-match\-\_\-planes' is set, only the number 'max\-\_\-match\-\_\-planes' planes with the largest area are selected for registration. If this parameter is 0 (default) all the planes are used. \hypertarget{classRegisterRGBD360_ab294206b1649007362fcb1cf58829f61}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!set\-Target@{set\-Target}}
+\index{set\-Target@{set\-Target}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{set\-Target}]{\setlength{\rightskip}{0pt plus 5cm}void Register\-R\-G\-B\-D360\-::set\-Target (
+\begin{DoxyParamCaption}
+\item[{{\bf Frame360} $\ast$}]{trg, }
+\item[{const size\-\_\-t}]{max\-\_\-match\-\_\-planes = {\ttfamily 0}}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRegisterRGBD360_ab294206b1649007362fcb1cf58829f61}
+Set the target frame for registration. If the parameter 'max\-\_\-match\-\_\-planes' is set, only the number 'max\-\_\-match\-\_\-planes' planes with the largest area are selected for registration. If this parameter is 0 (default) all the planes are used. 
+
+\subsection{Member Data Documentation}
+\hypertarget{classRegisterRGBD360_aa2ab5e4f34ecdfebd3eb10902086a04b}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!area\-Matched@{area\-Matched}}
+\index{area\-Matched@{area\-Matched}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{area\-Matched}]{\setlength{\rightskip}{0pt plus 5cm}float Register\-R\-G\-B\-D360\-::area\-Matched\hspace{0.3cm}{\ttfamily [private]}}}\label{classRegisterRGBD360_aa2ab5e4f34ecdfebd3eb10902086a04b}
+The number of matched planar patches
+
+The sum of areas of the matched planar patches in the reference frame \hypertarget{classRegisterRGBD360_a30f71035c229331a8b9eb3ee5b9855b0}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!area\-Source@{area\-Source}}
+\index{area\-Source@{area\-Source}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{area\-Source}]{\setlength{\rightskip}{0pt plus 5cm}float Register\-R\-G\-B\-D360\-::area\-Source}}\label{classRegisterRGBD360_a30f71035c229331a8b9eb3ee5b9855b0}
+The sum of areas of the registration source planes \hypertarget{classRegisterRGBD360_a8b6a2ee36d5a37d7ad6b8c612e66cb2a}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!area\-Target@{area\-Target}}
+\index{area\-Target@{area\-Target}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{area\-Target}]{\setlength{\rightskip}{0pt plus 5cm}float Register\-R\-G\-B\-D360\-::area\-Target}}\label{classRegisterRGBD360_a8b6a2ee36d5a37d7ad6b8c612e66cb2a}
+The sum of areas of the registration target planes \hypertarget{classRegisterRGBD360_a9f73ec9a03579dd95f8228083ef73e86}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!best\-Match@{best\-Match}}
+\index{best\-Match@{best\-Match}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{best\-Match}]{\setlength{\rightskip}{0pt plus 5cm}std\-::map$<$unsigned, unsigned$>$ Register\-R\-G\-B\-D360\-::best\-Match\hspace{0.3cm}{\ttfamily [private]}}}\label{classRegisterRGBD360_a9f73ec9a03579dd95f8228083ef73e86}
+The matched planar patches \hypertarget{classRegisterRGBD360_ad2e72787086da0c82c3fb4f187aab10b}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!b\-Registration\-Done@{b\-Registration\-Done}}
+\index{b\-Registration\-Done@{b\-Registration\-Done}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{b\-Registration\-Done}]{\setlength{\rightskip}{0pt plus 5cm}bool Register\-R\-G\-B\-D360\-::b\-Registration\-Done\hspace{0.3cm}{\ttfamily [private]}}}\label{classRegisterRGBD360_ad2e72787086da0c82c3fb4f187aab10b}
+has the registration already been done? \hypertarget{classRegisterRGBD360_a8181c64807ede9dc94c357daa392d9b4}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!covariance\-M@{covariance\-M}}
+\index{covariance\-M@{covariance\-M}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{covariance\-M}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Matrix$<$float,6,6$>$ Register\-R\-G\-B\-D360\-::covariance\-M\hspace{0.3cm}{\ttfamily [private]}}}\label{classRegisterRGBD360_a8181c64807ede9dc94c357daa392d9b4}
+6x6 covariance matrix of the pose of p\-Trg360 as seen from p\-Ref360 (the inverse of information matrix) \hypertarget{classRegisterRGBD360_ad4eefda981429bfa865d1887ba11139c}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!information\-M@{information\-M}}
+\index{information\-M@{information\-M}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{information\-M}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Matrix$<$float,6,6$>$ Register\-R\-G\-B\-D360\-::information\-M\hspace{0.3cm}{\ttfamily [private]}}}\label{classRegisterRGBD360_ad4eefda981429bfa865d1887ba11139c}
+6x6 information matrix of the pose of p\-Trg360 as seen from p\-Ref360 (the inverse of covariance matrix) \hypertarget{classRegisterRGBD360_ad6545ecea17082a932f1d0b4484e6b0c}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!p\-Ref360@{p\-Ref360}}
+\index{p\-Ref360@{p\-Ref360}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{p\-Ref360}]{\setlength{\rightskip}{0pt plus 5cm}{\bf Frame360}$\ast$ Register\-R\-G\-B\-D360\-::p\-Ref360\hspace{0.3cm}{\ttfamily [private]}}}\label{classRegisterRGBD360_ad6545ecea17082a932f1d0b4484e6b0c}
+Maximum curvature of a patch to be considered by the matching algorithm
+
+Reference frame for registration \hypertarget{classRegisterRGBD360_a9ce56d7214d0f133c77f58fc3530e89a}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!p\-Trg360@{p\-Trg360}}
+\index{p\-Trg360@{p\-Trg360}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{p\-Trg360}]{\setlength{\rightskip}{0pt plus 5cm}{\bf Frame360}$\ast$ Register\-R\-G\-B\-D360\-::p\-Trg360\hspace{0.3cm}{\ttfamily [private]}}}\label{classRegisterRGBD360_a9ce56d7214d0f133c77f58fc3530e89a}
+Target frame for registration \hypertarget{classRegisterRGBD360_a203bdc0dc64df15f3ec48e43957c62fc}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!ref\-Graph@{ref\-Graph}}
+\index{ref\-Graph@{ref\-Graph}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{ref\-Graph}]{\setlength{\rightskip}{0pt plus 5cm}mrpt\-::pbmap\-::\-Subgraph Register\-R\-G\-B\-D360\-::ref\-Graph\hspace{0.3cm}{\ttfamily [private]}}}\label{classRegisterRGBD360_a203bdc0dc64df15f3ec48e43957c62fc}
+Subgraph of 'matchable' planes from the reference frame \hypertarget{classRegisterRGBD360_ac096bcae62d7e9db6dac8335a4f19e70}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!rigid\-Transf@{rigid\-Transf}}
+\index{rigid\-Transf@{rigid\-Transf}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{rigid\-Transf}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Matrix4f Register\-R\-G\-B\-D360\-::rigid\-Transf\hspace{0.3cm}{\ttfamily [private]}}}\label{classRegisterRGBD360_ac096bcae62d7e9db6dac8335a4f19e70}
+Pose of p\-Trg360 as seen from p\-Ref360 \hypertarget{classRegisterRGBD360_ab91b2df6d1b7d557fc1a81278ecf15fa}{\index{Register\-R\-G\-B\-D360@{Register\-R\-G\-B\-D360}!trg\-Graph@{trg\-Graph}}
+\index{trg\-Graph@{trg\-Graph}!RegisterRGBD360@{Register\-R\-G\-B\-D360}}
+\subsubsection[{trg\-Graph}]{\setlength{\rightskip}{0pt plus 5cm}mrpt\-::pbmap\-::\-Subgraph Register\-R\-G\-B\-D360\-::trg\-Graph\hspace{0.3cm}{\ttfamily [private]}}}\label{classRegisterRGBD360_ab91b2df6d1b7d557fc1a81278ecf15fa}
+Subgraph of 'matchable' planes from the target frame 
+
+The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+include/Register\-R\-G\-B\-D360.\-h\end{DoxyCompactItemize}

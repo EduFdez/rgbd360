@@ -1,0 +1,122 @@
+\hypertarget{classGraphOptimizer}{\section{Graph\-Optimizer Class Reference}
+\label{classGraphOptimizer}\index{Graph\-Optimizer@{Graph\-Optimizer}}
+}
+
+
+{\ttfamily \#include $<$Graph\-Optimizer.\-h$>$}
+
+\subsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+enum \hyperlink{classGraphOptimizer_a21a8d2f42bd9f16a4392165b2f870519}{Rigid\-Transformation\-Type} \{ {\bfseries Six\-Degrees\-Of\-Freedom}, 
+{\bfseries Three\-Degrees\-Of\-Freedom}
+ \}
+\end{DoxyCompactItemize}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classGraphOptimizer_ae83e656c0388055d7a1ee93daf23b6f6}{Graph\-Optimizer} ()
+\item 
+void \hyperlink{classGraphOptimizer_abfc62d26e775bee508b43809b9a617d5}{set\-Rigid\-Transformation\-Type} (\hyperlink{classGraphOptimizer_a21a8d2f42bd9f16a4392165b2f870519}{Rigid\-Transformation\-Type} rttype)
+\item 
+int \hyperlink{classGraphOptimizer_a5d8a637a588269b2d99b4566129f2fde}{add\-Vertex} (Eigen\-::\-Matrix4f \&vertex\-Pose)
+\item 
+void \hyperlink{classGraphOptimizer_a520bc5a1539437c37d773e19318e3431}{add\-Edge} (const int from\-Idx, const int to\-Idx, Eigen\-::\-Matrix4f \&relative\-Pose, Eigen\-::\-Matrix$<$ float, 6, 6 $>$ \&information\-Matrix)
+\item 
+void \hyperlink{classGraphOptimizer_a2294fd5b0130f1550e32eb27fc508ef1}{optimize\-Graph} ()
+\item 
+void \hyperlink{classGraphOptimizer_a07f04695bef0b9b922c6be0fb10e0dab}{get\-Poses} (std\-::vector$<$ Eigen\-::\-Matrix4f, Eigen\-::aligned\-\_\-allocator$<$ Eigen\-::\-Matrix4f $>$ $>$ \&poses)
+\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\hypertarget{classGraphOptimizer_aae75c992b3137f3c9c887e77d644531d}{enum \\*
+\hyperlink{classGraphOptimizer_a21a8d2f42bd9f16a4392165b2f870519}{Graph\-Optimizer\-::\-Rigid\-Transformation\-Type} {\bfseries rigid\-Transformation\-Type}}\label{classGraphOptimizer_aae75c992b3137f3c9c887e77d644531d}
+
+\end{DoxyCompactItemize}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+int \hyperlink{classGraphOptimizer_afebac94ac7869590cf4e7503d362b9a9}{vertex\-Idx}
+\item 
+mrpt\-::graphs\-::\-C\-Network\-Of\-Poses3\-D\-Inf \hyperlink{classGraphOptimizer_a315fe25efae9c1e55723e225039a450b}{graph3\-D}
+\item 
+mrpt\-::graphs\-::\-C\-Network\-Of\-Poses2\-D\-Inf \hyperlink{classGraphOptimizer_af07abbef586789f8bbd42eec7744ee56}{graph2\-D}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+This class performs pose-\/graph optimization. This class is based on the previous work of Miguel Algaba Borrego, in \char`\"{}http\-://code.\-google.\-com/p/kinect-\/rgbd-\/graphslam6d/\char`\"{}. 
+
+\subsection{Member Enumeration Documentation}
+\hypertarget{classGraphOptimizer_a21a8d2f42bd9f16a4392165b2f870519}{\index{Graph\-Optimizer@{Graph\-Optimizer}!Rigid\-Transformation\-Type@{Rigid\-Transformation\-Type}}
+\index{Rigid\-Transformation\-Type@{Rigid\-Transformation\-Type}!GraphOptimizer@{Graph\-Optimizer}}
+\subsubsection[{Rigid\-Transformation\-Type}]{\setlength{\rightskip}{0pt plus 5cm}enum {\bf Graph\-Optimizer\-::\-Rigid\-Transformation\-Type}}}\label{classGraphOptimizer_a21a8d2f42bd9f16a4392165b2f870519}
+Different optimization modes for pairs of Pb\-Maps from spherical R\-G\-B-\/\-D observations 
+
+\subsection{Constructor \& Destructor Documentation}
+\hypertarget{classGraphOptimizer_ae83e656c0388055d7a1ee93daf23b6f6}{\index{Graph\-Optimizer@{Graph\-Optimizer}!Graph\-Optimizer@{Graph\-Optimizer}}
+\index{Graph\-Optimizer@{Graph\-Optimizer}!GraphOptimizer@{Graph\-Optimizer}}
+\subsubsection[{Graph\-Optimizer}]{\setlength{\rightskip}{0pt plus 5cm}Graph\-Optimizer\-::\-Graph\-Optimizer (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classGraphOptimizer_ae83e656c0388055d7a1ee93daf23b6f6}
+Constructor 
+
+\subsection{Member Function Documentation}
+\hypertarget{classGraphOptimizer_a520bc5a1539437c37d773e19318e3431}{\index{Graph\-Optimizer@{Graph\-Optimizer}!add\-Edge@{add\-Edge}}
+\index{add\-Edge@{add\-Edge}!GraphOptimizer@{Graph\-Optimizer}}
+\subsubsection[{add\-Edge}]{\setlength{\rightskip}{0pt plus 5cm}void Graph\-Optimizer\-::add\-Edge (
+\begin{DoxyParamCaption}
+\item[{const int}]{from\-Idx, }
+\item[{const int}]{to\-Idx, }
+\item[{Eigen\-::\-Matrix4f \&}]{relative\-Pose, }
+\item[{Eigen\-::\-Matrix$<$ float, 6, 6 $>$ \&}]{information\-Matrix}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classGraphOptimizer_a520bc5a1539437c37d773e19318e3431}
+Add a new edge (connection) to the pose-\/graph \hypertarget{classGraphOptimizer_a5d8a637a588269b2d99b4566129f2fde}{\index{Graph\-Optimizer@{Graph\-Optimizer}!add\-Vertex@{add\-Vertex}}
+\index{add\-Vertex@{add\-Vertex}!GraphOptimizer@{Graph\-Optimizer}}
+\subsubsection[{add\-Vertex}]{\setlength{\rightskip}{0pt plus 5cm}int Graph\-Optimizer\-::add\-Vertex (
+\begin{DoxyParamCaption}
+\item[{Eigen\-::\-Matrix4f \&}]{vertex\-Pose}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classGraphOptimizer_a5d8a637a588269b2d99b4566129f2fde}
+Add a new vertex (node) to the pose-\/graph \hypertarget{classGraphOptimizer_a07f04695bef0b9b922c6be0fb10e0dab}{\index{Graph\-Optimizer@{Graph\-Optimizer}!get\-Poses@{get\-Poses}}
+\index{get\-Poses@{get\-Poses}!GraphOptimizer@{Graph\-Optimizer}}
+\subsubsection[{get\-Poses}]{\setlength{\rightskip}{0pt plus 5cm}void Graph\-Optimizer\-::get\-Poses (
+\begin{DoxyParamCaption}
+\item[{std\-::vector$<$ Eigen\-::\-Matrix4f, Eigen\-::aligned\-\_\-allocator$<$ Eigen\-::\-Matrix4f $>$ $>$ \&}]{poses}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classGraphOptimizer_a07f04695bef0b9b922c6be0fb10e0dab}
+Return the global poses of the graph nodes \hypertarget{classGraphOptimizer_a2294fd5b0130f1550e32eb27fc508ef1}{\index{Graph\-Optimizer@{Graph\-Optimizer}!optimize\-Graph@{optimize\-Graph}}
+\index{optimize\-Graph@{optimize\-Graph}!GraphOptimizer@{Graph\-Optimizer}}
+\subsubsection[{optimize\-Graph}]{\setlength{\rightskip}{0pt plus 5cm}void Graph\-Optimizer\-::optimize\-Graph (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classGraphOptimizer_a2294fd5b0130f1550e32eb27fc508ef1}
+Optimize the pose-\/graph using the Levenberg-\/\-Marquardt algorithm \hypertarget{classGraphOptimizer_abfc62d26e775bee508b43809b9a617d5}{\index{Graph\-Optimizer@{Graph\-Optimizer}!set\-Rigid\-Transformation\-Type@{set\-Rigid\-Transformation\-Type}}
+\index{set\-Rigid\-Transformation\-Type@{set\-Rigid\-Transformation\-Type}!GraphOptimizer@{Graph\-Optimizer}}
+\subsubsection[{set\-Rigid\-Transformation\-Type}]{\setlength{\rightskip}{0pt plus 5cm}void Graph\-Optimizer\-::set\-Rigid\-Transformation\-Type (
+\begin{DoxyParamCaption}
+\item[{{\bf Rigid\-Transformation\-Type}}]{rttype}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classGraphOptimizer_abfc62d26e775bee508b43809b9a617d5}
+Sets the rigid transformation type to the graph optimizer (6\-Do\-F or 3\-Do\-F). 
+
+\subsection{Member Data Documentation}
+\hypertarget{classGraphOptimizer_af07abbef586789f8bbd42eec7744ee56}{\index{Graph\-Optimizer@{Graph\-Optimizer}!graph2\-D@{graph2\-D}}
+\index{graph2\-D@{graph2\-D}!GraphOptimizer@{Graph\-Optimizer}}
+\subsubsection[{graph2\-D}]{\setlength{\rightskip}{0pt plus 5cm}mrpt\-::graphs\-::\-C\-Network\-Of\-Poses2\-D\-Inf Graph\-Optimizer\-::graph2\-D\hspace{0.3cm}{\ttfamily [private]}}}\label{classGraphOptimizer_af07abbef586789f8bbd42eec7744ee56}
+Graph containing the 2\-D poses (3\-Do\-F) \hypertarget{classGraphOptimizer_a315fe25efae9c1e55723e225039a450b}{\index{Graph\-Optimizer@{Graph\-Optimizer}!graph3\-D@{graph3\-D}}
+\index{graph3\-D@{graph3\-D}!GraphOptimizer@{Graph\-Optimizer}}
+\subsubsection[{graph3\-D}]{\setlength{\rightskip}{0pt plus 5cm}mrpt\-::graphs\-::\-C\-Network\-Of\-Poses3\-D\-Inf Graph\-Optimizer\-::graph3\-D\hspace{0.3cm}{\ttfamily [private]}}}\label{classGraphOptimizer_a315fe25efae9c1e55723e225039a450b}
+Graph containing the 3\-D poses (6\-Do\-F) \hypertarget{classGraphOptimizer_afebac94ac7869590cf4e7503d362b9a9}{\index{Graph\-Optimizer@{Graph\-Optimizer}!vertex\-Idx@{vertex\-Idx}}
+\index{vertex\-Idx@{vertex\-Idx}!GraphOptimizer@{Graph\-Optimizer}}
+\subsubsection[{vertex\-Idx}]{\setlength{\rightskip}{0pt plus 5cm}int Graph\-Optimizer\-::vertex\-Idx\hspace{0.3cm}{\ttfamily [private]}}}\label{classGraphOptimizer_afebac94ac7869590cf4e7503d362b9a9}
+Vertex counter 
+
+The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+include/Graph\-Optimizer.\-h\end{DoxyCompactItemize}

@@ -1,0 +1,112 @@
+\hypertarget{classTopologicalMap360}{\section{Topological\-Map360 Class Reference}
+\label{classTopologicalMap360}\index{Topological\-Map360@{Topological\-Map360}}
+}
+
+
+{\ttfamily \#include $<$Topological\-Map360.\-h$>$}
+
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classTopologicalMap360_aa9495123b318c74b799e07696c64fff3}{Topological\-Map360} (\hyperlink{structMap360}{Map360} \&map)
+\item 
+\hyperlink{classTopologicalMap360_ac93dea0ba65018ccaec88dc867b53ee9}{$\sim$\-Topological\-Map360} ()
+\item 
+mrpt\-::math\-::\-C\-Matrix \hyperlink{classTopologicalMap360_ac8b1dfee4fe397ae1a0fc763ce70db7d}{get\-Vicinity\-S\-S\-O} (std\-::set$<$ unsigned $>$ \&vicinity\-Current\-Node)
+\item 
+void \hyperlink{classTopologicalMap360_a198788c478c2b0507863e40fb0a846b7}{Arrange\-Graph\-S\-S\-O} (const std\-::vector$<$ mrpt\-::vector\-\_\-uint $>$ \&parts, mrpt\-::math\-::\-C\-Matrix \&S\-S\-O, const std\-::set$<$ unsigned $>$ \&new\-Nodes, const std\-::set$<$ unsigned $>$ \&previous\-Nodes\-\_\-, std\-::map$<$ unsigned, unsigned $>$ \&old\-Node\-Start)
+\item 
+void \hyperlink{classTopologicalMap360_a66c900f0a2d4fa6e54b1bb3258e81355}{Rearrange\-Partition} (std\-::vector$<$ mrpt\-::vector\-\_\-uint $>$ \&parts)
+\item 
+void \hyperlink{classTopologicalMap360_a48b8efbf9cb860717b0e8bcb085246f6}{Partitioner} ()
+\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+std\-::vector$<$ mrpt\-::math\-::\-C\-Matrix $>$ \hyperlink{classTopologicalMap360_a2cd7b8d445762886bdc2b902cbc6d818}{v\-S\-S\-O}
+\end{DoxyCompactItemize}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{structMap360}{Map360} \& \hyperlink{classTopologicalMap360_a0acbcd33de85764f4a9308aba73776ca}{Map}
+\item 
+std\-::map$<$ unsigned, std\-::map\\*
+$<$ unsigned, \\*
+mrpt\-::math\-::\-C\-Matrix $>$ $>$ \hyperlink{classTopologicalMap360_ab1627b97aa7b2120e21df7d5bd29b7d2}{mm\-Neig\-S\-S\-O}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+This class is used for the \hyperlink{structMap360}{Map360}'s topological arrangement by cutting a graph of nodes (keyframes) linked by common observations (S\-S\-O = Sensed-\/\-Space-\/\-Overlap). Partitioner is the main function of this class, which produces a new partitioning of the current neighbourhood. 
+
+\subsection{Constructor \& Destructor Documentation}
+\hypertarget{classTopologicalMap360_aa9495123b318c74b799e07696c64fff3}{\index{Topological\-Map360@{Topological\-Map360}!Topological\-Map360@{Topological\-Map360}}
+\index{Topological\-Map360@{Topological\-Map360}!TopologicalMap360@{Topological\-Map360}}
+\subsubsection[{Topological\-Map360}]{\setlength{\rightskip}{0pt plus 5cm}Topological\-Map360\-::\-Topological\-Map360 (
+\begin{DoxyParamCaption}
+\item[{{\bf Map360} \&}]{map}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classTopologicalMap360_aa9495123b318c74b799e07696c64fff3}
+Constructor \hypertarget{classTopologicalMap360_ac93dea0ba65018ccaec88dc867b53ee9}{\index{Topological\-Map360@{Topological\-Map360}!$\sim$\-Topological\-Map360@{$\sim$\-Topological\-Map360}}
+\index{$\sim$\-Topological\-Map360@{$\sim$\-Topological\-Map360}!TopologicalMap360@{Topological\-Map360}}
+\subsubsection[{$\sim$\-Topological\-Map360}]{\setlength{\rightskip}{0pt plus 5cm}Topological\-Map360\-::$\sim$\-Topological\-Map360 (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classTopologicalMap360_ac93dea0ba65018ccaec88dc867b53ee9}
+Destructor 
+
+\subsection{Member Function Documentation}
+\hypertarget{classTopologicalMap360_a198788c478c2b0507863e40fb0a846b7}{\index{Topological\-Map360@{Topological\-Map360}!Arrange\-Graph\-S\-S\-O@{Arrange\-Graph\-S\-S\-O}}
+\index{Arrange\-Graph\-S\-S\-O@{Arrange\-Graph\-S\-S\-O}!TopologicalMap360@{Topological\-Map360}}
+\subsubsection[{Arrange\-Graph\-S\-S\-O}]{\setlength{\rightskip}{0pt plus 5cm}void Topological\-Map360\-::\-Arrange\-Graph\-S\-S\-O (
+\begin{DoxyParamCaption}
+\item[{const std\-::vector$<$ mrpt\-::vector\-\_\-uint $>$ \&}]{parts, }
+\item[{mrpt\-::math\-::\-C\-Matrix \&}]{S\-S\-O, }
+\item[{const std\-::set$<$ unsigned $>$ \&}]{new\-Nodes, }
+\item[{const std\-::set$<$ unsigned $>$ \&}]{previous\-Nodes\-\_\-, }
+\item[{std\-::map$<$ unsigned, unsigned $>$ \&}]{old\-Node\-Start}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classTopologicalMap360_a198788c478c2b0507863e40fb0a846b7}
+Update vicinity information \hypertarget{classTopologicalMap360_ac8b1dfee4fe397ae1a0fc763ce70db7d}{\index{Topological\-Map360@{Topological\-Map360}!get\-Vicinity\-S\-S\-O@{get\-Vicinity\-S\-S\-O}}
+\index{get\-Vicinity\-S\-S\-O@{get\-Vicinity\-S\-S\-O}!TopologicalMap360@{Topological\-Map360}}
+\subsubsection[{get\-Vicinity\-S\-S\-O}]{\setlength{\rightskip}{0pt plus 5cm}mrpt\-::math\-::\-C\-Matrix Topological\-Map360\-::get\-Vicinity\-S\-S\-O (
+\begin{DoxyParamCaption}
+\item[{std\-::set$<$ unsigned $>$ \&}]{vicinity\-Current\-Node}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classTopologicalMap360_ac8b1dfee4fe397ae1a0fc763ce70db7d}
+Return a symmetric matrix with S\-S\-O coeficients of sensed-\/space-\/overlap (S\-S\-O) between the frames in the vicinity \hypertarget{classTopologicalMap360_a48b8efbf9cb860717b0e8bcb085246f6}{\index{Topological\-Map360@{Topological\-Map360}!Partitioner@{Partitioner}}
+\index{Partitioner@{Partitioner}!TopologicalMap360@{Topological\-Map360}}
+\subsubsection[{Partitioner}]{\setlength{\rightskip}{0pt plus 5cm}void Topological\-Map360\-::\-Partitioner (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classTopologicalMap360_a48b8efbf9cb860717b0e8bcb085246f6}
+Calculate Partitions of the current map(s). Arrange K\-Fs and points of updated partition \hypertarget{classTopologicalMap360_a66c900f0a2d4fa6e54b1bb3258e81355}{\index{Topological\-Map360@{Topological\-Map360}!Rearrange\-Partition@{Rearrange\-Partition}}
+\index{Rearrange\-Partition@{Rearrange\-Partition}!TopologicalMap360@{Topological\-Map360}}
+\subsubsection[{Rearrange\-Partition}]{\setlength{\rightskip}{0pt plus 5cm}void Topological\-Map360\-::\-Rearrange\-Partition (
+\begin{DoxyParamCaption}
+\item[{std\-::vector$<$ mrpt\-::vector\-\_\-uint $>$ \&}]{parts}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classTopologicalMap360_a66c900f0a2d4fa6e54b1bb3258e81355}
+Arrange the parts given by the partitioning function 
+
+\subsection{Member Data Documentation}
+\hypertarget{classTopologicalMap360_a0acbcd33de85764f4a9308aba73776ca}{\index{Topological\-Map360@{Topological\-Map360}!Map@{Map}}
+\index{Map@{Map}!TopologicalMap360@{Topological\-Map360}}
+\subsubsection[{Map}]{\setlength{\rightskip}{0pt plus 5cm}{\bf Map360}\& Topological\-Map360\-::\-Map\hspace{0.3cm}{\ttfamily [private]}}}\label{classTopologicalMap360_a0acbcd33de85764f4a9308aba73776ca}
+Reference to the Map \hypertarget{classTopologicalMap360_ab1627b97aa7b2120e21df7d5bd29b7d2}{\index{Topological\-Map360@{Topological\-Map360}!mm\-Neig\-S\-S\-O@{mm\-Neig\-S\-S\-O}}
+\index{mm\-Neig\-S\-S\-O@{mm\-Neig\-S\-S\-O}!TopologicalMap360@{Topological\-Map360}}
+\subsubsection[{mm\-Neig\-S\-S\-O}]{\setlength{\rightskip}{0pt plus 5cm}std\-::map$<$unsigned, std\-::map$<$unsigned, mrpt\-::math\-::\-C\-Matrix$>$ $>$ Topological\-Map360\-::mm\-Neig\-S\-S\-O\hspace{0.3cm}{\ttfamily [private]}}}\label{classTopologicalMap360_ab1627b97aa7b2120e21df7d5bd29b7d2}
+Keyframe registration object
+
+S\-S\-O matrices coupling adjacent topological areas \hypertarget{classTopologicalMap360_a2cd7b8d445762886bdc2b902cbc6d818}{\index{Topological\-Map360@{Topological\-Map360}!v\-S\-S\-O@{v\-S\-S\-O}}
+\index{v\-S\-S\-O@{v\-S\-S\-O}!TopologicalMap360@{Topological\-Map360}}
+\subsubsection[{v\-S\-S\-O}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$mrpt\-::math\-::\-C\-Matrix$>$ Topological\-Map360\-::v\-S\-S\-O}}\label{classTopologicalMap360_a2cd7b8d445762886bdc2b902cbc6d818}
+Mutex to syncrhronize eventual changes in the map topological arrangement
+
+S\-S\-O matrices of the different topological areas 
+
+The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+include/Topological\-Map360.\-h\end{DoxyCompactItemize}

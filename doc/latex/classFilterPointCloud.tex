@@ -1,0 +1,78 @@
+\hypertarget{classFilterPointCloud}{\section{Filter\-Point\-Cloud Class Reference}
+\label{classFilterPointCloud}\index{Filter\-Point\-Cloud@{Filter\-Point\-Cloud}}
+}
+
+
+{\ttfamily \#include $<$Filter\-Point\-Cloud.\-h$>$}
+
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classFilterPointCloud_a1b9e85f9248e896b7ff72f7a53e3b4c7}{Filter\-Point\-Cloud} (const float voxel\-Size=0.\-05, const float euclidean\-Box=4.\-0)
+\item 
+void \hyperlink{classFilterPointCloud_a871695368a71e98765f21d98ed353986}{filter\-Euclidean} (pcl\-::\-Point\-Cloud$<$ pcl\-::\-Point\-X\-Y\-Z\-R\-G\-B\-A $>$\-::Ptr \&cloud)
+\item 
+void \hyperlink{classFilterPointCloud_a425feb266962f406e97c70733b64f23e}{filter\-Voxel} (pcl\-::\-Point\-Cloud$<$ pcl\-::\-Point\-X\-Y\-Z\-R\-G\-B\-A $>$\-::Ptr \&cloud)
+\end{DoxyCompactItemize}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+pcl\-::\-Pass\-Through$<$ Point\-T $>$ \hyperlink{classFilterPointCloud_af657b269e7d2b17ede230f0193ceb332}{filter\-\_\-pass\-\_\-x}
+\item 
+pcl\-::\-Pass\-Through$<$ Point\-T $>$ \hyperlink{classFilterPointCloud_a9340b74286052b5ac7de9eadd2e0a6b3}{filter\-\_\-pass\-\_\-y}
+\item 
+pcl\-::\-Pass\-Through$<$ Point\-T $>$ \hyperlink{classFilterPointCloud_a3cf0458f538181a07634ba2d33ae0b95}{filter\-\_\-pass\-\_\-z}
+\item 
+pcl\-::\-Voxel\-Grid$<$ pcl\-::\-Point\-X\-Y\-Z\-R\-G\-B\-A $>$ \hyperlink{classFilterPointCloud_a02984936aef2ec44e87681f6d36f69cc}{filter\-\_\-voxel}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+This class is used to filter a point cloud in place. 
+
+\subsection{Constructor \& Destructor Documentation}
+\hypertarget{classFilterPointCloud_a1b9e85f9248e896b7ff72f7a53e3b4c7}{\index{Filter\-Point\-Cloud@{Filter\-Point\-Cloud}!Filter\-Point\-Cloud@{Filter\-Point\-Cloud}}
+\index{Filter\-Point\-Cloud@{Filter\-Point\-Cloud}!FilterPointCloud@{Filter\-Point\-Cloud}}
+\subsubsection[{Filter\-Point\-Cloud}]{\setlength{\rightskip}{0pt plus 5cm}Filter\-Point\-Cloud\-::\-Filter\-Point\-Cloud (
+\begin{DoxyParamCaption}
+\item[{const float}]{voxel\-Size = {\ttfamily 0.05}, }
+\item[{const float}]{euclidean\-Box = {\ttfamily 4.0}}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classFilterPointCloud_a1b9e85f9248e896b7ff72f7a53e3b4c7}
+Constructor. It sets the default parameters for the filters (these parameters are fixed) 
+
+\subsection{Member Function Documentation}
+\hypertarget{classFilterPointCloud_a871695368a71e98765f21d98ed353986}{\index{Filter\-Point\-Cloud@{Filter\-Point\-Cloud}!filter\-Euclidean@{filter\-Euclidean}}
+\index{filter\-Euclidean@{filter\-Euclidean}!FilterPointCloud@{Filter\-Point\-Cloud}}
+\subsubsection[{filter\-Euclidean}]{\setlength{\rightskip}{0pt plus 5cm}void Filter\-Point\-Cloud\-::filter\-Euclidean (
+\begin{DoxyParamCaption}
+\item[{pcl\-::\-Point\-Cloud$<$ pcl\-::\-Point\-X\-Y\-Z\-R\-G\-B\-A $>$\-::Ptr \&}]{cloud}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classFilterPointCloud_a871695368a71e98765f21d98ed353986}
+This function filters the input 'cloud' by setting a maximum and minimum in the x, y and z coordinates (these thresholds are defined by this class' constructor) \hypertarget{classFilterPointCloud_a425feb266962f406e97c70733b64f23e}{\index{Filter\-Point\-Cloud@{Filter\-Point\-Cloud}!filter\-Voxel@{filter\-Voxel}}
+\index{filter\-Voxel@{filter\-Voxel}!FilterPointCloud@{Filter\-Point\-Cloud}}
+\subsubsection[{filter\-Voxel}]{\setlength{\rightskip}{0pt plus 5cm}void Filter\-Point\-Cloud\-::filter\-Voxel (
+\begin{DoxyParamCaption}
+\item[{pcl\-::\-Point\-Cloud$<$ pcl\-::\-Point\-X\-Y\-Z\-R\-G\-B\-A $>$\-::Ptr \&}]{cloud}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classFilterPointCloud_a425feb266962f406e97c70733b64f23e}
+This function filters the input 'cloud' leaving one pixel per voxel (the voxel is defined by this class' constructor) 
+
+\subsection{Member Data Documentation}
+\hypertarget{classFilterPointCloud_af657b269e7d2b17ede230f0193ceb332}{\index{Filter\-Point\-Cloud@{Filter\-Point\-Cloud}!filter\-\_\-pass\-\_\-x@{filter\-\_\-pass\-\_\-x}}
+\index{filter\-\_\-pass\-\_\-x@{filter\-\_\-pass\-\_\-x}!FilterPointCloud@{Filter\-Point\-Cloud}}
+\subsubsection[{filter\-\_\-pass\-\_\-x}]{\setlength{\rightskip}{0pt plus 5cm}pcl\-::\-Pass\-Through$<$Point\-T$>$ Filter\-Point\-Cloud\-::filter\-\_\-pass\-\_\-x\hspace{0.3cm}{\ttfamily [private]}}}\label{classFilterPointCloud_af657b269e7d2b17ede230f0193ceb332}
+Filter points in the direction x \hypertarget{classFilterPointCloud_a9340b74286052b5ac7de9eadd2e0a6b3}{\index{Filter\-Point\-Cloud@{Filter\-Point\-Cloud}!filter\-\_\-pass\-\_\-y@{filter\-\_\-pass\-\_\-y}}
+\index{filter\-\_\-pass\-\_\-y@{filter\-\_\-pass\-\_\-y}!FilterPointCloud@{Filter\-Point\-Cloud}}
+\subsubsection[{filter\-\_\-pass\-\_\-y}]{\setlength{\rightskip}{0pt plus 5cm}pcl\-::\-Pass\-Through$<$Point\-T$>$ Filter\-Point\-Cloud\-::filter\-\_\-pass\-\_\-y\hspace{0.3cm}{\ttfamily [private]}}}\label{classFilterPointCloud_a9340b74286052b5ac7de9eadd2e0a6b3}
+Filter points in the direction y \hypertarget{classFilterPointCloud_a3cf0458f538181a07634ba2d33ae0b95}{\index{Filter\-Point\-Cloud@{Filter\-Point\-Cloud}!filter\-\_\-pass\-\_\-z@{filter\-\_\-pass\-\_\-z}}
+\index{filter\-\_\-pass\-\_\-z@{filter\-\_\-pass\-\_\-z}!FilterPointCloud@{Filter\-Point\-Cloud}}
+\subsubsection[{filter\-\_\-pass\-\_\-z}]{\setlength{\rightskip}{0pt plus 5cm}pcl\-::\-Pass\-Through$<$Point\-T$>$ Filter\-Point\-Cloud\-::filter\-\_\-pass\-\_\-z\hspace{0.3cm}{\ttfamily [private]}}}\label{classFilterPointCloud_a3cf0458f538181a07634ba2d33ae0b95}
+Filter points in the direction z \hypertarget{classFilterPointCloud_a02984936aef2ec44e87681f6d36f69cc}{\index{Filter\-Point\-Cloud@{Filter\-Point\-Cloud}!filter\-\_\-voxel@{filter\-\_\-voxel}}
+\index{filter\-\_\-voxel@{filter\-\_\-voxel}!FilterPointCloud@{Filter\-Point\-Cloud}}
+\subsubsection[{filter\-\_\-voxel}]{\setlength{\rightskip}{0pt plus 5cm}pcl\-::\-Voxel\-Grid$<$pcl\-::\-Point\-X\-Y\-Z\-R\-G\-B\-A$>$ Filter\-Point\-Cloud\-::filter\-\_\-voxel\hspace{0.3cm}{\ttfamily [private]}}}\label{classFilterPointCloud_a02984936aef2ec44e87681f6d36f69cc}
+Voxel filter 
+
+The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+include/Filter\-Point\-Cloud.\-h\end{DoxyCompactItemize}

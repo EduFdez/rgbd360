@@ -1,0 +1,120 @@
+\hypertarget{classCalib360}{\section{Calib360 Class Reference}
+\label{classCalib360}\index{Calib360@{Calib360}}
+}
+
+
+{\ttfamily \#include $<$Calib360.\-h$>$}
+
+Inheritance diagram for Calib360\-:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=2.000000cm]{classCalib360}
+\end{center}
+\end{figure}
+\subsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+enum \hyperlink{classCalib360_a323701c4815353e02f79ce58a9ef2e12}{Resolution} \{ {\bfseries V\-G\-A} = 1, 
+{\bfseries Q\-V\-G\-A} = 2, 
+{\bfseries Q\-Q\-V\-G\-A} = 4
+ \}
+\end{DoxyCompactItemize}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classCalib360_ab2365a4a8b4453258ff2664aa9d80a11}{Calib360} (\hyperlink{classCalib360_a323701c4815353e02f79ce58a9ef2e12}{Resolution} res=Q\-V\-G\-A)
+\item 
+Eigen\-::\-Matrix4f \hyperlink{classCalib360_a700a92c794bceaacbb200eacd281fda1}{get\-Rt\-\_\-id} (int id) const 
+\item 
+void \hyperlink{classCalib360_a8f9c38de4304edacc433a1e3b6e54e41}{set\-Rt\-\_\-id} (int id, Eigen\-::\-Matrix4f \&Rt)
+\item 
+void \hyperlink{classCalib360_a01c3fc478c6614f2a78db01575223940}{load\-Intrinsic\-Calibration} (std\-::string path\-To\-Intrinsic\-Model=\char`\"{}\char`\"{})
+\item 
+void \hyperlink{classCalib360_ad9833ea56bb48ff7a488ce8d77566ca6}{load\-Extrinsic\-Calibration} (std\-::string path\-To\-Extrinsic\-Model=\char`\"{}\char`\"{})
+\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+std\-::vector\\*
+$<$ clams\-::\-Discrete\-Depth\-Distortion\-Model $>$ \hyperlink{classCalib360_aa2e0b8086073711793812d4253b272ec}{intrinsic\-\_\-model\-\_\-}
+\item 
+Eigen\-::\-Matrix4f \hyperlink{classCalib360_a61dacdf729067dcea6d270f79e628b83}{Rt\-\_\-} \mbox{[}N\-U\-M\-\_\-\-A\-S\-U\-S\-\_\-\-S\-E\-N\-S\-O\-R\-S\mbox{]}
+\item 
+Eigen\-::\-Matrix4f \hyperlink{classCalib360_a179de6c9f42a6b1bbd4cfda04e857bda}{Rt\-\_\-inv} \mbox{[}N\-U\-M\-\_\-\-A\-S\-U\-S\-\_\-\-S\-E\-N\-S\-O\-R\-S\mbox{]}
+\item 
+Eigen\-::\-Matrix3f \hyperlink{classCalib360_a27be5251d6ba2a81b6be00424c82b736}{camera\-Matrix}
+\item 
+\hypertarget{classCalib360_ac6491eb444561b47451f09d6bac3b071}{enum \hyperlink{classCalib360_a323701c4815353e02f79ce58a9ef2e12}{Calib360\-::\-Resolution} {\bfseries resolution}}\label{classCalib360_ac6491eb444561b47451f09d6bac3b071}
+
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+This class contains the functionality to load the calibration parameters of the omnidirectional R\-G\-B-\/\-D device (R\-G\-B\-D360). The intrinsic calibration is loaded from previous models obtained with C\-L\-A\-M\-S (\href{http://cs.stanford.edu/people/teichman/octo/clams/}{\tt http\-://cs.\-stanford.\-edu/people/teichman/octo/clams/}). The extrinsic calibration is loaded from the models obtained with the Calibration programs. 
+
+\subsection{Member Enumeration Documentation}
+\hypertarget{classCalib360_a323701c4815353e02f79ce58a9ef2e12}{\index{Calib360@{Calib360}!Resolution@{Resolution}}
+\index{Resolution@{Resolution}!Calib360@{Calib360}}
+\subsubsection[{Resolution}]{\setlength{\rightskip}{0pt plus 5cm}enum {\bf Calib360\-::\-Resolution}}}\label{classCalib360_a323701c4815353e02f79ce58a9ef2e12}
+Resolution mode of the device (default is Q\-V\-G\-A = 320x240) 
+
+\subsection{Constructor \& Destructor Documentation}
+\hypertarget{classCalib360_ab2365a4a8b4453258ff2664aa9d80a11}{\index{Calib360@{Calib360}!Calib360@{Calib360}}
+\index{Calib360@{Calib360}!Calib360@{Calib360}}
+\subsubsection[{Calib360}]{\setlength{\rightskip}{0pt plus 5cm}Calib360\-::\-Calib360 (
+\begin{DoxyParamCaption}
+\item[{{\bf Resolution}}]{res = {\ttfamily QVGA}}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCalib360_ab2365a4a8b4453258ff2664aa9d80a11}
+Constructor 
+
+\subsection{Member Function Documentation}
+\hypertarget{classCalib360_a700a92c794bceaacbb200eacd281fda1}{\index{Calib360@{Calib360}!get\-Rt\-\_\-id@{get\-Rt\-\_\-id}}
+\index{get\-Rt\-\_\-id@{get\-Rt\-\_\-id}!Calib360@{Calib360}}
+\subsubsection[{get\-Rt\-\_\-id}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Matrix4f Calib360\-::get\-Rt\-\_\-id (
+\begin{DoxyParamCaption}
+\item[{int}]{id}
+\end{DoxyParamCaption}
+) const\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCalib360_a700a92c794bceaacbb200eacd281fda1}
+Return the relative position of the camera 'id' \hypertarget{classCalib360_ad9833ea56bb48ff7a488ce8d77566ca6}{\index{Calib360@{Calib360}!load\-Extrinsic\-Calibration@{load\-Extrinsic\-Calibration}}
+\index{load\-Extrinsic\-Calibration@{load\-Extrinsic\-Calibration}!Calib360@{Calib360}}
+\subsubsection[{load\-Extrinsic\-Calibration}]{\setlength{\rightskip}{0pt plus 5cm}void Calib360\-::load\-Extrinsic\-Calibration (
+\begin{DoxyParamCaption}
+\item[{std\-::string}]{path\-To\-Extrinsic\-Model = {\ttfamily \char`\"{}\char`\"{}}}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCalib360_ad9833ea56bb48ff7a488ce8d77566ca6}
+Load the extrinsic calibration matrices (relative poses) corresponding to each Asus X\-P\-L \hypertarget{classCalib360_a01c3fc478c6614f2a78db01575223940}{\index{Calib360@{Calib360}!load\-Intrinsic\-Calibration@{load\-Intrinsic\-Calibration}}
+\index{load\-Intrinsic\-Calibration@{load\-Intrinsic\-Calibration}!Calib360@{Calib360}}
+\subsubsection[{load\-Intrinsic\-Calibration}]{\setlength{\rightskip}{0pt plus 5cm}void Calib360\-::load\-Intrinsic\-Calibration (
+\begin{DoxyParamCaption}
+\item[{std\-::string}]{path\-To\-Intrinsic\-Model = {\ttfamily \char`\"{}\char`\"{}}}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCalib360_a01c3fc478c6614f2a78db01575223940}
+Load the intrinsic calibration models corresponding to each Asus X\-P\-L \hypertarget{classCalib360_a8f9c38de4304edacc433a1e3b6e54e41}{\index{Calib360@{Calib360}!set\-Rt\-\_\-id@{set\-Rt\-\_\-id}}
+\index{set\-Rt\-\_\-id@{set\-Rt\-\_\-id}!Calib360@{Calib360}}
+\subsubsection[{set\-Rt\-\_\-id}]{\setlength{\rightskip}{0pt plus 5cm}void Calib360\-::set\-Rt\-\_\-id (
+\begin{DoxyParamCaption}
+\item[{int}]{id, }
+\item[{Eigen\-::\-Matrix4f \&}]{Rt}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCalib360_a8f9c38de4304edacc433a1e3b6e54e41}
+Stitch both the R\-G\-B and the depth images corresponding to the sensor 'sensor\-\_\-id' 
+
+\subsection{Member Data Documentation}
+\hypertarget{classCalib360_a27be5251d6ba2a81b6be00424c82b736}{\index{Calib360@{Calib360}!camera\-Matrix@{camera\-Matrix}}
+\index{camera\-Matrix@{camera\-Matrix}!Calib360@{Calib360}}
+\subsubsection[{camera\-Matrix}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Matrix3f Calib360\-::camera\-Matrix}}\label{classCalib360_a27be5251d6ba2a81b6be00424c82b736}
+The intrinsic pinhole camera model. W\-A\-R\-N\-I\-N\-G\-: this is set fdepending on the chosen resolution (we use 320x240) \hypertarget{classCalib360_aa2e0b8086073711793812d4253b272ec}{\index{Calib360@{Calib360}!intrinsic\-\_\-model\-\_\-@{intrinsic\-\_\-model\-\_\-}}
+\index{intrinsic\-\_\-model\-\_\-@{intrinsic\-\_\-model\-\_\-}!Calib360@{Calib360}}
+\subsubsection[{intrinsic\-\_\-model\-\_\-}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$clams\-::\-Discrete\-Depth\-Distortion\-Model$>$ Calib360\-::intrinsic\-\_\-model\-\_\-}}\label{classCalib360_aa2e0b8086073711793812d4253b272ec}
+The intrinsic depth distortion models corresponding to each Asus X\-P\-L \hypertarget{classCalib360_a61dacdf729067dcea6d270f79e628b83}{\index{Calib360@{Calib360}!Rt\-\_\-@{Rt\-\_\-}}
+\index{Rt\-\_\-@{Rt\-\_\-}!Calib360@{Calib360}}
+\subsubsection[{Rt\-\_\-}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Matrix4f Calib360\-::\-Rt\-\_\-\mbox{[}N\-U\-M\-\_\-\-A\-S\-U\-S\-\_\-\-S\-E\-N\-S\-O\-R\-S\mbox{]}}}\label{classCalib360_a61dacdf729067dcea6d270f79e628b83}
+The extrinsic parameters (relative position) of to each Asus X\-P\-L \hypertarget{classCalib360_a179de6c9f42a6b1bbd4cfda04e857bda}{\index{Calib360@{Calib360}!Rt\-\_\-inv@{Rt\-\_\-inv}}
+\index{Rt\-\_\-inv@{Rt\-\_\-inv}!Calib360@{Calib360}}
+\subsubsection[{Rt\-\_\-inv}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Matrix4f Calib360\-::\-Rt\-\_\-inv\mbox{[}N\-U\-M\-\_\-\-A\-S\-U\-S\-\_\-\-S\-E\-N\-S\-O\-R\-S\mbox{]}}}\label{classCalib360_a179de6c9f42a6b1bbd4cfda04e857bda}
+The inverse matrices of each Asus X\-P\-L's relative position 
+
+The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+include/Calib360.\-h\end{DoxyCompactItemize}

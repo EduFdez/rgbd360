@@ -1,0 +1,68 @@
+\hypertarget{classFrameRGBD__undistort}{\section{\-Frame\-R\-G\-B\-D\-\_\-undistort \-Class \-Reference}
+\label{classFrameRGBD__undistort}\index{\-Frame\-R\-G\-B\-D\-\_\-undistort@{\-Frame\-R\-G\-B\-D\-\_\-undistort}}
+}
+
+
+{\ttfamily \#include $<$\-Frame\-R\-G\-B\-D\-\_\-undistort.\-h$>$}
+
+\-Inheritance diagram for \-Frame\-R\-G\-B\-D\-\_\-undistort\-:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=2.000000cm]{classFrameRGBD__undistort}
+\end{center}
+\end{figure}
+\subsection*{\-Public \-Member \-Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hypertarget{classFrameRGBD__undistort_ad6ac61f5e654bce423bba4996d7cda45}{{\bfseries \-Frame\-R\-G\-B\-D\-\_\-undistort} (clams\-::\-Discrete\-Depth\-Distortion\-Model \&clams\-\_\-intrinsic\-\_\-model)}\label{classFrameRGBD__undistort_ad6ac61f5e654bce423bba4996d7cda45}
+
+\item 
+\-Eigen\-::\-Matrix$<$ float, \*
+\-Eigen\-::\-Dynamic, \-Eigen\-::\-Dynamic $>$ \& \hyperlink{classFrameRGBD__undistort_a30768340f9cb176ec60df772666839d2}{get\-Undistorted\-Depth} ()
+\item 
+void \hyperlink{classFrameRGBD__undistort_a2c657129ef9f883a08a937953e49f1a4}{load\-Depth\-Eigen} ()
+\end{DoxyCompactItemize}
+\subsection*{\-Protected \-Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\-Eigen\-::\-Matrix$<$ float, \*
+\-Eigen\-::\-Dynamic, \-Eigen\-::\-Dynamic $>$ \hyperlink{classFrameRGBD__undistort_af87ec780215ec12243e54e9a6936c086}{m\-\_\-depth\-Eig\-Undistort}
+\item 
+bool \hyperlink{classFrameRGBD__undistort_a82a7a6bc0ee7691fc576b41d5e99f0d8}{undistorted\-Depth\-Availabe}
+\end{DoxyCompactItemize}
+
+
+\subsection{\-Detailed \-Description}
+\-The class \hyperlink{classFrameRGBD__undistort}{\-Frame\-R\-G\-B\-D\-\_\-undistort} inherites from \hyperlink{classFrameRGBD}{\-Frame\-R\-G\-B\-D}, and provides the functions to undistort its depth image. 
+
+\subsection{\-Member \-Function \-Documentation}
+\hypertarget{classFrameRGBD__undistort_a30768340f9cb176ec60df772666839d2}{\index{\-Frame\-R\-G\-B\-D\-\_\-undistort@{\-Frame\-R\-G\-B\-D\-\_\-undistort}!get\-Undistorted\-Depth@{get\-Undistorted\-Depth}}
+\index{get\-Undistorted\-Depth@{get\-Undistorted\-Depth}!FrameRGBD_undistort@{\-Frame\-R\-G\-B\-D\-\_\-undistort}}
+\subsubsection[{get\-Undistorted\-Depth}]{\setlength{\rightskip}{0pt plus 5cm}\-Eigen\-::\-Matrix$<$float,\-Eigen\-::\-Dynamic,\-Eigen\-::\-Dynamic$>$\& {\bf \-Frame\-R\-G\-B\-D\-\_\-undistort\-::get\-Undistorted\-Depth} (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classFrameRGBD__undistort_a30768340f9cb176ec60df772666839d2}
+\-Set distortion model (it must be previously generated with \-C\-L\-A\-M\-S).
+
+\-Get undistorted depth image. \hypertarget{classFrameRGBD__undistort_a2c657129ef9f883a08a937953e49f1a4}{\index{\-Frame\-R\-G\-B\-D\-\_\-undistort@{\-Frame\-R\-G\-B\-D\-\_\-undistort}!load\-Depth\-Eigen@{load\-Depth\-Eigen}}
+\index{load\-Depth\-Eigen@{load\-Depth\-Eigen}!FrameRGBD_undistort@{\-Frame\-R\-G\-B\-D\-\_\-undistort}}
+\subsubsection[{load\-Depth\-Eigen}]{\setlength{\rightskip}{0pt plus 5cm}void {\bf \-Frame\-R\-G\-B\-D\-\_\-undistort\-::load\-Depth\-Eigen} (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classFrameRGBD__undistort_a2c657129ef9f883a08a937953e49f1a4}
+\-Return the depth image of the \-R\-G\-B\-D frame. 
+
+\subsection{\-Member \-Data \-Documentation}
+\hypertarget{classFrameRGBD__undistort_af87ec780215ec12243e54e9a6936c086}{\index{\-Frame\-R\-G\-B\-D\-\_\-undistort@{\-Frame\-R\-G\-B\-D\-\_\-undistort}!m\-\_\-depth\-Eig\-Undistort@{m\-\_\-depth\-Eig\-Undistort}}
+\index{m\-\_\-depth\-Eig\-Undistort@{m\-\_\-depth\-Eig\-Undistort}!FrameRGBD_undistort@{\-Frame\-R\-G\-B\-D\-\_\-undistort}}
+\subsubsection[{m\-\_\-depth\-Eig\-Undistort}]{\setlength{\rightskip}{0pt plus 5cm}\-Eigen\-::\-Matrix$<$float,\-Eigen\-::\-Dynamic,\-Eigen\-::\-Dynamic$>$ {\bf \-Frame\-R\-G\-B\-D\-\_\-undistort\-::m\-\_\-depth\-Eig\-Undistort}\hspace{0.3cm}{\ttfamily  \mbox{[}protected\mbox{]}}}}\label{classFrameRGBD__undistort_af87ec780215ec12243e54e9a6936c086}
+\-Depth image used for intrinsic calibration \hypertarget{classFrameRGBD__undistort_a82a7a6bc0ee7691fc576b41d5e99f0d8}{\index{\-Frame\-R\-G\-B\-D\-\_\-undistort@{\-Frame\-R\-G\-B\-D\-\_\-undistort}!undistorted\-Depth\-Availabe@{undistorted\-Depth\-Availabe}}
+\index{undistorted\-Depth\-Availabe@{undistorted\-Depth\-Availabe}!FrameRGBD_undistort@{\-Frame\-R\-G\-B\-D\-\_\-undistort}}
+\subsubsection[{undistorted\-Depth\-Availabe}]{\setlength{\rightskip}{0pt plus 5cm}bool {\bf \-Frame\-R\-G\-B\-D\-\_\-undistort\-::undistorted\-Depth\-Availabe}\hspace{0.3cm}{\ttfamily  \mbox{[}protected\mbox{]}}}}\label{classFrameRGBD__undistort_a82a7a6bc0ee7691fc576b41d5e99f0d8}
+\-True if the depth image is already undistorted 
+
+\-The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+frame\-R\-G\-B\-D/\-Frame\-R\-G\-B\-D\-\_\-undistort.\-h\end{DoxyCompactItemize}

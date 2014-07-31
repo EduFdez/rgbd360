@@ -1,0 +1,34 @@
+# PCL library
+FIND_PACKAGE(PCL REQUIRED)
+INCLUDE_DIRECTORIES(${PCL_INCLUDE_DIRS})
+LINK_DIRECTORIES(${PCL_LIBRARY_DIRS})
+ADD_DEFINITIONS(${PCL_DEFINITIONS})
+
+FIND_PACKAGE(OpenCV REQUIRED )
+#INCLUDE_DIRECTORIES( ${OPENCV_INCLUDE_DIR} )
+
+# Include the third party include files
+INCLUDE_DIRECTORIES(${PHOVOPBMAP_SOURCE_DIR}/third_party)
+
+# Create the PbMap library
+ADD_LIBRARY(grabber
+#		${PROJECT_SOURCE_DIR}/third_party/cvmat_serialization.h
+		CFrameRGBD.h
+#		include/PointCloudDownsampler.h
+#		src/PointCloudDownsampler.cpp
+		RGBDGrabber.h
+		RGBDGrabberOpenNI_PCL.h
+#		include/RGBDGrabberOpenNI_OpenCV.h
+#		src/RGBDGrabberOpenNI_OpenCV.cpp
+)
+
+# Link the libraries used to create and manage PbMaps
+TARGET_LINK_LIBRARIES(grabber
+			${PCL_LIBRARIES}
+			${OpenCV_LIBS}
+			boost_serialization
+)
+
+# Tell CMake that the linker language is C++
+SET_TARGET_PROPERTIES(grabber PROPERTIES LINKER_LANGUAGE CXX)
+

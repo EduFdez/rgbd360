@@ -1,0 +1,99 @@
+\hypertarget{structMap360}{\section{Map360 Struct Reference}
+\label{structMap360}\index{Map360@{Map360}}
+}
+
+
+{\ttfamily \#include $<$Map360.\-h$>$}
+
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+void \hyperlink{structMap360_a234de9f05d5f88e7768df98fe86bb704}{add\-Keyframe} (\hyperlink{classFrame360}{Frame360} $\ast$sphere, Eigen\-::\-Matrix4f \&pose)
+\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+std\-::vector$<$ \hyperlink{classFrame360}{Frame360} $\ast$ $>$ \hyperlink{structMap360_ad226d3c149be805f4455722325499a0f}{vp\-Spheres}
+\item 
+std\-::vector$<$ Eigen\-::\-Matrix4f, \\*
+Eigen\-::aligned\-\_\-allocator\\*
+$<$ Eigen\-::\-Matrix4f $>$ $>$ \hyperlink{structMap360_a6a2b5cd71a12419ce5367208bca515ce}{v\-Trajectory\-Poses}
+\item 
+std\-::vector$<$ Eigen\-::\-Matrix4f, \\*
+Eigen\-::aligned\-\_\-allocator\\*
+$<$ Eigen\-::\-Matrix4f $>$ $>$ \hyperlink{structMap360_aee86cfa9b18e8f40f2a351b16d4acd4b}{v\-Optimized\-Poses}
+\item 
+std\-::vector$<$ float $>$ \hyperlink{structMap360_a8e2c7d8e67a89301b1b0b36a5380671f}{v\-Trajectory\-Increments}
+\item 
+std\-::map$<$ unsigned, std\-::map\\*
+$<$ unsigned, std\-::pair\\*
+$<$ Eigen\-::\-Matrix4f, \\*
+Eigen\-::\-Matrix$<$ float, 6, 6 $>$ $>$ $>$ $>$ \hyperlink{structMap360_ad7aed73485cab8d7b6b91a053831fb99}{mm\-Connection\-K\-Fs}
+\item 
+unsigned \hyperlink{structMap360_a6089d8dc88895558887769db3300a132}{current\-Area}
+\item 
+std\-::vector$<$ std\-::set$<$ unsigned $>$ $>$ \hyperlink{structMap360_af1986f493d43729c167c094c3a9e4246}{vs\-Areas}
+\item 
+std\-::vector$<$ std\-::set$<$ unsigned $>$ $>$ \hyperlink{structMap360_a3065898bde0f1cfe47bb5f3012c81d2b}{vs\-Neighbor\-Areas}
+\item 
+std\-::vector$<$ unsigned $>$ \hyperlink{structMap360_a3514228ffebb5d5f07dc82d5eb4f59d3}{v\-Selected\-K\-Fs}
+\item 
+std\-::vector$<$ Eigen\-::\-Matrix4f $>$ \hyperlink{structMap360_a1525552984f02f8438b654473c3ebf95}{v\-Ref}
+\item 
+boost\-::mutex \hyperlink{structMap360_a46200d015411f7421778c096d236dd7c}{map\-Mutex}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+This class defines a pose-\/graph map of spherical R\-G\-B-\/\-D keyframes. This map can be arranged in topological areas defining places with respect to any criteria (e.\-g. mutual visibility or the description of the image content). This map is structured in a hybrid represetation, as the spherical R\-G\-B-\/\-D keyframes are annotated with metric, topological and semantic attributes. 
+
+\subsection{Member Function Documentation}
+\hypertarget{structMap360_a234de9f05d5f88e7768df98fe86bb704}{\index{Map360@{Map360}!add\-Keyframe@{add\-Keyframe}}
+\index{add\-Keyframe@{add\-Keyframe}!Map360@{Map360}}
+\subsubsection[{add\-Keyframe}]{\setlength{\rightskip}{0pt plus 5cm}void Map360\-::add\-Keyframe (
+\begin{DoxyParamCaption}
+\item[{{\bf Frame360} $\ast$}]{sphere, }
+\item[{Eigen\-::\-Matrix4f \&}]{pose}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{structMap360_a234de9f05d5f88e7768df98fe86bb704}
+Add a new keyframe (sphere+pose) 
+
+\subsection{Member Data Documentation}
+\hypertarget{structMap360_a6089d8dc88895558887769db3300a132}{\index{Map360@{Map360}!current\-Area@{current\-Area}}
+\index{current\-Area@{current\-Area}!Map360@{Map360}}
+\subsubsection[{current\-Area}]{\setlength{\rightskip}{0pt plus 5cm}unsigned Map360\-::current\-Area}}\label{structMap360_a6089d8dc88895558887769db3300a132}
+Topological area where the camera was last localized \hypertarget{structMap360_a46200d015411f7421778c096d236dd7c}{\index{Map360@{Map360}!map\-Mutex@{map\-Mutex}}
+\index{map\-Mutex@{map\-Mutex}!Map360@{Map360}}
+\subsubsection[{map\-Mutex}]{\setlength{\rightskip}{0pt plus 5cm}boost\-::mutex Map360\-::map\-Mutex}}\label{structMap360_a46200d015411f7421778c096d236dd7c}
+Mutex to syncrhronize eventual changes in the map \hypertarget{structMap360_ad7aed73485cab8d7b6b91a053831fb99}{\index{Map360@{Map360}!mm\-Connection\-K\-Fs@{mm\-Connection\-K\-Fs}}
+\index{mm\-Connection\-K\-Fs@{mm\-Connection\-K\-Fs}!Map360@{Map360}}
+\subsubsection[{mm\-Connection\-K\-Fs}]{\setlength{\rightskip}{0pt plus 5cm}std\-::map$<$unsigned, std\-::map$<$unsigned, std\-::pair$<$Eigen\-::\-Matrix4f, Eigen\-::\-Matrix$<$float,6,6$>$ $>$ $>$ $>$ Map360\-::mm\-Connection\-K\-Fs}}\label{structMap360_ad7aed73485cab8d7b6b91a053831fb99}
+Double map storing the connections between keyframes. Each connection stores the S\-E3 pose and a 6x6 covariance matrix \hypertarget{structMap360_aee86cfa9b18e8f40f2a351b16d4acd4b}{\index{Map360@{Map360}!v\-Optimized\-Poses@{v\-Optimized\-Poses}}
+\index{v\-Optimized\-Poses@{v\-Optimized\-Poses}!Map360@{Map360}}
+\subsubsection[{v\-Optimized\-Poses}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$Eigen\-::\-Matrix4f, Eigen\-::aligned\-\_\-allocator$<$Eigen\-::\-Matrix4f$>$ $>$ Map360\-::v\-Optimized\-Poses}}\label{structMap360_aee86cfa9b18e8f40f2a351b16d4acd4b}
+Vector of the global S\-E3 poses optimized with graph\-S\-L\-A\-M (or pose-\/graph S\-L\-A\-M) \hypertarget{structMap360_ad226d3c149be805f4455722325499a0f}{\index{Map360@{Map360}!vp\-Spheres@{vp\-Spheres}}
+\index{vp\-Spheres@{vp\-Spheres}!Map360@{Map360}}
+\subsubsection[{vp\-Spheres}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<${\bf Frame360}$\ast$$>$ Map360\-::vp\-Spheres}}\label{structMap360_ad226d3c149be805f4455722325499a0f}
+Vector of spherical keyframes (created from omnidirectional R\-G\-B-\/\-D images) \hypertarget{structMap360_a1525552984f02f8438b654473c3ebf95}{\index{Map360@{Map360}!v\-Ref@{v\-Ref}}
+\index{v\-Ref@{v\-Ref}!Map360@{Map360}}
+\subsubsection[{v\-Ref}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$Eigen\-::\-Matrix4f$>$ Map360\-::v\-Ref}}\label{structMap360_a1525552984f02f8438b654473c3ebf95}
+Local reference system for each topological area \hypertarget{structMap360_af1986f493d43729c167c094c3a9e4246}{\index{Map360@{Map360}!vs\-Areas@{vs\-Areas}}
+\index{vs\-Areas@{vs\-Areas}!Map360@{Map360}}
+\subsubsection[{vs\-Areas}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$ std\-::set$<$unsigned$>$ $>$ Map360\-::vs\-Areas}}\label{structMap360_af1986f493d43729c167c094c3a9e4246}
+std\-::map defining the topological areas, where they key is the topological reference and the value contains the keyframe indices \hypertarget{structMap360_a3514228ffebb5d5f07dc82d5eb4f59d3}{\index{Map360@{Map360}!v\-Selected\-K\-Fs@{v\-Selected\-K\-Fs}}
+\index{v\-Selected\-K\-Fs@{v\-Selected\-K\-Fs}!Map360@{Map360}}
+\subsubsection[{v\-Selected\-K\-Fs}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$unsigned$>$ Map360\-::v\-Selected\-K\-Fs}}\label{structMap360_a3514228ffebb5d5f07dc82d5eb4f59d3}
+Selected keyframes (they correspond to the most representative (most highly connected) sphere of each area) \hypertarget{structMap360_a3065898bde0f1cfe47bb5f3012c81d2b}{\index{Map360@{Map360}!vs\-Neighbor\-Areas@{vs\-Neighbor\-Areas}}
+\index{vs\-Neighbor\-Areas@{vs\-Neighbor\-Areas}!Map360@{Map360}}
+\subsubsection[{vs\-Neighbor\-Areas}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$ std\-::set$<$unsigned$>$ $>$ Map360\-::vs\-Neighbor\-Areas}}\label{structMap360_a3065898bde0f1cfe47bb5f3012c81d2b}
+Vector storing the indices of neighboring topologial nodes \hypertarget{structMap360_a8e2c7d8e67a89301b1b0b36a5380671f}{\index{Map360@{Map360}!v\-Trajectory\-Increments@{v\-Trajectory\-Increments}}
+\index{v\-Trajectory\-Increments@{v\-Trajectory\-Increments}!Map360@{Map360}}
+\subsubsection[{v\-Trajectory\-Increments}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$float$>$ Map360\-::v\-Trajectory\-Increments}}\label{structMap360_a8e2c7d8e67a89301b1b0b36a5380671f}
+Vector storing the euclidean distance between of each stored keyframe with respect to the previous one (the first element of the vector is neglected) \hypertarget{structMap360_a6a2b5cd71a12419ce5367208bca515ce}{\index{Map360@{Map360}!v\-Trajectory\-Poses@{v\-Trajectory\-Poses}}
+\index{v\-Trajectory\-Poses@{v\-Trajectory\-Poses}!Map360@{Map360}}
+\subsubsection[{v\-Trajectory\-Poses}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$Eigen\-::\-Matrix4f, Eigen\-::aligned\-\_\-allocator$<$Eigen\-::\-Matrix4f$>$ $>$ Map360\-::v\-Trajectory\-Poses}}\label{structMap360_a6a2b5cd71a12419ce5367208bca515ce}
+Vector containing the global S\-E3 poses of vp\-Spheres (odometry) 
+
+The documentation for this struct was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+include/Map360.\-h\end{DoxyCompactItemize}

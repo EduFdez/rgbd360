@@ -1,0 +1,113 @@
+\hypertarget{classMap360__Visualizer}{\section{Map360\-\_\-\-Visualizer Class Reference}
+\label{classMap360__Visualizer}\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}}
+}
+
+
+{\ttfamily \#include $<$Map360\-\_\-\-Visualizer.\-h$>$}
+
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classMap360__Visualizer_a9333eaa720305c2f04f8d49159eb1411}{Map360\-\_\-\-Visualizer} (\hyperlink{structMap360}{Map360} \&map)
+\item 
+void \hyperlink{classMap360__Visualizer_a8722dafc3a3cccfe73f02eb6f1877c2d}{viz\-\_\-cb} (pcl\-::visualization\-::\-P\-C\-L\-Visualizer \&viz)
+\item 
+void \hyperlink{classMap360__Visualizer_a8b1d4828e9f91c89d95074b7f36a7127}{keyboard\-Event\-Occurred} (const pcl\-::visualization\-::\-Keyboard\-Event \&event, void $\ast$viewer\-\_\-void)
+\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{structMap360}{Map360} \& \hyperlink{classMap360__Visualizer_ad423e3bba917cfed4b8a7f08a27a0a15}{Map}
+\item 
+bool \hyperlink{classMap360__Visualizer_a1951f5fab820696abf4a8706ee2a2e7f}{b\-Graph\-S\-L\-A\-M}
+\item 
+bool \hyperlink{classMap360__Visualizer_a2794e5ff22d05c4436da0edeb41db95b}{b\-Freeze\-Frame}
+\item 
+bool \hyperlink{classMap360__Visualizer_aaac4aa1c98ee63511c9599625bc6bd54}{b\-Draw\-Current\-Location}
+\item 
+int \hyperlink{classMap360__Visualizer_a5aaaa8aa47c18934cf366e5bb3ceb2be}{current\-Sphere}
+\item 
+Eigen\-::\-Affine3f \hyperlink{classMap360__Visualizer_a53d4d24b998db0f3437227fb308ef77d}{current\-Location}
+\item 
+std\-::vector$<$ pcl\-::\-Point\-X\-Y\-Z $>$ \hyperlink{classMap360__Visualizer_a788f1a552e4511c3c2169e42a0d2296e}{sphere\-\_\-centers}
+\item 
+pcl\-::\-Point\-Cloud$<$ Point\-T $>$\-::Ptr \hyperlink{classMap360__Visualizer_a8295556bb6814e8c7e510b0ae66beb6e}{global\-Map}
+\item 
+pcl\-::visualization\-::\-Cloud\-Viewer \hyperlink{classMap360__Visualizer_ad9217d08c210272984708a05d44fd2c0}{viewer}
+\item 
+int \hyperlink{classMap360__Visualizer_aec44a88b16240561335ba7c6b34f8cf5}{num\-Screenshot}
+\item 
+boost\-::mutex \hyperlink{classMap360__Visualizer_ae0a693e05320051180b367b0d300b328}{visualization\-Mutex}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+This class creates a visualizer to display a \hyperlink{structMap360}{Map360} object. The visualization runs in a separate thread. 
+
+\subsection{Constructor \& Destructor Documentation}
+\hypertarget{classMap360__Visualizer_a9333eaa720305c2f04f8d49159eb1411}{\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}}
+\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!Map360_Visualizer@{Map360\-\_\-\-Visualizer}}
+\subsubsection[{Map360\-\_\-\-Visualizer}]{\setlength{\rightskip}{0pt plus 5cm}Map360\-\_\-\-Visualizer\-::\-Map360\-\_\-\-Visualizer (
+\begin{DoxyParamCaption}
+\item[{{\bf Map360} \&}]{map}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classMap360__Visualizer_a9333eaa720305c2f04f8d49159eb1411}
+Constructor. It starts the visualization in a separate thread 
+
+\subsection{Member Function Documentation}
+\hypertarget{classMap360__Visualizer_a8b1d4828e9f91c89d95074b7f36a7127}{\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!keyboard\-Event\-Occurred@{keyboard\-Event\-Occurred}}
+\index{keyboard\-Event\-Occurred@{keyboard\-Event\-Occurred}!Map360_Visualizer@{Map360\-\_\-\-Visualizer}}
+\subsubsection[{keyboard\-Event\-Occurred}]{\setlength{\rightskip}{0pt plus 5cm}void Map360\-\_\-\-Visualizer\-::keyboard\-Event\-Occurred (
+\begin{DoxyParamCaption}
+\item[{const pcl\-::visualization\-::\-Keyboard\-Event \&}]{event, }
+\item[{void $\ast$}]{viewer\-\_\-void}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classMap360__Visualizer_a8b1d4828e9f91c89d95074b7f36a7127}
+Get events from the keyboard \hypertarget{classMap360__Visualizer_a8722dafc3a3cccfe73f02eb6f1877c2d}{\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!viz\-\_\-cb@{viz\-\_\-cb}}
+\index{viz\-\_\-cb@{viz\-\_\-cb}!Map360_Visualizer@{Map360\-\_\-\-Visualizer}}
+\subsubsection[{viz\-\_\-cb}]{\setlength{\rightskip}{0pt plus 5cm}void Map360\-\_\-\-Visualizer\-::viz\-\_\-cb (
+\begin{DoxyParamCaption}
+\item[{pcl\-::visualization\-::\-P\-C\-L\-Visualizer \&}]{viz}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classMap360__Visualizer_a8722dafc3a3cccfe73f02eb6f1877c2d}
+Visualization callback 
+
+\subsection{Member Data Documentation}
+\hypertarget{classMap360__Visualizer_aaac4aa1c98ee63511c9599625bc6bd54}{\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!b\-Draw\-Current\-Location@{b\-Draw\-Current\-Location}}
+\index{b\-Draw\-Current\-Location@{b\-Draw\-Current\-Location}!Map360_Visualizer@{Map360\-\_\-\-Visualizer}}
+\subsubsection[{b\-Draw\-Current\-Location}]{\setlength{\rightskip}{0pt plus 5cm}bool Map360\-\_\-\-Visualizer\-::b\-Draw\-Current\-Location}}\label{classMap360__Visualizer_aaac4aa1c98ee63511c9599625bc6bd54}
+Draw the camera's current location \hypertarget{classMap360__Visualizer_a2794e5ff22d05c4436da0edeb41db95b}{\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!b\-Freeze\-Frame@{b\-Freeze\-Frame}}
+\index{b\-Freeze\-Frame@{b\-Freeze\-Frame}!Map360_Visualizer@{Map360\-\_\-\-Visualizer}}
+\subsubsection[{b\-Freeze\-Frame}]{\setlength{\rightskip}{0pt plus 5cm}bool Map360\-\_\-\-Visualizer\-::b\-Freeze\-Frame}}\label{classMap360__Visualizer_a2794e5ff22d05c4436da0edeb41db95b}
+Freeze the viewer \hypertarget{classMap360__Visualizer_a1951f5fab820696abf4a8706ee2a2e7f}{\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!b\-Graph\-S\-L\-A\-M@{b\-Graph\-S\-L\-A\-M}}
+\index{b\-Graph\-S\-L\-A\-M@{b\-Graph\-S\-L\-A\-M}!Map360_Visualizer@{Map360\-\_\-\-Visualizer}}
+\subsubsection[{b\-Graph\-S\-L\-A\-M}]{\setlength{\rightskip}{0pt plus 5cm}bool Map360\-\_\-\-Visualizer\-::b\-Graph\-S\-L\-A\-M}}\label{classMap360__Visualizer_a1951f5fab820696abf4a8706ee2a2e7f}
+Draw the optimized pose-\/graph \hypertarget{classMap360__Visualizer_a53d4d24b998db0f3437227fb308ef77d}{\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!current\-Location@{current\-Location}}
+\index{current\-Location@{current\-Location}!Map360_Visualizer@{Map360\-\_\-\-Visualizer}}
+\subsubsection[{current\-Location}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Affine3f Map360\-\_\-\-Visualizer\-::current\-Location}}\label{classMap360__Visualizer_a53d4d24b998db0f3437227fb308ef77d}
+The pose of the camera's current location \hypertarget{classMap360__Visualizer_a5aaaa8aa47c18934cf366e5bb3ceb2be}{\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!current\-Sphere@{current\-Sphere}}
+\index{current\-Sphere@{current\-Sphere}!Map360_Visualizer@{Map360\-\_\-\-Visualizer}}
+\subsubsection[{current\-Sphere}]{\setlength{\rightskip}{0pt plus 5cm}int Map360\-\_\-\-Visualizer\-::current\-Sphere}}\label{classMap360__Visualizer_a5aaaa8aa47c18934cf366e5bb3ceb2be}
+The index of the pseudo-\/nearest Sphere\-K\-F to the camera's current location \hypertarget{classMap360__Visualizer_a8295556bb6814e8c7e510b0ae66beb6e}{\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!global\-Map@{global\-Map}}
+\index{global\-Map@{global\-Map}!Map360_Visualizer@{Map360\-\_\-\-Visualizer}}
+\subsubsection[{global\-Map}]{\setlength{\rightskip}{0pt plus 5cm}pcl\-::\-Point\-Cloud$<$Point\-T$>$\-::Ptr Map360\-\_\-\-Visualizer\-::global\-Map}}\label{classMap360__Visualizer_a8295556bb6814e8c7e510b0ae66beb6e}
+Global point cloud of the map (each keyframe's point cloud is filtered and merged here) \hypertarget{classMap360__Visualizer_ad423e3bba917cfed4b8a7f08a27a0a15}{\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!Map@{Map}}
+\index{Map@{Map}!Map360_Visualizer@{Map360\-\_\-\-Visualizer}}
+\subsubsection[{Map}]{\setlength{\rightskip}{0pt plus 5cm}{\bf Map360}\& Map360\-\_\-\-Visualizer\-::\-Map}}\label{classMap360__Visualizer_ad423e3bba917cfed4b8a7f08a27a0a15}
+Reference to the map containing a pose-\/graph of spherical keyframes \hypertarget{classMap360__Visualizer_aec44a88b16240561335ba7c6b34f8cf5}{\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!num\-Screenshot@{num\-Screenshot}}
+\index{num\-Screenshot@{num\-Screenshot}!Map360_Visualizer@{Map360\-\_\-\-Visualizer}}
+\subsubsection[{num\-Screenshot}]{\setlength{\rightskip}{0pt plus 5cm}int Map360\-\_\-\-Visualizer\-::num\-Screenshot}}\label{classMap360__Visualizer_aec44a88b16240561335ba7c6b34f8cf5}
+Index of visualizer screenshot. This is used to create videos with the results \hypertarget{classMap360__Visualizer_a788f1a552e4511c3c2169e42a0d2296e}{\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!sphere\-\_\-centers@{sphere\-\_\-centers}}
+\index{sphere\-\_\-centers@{sphere\-\_\-centers}!Map360_Visualizer@{Map360\-\_\-\-Visualizer}}
+\subsubsection[{sphere\-\_\-centers}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$pcl\-::\-Point\-X\-Y\-Z$>$ Map360\-\_\-\-Visualizer\-::sphere\-\_\-centers}}\label{classMap360__Visualizer_a788f1a552e4511c3c2169e42a0d2296e}
+Vector of the Keyframe's centers globally referenced \hypertarget{classMap360__Visualizer_ad9217d08c210272984708a05d44fd2c0}{\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!viewer@{viewer}}
+\index{viewer@{viewer}!Map360_Visualizer@{Map360\-\_\-\-Visualizer}}
+\subsubsection[{viewer}]{\setlength{\rightskip}{0pt plus 5cm}pcl\-::visualization\-::\-Cloud\-Viewer Map360\-\_\-\-Visualizer\-::viewer}}\label{classMap360__Visualizer_ad9217d08c210272984708a05d44fd2c0}
+Visualizer object \hypertarget{classMap360__Visualizer_ae0a693e05320051180b367b0d300b328}{\index{Map360\-\_\-\-Visualizer@{Map360\-\_\-\-Visualizer}!visualization\-Mutex@{visualization\-Mutex}}
+\index{visualization\-Mutex@{visualization\-Mutex}!Map360_Visualizer@{Map360\-\_\-\-Visualizer}}
+\subsubsection[{visualization\-Mutex}]{\setlength{\rightskip}{0pt plus 5cm}boost\-::mutex Map360\-\_\-\-Visualizer\-::visualization\-Mutex}}\label{classMap360__Visualizer_ae0a693e05320051180b367b0d300b328}
+Mutex to syncrhronize eventual changes in the map 
+
+The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+include/Map360\-\_\-\-Visualizer.\-h\end{DoxyCompactItemize}

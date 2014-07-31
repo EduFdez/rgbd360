@@ -1,0 +1,162 @@
+\hypertarget{classFrameRGBD}{\section{\-Frame\-R\-G\-B\-D \-Class \-Reference}
+\label{classFrameRGBD}\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}}
+}
+
+
+{\ttfamily \#include $<$\-Frame\-R\-G\-B\-D.\-h$>$}
+
+\-Inheritance diagram for \-Frame\-R\-G\-B\-D\-:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=2.000000cm]{classFrameRGBD}
+\end{center}
+\end{figure}
+\subsection*{\-Public \-Member \-Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classFrameRGBD_af119351e5657ecad6415ab585042f0f2}{\-Frame\-R\-G\-B\-D} ()
+\item 
+void \hyperlink{classFrameRGBD_a5bae4e6cb40faa2b8bd8a1585b0075e0}{set\-R\-G\-B\-Image} (const cv\-::\-Mat \&rgb\-Image)
+\item 
+cv\-::\-Mat \& \hyperlink{classFrameRGBD_affbab8a5cabe247b73564cb5d42ebc0c}{get\-R\-G\-B\-Image} ()
+\item 
+void \hyperlink{classFrameRGBD_a9c97b2d53c64ac2339c9a9e7bc4076c2}{set\-Depth\-Image} (const cv\-::\-Mat \&depth\-Image)
+\item 
+cv\-::\-Mat \& \hyperlink{classFrameRGBD_a7cffa0f358f8d57f87988740c63c5bdc}{get\-Depth\-Image} ()
+\item 
+void \hyperlink{classFrameRGBD_aeee788a48f17bc4ffa2a1e627d4562a7}{get\-Depth\-Img\-Meters} (cv\-::\-Mat \&depth\-In\-Meters)
+\item 
+void \hyperlink{classFrameRGBD_accac14d7b2f4c11f1915d4dc464854d2}{set\-Time\-Stamp} (uint64\-\_\-t time\-Stamp)
+\item 
+uint64\-\_\-t \hyperlink{classFrameRGBD_af60a0b41c662cd2a0847ac1b20209b07}{get\-Time\-Stamp} ()
+\item 
+void \hyperlink{classFrameRGBD_aa4df44d7422de398e0769da2c3746bc9}{set\-Intensity\-Image} (const cv\-::\-Mat \&intensity\-Image)
+\item 
+cv\-::\-Mat \& \hyperlink{classFrameRGBD_a31aee8d47eb70ea0eb43c16ba647603e}{get\-Intensity\-Image} ()
+\item 
+int \hyperlink{classFrameRGBD_a2e5b3a2bfca2f0c5839a2b55dfd217db}{get\-Average\-Intensity} (int sample=1)
+\end{DoxyCompactItemize}
+\subsection*{\-Protected \-Attributes}
+\begin{DoxyCompactItemize}
+\item 
+cv\-::\-Mat \hyperlink{classFrameRGBD_ae3934db98bc05f37dc289b7c4c7e14d2}{m\-\_\-rgb\-Image}
+\item 
+cv\-::\-Mat \hyperlink{classFrameRGBD_a4118364759fedf2c412941499a2f3a44}{m\-\_\-intensity\-Image}
+\item 
+cv\-::\-Mat \hyperlink{classFrameRGBD_a69ab9787e03769e06403d71169b531d6}{m\-\_\-depth\-Image}
+\item 
+bool \hyperlink{classFrameRGBD_a64089c164be4f0622a057565a4a2e773}{intensity\-Image\-Available}
+\item 
+uint64\-\_\-t \hyperlink{classFrameRGBD_afb47a34f0dc1d8391a91c0170984b84a}{m\-\_\-time\-Stamp}
+\end{DoxyCompactItemize}
+
+
+\subsection{\-Detailed \-Description}
+\-This class contains the \-R\-G\-B and depth images, together with the timestamp of a \-R\-G\-B\-D observation (e.\-g. from \-Kinect). 
+
+\subsection{\-Constructor \& \-Destructor \-Documentation}
+\hypertarget{classFrameRGBD_af119351e5657ecad6415ab585042f0f2}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}}
+\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{\-Frame\-R\-G\-B\-D}]{\setlength{\rightskip}{0pt plus 5cm}{\bf \-Frame\-R\-G\-B\-D\-::\-Frame\-R\-G\-B\-D} (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classFrameRGBD_af119351e5657ecad6415ab585042f0f2}
+\-Frame dimensions.
+
+\-Constructor 
+
+\subsection{\-Member \-Function \-Documentation}
+\hypertarget{classFrameRGBD_a2e5b3a2bfca2f0c5839a2b55dfd217db}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!get\-Average\-Intensity@{get\-Average\-Intensity}}
+\index{get\-Average\-Intensity@{get\-Average\-Intensity}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{get\-Average\-Intensity}]{\setlength{\rightskip}{0pt plus 5cm}int {\bf \-Frame\-R\-G\-B\-D\-::get\-Average\-Intensity} (
+\begin{DoxyParamCaption}
+\item[{int}]{sample = {\ttfamily 1}}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classFrameRGBD_a2e5b3a2bfca2f0c5839a2b55dfd217db}
+\-Get the average intensity \hypertarget{classFrameRGBD_a7cffa0f358f8d57f87988740c63c5bdc}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!get\-Depth\-Image@{get\-Depth\-Image}}
+\index{get\-Depth\-Image@{get\-Depth\-Image}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{get\-Depth\-Image}]{\setlength{\rightskip}{0pt plus 5cm}cv\-::\-Mat\& {\bf \-Frame\-R\-G\-B\-D\-::get\-Depth\-Image} (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classFrameRGBD_a7cffa0f358f8d57f87988740c63c5bdc}
+\-Return the depth image of the \-R\-G\-B\-D frame. \hypertarget{classFrameRGBD_aeee788a48f17bc4ffa2a1e627d4562a7}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!get\-Depth\-Img\-Meters@{get\-Depth\-Img\-Meters}}
+\index{get\-Depth\-Img\-Meters@{get\-Depth\-Img\-Meters}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{get\-Depth\-Img\-Meters}]{\setlength{\rightskip}{0pt plus 5cm}void {\bf \-Frame\-R\-G\-B\-D\-::get\-Depth\-Img\-Meters} (
+\begin{DoxyParamCaption}
+\item[{cv\-::\-Mat \&}]{depth\-In\-Meters}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classFrameRGBD_aeee788a48f17bc4ffa2a1e627d4562a7}
+\-Return the depth image of the \-R\-G\-B\-D frame. \hypertarget{classFrameRGBD_a31aee8d47eb70ea0eb43c16ba647603e}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!get\-Intensity\-Image@{get\-Intensity\-Image}}
+\index{get\-Intensity\-Image@{get\-Intensity\-Image}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{get\-Intensity\-Image}]{\setlength{\rightskip}{0pt plus 5cm}cv\-::\-Mat\& {\bf \-Frame\-R\-G\-B\-D\-::get\-Intensity\-Image} (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classFrameRGBD_a31aee8d47eb70ea0eb43c16ba647603e}
+\-Get the grayscale image from \-R\-G\-B \hypertarget{classFrameRGBD_affbab8a5cabe247b73564cb5d42ebc0c}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!get\-R\-G\-B\-Image@{get\-R\-G\-B\-Image}}
+\index{get\-R\-G\-B\-Image@{get\-R\-G\-B\-Image}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{get\-R\-G\-B\-Image}]{\setlength{\rightskip}{0pt plus 5cm}cv\-::\-Mat\& {\bf \-Frame\-R\-G\-B\-D\-::get\-R\-G\-B\-Image} (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classFrameRGBD_affbab8a5cabe247b73564cb5d42ebc0c}
+\-Return the \-R\-G\-B image of the \-R\-G\-B\-D frame. \hypertarget{classFrameRGBD_af60a0b41c662cd2a0847ac1b20209b07}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!get\-Time\-Stamp@{get\-Time\-Stamp}}
+\index{get\-Time\-Stamp@{get\-Time\-Stamp}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{get\-Time\-Stamp}]{\setlength{\rightskip}{0pt plus 5cm}uint64\-\_\-t {\bf \-Frame\-R\-G\-B\-D\-::get\-Time\-Stamp} (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classFrameRGBD_af60a0b41c662cd2a0847ac1b20209b07}
+\-Return the \-R\-G\-B\-D frame timestamp \hypertarget{classFrameRGBD_a9c97b2d53c64ac2339c9a9e7bc4076c2}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!set\-Depth\-Image@{set\-Depth\-Image}}
+\index{set\-Depth\-Image@{set\-Depth\-Image}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{set\-Depth\-Image}]{\setlength{\rightskip}{0pt plus 5cm}void {\bf \-Frame\-R\-G\-B\-D\-::set\-Depth\-Image} (
+\begin{DoxyParamCaption}
+\item[{const cv\-::\-Mat \&}]{depth\-Image}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classFrameRGBD_a9c97b2d53c64ac2339c9a9e7bc4076c2}
+\-Set a depth image to the \-R\-G\-B\-D frame. \hypertarget{classFrameRGBD_aa4df44d7422de398e0769da2c3746bc9}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!set\-Intensity\-Image@{set\-Intensity\-Image}}
+\index{set\-Intensity\-Image@{set\-Intensity\-Image}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{set\-Intensity\-Image}]{\setlength{\rightskip}{0pt plus 5cm}void {\bf \-Frame\-R\-G\-B\-D\-::set\-Intensity\-Image} (
+\begin{DoxyParamCaption}
+\item[{const cv\-::\-Mat \&}]{intensity\-Image}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classFrameRGBD_aa4df44d7422de398e0769da2c3746bc9}
+\-Set the intensity image \hypertarget{classFrameRGBD_a5bae4e6cb40faa2b8bd8a1585b0075e0}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!set\-R\-G\-B\-Image@{set\-R\-G\-B\-Image}}
+\index{set\-R\-G\-B\-Image@{set\-R\-G\-B\-Image}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{set\-R\-G\-B\-Image}]{\setlength{\rightskip}{0pt plus 5cm}void {\bf \-Frame\-R\-G\-B\-D\-::set\-R\-G\-B\-Image} (
+\begin{DoxyParamCaption}
+\item[{const cv\-::\-Mat \&}]{rgb\-Image}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classFrameRGBD_a5bae4e6cb40faa2b8bd8a1585b0075e0}
+\-Set a \-R\-G\-B image to the \-R\-G\-B\-D frame. \hypertarget{classFrameRGBD_accac14d7b2f4c11f1915d4dc464854d2}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!set\-Time\-Stamp@{set\-Time\-Stamp}}
+\index{set\-Time\-Stamp@{set\-Time\-Stamp}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{set\-Time\-Stamp}]{\setlength{\rightskip}{0pt plus 5cm}void {\bf \-Frame\-R\-G\-B\-D\-::set\-Time\-Stamp} (
+\begin{DoxyParamCaption}
+\item[{uint64\-\_\-t}]{time\-Stamp}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classFrameRGBD_accac14d7b2f4c11f1915d4dc464854d2}
+\-Set the \-R\-G\-B\-D frame timestamp 
+
+\subsection{\-Member \-Data \-Documentation}
+\hypertarget{classFrameRGBD_a64089c164be4f0622a057565a4a2e773}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!intensity\-Image\-Available@{intensity\-Image\-Available}}
+\index{intensity\-Image\-Available@{intensity\-Image\-Available}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{intensity\-Image\-Available}]{\setlength{\rightskip}{0pt plus 5cm}bool {\bf \-Frame\-R\-G\-B\-D\-::intensity\-Image\-Available}\hspace{0.3cm}{\ttfamily  \mbox{[}protected\mbox{]}}}}\label{classFrameRGBD_a64089c164be4f0622a057565a4a2e773}
+\-True if the intensity image is available, false otherwise \hypertarget{classFrameRGBD_a69ab9787e03769e06403d71169b531d6}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!m\-\_\-depth\-Image@{m\-\_\-depth\-Image}}
+\index{m\-\_\-depth\-Image@{m\-\_\-depth\-Image}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{m\-\_\-depth\-Image}]{\setlength{\rightskip}{0pt plus 5cm}cv\-::\-Mat {\bf \-Frame\-R\-G\-B\-D\-::m\-\_\-depth\-Image}\hspace{0.3cm}{\ttfamily  \mbox{[}protected\mbox{]}}}}\label{classFrameRGBD_a69ab9787e03769e06403d71169b531d6}
+\-Depth image \hypertarget{classFrameRGBD_a4118364759fedf2c412941499a2f3a44}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!m\-\_\-intensity\-Image@{m\-\_\-intensity\-Image}}
+\index{m\-\_\-intensity\-Image@{m\-\_\-intensity\-Image}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{m\-\_\-intensity\-Image}]{\setlength{\rightskip}{0pt plus 5cm}cv\-::\-Mat {\bf \-Frame\-R\-G\-B\-D\-::m\-\_\-intensity\-Image}\hspace{0.3cm}{\ttfamily  \mbox{[}protected\mbox{]}}}}\label{classFrameRGBD_a4118364759fedf2c412941499a2f3a44}
+\-Intensity image (grayscale version of the \-R\-G\-B image) \hypertarget{classFrameRGBD_ae3934db98bc05f37dc289b7c4c7e14d2}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!m\-\_\-rgb\-Image@{m\-\_\-rgb\-Image}}
+\index{m\-\_\-rgb\-Image@{m\-\_\-rgb\-Image}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{m\-\_\-rgb\-Image}]{\setlength{\rightskip}{0pt plus 5cm}cv\-::\-Mat {\bf \-Frame\-R\-G\-B\-D\-::m\-\_\-rgb\-Image}\hspace{0.3cm}{\ttfamily  \mbox{[}protected\mbox{]}}}}\label{classFrameRGBD_ae3934db98bc05f37dc289b7c4c7e14d2}
+\-R\-G\-B image \hypertarget{classFrameRGBD_afb47a34f0dc1d8391a91c0170984b84a}{\index{\-Frame\-R\-G\-B\-D@{\-Frame\-R\-G\-B\-D}!m\-\_\-time\-Stamp@{m\-\_\-time\-Stamp}}
+\index{m\-\_\-time\-Stamp@{m\-\_\-time\-Stamp}!FrameRGBD@{\-Frame\-R\-G\-B\-D}}
+\subsubsection[{m\-\_\-time\-Stamp}]{\setlength{\rightskip}{0pt plus 5cm}uint64\-\_\-t {\bf \-Frame\-R\-G\-B\-D\-::m\-\_\-time\-Stamp}\hspace{0.3cm}{\ttfamily  \mbox{[}protected\mbox{]}}}}\label{classFrameRGBD_afb47a34f0dc1d8391a91c0170984b84a}
+\-Timestamp of the \-R\-G\-B\-D frame 
+
+\-The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+frame\-R\-G\-B\-D/\-Frame\-R\-G\-B\-D.\-h\end{DoxyCompactItemize}

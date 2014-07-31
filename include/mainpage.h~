@@ -1,0 +1,144 @@
+/*!\mainpage Documentation Overview
+ *
+ * \section intro_sec Introduction
+ *
+ * This is the documentation of the RGBD360 Project. This project integrates the functionality to do image acquisition, localization and mapping using an omnidirectional RGB-D sensor developed in INRIA Sophia-Antipolis by the team LAGADIC, and with the collaboration of the University of Malaga. This functionality comprises: reading and serializing the data streaming from the omnidirectional RGB-D sensor; registering frames based on a compact planar description of the scene (PbMap http://www.mrpt.org/pbmap); loop closure detection; performing human-guided semi-automatic labelization of the scene; PbMap-based hybrid SLAM (i.e. metric-topological-semantic) with the omnidirectional RGB-D sensor moving freely with 6 DoF, or in planar movement with 3 DoF. Also, some visualization tools are provided to show the results from the above applications.
+ * \internal TO DO: create a graph with the classes relations \endinternal
+ * \image html  device+robot.png "Omnidirectional RGB-D sensor and robot set-up." width=10cm \n
+ *
+ * \section project_sec Project tree
+ *
+ * The main functionality provided by this project is implemented in a set of header files that are found in the directory 'include/'
+ *	- Calib360.h
+ *	- Frame360.h
+ *	- Frame360_Visualizer.h
+ *	- RegisterRGBD360.h
+ *	- FilterPointCloud.h
+ *	- Map360.h
+ *	- Map360_Visualizer.h
+ *	- TopologicalMap360.h
+ *	- LoopClosure360.h
+ *	- Miscellaneous.h
+ *
+ * The project applications are structured in different sections depending on its utility:
+ *	- Calibration/ \n
+ * 	    -> Contains the applications to calibrate the extrinsic parameters of the sensor
+ *	- Grabber/ \n
+ *          -> Grab and serialize the omnidirectional RGB-D image stream
+ *	- Labelization/ \n
+ *          -> Write semantic labels on the images
+ *	- Registration/ \n
+ *          -> Register (align) pairs of spherical RGB-D images. Odometry applications.
+ *	- SLAM/ \n
+ *          -> Hybrid pose-graph SLAM using metric-topological-semantic information
+ *	- Visualization/ \n
+ *          -> Load a serialized image stream / load the built spheres
+ *
+ * \section dependencies_sec Dependencies
+ * This project integrates several open-source libraries to build the whole solution. The main dependencies are:
+ *    - OpenCV: http://opencv.org/
+ *    - PCL: http://pointclouds.org/
+ *    - MRPT: http://www.mrpt.org/
+ *    - Eigen: http://eigen.tuxfamily.org
+ *    - OpenNI2: http://www.openni.org/ (This library is needed to open and read the sensor, it is not required to work with data already recorded in datasets)    
+ *
+ * \section install_sec Installation
+ * This project has been implemented and tested in Ubuntu 12.04 and 13.04. This project contains a CMalelists.txt file to facilitate the integration of the different dependencies. Thus, the program CMake is required to produce the Makefile configuration file for compilation. To compile the source code the above dependencies must be installed first. After that, the following steps will guide you to compile the project.
+\verbatim
+cd yourPathTo/RGBD360
+\endverbatim
+ *
+ *    - Generate the Makefile with CMake.
+ *         -# Open CMake (the following instructions are for cmake-gui).
+ *         -# Set the source directory to RGBD360 and the build directory to RGBD360/build.
+ *         -# Set OpenCV_DIR, PCL_DIR and MRPT_DIR to the OpenCV, PCL and MRPT build directories respectively.
+ *         -# Set the application packages to build (Grabber, Visualizer, etc.). To reckon which packages you need, go to the next section to find out a more detailed description of each package's applications.
+ *         -# Configure.
+ *         -# Generate.
+ *
+ *    - Compile the RGBD360 project.
+ *         -# Go to the directory RGBD360/build/
+ *         -# Compile with 'make'.
+ *
+ *
+ *
+ * \section usage_sec Software usage
+ *
+ * After compiling the project, a number of directories containing the different application packages will be created. The applications of these packages are described below (a brief description of each application and its syntaxis is shown on executing ./application -h'):
+ * \subsection Calibration
+ * This package contains the applications to calibrate the extrinsic parameters of the sensor
+ * \subsubsection Calibrator
+ * This program calibrates the extrinsic parameters of the omnidirectional RGB-D device. The key idea is to match planar observations, assuming that the dominant planes (e.g. walls, ceiling or floor) can be observed at the same time by several contiguous sensors (take into account that the overlapping between the different sensors is negligible). The planes are segmented from the depth images using a region growing approach (thus, color information is not used for calibration). These planes are matched automatically according to the device construction specifications, which are refined by this program. This program opens the sensor, which has to be moved to take different plane observations at different angles and distances. When enough information has been collected, a Gauss-Newtown optimization is launched to obtain the extrinsic calibration, which can be saved if the user demands it after visual validation of the calibrated images.
+\verbatim
+./Calibrator
+\endverbatim
+ * 
+ * \subsection Grabber
+ * Read the omnidirectional RGB-D image stream from the RGBD360 sensor.
+ * \subsubsection RGBD360_Grabber
+ * \t This program accesses the omnidirectional RGB-D sensor, and reads the image streaming it captures. The image stream is recorded in the path specified by the user.
+\verbatim
+./RGBD360_Grabber <pathToSaveToDisk>
+\endverbatim
+ * 
+ * \subsection Labelization
+ * This package contains applications to annotate semantic labels on the spherical RGB-D images and on the planes extracted from them.
+ * \subsubsection LabelizeFrame360
+ * This program loads a PbMap (a its corresponding point cloud) and asks the user to labelize the planes before saving the annotated PbMap to disk.
+\verbatim
+./LabelizeFrame <pathToPbMap>
+\endverbatim
+ * \subsubsection LabelizeSequence
+ * This program loads a stream of previously built spheres (PbMap+PointCloud) partially labelized, and expands the labels by doing consecutive frame registration.
+\verbatim
+./LabelizeSequence <pathToFolderWithSpheres>
+\endverbatim
+ * 
+ * \subsection Registration
+ * This package contains applications based on the registration of pairs of RGB-D images through the matching and alignment of the PbMaps extracted from them.
+ * \subsubsection OdometryRGBD360
+ * This program performs PbMap-based Odometry from the data stream recorded by an omnidirectional RGB-D sensor.
+\verbatim
+./OdometryRGBD360 <pathToRawRGBDImagesDir> <pathToResults> <sampleStream>
+\endverbatim
+ * \subsubsection RegisterPairRGBD360
+ * This program loads two raw omnidireactional RGB-D images and aligns them using PbMap-based registration.
+\verbatim
+./RegisterPairRGBD360 <frame360_1_1.bin> <frame360_1_2.bin>
+\endverbatim
+ * 
+ * \subsection SLAM
+ * This package is dedicated to SLAM applications.
+ * \subsubsection SphereGraphSLAM
+ * This program performs metric-topological SLAM from the data stream recorded by an omnidirectional RGB-D sensor. The directory containing the input raw omnidireactional RGB-D images (.frame360 files) has to be specified.
+\verbatim
+./SphereGraphSLAM <pathToRawRGBDImagesDir>
+\endverbatim 
+ * 
+ * \subsection Visualization
+ * This package contains applications to read and visualize the spherical RGB-D images, and the point clouds and PbMaps built from them.
+ * \subsubsection LoadFrame360
+ * This program loads a Frame360.bin (an omnidirectional RGB-D image in raw binary format). It builds the pointCloud and creates a PbMap from it. The spherical frame is shown: the keys 'k' and 'l' are used to switch between visualization modes.
+\verbatim
+./LoadFrame360 <pathToFrame360.bin>
+\endverbatim
+ * \subsubsection LoadSequence
+ * This program loads a sequence of observations 'RGBD360.bin' and visualizes and/or saves the spherical images, the pointCloud or the PbMap extracted from it according to the command options.
+\verbatim
+./LoadSequence <mode> <pathToData> <pathToResultsFolder>
+\endverbatim
+ * mode = 1 -> Show the reconstructed spherical images 
+ * mode = 2 -> Show and save the reconstructed spherical images
+ * mode = 3 -> Show the reconstructed PointCloud and the PbMap
+ * mode = 4 -> Save the reconstructed PointCloud and the PbMap
+ * \subsubsection LoadSphere
+ * This program loads the pointCloud and the PbMap from a RGBD360 observation.
+\verbatim
+./LoadSphere <pathToImagesDir> <frameID>
+\endverbatim
+ * \n
+ * 
+ * 
+ *
+ * \author	Eduardo Fernandez-Moral
+ */

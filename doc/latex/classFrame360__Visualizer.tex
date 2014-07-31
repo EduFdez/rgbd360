@@ -1,0 +1,91 @@
+\hypertarget{classFrame360__Visualizer}{\section{Frame360\-\_\-\-Visualizer Class Reference}
+\label{classFrame360__Visualizer}\index{Frame360\-\_\-\-Visualizer@{Frame360\-\_\-\-Visualizer}}
+}
+
+
+{\ttfamily \#include $<$Frame360\-\_\-\-Visualizer.\-h$>$}
+
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classFrame360__Visualizer_ab2313f77f53843ee07ec3550e47df6e5}{Frame360\-\_\-\-Visualizer} (\hyperlink{classFrame360}{Frame360} $\ast$frame=N\-U\-L\-L)
+\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classFrame360}{Frame360} $\ast$ \hyperlink{classFrame360__Visualizer_a44e5734ed91fe3a08034fe6f6d204ed8}{frame360}
+\item 
+pcl\-::visualization\-::\-Cloud\-Viewer \hyperlink{classFrame360__Visualizer_a0fa4172237791194dce989b0d88eb1b6}{viewer}
+\item 
+boost\-::mutex \hyperlink{classFrame360__Visualizer_a5564c53caafff23f97fc6bb91bca058d}{visualization\-Mutex}
+\end{DoxyCompactItemize}
+\subsection*{Private Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+void \hyperlink{classFrame360__Visualizer_a736f8a2d9f4033ef110658eab9caba8a}{viz\-\_\-cb} (pcl\-::visualization\-::\-P\-C\-L\-Visualizer \&viz)
+\item 
+void \hyperlink{classFrame360__Visualizer_ab70afbc727460545de56537e40437c2b}{keyboard\-Event\-Occurred} (const pcl\-::visualization\-::\-Keyboard\-Event \&event, void $\ast$viewer\-\_\-void)
+\end{DoxyCompactItemize}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+bool \hyperlink{classFrame360__Visualizer_a39aaf9c225e5cf22e2c10a184544ad0f}{b\-Show\-Planes}
+\item 
+bool \hyperlink{classFrame360__Visualizer_af8ae6b320b3b6febd5bd4828a26a2a2b}{b\-Colored\-Planes}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+This class creates a visualizer to display a \hyperlink{classFrame360}{Frame360} object. The visualizer runs in a separate thread, and can be sychronized using the visualization\-Mutex. 
+
+\subsection{Constructor \& Destructor Documentation}
+\hypertarget{classFrame360__Visualizer_ab2313f77f53843ee07ec3550e47df6e5}{\index{Frame360\-\_\-\-Visualizer@{Frame360\-\_\-\-Visualizer}!Frame360\-\_\-\-Visualizer@{Frame360\-\_\-\-Visualizer}}
+\index{Frame360\-\_\-\-Visualizer@{Frame360\-\_\-\-Visualizer}!Frame360_Visualizer@{Frame360\-\_\-\-Visualizer}}
+\subsubsection[{Frame360\-\_\-\-Visualizer}]{\setlength{\rightskip}{0pt plus 5cm}Frame360\-\_\-\-Visualizer\-::\-Frame360\-\_\-\-Visualizer (
+\begin{DoxyParamCaption}
+\item[{{\bf Frame360} $\ast$}]{frame = {\ttfamily NULL}}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classFrame360__Visualizer_ab2313f77f53843ee07ec3550e47df6e5}
+Constructor. It starts the visualization in a separate thread 
+
+\subsection{Member Function Documentation}
+\hypertarget{classFrame360__Visualizer_ab70afbc727460545de56537e40437c2b}{\index{Frame360\-\_\-\-Visualizer@{Frame360\-\_\-\-Visualizer}!keyboard\-Event\-Occurred@{keyboard\-Event\-Occurred}}
+\index{keyboard\-Event\-Occurred@{keyboard\-Event\-Occurred}!Frame360_Visualizer@{Frame360\-\_\-\-Visualizer}}
+\subsubsection[{keyboard\-Event\-Occurred}]{\setlength{\rightskip}{0pt plus 5cm}void Frame360\-\_\-\-Visualizer\-::keyboard\-Event\-Occurred (
+\begin{DoxyParamCaption}
+\item[{const pcl\-::visualization\-::\-Keyboard\-Event \&}]{event, }
+\item[{void $\ast$}]{viewer\-\_\-void}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [private]}}}\label{classFrame360__Visualizer_ab70afbc727460545de56537e40437c2b}
+Get events from the keyboard \hypertarget{classFrame360__Visualizer_a736f8a2d9f4033ef110658eab9caba8a}{\index{Frame360\-\_\-\-Visualizer@{Frame360\-\_\-\-Visualizer}!viz\-\_\-cb@{viz\-\_\-cb}}
+\index{viz\-\_\-cb@{viz\-\_\-cb}!Frame360_Visualizer@{Frame360\-\_\-\-Visualizer}}
+\subsubsection[{viz\-\_\-cb}]{\setlength{\rightskip}{0pt plus 5cm}void Frame360\-\_\-\-Visualizer\-::viz\-\_\-cb (
+\begin{DoxyParamCaption}
+\item[{pcl\-::visualization\-::\-P\-C\-L\-Visualizer \&}]{viz}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [private]}}}\label{classFrame360__Visualizer_a736f8a2d9f4033ef110658eab9caba8a}
+Visualization callback 
+
+\subsection{Member Data Documentation}
+\hypertarget{classFrame360__Visualizer_af8ae6b320b3b6febd5bd4828a26a2a2b}{\index{Frame360\-\_\-\-Visualizer@{Frame360\-\_\-\-Visualizer}!b\-Colored\-Planes@{b\-Colored\-Planes}}
+\index{b\-Colored\-Planes@{b\-Colored\-Planes}!Frame360_Visualizer@{Frame360\-\_\-\-Visualizer}}
+\subsubsection[{b\-Colored\-Planes}]{\setlength{\rightskip}{0pt plus 5cm}bool Frame360\-\_\-\-Visualizer\-::b\-Colored\-Planes\hspace{0.3cm}{\ttfamily [private]}}}\label{classFrame360__Visualizer_af8ae6b320b3b6febd5bd4828a26a2a2b}
+Show the Pb\-Map's planes filled with different colors. It is control through keyboard event. \hypertarget{classFrame360__Visualizer_a39aaf9c225e5cf22e2c10a184544ad0f}{\index{Frame360\-\_\-\-Visualizer@{Frame360\-\_\-\-Visualizer}!b\-Show\-Planes@{b\-Show\-Planes}}
+\index{b\-Show\-Planes@{b\-Show\-Planes}!Frame360_Visualizer@{Frame360\-\_\-\-Visualizer}}
+\subsubsection[{b\-Show\-Planes}]{\setlength{\rightskip}{0pt plus 5cm}bool Frame360\-\_\-\-Visualizer\-::b\-Show\-Planes\hspace{0.3cm}{\ttfamily [private]}}}\label{classFrame360__Visualizer_a39aaf9c225e5cf22e2c10a184544ad0f}
+Show the Pb\-Map's planes. It is control through keyboard event. \hypertarget{classFrame360__Visualizer_a44e5734ed91fe3a08034fe6f6d204ed8}{\index{Frame360\-\_\-\-Visualizer@{Frame360\-\_\-\-Visualizer}!frame360@{frame360}}
+\index{frame360@{frame360}!Frame360_Visualizer@{Frame360\-\_\-\-Visualizer}}
+\subsubsection[{frame360}]{\setlength{\rightskip}{0pt plus 5cm}{\bf Frame360}$\ast$ Frame360\-\_\-\-Visualizer\-::frame360}}\label{classFrame360__Visualizer_a44e5734ed91fe3a08034fe6f6d204ed8}
+Omnidirectional R\-G\-B-\/\-D image to be displayed \hypertarget{classFrame360__Visualizer_a0fa4172237791194dce989b0d88eb1b6}{\index{Frame360\-\_\-\-Visualizer@{Frame360\-\_\-\-Visualizer}!viewer@{viewer}}
+\index{viewer@{viewer}!Frame360_Visualizer@{Frame360\-\_\-\-Visualizer}}
+\subsubsection[{viewer}]{\setlength{\rightskip}{0pt plus 5cm}pcl\-::visualization\-::\-Cloud\-Viewer Frame360\-\_\-\-Visualizer\-::viewer}}\label{classFrame360__Visualizer_a0fa4172237791194dce989b0d88eb1b6}
+Visualizer object \hypertarget{classFrame360__Visualizer_a5564c53caafff23f97fc6bb91bca058d}{\index{Frame360\-\_\-\-Visualizer@{Frame360\-\_\-\-Visualizer}!visualization\-Mutex@{visualization\-Mutex}}
+\index{visualization\-Mutex@{visualization\-Mutex}!Frame360_Visualizer@{Frame360\-\_\-\-Visualizer}}
+\subsubsection[{visualization\-Mutex}]{\setlength{\rightskip}{0pt plus 5cm}boost\-::mutex Frame360\-\_\-\-Visualizer\-::visualization\-Mutex}}\label{classFrame360__Visualizer_a5564c53caafff23f97fc6bb91bca058d}
+Index of visualizer screenshot. This is used to create videos with the results
+
+Mutex to syncrhronize eventual changes in frame360 
+
+The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+include/Frame360\-\_\-\-Visualizer.\-h\end{DoxyCompactItemize}

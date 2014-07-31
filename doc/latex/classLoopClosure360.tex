@@ -1,0 +1,112 @@
+\hypertarget{classLoopClosure360}{\section{Loop\-Closure360 Class Reference}
+\label{classLoopClosure360}\index{Loop\-Closure360@{Loop\-Closure360}}
+}
+
+
+{\ttfamily \#include $<$Loop\-Closure360.\-h$>$}
+
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classLoopClosure360_aa533cfa4e5fd3cf5d9dc425fffc861fe}{Loop\-Closure360} (\hyperlink{structMap360}{Map360} \&map)
+\item 
+\hyperlink{classLoopClosure360_a414fe6292e7c300503eecde1583673b2}{$\sim$\-Loop\-Closure360} ()
+\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+std\-::map$<$ unsigned, std\-::map\\*
+$<$ unsigned, float $>$ $>$ \hyperlink{classLoopClosure360_aadd883360701f7c73c1d050a57349037}{connections\-L\-C}
+\end{DoxyCompactItemize}
+\subsection*{Private Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+void \hyperlink{classLoopClosure360_a804cd7548d55e614444550a748480598}{run} ()
+\end{DoxyCompactItemize}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{structMap360}{Map360} \& \hyperlink{classLoopClosure360_a5b91cac06bfd29812943dfd042081e62}{Map}
+\item 
+\hyperlink{classRegisterRGBD360}{Register\-R\-G\-B\-D360} \hyperlink{classLoopClosure360_a1002d38ebe9e93238e8260096d85d87f}{registerer}
+\item 
+\hyperlink{classGraphOptimizer}{Graph\-Optimizer} \hyperlink{classLoopClosure360_a3cd0c08e2bb1a4588634aa4a2ca203a9}{optimizer}
+\item 
+int \hyperlink{classLoopClosure360_a5382c470b13df15c7e47c8d096c7d32f}{num\-K\-Fs\-Optim}
+\item 
+std\-::vector$<$ std\-::pair\\*
+$<$ unsigned, unsigned $>$ $>$ \hyperlink{classLoopClosure360_ae1ffbca60947fcbede7b879eba8fff6d}{v\-Queue\-New\-K\-Fs}
+\item 
+int \hyperlink{classLoopClosure360_ab3ba4c9b0ccab41b5a93c4e61645df7f}{sample\-Search\-L\-C}
+\item 
+bool \hyperlink{classLoopClosure360_a3938681e7058a95a39cadc723388f1ad}{b\-Should\-Stop}
+\item 
+mrpt\-::system\-::\-T\-Thread\-Handle \hyperlink{classLoopClosure360_aff328ff138b4a58ca1efaf212e1c3606}{thread\-\_\-hd\-\_\-}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+This class manages the \hyperlink{structMap360}{Map360}'s loop closure in a separate thread. As new keyframes are added to the map, they are compared with previous ones which are close-\/by, and if a good registration is found, the pose-\/graph is updated and the map is optimized using the loop closure information. 
+
+\subsection{Constructor \& Destructor Documentation}
+\hypertarget{classLoopClosure360_aa533cfa4e5fd3cf5d9dc425fffc861fe}{\index{Loop\-Closure360@{Loop\-Closure360}!Loop\-Closure360@{Loop\-Closure360}}
+\index{Loop\-Closure360@{Loop\-Closure360}!LoopClosure360@{Loop\-Closure360}}
+\subsubsection[{Loop\-Closure360}]{\setlength{\rightskip}{0pt plus 5cm}Loop\-Closure360\-::\-Loop\-Closure360 (
+\begin{DoxyParamCaption}
+\item[{{\bf Map360} \&}]{map}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classLoopClosure360_aa533cfa4e5fd3cf5d9dc425fffc861fe}
+Vector of queued Keyframes waiting for loop closure checking
+
+This constructor starts the loop closure checking in a new thread \hypertarget{classLoopClosure360_a414fe6292e7c300503eecde1583673b2}{\index{Loop\-Closure360@{Loop\-Closure360}!$\sim$\-Loop\-Closure360@{$\sim$\-Loop\-Closure360}}
+\index{$\sim$\-Loop\-Closure360@{$\sim$\-Loop\-Closure360}!LoopClosure360@{Loop\-Closure360}}
+\subsubsection[{$\sim$\-Loop\-Closure360}]{\setlength{\rightskip}{0pt plus 5cm}Loop\-Closure360\-::$\sim$\-Loop\-Closure360 (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classLoopClosure360_a414fe6292e7c300503eecde1583673b2}
+This destructor finishes the loop closure thread 
+
+\subsection{Member Function Documentation}
+\hypertarget{classLoopClosure360_a804cd7548d55e614444550a748480598}{\index{Loop\-Closure360@{Loop\-Closure360}!run@{run}}
+\index{run@{run}!LoopClosure360@{Loop\-Closure360}}
+\subsubsection[{run}]{\setlength{\rightskip}{0pt plus 5cm}void Loop\-Closure360\-::run (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [private]}}}\label{classLoopClosure360_a804cd7548d55e614444550a748480598}
+Execute the loop closure functionality continuously in an infinite loop 
+
+\subsection{Member Data Documentation}
+\hypertarget{classLoopClosure360_a3938681e7058a95a39cadc723388f1ad}{\index{Loop\-Closure360@{Loop\-Closure360}!b\-Should\-Stop@{b\-Should\-Stop}}
+\index{b\-Should\-Stop@{b\-Should\-Stop}!LoopClosure360@{Loop\-Closure360}}
+\subsubsection[{b\-Should\-Stop}]{\setlength{\rightskip}{0pt plus 5cm}bool Loop\-Closure360\-::b\-Should\-Stop\hspace{0.3cm}{\ttfamily [private]}}}\label{classLoopClosure360_a3938681e7058a95a39cadc723388f1ad}
+Boolean to control the stop of the infinite loop \hypertarget{classLoopClosure360_aadd883360701f7c73c1d050a57349037}{\index{Loop\-Closure360@{Loop\-Closure360}!connections\-L\-C@{connections\-L\-C}}
+\index{connections\-L\-C@{connections\-L\-C}!LoopClosure360@{Loop\-Closure360}}
+\subsubsection[{connections\-L\-C}]{\setlength{\rightskip}{0pt plus 5cm}std\-::map$<$unsigned, std\-::map$<$unsigned, float$>$ $>$ Loop\-Closure360\-::connections\-L\-C}}\label{classLoopClosure360_aadd883360701f7c73c1d050a57349037}
+Connections found with loop closure. The matched planar area is saved here \hypertarget{classLoopClosure360_a5b91cac06bfd29812943dfd042081e62}{\index{Loop\-Closure360@{Loop\-Closure360}!Map@{Map}}
+\index{Map@{Map}!LoopClosure360@{Loop\-Closure360}}
+\subsubsection[{Map}]{\setlength{\rightskip}{0pt plus 5cm}{\bf Map360}\& Loop\-Closure360\-::\-Map\hspace{0.3cm}{\ttfamily [private]}}}\label{classLoopClosure360_a5b91cac06bfd29812943dfd042081e62}
+Reference to the Map \hypertarget{classLoopClosure360_a5382c470b13df15c7e47c8d096c7d32f}{\index{Loop\-Closure360@{Loop\-Closure360}!num\-K\-Fs\-Optim@{num\-K\-Fs\-Optim}}
+\index{num\-K\-Fs\-Optim@{num\-K\-Fs\-Optim}!LoopClosure360@{Loop\-Closure360}}
+\subsubsection[{num\-K\-Fs\-Optim}]{\setlength{\rightskip}{0pt plus 5cm}int Loop\-Closure360\-::num\-K\-Fs\-Optim\hspace{0.3cm}{\ttfamily [private]}}}\label{classLoopClosure360_a5382c470b13df15c7e47c8d096c7d32f}
+Number of keyframes to optimize (the total number of keyframes -\/ 1) \hypertarget{classLoopClosure360_a3cd0c08e2bb1a4588634aa4a2ca203a9}{\index{Loop\-Closure360@{Loop\-Closure360}!optimizer@{optimizer}}
+\index{optimizer@{optimizer}!LoopClosure360@{Loop\-Closure360}}
+\subsubsection[{optimizer}]{\setlength{\rightskip}{0pt plus 5cm}{\bf Graph\-Optimizer} Loop\-Closure360\-::optimizer\hspace{0.3cm}{\ttfamily [private]}}}\label{classLoopClosure360_a3cd0c08e2bb1a4588634aa4a2ca203a9}
+Pose-\/graph optimization object \hypertarget{classLoopClosure360_a1002d38ebe9e93238e8260096d85d87f}{\index{Loop\-Closure360@{Loop\-Closure360}!registerer@{registerer}}
+\index{registerer@{registerer}!LoopClosure360@{Loop\-Closure360}}
+\subsubsection[{registerer}]{\setlength{\rightskip}{0pt plus 5cm}{\bf Register\-R\-G\-B\-D360} Loop\-Closure360\-::registerer\hspace{0.3cm}{\ttfamily [private]}}}\label{classLoopClosure360_a1002d38ebe9e93238e8260096d85d87f}
+Keyframe registration object \hypertarget{classLoopClosure360_ab3ba4c9b0ccab41b5a93c4e61645df7f}{\index{Loop\-Closure360@{Loop\-Closure360}!sample\-Search\-L\-C@{sample\-Search\-L\-C}}
+\index{sample\-Search\-L\-C@{sample\-Search\-L\-C}!LoopClosure360@{Loop\-Closure360}}
+\subsubsection[{sample\-Search\-L\-C}]{\setlength{\rightskip}{0pt plus 5cm}int Loop\-Closure360\-::sample\-Search\-L\-C\hspace{0.3cm}{\ttfamily [private]}}}\label{classLoopClosure360_ab3ba4c9b0ccab41b5a93c4e61645df7f}
+Do not check for L\-C with every K\-F, but each certain amount 'sample\-Search\-L\-C' \hypertarget{classLoopClosure360_aff328ff138b4a58ca1efaf212e1c3606}{\index{Loop\-Closure360@{Loop\-Closure360}!thread\-\_\-hd\-\_\-@{thread\-\_\-hd\-\_\-}}
+\index{thread\-\_\-hd\-\_\-@{thread\-\_\-hd\-\_\-}!LoopClosure360@{Loop\-Closure360}}
+\subsubsection[{thread\-\_\-hd\-\_\-}]{\setlength{\rightskip}{0pt plus 5cm}mrpt\-::system\-::\-T\-Thread\-Handle Loop\-Closure360\-::thread\-\_\-hd\-\_\-\hspace{0.3cm}{\ttfamily [private]}}}\label{classLoopClosure360_aff328ff138b4a58ca1efaf212e1c3606}
+Thread handler \hypertarget{classLoopClosure360_ae1ffbca60947fcbede7b879eba8fff6d}{\index{Loop\-Closure360@{Loop\-Closure360}!v\-Queue\-New\-K\-Fs@{v\-Queue\-New\-K\-Fs}}
+\index{v\-Queue\-New\-K\-Fs@{v\-Queue\-New\-K\-Fs}!LoopClosure360@{Loop\-Closure360}}
+\subsubsection[{v\-Queue\-New\-K\-Fs}]{\setlength{\rightskip}{0pt plus 5cm}std\-::vector$<$std\-::pair$<$unsigned,unsigned$>$ $>$ Loop\-Closure360\-::v\-Queue\-New\-K\-Fs\hspace{0.3cm}{\ttfamily [private]}}}\label{classLoopClosure360_ae1ffbca60947fcbede7b879eba8fff6d}
+Vector of queued Keyframes waiting for loop closure checking 
+
+The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+include/Loop\-Closure360.\-h\end{DoxyCompactItemize}

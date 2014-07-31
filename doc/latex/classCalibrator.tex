@@ -1,0 +1,126 @@
+\hypertarget{classCalibrator}{\section{Calibrator Class Reference}
+\label{classCalibrator}\index{Calibrator@{Calibrator}}
+}
+
+
+{\ttfamily \#include $<$Calibrator.\-h$>$}
+
+Inheritance diagram for Calibrator\-:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=2.000000cm]{classCalibrator}
+\end{center}
+\end{figure}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+void \hyperlink{classCalibrator_a749ed4be8cd2b66416b954af8ef24a9f}{load\-Construction\-Specs} ()
+\item 
+void \hyperlink{classCalibrator_a8f5f7422d896db20aad3812051eeb92e}{save\-Plane\-Correspondences} (std\-::string \&plane\-Corresp\-Directory)
+\item 
+void \hyperlink{classCalibrator_a14899494a37a1e838e2f6717a7114a8f}{load\-Plane\-Correspondences} (const std\-::string plane\-Corresp\-Directory)
+\item 
+float \hyperlink{classCalibrator_ac95df4664b1ca9b1188caf9a877348d5}{calc\-Corresp\-Rot\-Error} (Eigen\-::\-Matrix4f $\ast$\hyperlink{classCalib360_a61dacdf729067dcea6d270f79e628b83}{Rt\-\_\-})
+\item 
+float \hyperlink{classCalibrator_ae6aef26dc04a71762fac9d4dab2513c5}{calc\-Corresp\-Trans\-Error} (Eigen\-::\-Matrix4f $\ast$\hyperlink{classCalib360_a61dacdf729067dcea6d270f79e628b83}{Rt\-\_\-})
+\item 
+void \hyperlink{classCalibrator_a958435e23a9f93cfac798925b1653171}{Calibrate\-Rotation} ()
+\item 
+void \hyperlink{classCalibrator_af896bad41d28ff7ce20d77361414edc6}{Calibrate\-Translation} ()
+\item 
+void \hyperlink{classCalibrator_a337977f493659555f73fb476c686bb3c}{Calibrate} ()
+\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+Eigen\-::\-Matrix4f \hyperlink{classCalibrator_ada5174649775a64c103833f87d90ec3e}{Rt\-\_\-specs} \mbox{[}N\-U\-M\-\_\-\-A\-S\-U\-S\-\_\-\-S\-E\-N\-S\-O\-R\-S\mbox{]}
+\item 
+Eigen\-::\-Matrix4f \hyperlink{classCalibrator_a664327b52485de0d402bbc896ce1233f}{Rt\-\_\-estimated} \mbox{[}N\-U\-M\-\_\-\-A\-S\-U\-S\-\_\-\-S\-E\-N\-S\-O\-R\-S\mbox{]}
+\end{DoxyCompactItemize}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+std\-::map$<$ unsigned, std\-::map\\*
+$<$ unsigned, \\*
+mrpt\-::math\-::\-C\-Matrix\-Double $>$ $>$ \hyperlink{classCalibrator_aa11e0d4221b509241235755dde78e3cc}{mm\-Correspondences}
+\end{DoxyCompactItemize}
+\subsection*{Additional Inherited Members}
+
+
+\subsection{Detailed Description}
+This class contains the functionality to calibrate the extrinsic parameters of the omnidirectional R\-G\-B-\/\-D device (R\-G\-B\-D360). This extrinsic calibration is obtained by matching planes that are observed by several Asus X\-P\-L sensors at the same time. 
+
+\subsection{Member Function Documentation}
+\hypertarget{classCalibrator_ac95df4664b1ca9b1188caf9a877348d5}{\index{Calibrator@{Calibrator}!calc\-Corresp\-Rot\-Error@{calc\-Corresp\-Rot\-Error}}
+\index{calc\-Corresp\-Rot\-Error@{calc\-Corresp\-Rot\-Error}!Calibrator@{Calibrator}}
+\subsubsection[{calc\-Corresp\-Rot\-Error}]{\setlength{\rightskip}{0pt plus 5cm}float Calibrator\-::calc\-Corresp\-Rot\-Error (
+\begin{DoxyParamCaption}
+\item[{Eigen\-::\-Matrix4f $\ast$}]{Rt\-\_\-}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCalibrator_ac95df4664b1ca9b1188caf9a877348d5}
+Get the sum of squared rotational errors for the input extrinsic matrices. T\-O\-D\-O\-: the input argument of this function is unsafe -\/$>$ fix it \hypertarget{classCalibrator_ae6aef26dc04a71762fac9d4dab2513c5}{\index{Calibrator@{Calibrator}!calc\-Corresp\-Trans\-Error@{calc\-Corresp\-Trans\-Error}}
+\index{calc\-Corresp\-Trans\-Error@{calc\-Corresp\-Trans\-Error}!Calibrator@{Calibrator}}
+\subsubsection[{calc\-Corresp\-Trans\-Error}]{\setlength{\rightskip}{0pt plus 5cm}float Calibrator\-::calc\-Corresp\-Trans\-Error (
+\begin{DoxyParamCaption}
+\item[{Eigen\-::\-Matrix4f $\ast$}]{Rt\-\_\-}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCalibrator_ae6aef26dc04a71762fac9d4dab2513c5}
+Get the sum of squared translational errors for the input extrinsic matrices. T\-O\-D\-O\-: the input argument of this function is unsafe -\/$>$ fix it \hypertarget{classCalibrator_a337977f493659555f73fb476c686bb3c}{\index{Calibrator@{Calibrator}!Calibrate@{Calibrate}}
+\index{Calibrate@{Calibrate}!Calibrator@{Calibrator}}
+\subsubsection[{Calibrate}]{\setlength{\rightskip}{0pt plus 5cm}void Calibrator\-::\-Calibrate (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCalibrator_a337977f493659555f73fb476c686bb3c}
+Get the Rt of each sensor in the multisensor R\-G\-B\-D360 setup \hypertarget{classCalibrator_a958435e23a9f93cfac798925b1653171}{\index{Calibrator@{Calibrator}!Calibrate\-Rotation@{Calibrate\-Rotation}}
+\index{Calibrate\-Rotation@{Calibrate\-Rotation}!Calibrator@{Calibrator}}
+\subsubsection[{Calibrate\-Rotation}]{\setlength{\rightskip}{0pt plus 5cm}void Calibrator\-::\-Calibrate\-Rotation (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCalibrator_a958435e23a9f93cfac798925b1653171}
+Get the rotation of each sensor in the multisensor R\-G\-B\-D360 setup \hypertarget{classCalibrator_af896bad41d28ff7ce20d77361414edc6}{\index{Calibrator@{Calibrator}!Calibrate\-Translation@{Calibrate\-Translation}}
+\index{Calibrate\-Translation@{Calibrate\-Translation}!Calibrator@{Calibrator}}
+\subsubsection[{Calibrate\-Translation}]{\setlength{\rightskip}{0pt plus 5cm}void Calibrator\-::\-Calibrate\-Translation (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCalibrator_af896bad41d28ff7ce20d77361414edc6}
+Get the translation of each sensor in the multisensor R\-G\-B\-D360 setup. Warning\-: this method has being implemented to be applied always after rotation calibration \hypertarget{classCalibrator_a749ed4be8cd2b66416b954af8ef24a9f}{\index{Calibrator@{Calibrator}!load\-Construction\-Specs@{load\-Construction\-Specs}}
+\index{load\-Construction\-Specs@{load\-Construction\-Specs}!Calibrator@{Calibrator}}
+\subsubsection[{load\-Construction\-Specs}]{\setlength{\rightskip}{0pt plus 5cm}void Calibrator\-::load\-Construction\-Specs (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCalibrator_a749ed4be8cd2b66416b954af8ef24a9f}
+Load the extrinsic parameters given by the construction specifications of the omnidirectional sensor \hypertarget{classCalibrator_a14899494a37a1e838e2f6717a7114a8f}{\index{Calibrator@{Calibrator}!load\-Plane\-Correspondences@{load\-Plane\-Correspondences}}
+\index{load\-Plane\-Correspondences@{load\-Plane\-Correspondences}!Calibrator@{Calibrator}}
+\subsubsection[{load\-Plane\-Correspondences}]{\setlength{\rightskip}{0pt plus 5cm}void Calibrator\-::load\-Plane\-Correspondences (
+\begin{DoxyParamCaption}
+\item[{const std\-::string}]{plane\-Corresp\-Directory}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCalibrator_a14899494a37a1e838e2f6717a7114a8f}
+Load the plane correspondences between the different Asus sensors from file \hypertarget{classCalibrator_a8f5f7422d896db20aad3812051eeb92e}{\index{Calibrator@{Calibrator}!save\-Plane\-Correspondences@{save\-Plane\-Correspondences}}
+\index{save\-Plane\-Correspondences@{save\-Plane\-Correspondences}!Calibrator@{Calibrator}}
+\subsubsection[{save\-Plane\-Correspondences}]{\setlength{\rightskip}{0pt plus 5cm}void Calibrator\-::save\-Plane\-Correspondences (
+\begin{DoxyParamCaption}
+\item[{std\-::string \&}]{plane\-Corresp\-Directory}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classCalibrator_a8f5f7422d896db20aad3812051eeb92e}
+Load the plane correspondences between the different Asus sensors from file 
+
+\subsection{Member Data Documentation}
+\hypertarget{classCalibrator_aa11e0d4221b509241235755dde78e3cc}{\index{Calibrator@{Calibrator}!mm\-Correspondences@{mm\-Correspondences}}
+\index{mm\-Correspondences@{mm\-Correspondences}!Calibrator@{Calibrator}}
+\subsubsection[{mm\-Correspondences}]{\setlength{\rightskip}{0pt plus 5cm}std\-::map$<$unsigned, std\-::map$<$unsigned, mrpt\-::math\-::\-C\-Matrix\-Double$>$ $>$ Calibrator\-::mm\-Correspondences\hspace{0.3cm}{\ttfamily [private]}}}\label{classCalibrator_aa11e0d4221b509241235755dde78e3cc}
+The plane correspondences between the different Asus sensors \hypertarget{classCalibrator_a664327b52485de0d402bbc896ce1233f}{\index{Calibrator@{Calibrator}!Rt\-\_\-estimated@{Rt\-\_\-estimated}}
+\index{Rt\-\_\-estimated@{Rt\-\_\-estimated}!Calibrator@{Calibrator}}
+\subsubsection[{Rt\-\_\-estimated}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Matrix4f Calibrator\-::\-Rt\-\_\-estimated\mbox{[}N\-U\-M\-\_\-\-A\-S\-U\-S\-\_\-\-S\-E\-N\-S\-O\-R\-S\mbox{]}}}\label{classCalibrator_a664327b52485de0d402bbc896ce1233f}
+The extrinsic parameters estimated by this calibration method \hypertarget{classCalibrator_ada5174649775a64c103833f87d90ec3e}{\index{Calibrator@{Calibrator}!Rt\-\_\-specs@{Rt\-\_\-specs}}
+\index{Rt\-\_\-specs@{Rt\-\_\-specs}!Calibrator@{Calibrator}}
+\subsubsection[{Rt\-\_\-specs}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Matrix4f Calibrator\-::\-Rt\-\_\-specs\mbox{[}N\-U\-M\-\_\-\-A\-S\-U\-S\-\_\-\-S\-E\-N\-S\-O\-R\-S\mbox{]}}}\label{classCalibrator_ada5174649775a64c103833f87d90ec3e}
+The extrinsic parameters given by the construction specifications of the omnidirectional sensor 
+
+The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+include/Calibrator.\-h\end{DoxyCompactItemize}

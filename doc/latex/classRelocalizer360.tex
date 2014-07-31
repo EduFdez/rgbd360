@@ -1,0 +1,78 @@
+\hypertarget{classRelocalizer360}{\section{Relocalizer360 Class Reference}
+\label{classRelocalizer360}\index{Relocalizer360@{Relocalizer360}}
+}
+
+
+{\ttfamily \#include $<$Relocalizer360.\-h$>$}
+
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classRelocalizer360_a0bf1623c3c27d05525cc7bb04e776385}{Relocalizer360} (\hyperlink{structMap360}{Map360} \&map)
+\item 
+int \hyperlink{classRelocalizer360_a522f6e3c5c005d185dbb0b5984e1a682}{relocalize} (\hyperlink{classFrame360}{Frame360} $\ast$current\-Frame)
+\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classRegisterRGBD360}{Register\-R\-G\-B\-D360} \hyperlink{classRelocalizer360_ae782e8bb7b638e264247afdc754c1891}{registerer}
+\item 
+unsigned \hyperlink{classRelocalizer360_a7391b203d219d35f74f5566cd5b3a154}{reloc\-K\-F}
+\item 
+Eigen\-::\-Matrix4f \hyperlink{classRelocalizer360_a4c7afb62e3812f6aecdf64f8f3790084}{rigid\-Transf}
+\item 
+Eigen\-::\-Matrix$<$ float, 6, 6 $>$ \hyperlink{classRelocalizer360_ae403c7df20c063687f14726ea1fa9e22}{information\-M}
+\end{DoxyCompactItemize}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{structMap360}{Map360} \& \hyperlink{classRelocalizer360_a537a5a4228c0e1f03185f58caf7e4123}{Map}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+This class is used to relocalize a given \hyperlink{classFrame360}{Frame360} in the map of spherical keyframes. This is useful when the odometry track has been lost. The core of this functionality performs Pb\-Map matching, what makes it highly efficient for real-\/time applications like S\-L\-A\-M. 
+
+\subsection{Constructor \& Destructor Documentation}
+\hypertarget{classRelocalizer360_a0bf1623c3c27d05525cc7bb04e776385}{\index{Relocalizer360@{Relocalizer360}!Relocalizer360@{Relocalizer360}}
+\index{Relocalizer360@{Relocalizer360}!Relocalizer360@{Relocalizer360}}
+\subsubsection[{Relocalizer360}]{\setlength{\rightskip}{0pt plus 5cm}Relocalizer360\-::\-Relocalizer360 (
+\begin{DoxyParamCaption}
+\item[{{\bf Map360} \&}]{map}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRelocalizer360_a0bf1623c3c27d05525cc7bb04e776385}
+Constructor 
+
+\subsection{Member Function Documentation}
+\hypertarget{classRelocalizer360_a522f6e3c5c005d185dbb0b5984e1a682}{\index{Relocalizer360@{Relocalizer360}!relocalize@{relocalize}}
+\index{relocalize@{relocalize}!Relocalizer360@{Relocalizer360}}
+\subsubsection[{relocalize}]{\setlength{\rightskip}{0pt plus 5cm}int Relocalizer360\-::relocalize (
+\begin{DoxyParamCaption}
+\item[{{\bf Frame360} $\ast$}]{current\-Frame}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRelocalizer360_a522f6e3c5c005d185dbb0b5984e1a682}
+Destructor
+
+Relocalize the input \hyperlink{classFrame360}{Frame360} 'current\-Frame'. It returns the frame wrt the system has relocalized or -\/1 otherwise 
+
+\subsection{Member Data Documentation}
+\hypertarget{classRelocalizer360_ae403c7df20c063687f14726ea1fa9e22}{\index{Relocalizer360@{Relocalizer360}!information\-M@{information\-M}}
+\index{information\-M@{information\-M}!Relocalizer360@{Relocalizer360}}
+\subsubsection[{information\-M}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Matrix$<$float,6,6$>$ Relocalizer360\-::information\-M}}\label{classRelocalizer360_ae403c7df20c063687f14726ea1fa9e22}
+6x6 covariance matrix of the relocalization \hypertarget{classRelocalizer360_a537a5a4228c0e1f03185f58caf7e4123}{\index{Relocalizer360@{Relocalizer360}!Map@{Map}}
+\index{Map@{Map}!Relocalizer360@{Relocalizer360}}
+\subsubsection[{Map}]{\setlength{\rightskip}{0pt plus 5cm}{\bf Map360}\& Relocalizer360\-::\-Map\hspace{0.3cm}{\ttfamily [private]}}}\label{classRelocalizer360_a537a5a4228c0e1f03185f58caf7e4123}
+Reference to the Map \hypertarget{classRelocalizer360_ae782e8bb7b638e264247afdc754c1891}{\index{Relocalizer360@{Relocalizer360}!registerer@{registerer}}
+\index{registerer@{registerer}!Relocalizer360@{Relocalizer360}}
+\subsubsection[{registerer}]{\setlength{\rightskip}{0pt plus 5cm}{\bf Register\-R\-G\-B\-D360} Relocalizer360\-::registerer}}\label{classRelocalizer360_ae782e8bb7b638e264247afdc754c1891}
+Keyframe registration object \hypertarget{classRelocalizer360_a7391b203d219d35f74f5566cd5b3a154}{\index{Relocalizer360@{Relocalizer360}!reloc\-K\-F@{reloc\-K\-F}}
+\index{reloc\-K\-F@{reloc\-K\-F}!Relocalizer360@{Relocalizer360}}
+\subsubsection[{reloc\-K\-F}]{\setlength{\rightskip}{0pt plus 5cm}unsigned Relocalizer360\-::reloc\-K\-F}}\label{classRelocalizer360_a7391b203d219d35f74f5566cd5b3a154}
+Index of the keyframe with respect to which the system was relocalized \hypertarget{classRelocalizer360_a4c7afb62e3812f6aecdf64f8f3790084}{\index{Relocalizer360@{Relocalizer360}!rigid\-Transf@{rigid\-Transf}}
+\index{rigid\-Transf@{rigid\-Transf}!Relocalizer360@{Relocalizer360}}
+\subsubsection[{rigid\-Transf}]{\setlength{\rightskip}{0pt plus 5cm}Eigen\-::\-Matrix4f Relocalizer360\-::rigid\-Transf}}\label{classRelocalizer360_a4c7afb62e3812f6aecdf64f8f3790084}
+Pose of the relocalized frame wrt 'reloc\-K\-F' 
+
+The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+include/Relocalizer360.\-h\end{DoxyCompactItemize}

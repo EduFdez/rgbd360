@@ -1,0 +1,107 @@
+\hypertarget{classCloudRGBD}{\section{\-Cloud\-R\-G\-B\-D \-Class \-Reference}
+\label{classCloudRGBD}\index{\-Cloud\-R\-G\-B\-D@{\-Cloud\-R\-G\-B\-D}}
+}
+
+
+{\ttfamily \#include $<$\-Cloud\-R\-G\-B\-D.\-h$>$}
+
+\-Inheritance diagram for \-Cloud\-R\-G\-B\-D\-:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=2.000000cm]{classCloudRGBD}
+\end{center}
+\end{figure}
+\subsection*{\-Public \-Member \-Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classCloudRGBD_a1891a4fa7ff60d796ebaca34ecb2b2e5}{\-Cloud\-R\-G\-B\-D} ()
+\item 
+void \hyperlink{classCloudRGBD_aef169255eda36cecfbb9dd4fba8b1254}{set\-Max\-Point\-Cloud\-Depth} (float max\-D)
+\item 
+void \hyperlink{classCloudRGBD_acbc94f5e47168d8a2ab948c961722b9a}{set\-Min\-Point\-Cloud\-Depth} (float min\-D)
+\item 
+float \hyperlink{classCloudRGBD_aea64bd042ad48d97fb3c997e3693f653}{get\-Max\-Point\-Cloud\-Depth} ()
+\item 
+float \hyperlink{classCloudRGBD_a0a1ffcbf6f58b9087697e357592b341e}{get\-Min\-Point\-Cloud\-Depth} ()
+\item 
+void \hyperlink{classCloudRGBD_ab42445f396985ed7e3b9fe0d5fbd111a}{set\-Point\-Cloud} (pcl\-::\-Point\-Cloud$<$ pcl\-::\-Point\-X\-Y\-Z\-R\-G\-B\-A $>$\-::\-Ptr point\-Cloud)
+\item 
+pcl\-::\-Point\-Cloud\*
+$<$ pcl\-::\-Point\-X\-Y\-Z\-R\-G\-B\-A $>$\-::\-Ptr \hyperlink{classCloudRGBD_a92c7f15804f26f1e75f1baa4655f9162}{get\-Point\-Cloud} ()
+\end{DoxyCompactItemize}
+\subsection*{\-Public \-Attributes}
+\begin{DoxyCompactItemize}
+\item 
+bool \hyperlink{classCloudRGBD_a7cffb7e84dcd3c721486cf9e4cd74a64}{point\-Cloud\-Available}
+\end{DoxyCompactItemize}
+
+
+\subsection{\-Detailed \-Description}
+\-This class encapsulates a \-R\-G\-B-\/\-D frame (from \-Kinect or \-Asus \-X\-P\-L), in addition to the \-R\-G\-B and depth images, it contains other basic information like the timestamp or the 3\-D point cloud data. 
+
+\subsection{\-Constructor \& \-Destructor \-Documentation}
+\hypertarget{classCloudRGBD_a1891a4fa7ff60d796ebaca34ecb2b2e5}{\index{\-Cloud\-R\-G\-B\-D@{\-Cloud\-R\-G\-B\-D}!\-Cloud\-R\-G\-B\-D@{\-Cloud\-R\-G\-B\-D}}
+\index{\-Cloud\-R\-G\-B\-D@{\-Cloud\-R\-G\-B\-D}!CloudRGBD@{\-Cloud\-R\-G\-B\-D}}
+\subsubsection[{\-Cloud\-R\-G\-B\-D}]{\setlength{\rightskip}{0pt plus 5cm}{\bf \-Cloud\-R\-G\-B\-D\-::\-Cloud\-R\-G\-B\-D} (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classCloudRGBD_a1891a4fa7ff60d796ebaca34ecb2b2e5}
+\-Constructor 
+
+\subsection{\-Member \-Function \-Documentation}
+\hypertarget{classCloudRGBD_aea64bd042ad48d97fb3c997e3693f653}{\index{\-Cloud\-R\-G\-B\-D@{\-Cloud\-R\-G\-B\-D}!get\-Max\-Point\-Cloud\-Depth@{get\-Max\-Point\-Cloud\-Depth}}
+\index{get\-Max\-Point\-Cloud\-Depth@{get\-Max\-Point\-Cloud\-Depth}!CloudRGBD@{\-Cloud\-R\-G\-B\-D}}
+\subsubsection[{get\-Max\-Point\-Cloud\-Depth}]{\setlength{\rightskip}{0pt plus 5cm}float {\bf \-Cloud\-R\-G\-B\-D\-::get\-Max\-Point\-Cloud\-Depth} (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classCloudRGBD_aea64bd042ad48d97fb3c997e3693f653}
+\-Return the max depth value for point cloud points. \hypertarget{classCloudRGBD_a0a1ffcbf6f58b9087697e357592b341e}{\index{\-Cloud\-R\-G\-B\-D@{\-Cloud\-R\-G\-B\-D}!get\-Min\-Point\-Cloud\-Depth@{get\-Min\-Point\-Cloud\-Depth}}
+\index{get\-Min\-Point\-Cloud\-Depth@{get\-Min\-Point\-Cloud\-Depth}!CloudRGBD@{\-Cloud\-R\-G\-B\-D}}
+\subsubsection[{get\-Min\-Point\-Cloud\-Depth}]{\setlength{\rightskip}{0pt plus 5cm}float {\bf \-Cloud\-R\-G\-B\-D\-::get\-Min\-Point\-Cloud\-Depth} (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classCloudRGBD_a0a1ffcbf6f58b9087697e357592b341e}
+\-Return the min depth value for point cloud points. \hypertarget{classCloudRGBD_a92c7f15804f26f1e75f1baa4655f9162}{\index{\-Cloud\-R\-G\-B\-D@{\-Cloud\-R\-G\-B\-D}!get\-Point\-Cloud@{get\-Point\-Cloud}}
+\index{get\-Point\-Cloud@{get\-Point\-Cloud}!CloudRGBD@{\-Cloud\-R\-G\-B\-D}}
+\subsubsection[{get\-Point\-Cloud}]{\setlength{\rightskip}{0pt plus 5cm}pcl\-::\-Point\-Cloud$<$pcl\-::\-Point\-X\-Y\-Z\-R\-G\-B\-A$>$\-::\-Ptr {\bf \-Cloud\-R\-G\-B\-D\-::get\-Point\-Cloud} (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classCloudRGBD_a92c7f15804f26f1e75f1baa4655f9162}
+\-Get the point cloud provided by the sensor
+
+\-Gets a 3\-D coloured point cloud from the \-R\-G\-B\-D data using the camera parameters \hypertarget{classCloudRGBD_aef169255eda36cecfbb9dd4fba8b1254}{\index{\-Cloud\-R\-G\-B\-D@{\-Cloud\-R\-G\-B\-D}!set\-Max\-Point\-Cloud\-Depth@{set\-Max\-Point\-Cloud\-Depth}}
+\index{set\-Max\-Point\-Cloud\-Depth@{set\-Max\-Point\-Cloud\-Depth}!CloudRGBD@{\-Cloud\-R\-G\-B\-D}}
+\subsubsection[{set\-Max\-Point\-Cloud\-Depth}]{\setlength{\rightskip}{0pt plus 5cm}void {\bf \-Cloud\-R\-G\-B\-D\-::set\-Max\-Point\-Cloud\-Depth} (
+\begin{DoxyParamCaption}
+\item[{float}]{max\-D}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classCloudRGBD_aef169255eda36cecfbb9dd4fba8b1254}
+\-Set the max depth value for the point cloud points. \hypertarget{classCloudRGBD_acbc94f5e47168d8a2ab948c961722b9a}{\index{\-Cloud\-R\-G\-B\-D@{\-Cloud\-R\-G\-B\-D}!set\-Min\-Point\-Cloud\-Depth@{set\-Min\-Point\-Cloud\-Depth}}
+\index{set\-Min\-Point\-Cloud\-Depth@{set\-Min\-Point\-Cloud\-Depth}!CloudRGBD@{\-Cloud\-R\-G\-B\-D}}
+\subsubsection[{set\-Min\-Point\-Cloud\-Depth}]{\setlength{\rightskip}{0pt plus 5cm}void {\bf \-Cloud\-R\-G\-B\-D\-::set\-Min\-Point\-Cloud\-Depth} (
+\begin{DoxyParamCaption}
+\item[{float}]{min\-D}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classCloudRGBD_acbc94f5e47168d8a2ab948c961722b9a}
+\-Set the min depth value for the point cloud points. \hypertarget{classCloudRGBD_ab42445f396985ed7e3b9fe0d5fbd111a}{\index{\-Cloud\-R\-G\-B\-D@{\-Cloud\-R\-G\-B\-D}!set\-Point\-Cloud@{set\-Point\-Cloud}}
+\index{set\-Point\-Cloud@{set\-Point\-Cloud}!CloudRGBD@{\-Cloud\-R\-G\-B\-D}}
+\subsubsection[{set\-Point\-Cloud}]{\setlength{\rightskip}{0pt plus 5cm}void {\bf \-Cloud\-R\-G\-B\-D\-::set\-Point\-Cloud} (
+\begin{DoxyParamCaption}
+\item[{pcl\-::\-Point\-Cloud$<$ pcl\-::\-Point\-X\-Y\-Z\-R\-G\-B\-A $>$\-::\-Ptr}]{point\-Cloud}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}\label{classCloudRGBD_ab42445f396985ed7e3b9fe0d5fbd111a}
+\-Set the point\-Cloud of the \-R\-G\-B\-D frame. 
+
+\subsection{\-Member \-Data \-Documentation}
+\hypertarget{classCloudRGBD_a7cffb7e84dcd3c721486cf9e4cd74a64}{\index{\-Cloud\-R\-G\-B\-D@{\-Cloud\-R\-G\-B\-D}!point\-Cloud\-Available@{point\-Cloud\-Available}}
+\index{point\-Cloud\-Available@{point\-Cloud\-Available}!CloudRGBD@{\-Cloud\-R\-G\-B\-D}}
+\subsubsection[{point\-Cloud\-Available}]{\setlength{\rightskip}{0pt plus 5cm}bool {\bf \-Cloud\-R\-G\-B\-D\-::point\-Cloud\-Available}}}\label{classCloudRGBD_a7cffb7e84dcd3c721486cf9e4cd74a64}
+\-True if the coloured point cloud is available, false otherwise 
+
+\-The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+frame\-R\-G\-B\-D/\-Cloud\-R\-G\-B\-D.\-h\end{DoxyCompactItemize}

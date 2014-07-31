@@ -1,0 +1,53 @@
+K 25
+svn:wc:ra_dav:version-url
+V 45
+/data/svn/g2o/!svn/ver/45/trunk/cmake_modules
+END
+FindCholmod.cmake
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/data/svn/g2o/!svn/ver/45/trunk/cmake_modules/FindCholmod.cmake
+END
+FindQGLViewer.cmake
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/data/svn/g2o/!svn/ver/34/trunk/cmake_modules/FindQGLViewer.cmake
+END
+FindG2O.cmake
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/data/svn/g2o/!svn/ver/34/trunk/cmake_modules/FindG2O.cmake
+END
+FindSuiteSparse.cmake
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/data/svn/g2o/!svn/ver/44/trunk/cmake_modules/FindSuiteSparse.cmake
+END
+FindEigen3.cmake
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/data/svn/g2o/!svn/ver/34/trunk/cmake_modules/FindEigen3.cmake
+END
+FindLAPACK.cmake
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/data/svn/g2o/!svn/ver/34/trunk/cmake_modules/FindLAPACK.cmake
+END
+FindCSparse.cmake
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/data/svn/g2o/!svn/ver/34/trunk/cmake_modules/FindCSparse.cmake
+END
+FindBLAS.cmake
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/data/svn/g2o/!svn/ver/34/trunk/cmake_modules/FindBLAS.cmake
+END

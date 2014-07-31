@@ -1,0 +1,140 @@
+\hypertarget{classRGBDGrabber__OpenNI2}{\section{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2 Class Reference}
+\label{classRGBDGrabber__OpenNI2}\index{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}}
+}
+
+
+{\ttfamily \#include $<$R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2.\-h$>$}
+
+Inheritance diagram for R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2\-:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=2.000000cm]{classRGBDGrabber__OpenNI2}
+\end{center}
+\end{figure}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{classRGBDGrabber__OpenNI2_ab345f03078f20ffb30edccbf2ef70892}{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2} (const char $\ast$uri=openni\-::\-A\-N\-Y\-\_\-\-D\-E\-V\-I\-C\-E, const int mode=1)
+\item 
+void \hyperlink{classRGBDGrabber__OpenNI2_aaf62639ea4a14acac0fee7e11fdc5bf9}{show\-Available\-Modes} ()
+\item 
+void \hyperlink{classRGBDGrabber__OpenNI2_a6d6ba5b908bcdf8442bd083958b38036}{set\-Resolution} (int res)
+\item 
+void \hyperlink{classRGBDGrabber__OpenNI2_aeebcaa5079629654dc30f0fdbaacea61}{set\-Shutter} (int exposure)
+\item 
+int \hyperlink{classRGBDGrabber__OpenNI2_a68dc63b53be20c9feecbb7d78c5121c3}{get\-Shutter} ()
+\item 
+void \hyperlink{classRGBDGrabber__OpenNI2_a7a3d58b840b8c6b049bb8aa5e043e935}{set\-Gain} (int gain)
+\item 
+int \hyperlink{classRGBDGrabber__OpenNI2_a3e3e079f580c988ec37369ab1a468c1c}{get\-Gain} ()
+\item 
+void \hyperlink{classRGBDGrabber__OpenNI2_afbf7a0c2b858bad4d660104386073bb8}{init} ()
+\item 
+void \hyperlink{classRGBDGrabber__OpenNI2_affad3812ddfff63085e03a30686db3ac}{grab} (Frame\-R\-G\-B\-D $\ast$frame\-Ptr)
+\item 
+void \hyperlink{classRGBDGrabber__OpenNI2_af986000241075e4e7cc0343b391d2eb6}{stop} ()
+\end{DoxyCompactItemize}
+\subsection*{Additional Inherited Members}
+
+
+\subsection{Detailed Description}
+This class captures R\-G\-B\-D frames from an Open\-N\-I2 compatible sensor. It grabs the intensity and depth images and stores them in a 'Frame\-R\-G\-B\-D' object. 
+
+\subsection{Constructor \& Destructor Documentation}
+\hypertarget{classRGBDGrabber__OpenNI2_ab345f03078f20ffb30edccbf2ef70892}{\index{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}!R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}}
+\index{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}!RGBDGrabber_OpenNI2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}}
+\subsubsection[{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}]{\setlength{\rightskip}{0pt plus 5cm}R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2\-::\-R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2 (
+\begin{DoxyParamCaption}
+\item[{const char $\ast$}]{uri = {\ttfamily openni\-:\-:ANY\-\_\-DEVICE}, }
+\item[{const int}]{mode = {\ttfamily 1}}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRGBDGrabber__OpenNI2_ab345f03078f20ffb30edccbf2ef70892}
+Connected devices information
+
+Constructor. Creates a \hyperlink{classRGBDGrabber__OpenNI2}{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2} instance that grabs R\-G\-B\-D frames from an Open\-N\-I compatible sensor. 
+
+\subsection{Member Function Documentation}
+\hypertarget{classRGBDGrabber__OpenNI2_a3e3e079f580c988ec37369ab1a468c1c}{\index{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}!get\-Gain@{get\-Gain}}
+\index{get\-Gain@{get\-Gain}!RGBDGrabber_OpenNI2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}}
+\subsubsection[{get\-Gain}]{\setlength{\rightskip}{0pt plus 5cm}int R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2\-::get\-Gain (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRGBDGrabber__OpenNI2_a3e3e079f580c988ec37369ab1a468c1c}
+Return the current Gain value (in percentage 100\%). \hypertarget{classRGBDGrabber__OpenNI2_a68dc63b53be20c9feecbb7d78c5121c3}{\index{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}!get\-Shutter@{get\-Shutter}}
+\index{get\-Shutter@{get\-Shutter}!RGBDGrabber_OpenNI2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}}
+\subsubsection[{get\-Shutter}]{\setlength{\rightskip}{0pt plus 5cm}int R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2\-::get\-Shutter (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRGBDGrabber__OpenNI2_a68dc63b53be20c9feecbb7d78c5121c3}
+Return the current Exposure value (in milliseconds). \hypertarget{classRGBDGrabber__OpenNI2_affad3812ddfff63085e03a30686db3ac}{\index{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}!grab@{grab}}
+\index{grab@{grab}!RGBDGrabber_OpenNI2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}}
+\subsubsection[{grab}]{\setlength{\rightskip}{0pt plus 5cm}void R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2\-::grab (
+\begin{DoxyParamCaption}
+\item[{Frame\-R\-G\-B\-D $\ast$}]{frame\-Ptr}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [virtual]}}}\label{classRGBDGrabber__OpenNI2_affad3812ddfff63085e03a30686db3ac}
+Copy the current R\-G\-B\-D frame into 'frame\-Ptr'. 
+
+Implements \hyperlink{classRGBDGrabber_a5421d2f64b001189aaddb517bd50f973}{R\-G\-B\-D\-Grabber}.
+
+\hypertarget{classRGBDGrabber__OpenNI2_afbf7a0c2b858bad4d660104386073bb8}{\index{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}!init@{init}}
+\index{init@{init}!RGBDGrabber_OpenNI2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}}
+\subsubsection[{init}]{\setlength{\rightskip}{0pt plus 5cm}void R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2\-::init (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [virtual]}}}\label{classRGBDGrabber__OpenNI2_afbf7a0c2b858bad4d660104386073bb8}
+Initializes the grabber object 
+
+Implements \hyperlink{classRGBDGrabber_ad4f514ef7ef4cb30f88691576cd2a415}{R\-G\-B\-D\-Grabber}.
+
+\hypertarget{classRGBDGrabber__OpenNI2_a7a3d58b840b8c6b049bb8aa5e043e935}{\index{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}!set\-Gain@{set\-Gain}}
+\index{set\-Gain@{set\-Gain}!RGBDGrabber_OpenNI2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}}
+\subsubsection[{set\-Gain}]{\setlength{\rightskip}{0pt plus 5cm}void R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2\-::set\-Gain (
+\begin{DoxyParamCaption}
+\item[{int}]{gain}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRGBDGrabber__OpenNI2_a7a3d58b840b8c6b049bb8aa5e043e935}
+Set the exposure value (in milliseconds). \hypertarget{classRGBDGrabber__OpenNI2_a6d6ba5b908bcdf8442bd083958b38036}{\index{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}!set\-Resolution@{set\-Resolution}}
+\index{set\-Resolution@{set\-Resolution}!RGBDGrabber_OpenNI2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}}
+\subsubsection[{set\-Resolution}]{\setlength{\rightskip}{0pt plus 5cm}void R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2\-::set\-Resolution (
+\begin{DoxyParamCaption}
+\item[{int}]{res}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRGBDGrabber__OpenNI2_a6d6ba5b908bcdf8442bd083958b38036}
+Set the resolution. \hypertarget{classRGBDGrabber__OpenNI2_aeebcaa5079629654dc30f0fdbaacea61}{\index{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}!set\-Shutter@{set\-Shutter}}
+\index{set\-Shutter@{set\-Shutter}!RGBDGrabber_OpenNI2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}}
+\subsubsection[{set\-Shutter}]{\setlength{\rightskip}{0pt plus 5cm}void R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2\-::set\-Shutter (
+\begin{DoxyParamCaption}
+\item[{int}]{exposure}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRGBDGrabber__OpenNI2_aeebcaa5079629654dc30f0fdbaacea61}
+Set the exposure value (in milliseconds). \hypertarget{classRGBDGrabber__OpenNI2_aaf62639ea4a14acac0fee7e11fdc5bf9}{\index{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}!show\-Available\-Modes@{show\-Available\-Modes}}
+\index{show\-Available\-Modes@{show\-Available\-Modes}!RGBDGrabber_OpenNI2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}}
+\subsubsection[{show\-Available\-Modes}]{\setlength{\rightskip}{0pt plus 5cm}void R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2\-::show\-Available\-Modes (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}}}\label{classRGBDGrabber__OpenNI2_aaf62639ea4a14acac0fee7e11fdc5bf9}
+Shows a list of connected sensors
+
+Set the sensor U\-R\-I.
+
+Shows a list of the available modes for the chosen \hypertarget{classRGBDGrabber__OpenNI2_af986000241075e4e7cc0343b391d2eb6}{\index{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}!stop@{stop}}
+\index{stop@{stop}!RGBDGrabber_OpenNI2@{R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2}}
+\subsubsection[{stop}]{\setlength{\rightskip}{0pt plus 5cm}void R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2\-::stop (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [inline]}, {\ttfamily [virtual]}}}\label{classRGBDGrabber__OpenNI2_af986000241075e4e7cc0343b391d2eb6}
+Stop grabing R\-G\-B\-D frames. 
+
+Implements \hyperlink{classRGBDGrabber_aa835859ea230e1ca302adaa4cb054207}{R\-G\-B\-D\-Grabber}.
+
+
+
+The documentation for this class was generated from the following file\-:\begin{DoxyCompactItemize}
+\item 
+grabber/R\-G\-B\-D\-Grabber\-\_\-\-Open\-N\-I2.\-h\end{DoxyCompactItemize}

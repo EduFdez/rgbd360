@@ -1,0 +1,32 @@
+warning: ignoring unsupported tag `MARKDOWN_SUPPORT       =' at line 263, file Doxyfile
+warning: ignoring unsupported tag `AUTOLINK_SUPPORT       =' at line 270, file Doxyfile
+warning: ignoring unsupported tag `EXTRACT_PACKAGE        =' at line 388, file Doxyfile
+warning: ignoring unsupported tag `HTML_EXTRA_STYLESHEET  =' at line 932, file Doxyfile
+warning: ignoring unsupported tag `HTML_INDEX_NUM_ENTRIES =' at line 989, file Doxyfile
+warning: ignoring unsupported tag `UML_LIMIT_NUM_FIELDS   =' at line 1689, file Doxyfile
+When enabling GENERATE_HTMLHELP the tree view (GENERATE_TREEVIEW) should be disabled. I'll do it for you.
+warning: source Images is not a readable file or directory... skipping.
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Source/Documentation/Text/Conventions.txt:24: warning: unable to resolve reference to `openni::OpenNI::addListener()' for \ref command
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:1287: warning: unable to resolve reference to `OpenNI::Listener' for \ref command
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:1288: warning: unable to resolve reference to `OpenNI::Listener::onDeviceConnected' for \ref command
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:2281: warning: argument 'char' of command @param is not found in the argument list of openni::OpenNI::getLogFileName(char *strFileName, int nBufferSize)
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:2281: warning: argument 'int' of command @param is not found in the argument list of openni::OpenNI::getLogFileName(char *strFileName, int nBufferSize)
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:2281: warning: The following parameters of openni::OpenNI::getLogFileName(char *strFileName, int nBufferSize) are not documented:
+  parameter 'strFileName'
+  parameter 'nBufferSize'
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:2309: warning: argument 'const' of command @param is not found in the argument list of openni::OpenNI::setLogConsoleOutput(bool bConsoleOutput)
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:2309: warning: The following parameters of openni::OpenNI::setLogConsoleOutput(bool bConsoleOutput) are not documented:
+  parameter 'bConsoleOutput'
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:2322: warning: argument 'const' of command @param is not found in the argument list of openni::OpenNI::setLogFileOutput(bool bFileOutput)
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:2322: warning: The following parameters of openni::OpenNI::setLogFileOutput(bool bFileOutput) are not documented:
+  parameter 'bFileOutput'
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:2295: warning: argument 'const' of command @param is not found in the argument list of openni::OpenNI::setLogMinSeverity(int nMinSeverity)
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:2295: warning: argument 'int' of command @param is not found in the argument list of openni::OpenNI::setLogMinSeverity(int nMinSeverity)
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:2295: warning: The following parameters of openni::OpenNI::setLogMinSeverity(int nMinSeverity) are not documented:
+  parameter 'nMinSeverity'
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:2268: warning: argument 'const' of command @param is not found in the argument list of openni::OpenNI::setLogOutputFolder(const char *strLogOutputFolder)
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:2268: warning: The following parameters of openni::OpenNI::setLogOutputFolder(const char *strLogOutputFolder) are not documented:
+  parameter 'strLogOutputFolder'
+/home/efernand/Dropbox/Doctorado/Projects/OpenNI2/Include/OpenNI.h:805: warning: unable to resolve reference to `VideoStream::Listener' for \ref command
+sh: 1: C:\Program Files (x86)\HTML Help Workshop\hhc.exe: not found
+error: failed to run html help compiler on index.hhp
