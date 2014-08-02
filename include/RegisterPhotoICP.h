@@ -43,7 +43,7 @@ Matrix<typedata,nRows,nCols> getDiagonalMatrix(const Matrix<typedata,nRows,nCols
     return m_diag;
 }
 
-class denseRGBDAlignment
+class RegisterPhotoICP_RGBD
 {
     /*!Camera matrix (intrinsic parameters).*/
     Eigen::Matrix3f cameraMatrix;
@@ -99,7 +99,8 @@ class denseRGBDAlignment
         minDepth(0.3),
         maxDepth(8.0),
         nPyrLevels(4)
-    {};
+    {
+    };
 
     /*! Sets the minimum depth distance (m) to consider a certain pixel valid.*/
     void setMinDepth(float minD)
@@ -124,6 +125,18 @@ class denseRGBDAlignment
     Matrix4d getOptimalPose()
     {
         return relPose;
+    }
+
+    /*! Returns the Hessian (the information matrix).*/
+    Matrix<double,6,6> getHessian()
+    {
+        return Hessian;
+    }
+
+    /*! Returns the Gradient (the information matrix).*/
+    Matrix<double,6,1> getGradient()
+    {
+        return gradient;
     }
 
     /*! Build a pyramid of nLevels of image resolutions from the input image.
@@ -225,11 +238,11 @@ class denseRGBDAlignment
     };
 
     /*! Sets the source (Intensity+Depth) frame.*/
-    void setSourceFrame(cv::Mat & imgGray,cv::Mat & imgDepth)
+    void setSourceFrame(cv::Mat & imgRGB,cv::Mat & imgDepth)
     {
         //Create a float auxialiary image from the imput image
 //        cv::Mat imgGrayFloat;
-        imgGray.convertTo(graySrc, CV_32FC1, 1./255 );
+        imgRGB.convertTo(graySrc, CV_32FC1, 1./255 );
 
         //Compute image pyramids for the grayscale and depth images
         buildPyramid(graySrc, graySrcPyr, nPyrLevels);
@@ -239,11 +252,11 @@ class denseRGBDAlignment
     };
 
     /*! Sets the source (Intensity+Depth) frame. Depth image is ignored*/
-    void setTargetFrame(cv::Mat & imgGray,cv::Mat & imgDepth)
+    void setTargetFrame(cv::Mat & imgRGB,cv::Mat & imgDepth)
     {
         //Create a float auxialiary image from the imput image
 //        cv::Mat imgGrayFloat;
-        imgGray.convertTo(grayTrg, CV_32FC1, 1./255 );
+        imgRGB.convertTo(grayTrg, CV_32FC1, 1./255 );
 
         //Compute image pyramids for the grayscale and depth images
 //        buildPyramid(imgGrayFloat,gray1Pyr,numnLevels,true);
@@ -337,11 +350,11 @@ class denseRGBDAlignment
         return error2;
     }
 
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
+    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-    void computeResidualsAndJacobians(const int &pyramidLevel,
+    void computeHessianAndGradient(const int &pyramidLevel,
                                       Eigen::Matrix4d &poseGuess,
                                         //costFuncType method,
                                       cv::Mat & warped_source_grayImage)
@@ -356,9 +369,6 @@ class denseRGBDAlignment
         double oy = cameraMatrix(1,2)*scaleFactor;
         double inv_fx = 1./fx;
         double inv_fy = 1./fy;
-
-        hessian = Matrix<double,6,6>::Zero();
-        gradient = Matrix<double,6,1>::Zero();
 
         depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
 
@@ -397,7 +407,7 @@ class denseRGBDAlignment
                     if((transformed_r_int>=0 && transformed_r_int < nRows) &
                        (transformed_c_int>=0 && transformed_c_int < nCols))
                     {
-                        Eigen::Vector4d rotatedPoint3D = transformedPoint3D - poseGuess.block(0,3,3,1);
+                        Eigen::Vector4d rotatedPoint3D = transformedPoint3D - poseGuess.block(0,3,3,1); // TODO: make more efficient
 
                         //Compute the pixel jacobian
                         Eigen::Matrix<double,2,6> jacobianWarpRt;
@@ -425,6 +435,237 @@ class denseRGBDAlignment
                             //Derivative with respect to \lambda_z
                             jacobianWarpRt(0,5)=-fx*rotatedPoint3D(1)*inv_transformedPz;
                             jacobianWarpRt(1,5)=fy*rotatedPoint3D(0)*inv_transformedPz;
+
+                        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                        {
+                            //Obtain the pixel values that will be used to compute the pixel residual
+                            double pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
+                            double pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+
+                          //Apply the chain rule to compound the image gradients with the projective+RigidTransform jacobians
+                          Eigen::Matrix<double,1,2> target_imgGradient;
+                          target_imgGradient(0,0) = grayTrgGradXPyr[pyramidLevel].at<float>(r,c);//(i);
+                          target_imgGradient(0,1) = grayTrgGradYPyr[pyramidLevel].at<float>(r,c);
+                          Eigen::Matrix<double,1,6> jacobian = target_imgGradient*jacobianWarpRt;
+                        }
+                        if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                        {
+                            //Obtain the depth values that will be used to the compute the depth residual
+                            double depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
+                            double depth2 = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+
+                          //Depth jacobian:
+                          //Apply the chain rule to compound the depth gradients with the projective+RigidTransform jacobians
+                          Eigen::Matrix<double,1,2> target_depthGradient;
+                          target_depthGradient(0,0) = depthTrgGradXPyr[pyramidLevel].at<float>(i);
+                          target_depthGradient(0,1) = depthTrgGradYPyr[pyramidLevel].at<float>(i);
+                          Eigen::Matrix<double,1,6> jacobianRt_z;
+                          jacobianRt_z << 0,0,1,transformedPoint3D(1),-transformedPoint3D(0),0;
+                          Eigen::Matrix<double,1,6> jacobianDepth = depthComponentGain*(target_depthGradient*jacobianWarpRt-jacobianRt_z);
+                        }
+
+                          //Assign the pixel residual and jacobian to its corresponding row
+                          #if ENABLE_OPENMP
+                          #pragma omp critical
+                          #endif
+                          {
+                            if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                            {
+                              // Photometric component
+                              hessian += jacobian.transpose()*jacobian;
+                              gradient += jacobian.transpose()*(pixel2 - pixel1);
+                            }
+                            if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                            {
+                                // Depth component (Plane ICL like)
+                              hessian += jacobianDepth.transpose()*jacobianDepth;
+                              gradient += jacobianDepth.transpose()*depthComponentGain*(depth2 - depth1);
+                            }
+//                              if(visualizeIterations)
+//                                warped_source_grayImage.at<float>(transformed_r_int,transformed_c_int) = pixel1;
+                          }
+
+                          if(visualizeIterations)
+                          {
+                            warped_source_grayImage.at<float>(transformed_r_int,transformed_c_int) = pixel1;
+                            warped_source_grayImage.at<float>(transformed_r_int,transformed_c_int) = intensity1;
+                          }
+                    }
+                }
+            }
+        }
+    }
+
+
+    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
+        This is done following the work in:
+        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
+        in Computer Vision Workshops (ICCV Workshops), 2011. */
+    double computePhotoICP_SqError_wrtRobot(const int &pyramidLevel, const Eigen::Matrix4d &poseGuess, const Eigen::Matrix4d &poseCamRobot)
+    {
+        double error2 = 0.0; // Squared error
+
+        int nRows = graySrcPyr[pyramidLevel].rows;
+        int nCols = graySrcPyr[pyramidLevel].cols;
+
+        double scaleFactor = 1.0/pow(2,pyramidLevel);
+        double fx = cameraMatrix(0,0)*scaleFactor;
+        double fy = cameraMatrix(1,1)*scaleFactor;
+        double ox = cameraMatrix(0,2)*scaleFactor;
+        double oy = cameraMatrix(1,2)*scaleFactor;
+        double inv_fx = 1./fx;
+        double inv_fy = 1./fy;
+
+        Eigen::Matrix4d poseCamRobot_inv = poseCamRobot.inverse();
+
+        #if ENABLE_OPENMP
+        #pragma omp parallel for
+        #endif
+        for (int r=0;r<nRows;r++)
+        {
+            for (int c=0;c<nCols;c++)
+            {
+//                int i = nCols*r+c; //vector index
+
+                //Compute the 3D coordinates of the pij of the source frame
+                Eigen::Vector4d point3D;
+                point3D(2) = depthSrcPyr[pyramidLevel].at<float>(r,c);
+                if(minDepth < point3D(2) && point3D(2) < maxDepth) //Compute the jacobian only for the valid points
+                {
+                    point3D(0)=(c - ox) * point3D(2) * inv_fx;
+                    point3D(1)=(r - oy) * point3D(2) * inv_fy;
+                    point3D(3)=1;
+
+                    //Transform the 3D point using the transformation matrix Rt
+                    Eigen::Vector4d transformedPoint3D = poseCamRobot_inv*poseGuess*poseCamRobot*point3D;
+//                    Eigen::Vector3f  transformedPoint3D = poseGuess.block(0,0,3,3)*point3D;
+
+                    //Project the 3D point to the 2D plane
+                    double inv_transformedPz = 1.0/transformedPoint3D(2);
+                    double transformed_r,transformed_c; // 2D coordinates of the transformed pixel(r,c) of frame 1
+                    transformed_c = (transformedPoint3D(0) * fx)*inv_transformedPz + ox; //transformed x (2D)
+                    transformed_r = (transformedPoint3D(1) * fy)*inv_transformedPz + oy; //transformed y (2D)
+                    int transformed_r_int = round(transformed_r);
+                    int transformed_c_int = round(transformed_c);
+
+                    //Asign the intensity value to the warped image and compute the difference between the transformed
+                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                    if((transformed_r_int>=0 && transformed_r_int < nRows) &
+                       (transformed_c_int>=0 && transformed_c_int < nCols))
+                    {
+                        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                        {
+                            //Obtain the pixel values that will be used to compute the pixel residual
+                            double pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
+                            double pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                            double photoDiff = pixel2 - pixel1;
+                            error2 += photoDiff*photoDiff;
+
+                        }
+                        if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                        {
+                            //Obtain the depth values that will be used to the compute the depth residual
+                            double depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
+                            double depth2 = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                            double depthDiff = pixel2 - pixel1;
+                            error2 += depthDiff*depthDiff;
+                        }
+                    }
+                }
+            }
+        }
+
+        return error2;
+    }
+
+
+    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
+        This is done following the work in:
+        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
+        in Computer Vision Workshops (ICCV Workshops), 2011. */
+    void computeHessianAndGradient_wrtRobot(const int &pyramidLevel,
+                                            Eigen::Matrix4d &poseGuess, // The relative pose of the robot between the two frames
+                                            const Eigen::Matrix4d &poseCamRobot // The pose of the camera wrt to the Robot (fixed beforehand through calibration) // Maybe calibration can be computed at the same time
+                                            // costFuncType method)
+    {
+        int nRows = graySrcPyr[pyramidLevel].rows;
+        int nCols = graySrcPyr[pyramidLevel].cols;
+
+        double scaleFactor = 1.0/pow(2,pyramidLevel);
+        double fx = cameraMatrix(0,0)*scaleFactor;
+        double fy = cameraMatrix(1,1)*scaleFactor;
+        double ox = cameraMatrix(0,2)*scaleFactor;
+        double oy = cameraMatrix(1,2)*scaleFactor;
+        double inv_fx = 1./fx;
+        double inv_fy = 1./fy;
+
+        hessian = Matrix<double,6,6>::Zero();
+        gradient = Matrix<double,6,1>::Zero();
+
+        poseCamRobot_inv = poseCamRobot.inverse();
+
+        depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
+
+        #if ENABLE_OPENMP
+        #pragma omp parallel for
+        #endif
+        for (int r=0;r<nRows;r++)
+        {
+            for (int c=0;c<nCols;c++)
+            {
+//                int i = nCols*r+c; //vector index
+
+                //Compute the 3D coordinates of the pij of the source frame
+                Eigen::Vector4d point3D;
+                point3D(2) = depthSrcPyr[pyramidLevel].at<float>(r,c);
+                if(minDepth < point3D(2) && point3D(2) < maxDepth) //Compute the jacobian only for the valid points
+                {
+                    point3D(0)=(c - ox) * point3D(2) * inv_fx;
+                    point3D(1)=(r - oy) * point3D(2) * inv_fy;
+                    point3D(3)=1;
+
+                    //Transform the 3D point using the transformation matrix Rt
+                    Eigen::Vector4d point3D_robot = poseCamRobot*point3D;
+                    Eigen::Vector4d transformedPoint3D = poseCamRobot_inv*poseGuess*point3D_robot;
+//                    Eigen::Vector3f  transformedPoint3D = poseGuess.block(0,0,3,3)*point3D;
+
+                    //Project the 3D point to the 2D plane
+                    double inv_transformedPz = 1.0/transformedPoint3D(2);
+                    double transformed_r,transformed_c; // 2D coordinates of the transformed pixel(r,c) of frame 1
+                    transformed_c = (transformedPoint3D(0) * fx)*inv_transformedPz + ox; //transformed x (2D)
+                    transformed_r = (transformedPoint3D(1) * fy)*inv_transformedPz + oy; //transformed y (2D)
+                    int transformed_r_int = round(transformed_r);
+                    int transformed_c_int = round(transformed_c);
+
+                    //Asign the intensity value to the warped image and compute the difference between the transformed
+                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                    if((transformed_r_int>=0 && transformed_r_int < nRows) &
+                       (transformed_c_int>=0 && transformed_c_int < nCols))
+                    {
+                        //Eigen::Vector4d rotatedPoint3D = transformedPoint3D - poseGuess.block(0,3,3,1); // TODO: make more efficient
+
+                        //Compute the pixel jacobian
+                        Eigen::Matrix<double,3,6> jacobianT36;
+                        jacobianT.block(0,0,3,3) = Eigen::Matrix<double,3,3>::Identity();
+                        jacobianT.block(0,3,3,3) = -skew( poseGuess.block(0,0,3,3) * point3D_robot.block(0,0,3,1) );
+                        jacobianT = poseCamRobot_inv.block(0,3,3,3) * jacobianT;
+
+
+                        Eigen::Matrix<double,2,3> jacobianProj23;
+                                                                //Derivative with respect to x
+                        jacobianProj23(0,0)=fx*inv_transformedPz;
+                        jacobianProj23(1,0)=0;
+                        //Derivative with respect to y
+                        jacobianProj23(0,1)=0;
+                        jacobianProj23(1,1)=fy*inv_transformedPz;
+                        //Derivative with respect to z
+                        jacobianProj23(0,2)=-fx*transformedPoint3D(0)*inv_transformedPz*inv_transformedPz;
+                        jacobianProj23(1,2)=-fy*transformedPoint3D(1)*inv_transformedPz*inv_transformedPz;
+
+                        Eigen::Matrix<double,2,6> jacobianWarpRt;
+
+jacobianWarpRt = jacobianProj23 * jacobianT36;
+
 
                         if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                         {
@@ -519,7 +760,7 @@ class denseRGBDAlignment
                 if(visualizeIterations)
                     warped_source_grayImage = cv::Mat::zeros(nRows,nCols,graySrcPyr[pyramidLevel].type());
 
-                computeResidualsAndJacobians(pyramidLevel, pose_estim, warped_source_grayImage);
+                computeHessianAndGradient(pyramidLevel, pose_estim, warped_source_grayImage);
                 assert(hessian.rank() == 6); // Make sure that the problem is observable
 
                 // Compute the pose update
@@ -579,7 +820,7 @@ class denseRGBDAlignment
 //    This is done following the work in:
 //    Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
 //    in Computer Vision Workshops (ICCV Workshops), 2011. */
-//void computeResidualsAndJacobians(cv::Mat &source_grayImg,
+//void computeHessianAndGradient(cv::Mat &source_grayImg,
 //                                  cv::Mat &source_depthImg,
 //                                  cv::Mat &target_grayImg,
 //                                  cv::Mat &source_gradXImg,
@@ -840,29 +1081,3 @@ void TestDenseRGBD_alignment()
 
 
 }*/
-
-int main(int argc, char **argv)
-{
-	try
-	{
-        if (argc>3)
-		{
-            printf("Too many arguments!! -> EXIT \n");
-		}
-
-        string rgbd_sphere1 = static_cast<string>(argv[1]);
-        string rgbd_sphere2 = static_cast<string>(argv[2]);
-
-		return 0;
-
-	} catch (exception &e)
-	{
-		cout << "MRPT exception caught: " << e.what() << endl;
-		return -1;
-	}
-	catch (...)
-	{
-		printf("Another exception!!");
-		return -1;
-	}
-}
