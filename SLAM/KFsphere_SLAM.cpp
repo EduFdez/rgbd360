@@ -125,7 +125,7 @@ class SphereGraphSLAM
       for(map<float,unsigned>::iterator itNearKF = nearest_KFs.begin(); itNearKF != nearest_KFs.end(); itNearKF++) // Set the iterator to the previous KFs not matched yet
       {
         cout << "itNearKF " << itNearKF->first << " " << itNearKF->second << endl;
-        bool bGoodRegistration = registerer.Register(Map.vpSpheres[itNearKF->second], candidateKF, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
+        bool bGoodRegistration = registerer.RegisterPbMap(Map.vpSpheres[itNearKF->second], candidateKF, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
         if(bGoodRegistration && registerer.getMatchedPlanes().size() >= min_planes_registration && registerer.getAreaMatched() > 6 )
         {
           nearestKF = itNearKF->second;
@@ -237,7 +237,7 @@ class SphereGraphSLAM
         fileName = path + mrpt::format("/sphere_images_%d.bin",frame);
 
         // Register the pair of frames
-        bGoodTracking = registerer.Register(Map.vpSpheres[nearestKF], frame360, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
+        bGoodTracking = registerer.RegisterPbMap(Map.vpSpheres[nearestKF], frame360, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
         Matrix4d trackedRelPose = registerer.getPose().cast<double>();
         cout << "bGoodTracking " << bGoodTracking << " with " << nearestKF << ". Distance " << registerer.getPose().block(0,3,3,1).norm() << " entropy " << registerer.calcEntropy() << endl;
 

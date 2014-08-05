@@ -33,6 +33,7 @@
 #define REGISTER_RGBD360_H
 
 #include "Frame360.h"
+#include "RegisterPhotoICP.h"
 
 #ifndef _DEBUG_MSG
     #define _DEBUG_MSG 1
@@ -66,14 +67,14 @@ private:
     mrpt::pbmap::SubgraphMatcher matcher;
 
     /*! Pose of pTrg360 as seen from pRef360 */
-    Eigen::Matrix4f rigidTransf;
+    Eigen::Matrix4d rigidTransf;
 
     /*! 6x6 covariance matrix of the pose of pTrg360 as seen from pRef360 (the inverse of information matrix) */
-    Eigen::Matrix<float,6,6> covarianceM;
+    Eigen::Matrix<double,6,6> covarianceM;
 
     /*! 6x6 information matrix of the pose of pTrg360 as seen from pRef360 (the inverse of covariance matrix) */
     //  Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic> informationM;
-    Eigen::Matrix<float,6,6> informationM;
+    Eigen::Matrix<double,6,6> informationM;
 
     /*! The matched planar patches */
     std::map<unsigned, unsigned> bestMatch;
@@ -97,7 +98,7 @@ public:
         bRegistrationDone(false)
     {
         matcher.configLocaliser.load_params(configFile);
-        rigidTransf = Eigen::Matrix4f::Identity();
+        rigidTransf = Eigen::Matrix4d::Identity();
 #if _DEBUG_MSG
         matcher.configLocaliser.print_params();
 #endif
@@ -195,19 +196,19 @@ public:
     }
 
     /*! Return the pose of pTrg360 as seen from pRef360 */
-    Eigen::Matrix4f getPose()
+    Eigen::Matrix4d getPose()
     {
         if(!bRegistrationDone)
-            Register();
+            RegisterPbMap();
 
         return rigidTransf;
     }
 
     /*! Return the 6x6 covariance matrix of the pose of pTrg360 as seen from pRef360 */
-    Eigen::Matrix<float,6,6> getCovMat()
+    Eigen::Matrix<double,6,6> getCovMat()
     {
         if(!bRegistrationDone)
-            Register();
+            RegisterPbMap();
 
         covarianceM = informationM.inverse();
 
@@ -215,10 +216,10 @@ public:
     }
 
     /*! Return the 6x6 information matrix of the pose of pTrg360 as seen from pRef360 */
-    Eigen::Matrix<float,6,6> getInfoMat()
+    Eigen::Matrix<double,6,6> getInfoMat()
     {
         if(!bRegistrationDone)
-            Register();
+            RegisterPbMap();
 
         return informationM;
     }
@@ -229,7 +230,7 @@ public:
     float calcEntropy()
     {
         if(!bRegistrationDone)
-            Register();
+            RegisterPbMap();
 
         covarianceM = informationM.inverse();
         float entropy = 0.5 * ( DOF * (1 + log(2*PI)) + log(covarianceM.determinant()) );
@@ -241,7 +242,7 @@ public:
     std::map<unsigned, unsigned> getMatchedPlanes()
     {
         if(!bRegistrationDone)
-            Register();
+            RegisterPbMap();
 
         return bestMatch;
     }
@@ -250,7 +251,7 @@ public:
     float getAreaMatched()
     {
         if(!bRegistrationDone)
-            Register();
+            RegisterPbMap();
 
         return areaMatched;
     }
@@ -259,20 +260,20 @@ public:
     enum registrationType
     {
         DEFAULT_6DoF,
-        ODOMETRY_6DoF,
         PLANAR_3DoF,
+        ODOMETRY_6DoF,
         PLANAR_ODOMETRY_3DoF,
     };
 
-    /*! Set the target frame and source frames for registration if specified. If the parameter 'max_match_planes' is set,
+    /*! PbMap registration. Set the target frame and source frames for registration if specified. If the parameter 'max_match_planes' is set,
       only the number 'max_match_planes' planes with the largest area are selected for registration. If this parameter is 0 (default)
       all the planes are used.
       The parameter 'registMode' is used constraint the plane matching as
         0(DEFAULT_6DoF): unconstrained movement between frames,
-        1(ODOMETRY_6DoF): odometry (small displacement between the two frames/places),
-        2(PLANAR_3DoF): planar movement (the camera is fixed in height)
+        1(PLANAR_3DoF): planar movement (the camera is fixed in height)
+        2(ODOMETRY_6DoF): odometry (small displacement between the two frames/places),
         3(PLANAR_ODOMETRY_3DoF): odometry + planar movement (small displacementes + the camera is fixed in height) */
-    bool Register(Frame360 *frame1 = NULL, Frame360 *frame2 = NULL, const size_t max_match_planes = 0, registrationType registMode = DEFAULT_6DoF)
+    bool RegisterPbMap(Frame360 *frame1 = NULL, Frame360 *frame2 = NULL, const size_t max_match_planes = 0, registrationType registMode = DEFAULT_6DoF)
     {
         //    std::cout << "Register...\n";
 //        double time_start = pcl::getTime();
@@ -311,11 +312,15 @@ public:
         //    time_start = pcl::getTime();
 
         // Align the two frames
+        Eigen::Matrix4f rigidTransf_float;
+        Eigen::Matrix<float,6,6> infMat_float;
         mrpt::pbmap::ConsistencyTest fitModel(pRef360->planes, pTrg360->planes);
         //    rigidTransf = fitModel.initPose(bestMatch);
-        //    Eigen::Matrix4f rigidTransf = fitModel.estimatePose(bestMatch);
-        bool goodAlignment = fitModel.estimatePoseWithCovariance(bestMatch, rigidTransf, informationM);
-        //    Eigen::Matrix4f rigidTransf2 = fitModel.estimatePoseRANSAC(bestMatch);
+        //    Eigen::Matrix4d rigidTransf = fitModel.estimatePose(bestMatch);
+        bool goodAlignment = fitModel.estimatePoseWithCovariance(bestMatch, rigidTransf_float, infMat_float);
+        //    Eigen::Matrix4d rigidTransf2 = fitModel.estimatePoseRANSAC(bestMatch);
+        rigidTransf = rigidTransf_float.cast<double>();
+        informationM = infMat_float.cast<double>();
 
         if(goodAlignment) // Get the maximum matchable areas
         {
@@ -330,6 +335,182 @@ public:
 
 
         return goodAlignment;
+    }
+
+    /*! Dense Photo/ICP registration. Set the target frame and source frames for registration if specified.
+      The parameter 'registMode' is used constraint the plane matching as
+        0(DEFAULT_6DoF): unconstrained movement between frames,
+        1(PLANAR_3DoF): planar movement (the camera is fixed in height) */
+    bool RegisterDensePhotoICP(Frame360 *frame1, Frame360 *frame2, Eigen::Matrix4d pose_estim = Eigen::Matrix4d::Identity(), registrationType registMode = DEFAULT_6DoF)
+    {
+        assert(frame1 && frame2);
+        //    std::cout << "RegisterPhotoICP...\n";
+//        double time_start = pcl::getTime();
+
+        // Steps:
+        // 1) Compute the image pyramids
+        // 2) Get Hessian and Gradient
+        // 3) Iterate
+
+        Eigen::Matrix4d pose_estim_temp;
+
+        const float img_width = frame1->frameRGBD_[0].getRGBImage().cols;
+        const float img_height = frame1->frameRGBD_[0].getRGBImage().rows;
+        const float res_factor_VGA = img_width / 640.0;
+        const float focal_length = 525 * res_factor_VGA;
+        const float inv_fx = 1.f/focal_length;
+        const float inv_fy = 1.f/focal_length;
+        const float ox = img_width/2 - 0.5;
+        const float oy = img_height/2 - 0.5;
+        Eigen::Matrix3f camIntrinsicMat; camIntrinsicMat << focal_length, 0, ox, 0, focal_length, oy, 0, 0, 1;
+
+        std::vector<RegisterPhotoICP> alignSensorID(NUM_ASUS_SENSORS);
+
+        //    #pragma omp parallel num_threads(8)
+        for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+        {
+            //      int sensor_id = omp_get_thread_num();
+            alignSensorID[sensor_id].setCameraMatrix(camIntrinsicMat);
+            alignSensorID[sensor_id].setSourceFrame(frame1->frameRGBD_[sensor_id].getRGBImage(), frame1->frameRGBD_[sensor_id].getDepthImage());
+            alignSensorID[sensor_id].setTargetFrame(frame2->frameRGBD_[sensor_id].getRGBImage(), frame2->frameRGBD_[sensor_id].getDepthImage());
+        }
+//std::cout << "Set the frames." << std::endl;
+
+        Eigen::Matrix<double,6,6> Hessian;
+        Eigen::Matrix<double,6,1> Gradient;
+
+        for(int pyramidLevel = alignSensorID[0].nPyrLevels-1; pyramidLevel >= 0; pyramidLevel--)
+        {
+            int nRows = alignSensorID[0].graySrcPyr[pyramidLevel].rows;
+            int nCols = alignSensorID[0].graySrcPyr[pyramidLevel].cols;
+
+            double lambda = 0.001; // Levenberg-Marquardt (LM) lambda
+            double step = 10; // Update step
+            unsigned LM_maxIters = 3;
+
+            int it = 0, maxIters = 10;
+            double tol_residual = pow(10,-10);
+            double tol_update = pow(10,-10);
+            Eigen::Matrix<double,6,1> update_pose; update_pose(0,0) = 1;
+            double error = 0.0;
+            std::vector<double> error2_SensorID(NUM_ASUS_SENSORS);
+
+            //    #pragma omp parallel num_threads(8)
+            for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+            {
+                //      int sensor_id = omp_get_thread_num();
+                error2_SensorID[sensor_id] = alignSensorID[sensor_id].calcPhotoICPError_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id]);
+//            cout << "error2_SensorID[sensor_id] \n" << error2_SensorID[sensor_id] << endl;
+            }
+            for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+                error += error2_SensorID[sensor_id];
+
+            double diff_error = error;
+
+#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
+            cout << "Level " << pyramidLevel << " error " << error << endl;
+#endif
+
+#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
+cv::TickMeter tm;tm.start();
+#endif
+            while(it < maxIters && update_pose.norm() > tol_update && diff_error > tol_residual) // The LM optimization stops either when the max iterations is reached, or when the alignment converges (error or pose do not change)
+            {
+                Hessian = Eigen::Matrix<double,6,6>::Zero();
+                Gradient = Eigen::Matrix<double,6,1>::Zero();
+
+                //      int sensor_id = omp_get_thread_num();
+                for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+                {
+                    //    #pragma omp parallel num_threads(8)
+                    alignSensorID[sensor_id].calcHessianGradient_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id]);
+                }
+                for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+                {
+                    Hessian += alignSensorID[sensor_id].getHessian();
+                    Gradient += alignSensorID[sensor_id].getGradient();
+                }
+            cout << "Hessian \n" << Hessian << endl;
+
+                assert(Hessian.rank() == 6); // Make sure that the problem is observable
+
+                // Compute the pose update
+                update_pose = -(Hessian + lambda*getDiagonalMatrix(Hessian)).inverse() * Gradient;
+                pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose)).getHomogeneousMatrixVal() * pose_estim;
+            cout << "update_pose \n" << update_pose.transpose() << endl;
+            cout << "pose_estim \n" << pose_estim << "\n pose_estim_temp \n" << pose_estim_temp << endl;
+
+                double new_error = 0.0;
+                //    #pragma omp parallel num_threads(8)
+                for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+                {
+                    //      int sensor_id = omp_get_thread_num();
+                    error2_SensorID[sensor_id] = alignSensorID[sensor_id].calcPhotoICPError_robot(pyramidLevel, pose_estim_temp, frame1->calib->Rt_[sensor_id]);
+//                cout << "error2_SensorID[sensor_id] \n" << error2_SensorID[sensor_id] << endl;
+                }
+                for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+                    new_error += error2_SensorID[sensor_id];
+
+                diff_error = error - new_error;
+            cout << "diff_error \n" << diff_error << endl;
+                if(diff_error > 0)
+                {
+                    lambda /= step;
+                    pose_estim = pose_estim_temp;
+                    error = new_error;
+                    it = it+1;
+                }
+                else
+                {
+                    unsigned LM_it = 0;
+                    while(LM_it < LM_maxIters && diff_error < 0)
+                    {
+                        lambda = lambda * step;
+
+                        update_pose = -(Hessian + lambda*getDiagonalMatrix(Hessian)).inverse() * Gradient;
+                        pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose)).getHomogeneousMatrixVal() * pose_estim;
+                    cout << "update_pose LM \n" << update_pose.transpose() << endl;
+
+                        double new_error = 0.0;
+                        //    #pragma omp parallel num_threads(8)
+                        for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+                        {
+                            //      int sensor_id = omp_get_thread_num();
+                            error2_SensorID[sensor_id] = alignSensorID[sensor_id].calcPhotoICPError_robot(pyramidLevel, pose_estim_temp, frame1->calib->Rt_[sensor_id]);
+                        }
+                        for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+                            new_error += error2_SensorID[sensor_id];
+                        diff_error = error - new_error;
+
+                        cout << "diff_error LM \n" << diff_error << endl;
+                        if(diff_error > 0)
+                        {
+                            pose_estim = pose_estim_temp;
+                            error = new_error;
+                            it = it+1;
+                        }
+                        LM_it = LM_it + 1;
+                    }
+                }
+            }
+
+#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
+tm.stop(); std::cout << "Iterations " << it << " time = " << tm.getTimeSec() << " sec." << std::endl;
+#endif
+        }
+
+        bRegistrationDone = true;
+
+//        if(Hessian.det() > 1000)
+        {
+            std::cout << "Hessian.det() = " << Hessian.det() << std::endl;
+            rigidTransf = pose_estim;
+            return true;
+        }
+//        else
+//            return false;
+
+//        return true;
     }
 
 };

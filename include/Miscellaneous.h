@@ -40,7 +40,9 @@
 #include <iostream>
 #include <fstream>
 
-#define PI 3.14159265359
+#ifndef PI
+    #define PI 3.14159265359
+#endif
 
 /*! This file contains a set of generic attributes used along the 'RGBD360' project.
  */
@@ -88,7 +90,7 @@ Eigen::Matrix<dataType,3,3> skew(Eigen::Matrix<dataType,3,1> vec)
 {
   Eigen::Matrix<dataType,3,3> skew_matrix = Eigen::Matrix<dataType,3,3>::Zero();
   skew_matrix(0,1) = -vec(2);
-  skew_matrix(1,2) = vec(2);
+  skew_matrix(1,0) = vec(2);
   skew_matrix(0,2) = vec(1);
   skew_matrix(2,0) = -vec(1);
   skew_matrix(1,2) = -vec(0);

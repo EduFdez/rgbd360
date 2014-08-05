@@ -178,7 +178,7 @@ class SphereGraphSLAM
           std::cout<< "Register  " << frame360->id << " with " << compareLocalIdx << std::endl;
 
           // Register the pair of frames
-          if( registerer.Register(Map.vpSpheres[*compareSphereId], frame360, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_ODOMETRY_3DoF) )
+          if( registerer.RegisterPbMap(Map.vpSpheres[*compareSphereId], frame360, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_ODOMETRY_3DoF) )
           {
 //            if(registerer.getMatchedPlanes().size() >= 8) //Do not select as a keyframe
 //              break;

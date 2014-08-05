@@ -118,13 +118,13 @@ public:
     /*! PbMap of the spherical frame */
     mrpt::pbmap::PbMap planes;
 
+    /*! Calibration object */
+    Calib360 *calib;
+
 private:
 
     /*! Time-stamp of the spherical frame (it corresponds to the last capture of the 8 sensors, as they are not syncronized) */
     uint64_t timeStamp;
-
-    /*! Calibration object */
-    Calib360 *calib;
 
     /*! The 8 separate point clouds from each single Asus XPL */
     pcl::PointCloud<PointT>::Ptr cloud_[8];

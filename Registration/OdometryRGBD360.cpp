@@ -160,8 +160,8 @@ class Odometry360
         #endif
 
         // Align the two frames
-        bGoodRegistration = registerer.Register(frame360_1, frame360_2, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
-//        bGoodRegistration = registerer.Register(frame360_1, frame360_2, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_ODOMETRY_3DoF);
+        bGoodRegistration = registerer.RegisterPbMap(frame360_1, frame360_2, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
+//        bGoodRegistration = registerer.RegisterPbMap(frame360_1, frame360_2, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_ODOMETRY_3DoF);
         Eigen::Matrix4d rigidTransf = registerer.getPose().cast<double>();
 
         if(!bGoodRegistration)

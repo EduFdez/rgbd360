@@ -38,12 +38,15 @@
 #include <pcl/registration/gicp.h> //GICP
 #include <pcl/registration/warp_point_rigid.h>
 
+#include <mrpt/system/os.h>
+
 #define VISUALIZE_POINT_CLOUD 1
-#ifndef _DEBUG_MSG
+//#ifndef _DEBUG_MSG
     #define _DEBUG_MSG 1
-#endif
+//#endif
 
 using namespace std;
+using namespace Eigen;
 
 void print_help(char ** argv)
 {
@@ -62,8 +65,8 @@ int main (int argc, char ** argv)
   string file360_2 = static_cast<string>(argv[2]);
 
 //  string path = static_cast<string>(argv[1]);
-//  unsigned id_frame1 = atoi(argv[2]);
-//  unsigned id_frame2 = atoi(argv[3]);
+//  unsigned id_frame360_1 = atoi(argv[2]);
+//  unsigned id_frame360_2 = atoi(argv[3]);
 
   Calib360 calib;
   calib.loadExtrinsicCalibration();
@@ -77,7 +80,7 @@ cout << "Create sphere 1\n";
   frame360_1.buildSphereCloud();
   frame360_1.getPlanes();
 
-//  frame360_1.load_PbMap_Cloud(path, id_frame1);
+//  frame360_1.load_PbMap_Cloud(path, id_frame360_1);
 
 cout << "Create sphere 2\n";
 
@@ -88,77 +91,111 @@ cout << "Create sphere 2\n";
   frame360_2.buildSphereCloud();
   frame360_2.getPlanes();
 
-//  frame360_2.load_PbMap_Cloud(path, id_frame2);
+//  frame360_2.load_PbMap_Cloud(path, id_frame360_2);
 
 //  double time_start = pcl::getTime();
   RegisterRGBD360 registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH));
   registerer.RegisterPbMap(&frame360_1, &frame360_2, 25, RegisterRGBD360::PLANAR_3DoF);
 //  registerer.RegisterPbMap(&frame360_1, &frame360_2, 20, RegisterRGBD360::DEFAULT_6DoF);
 //  registerer.RegisterPbMap(&frame360_1, &frame360_2, 20, RegisterRGBD360::ODOMETRY_6DoF);
+  Eigen::Matrix4d relPosePbMap = registerer.getPose();
 
-//#if _DEBUG_MSG
+#if _DEBUG_MSG
   std::map<unsigned, unsigned> bestMatch = registerer.getMatchedPlanes();
 //  std::cout << "NUMBER OF MATCHED PLANES " << bestMatch.size() << " areaMatched " << registerer.getAreaMatched() << std::endl;
   for(std::map<unsigned, unsigned>::iterator it=bestMatch.begin(); it != bestMatch.end(); it++)
     std::cout << it->first << " " << it->second << std::endl;
 
   cout << "Distance " << registerer.getPose().block(0,3,3,1).norm() << endl;
-  cout << "Pose \n" << registerer.getPose() << endl;
-//#endif
+  cout << "PosePbMap \n" << registerer.getPose() << endl;
+#endif
 
-  // ICP alignement
-  double time_start = pcl::getTime();
-//  pcl::IterativeClosestPoint<PointT,PointT> icp;
-  pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
-//  pcl::IterativeClosestPointNonLinear<PointT,PointT> icp;
+//  // ICP alignement
+//  double time_start = pcl::getTime();
+////  pcl::IterativeClosestPoint<PointT,PointT> icp;
+//  pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
+////  pcl::IterativeClosestPointNonLinear<PointT,PointT> icp;
 
-  icp.setMaxCorrespondenceDistance (0.4);
-  icp.setMaximumIterations (10);
-  icp.setTransformationEpsilon (1e-9);
-//  icp.setEuclideanFitnessEpsilon (1);
-  icp.setRANSACOutlierRejectionThreshold (0.1);
+//  icp.setMaxCorrespondenceDistance (0.4);
+//  icp.setMaximumIterations (10);
+//  icp.setTransformationEpsilon (1e-9);
+////  icp.setEuclideanFitnessEpsilon (1);
+//  icp.setRANSACOutlierRejectionThreshold (0.1);
 
-//  // Transformation function
-//  boost::shared_ptr<pcl::registration::WarpPointRigid3D<PointT, PointT> > warp_fcn(new pcl::registration::WarpPointRigid3D<PointT, PointT>);
-//
-//  // Create a TransformationEstimationLM object, and set the warp to it
-//  boost::shared_ptr<pcl::registration::TransformationEstimationLM<PointT, PointT> > te(new pcl::registration::TransformationEstimationLM<PointT, PointT>);
-//  te->setWarpFunction(warp_fcn);
-//
-//  // Pass the TransformationEstimation objec to the ICP algorithm
-//  icp.setTransformationEstimation (te);
+////  // Transformation function
+////  boost::shared_ptr<pcl::registration::WarpPointRigid3D<PointT, PointT> > warp_fcn(new pcl::registration::WarpPointRigid3D<PointT, PointT>);
+////
+////  // Create a TransformationEstimationLM object, and set the warp to it
+////  boost::shared_ptr<pcl::registration::TransformationEstimationLM<PointT, PointT> > te(new pcl::registration::TransformationEstimationLM<PointT, PointT>);
+////  te->setWarpFunction(warp_fcn);
+////
+////  // Pass the TransformationEstimation objec to the ICP algorithm
+////  icp.setTransformationEstimation (te);
 
-  // ICP
-  // Filter the point clouds and remove nan points
-  FilterPointCloud filter(0.1);
-  filter.filterVoxel(frame360_1.sphereCloud);
-  filter.filterVoxel(frame360_2.sphereCloud);
+//  // ICP
+//  // Filter the point clouds and remove nan points
+//  FilterPointCloud filter(0.1);
+//  filter.filterVoxel(frame360_1.sphereCloud);
+//  filter.filterVoxel(frame360_2.sphereCloud);
 
-  icp.setInputSource(frame360_2.sphereCloud);
-  icp.setInputTarget(frame360_1.sphereCloud);
-  pcl::PointCloud<PointT>::Ptr alignedICP(new pcl::PointCloud<PointT>);
-//  Eigen::Matrix4d initRigidTransf = registerer.getPose();
-  Eigen::Matrix4f initRigidTransf = Eigen::Matrix4f::Identity();
-  icp.align(*alignedICP, initRigidTransf);
+//  icp.setInputSource(frame360_2.sphereCloud);
+//  icp.setInputTarget(frame360_1.sphereCloud);
+//  pcl::PointCloud<PointT>::Ptr alignedICP(new pcl::PointCloud<PointT>);
+////  Matrix4d initRigidTransf = registerer.getPose();
+//  Matrix4f initRigidTransf = Matrix4f::Identity();
+//  icp.align(*alignedICP, initRigidTransf);
 
-  double time_end = pcl::getTime();
-  std::cout << "ICP took " << double (time_end - time_start) << std::endl;
+//  double time_end = pcl::getTime();
+//  std::cout << "ICP took " << double (time_end - time_start) << std::endl;
 
-  std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
-  Eigen::Matrix4d icpTransformation = icp.getFinalTransformation().cast<double>();
-  cout << "ICP transformation:\n" << icpTransformation << endl << "PbMap-Registration\n" << registerer.getPose() << endl;
+//  std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
+//  Matrix4d icpTransformation = icp.getFinalTransformation().cast<double>();
+//  cout << "ICP transformation:\n" << icpTransformation << endl << "PbMap-Registration\n" << registerer.getPose() << endl;
+
+    // Test: align one image
+    int sensorID = 0;
+    Eigen::Matrix4d sensorID_relPosePbMap = frame360_1.calib->Rt_[sensorID].inverse()*relPosePbMap*frame360_1.calib->Rt_[sensorID];
+    cout << "sensorID_relPosePbMap:\n" << sensorID_relPosePbMap << endl;
+
+    const float img_width = frame360_1.frameRGBD_[sensorID].getRGBImage().cols;
+    const float img_height = frame360_1.frameRGBD_[sensorID].getRGBImage().rows;
+    const float res_factor_VGA = img_width / 640.0;
+    const float focal_length = 525 * res_factor_VGA;
+    const float inv_fx = 1.f/focal_length;
+    const float inv_fy = 1.f/focal_length;
+    const float ox = img_width/2 - 0.5;
+    const float oy = img_height/2 - 0.5;
+    Eigen::Matrix3f camIntrinsicMat; camIntrinsicMat << focal_length, 0, ox, 0, focal_length, oy, 0, 0, 1;
+    RegisterPhotoICP alignSingleFrames;
+    alignSingleFrames.setCameraMatrix(camIntrinsicMat);
+    alignSingleFrames.setTargetFrame(frame360_1.frameRGBD_[sensorID].getRGBImage(), frame360_1.frameRGBD_[sensorID].getDepthImage());
+    alignSingleFrames.setSourceFrame(frame360_2.frameRGBD_[sensorID].getRGBImage(), frame360_2.frameRGBD_[sensorID].getDepthImage());
+    alignSingleFrames.setVisualization(true);
+    alignSingleFrames.alignFrames(sensorID_relPosePbMap, RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY
+
+    Eigen::Matrix4d photoCons_relPose = alignSingleFrames.getOptimalPose();
+    cout << "sensorID_relPosePbMap:\n" << sensorID_relPosePbMap << "\nphotoCons_relPose:\n" << photoCons_relPose << endl;
+    mrpt::system::pause();
+
+  // Dense Photo/Depth consistency
+  registerer.RegisterDensePhotoICP(&frame360_1, &frame360_2, relPosePbMap, RegisterRGBD360::DEFAULT_6DoF);
+  Matrix4d relPoseDense = registerer.getPose();
+  cout << "DensePhotoICP transformation:\n" << registerer.getPose() << endl;
+
+
 
   // Visualize
   #if VISUALIZE_POINT_CLOUD
   // It runs PCL viewer in a different thread.
 //    cout << "Superimpose cloud\n";
   Map360 Map;
-  Eigen::Matrix4d pose = Eigen::Matrix4d::Identity();
+  Matrix4d pose = Matrix4d::Identity();
   Map.addKeyframe(&frame360_1, pose );
   pose = registerer.getPose().cast<double>();
   Map.addKeyframe(&frame360_2, pose );
   Map.vOptimizedPoses = Map.vTrajectoryPoses;
-  Map.vOptimizedPoses[1] = icpTransformation;
+//  Map.vOptimizedPoses[1] = icpTransformation;
+  Map.vOptimizedPoses[1] = relPoseDense;
   Map360_Visualizer Viewer(Map);
 
   while (!Viewer.viewer.wasStopped() )

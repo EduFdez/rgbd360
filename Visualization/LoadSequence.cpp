@@ -132,9 +132,9 @@ class LoadSequence
             {
                 cv::imwrite(path_results + mrpt::format("/rgb_%04d_%d.png", frame, sensor_id), frame360->getFrameRGBD_id(sensor_id).getRGBImage());
 
-                cv::Mat auxDepthVis;
-                frame360->getFrameRGBD_id(sensor_id).getDepthImage().convertTo( auxDepthVis, CV_8U, 0.025 ); //CV_16UC1
-                cv::imwrite(path_results + mrpt::format("/depth_%04d_%d.png", frame, sensor_id), auxDepthVis);
+//                cv::Mat auxDepthVis;
+//                frame360->getFrameRGBD_id(sensor_id).getDepthImage().convertTo( auxDepthVis, CV_8U, 0.025 ); //CV_16UC1
+                cv::imwrite(path_results + mrpt::format("/depth__%04d_%d.png", frame, sensor_id), frame360->getFrameRGBD_id(sensor_id).getDepthImage());
             }
             sleep(1000000000);
           }

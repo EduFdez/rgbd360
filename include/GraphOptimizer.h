@@ -29,9 +29,6 @@
 #include <Eigen/Core>
 #include <string>
 
-using namespace g2o;
-using namespace Eigen;
-
 typedef double datatype;
 
 /*!Abstract class that defines the mandatory methods that a 3D/6D GraphSLAM optimizer must implement.*/
@@ -70,11 +67,11 @@ public:
     }
 
     /*! Adds a new vertex to the graph. The provided 4x4 matrix will be considered as the pose of the new added vertex. It returns the index of the added vertex.*/
-    int addVertex(Matrix<datatype,4,4>& vertexPose)
+    int addVertex(Eigen::Matrix<datatype,4,4>& vertexPose)
     {
         if(rigidTransformationType==GraphOptimizer::SixDegreesOfFreedom) //Rigid transformation 6DoF
         {
-            //Transform pose from Matrix<datatype,4,4> into Isometry3d to set up rotation and translation for this node
+            //Transform pose from Eigen::Matrix<datatype,4,4> into Isometry3d to set up rotation and translation for this node
             Isometry3d cam; // camera pose
             Matrix3d m_rot = vertexPose.block(0,0,3,3);
             cam = Quaterniond(m_rot);
@@ -101,7 +98,7 @@ public:
         }
     //    else //Rigid transformation 3DoF
     //    {
-    //        //Transform Matrix<datatype,4,4> into 2D translation and rotation for g2o
+    //        //Transform Eigen::Matrix<datatype,4,4> into 2D translation and rotation for g2o
     //        SE2 pose(vertexPose(0,3),vertexPose(1,3),atan2(vertexPose(1,0),vertexPose(0,0)));
 
     //        // set up node
@@ -128,12 +125,12 @@ public:
     /*! Adds an edge that defines a spatial constraint between the vertices "fromIdx" and "toIdx" with information matrix that determines the weight of the added edge.*/
     void addEdge(const int fromIdx,
                  const int toIdx,
-                 Matrix<datatype,4,4>& relativePose,
-                 Matrix<datatype,6,6>& informationMatrix)
+                 Eigen::Matrix<datatype,4,4>& relativePose,
+                 Eigen::Matrix<datatype,6,6>& informationMatrix)
     {
         if(rigidTransformationType==GraphOptimizer::SixDegreesOfFreedom) //Rigid transformation 6DoF
         {
-            //Transform Matrix<datatype,4,4> into 3D traslation and rotation for g2o
+            //Transform Eigen::Matrix<datatype,4,4> into 3D traslation and rotation for g2o
             Vector3d t(relativePose(0,3),relativePose(1,3),relativePose(2,3));
             Matrix3d m_rot = relativePose.block(0,0,3,3);
             Quaterniond q(m_rot);
@@ -151,7 +148,7 @@ public:
         }
     //    else //Rigid transformation 3DoF
     //    {
-    //        //Transform Matrix<datatype,4,4> into 2D translation and rotation for g2o
+    //        //Transform Eigen::Matrix<datatype,4,4> into 2D translation and rotation for g2o
     //        SE2 transf(relativePose(0,3),relativePose(1,3),atan2(relativePose(1,0),relativePose(0,0))); // relative transformation
 
     //        EdgeSE2* edge = new EdgeSE2;
@@ -185,7 +182,7 @@ public:
     }
 
     /*! Returns a vector with all the optimized poses of the graph.*/
-    void getPoses(std::vector<Matrix<datatype,4,4>, aligned_allocator<Matrix<datatype,4,4> > >& poses)
+    void getPoses(std::vector<Eigen::Matrix<datatype,4,4>, aligned_allocator<Eigen::Matrix<datatype,4,4> > >& poses)
     {
         poses.clear();
         poses.resize(vertexIdx);
@@ -193,11 +190,11 @@ public:
         #pragma omp parallel for
         for(int poseIdx=0;poseIdx<vertexIdx;poseIdx++)
         {
-            Matrix<datatype,4,4> optimizedPose = Matrix<datatype,4,4>::Zero();
+            Eigen::Matrix<datatype,4,4> optimizedPose = Eigen::Matrix<datatype,4,4>::Zero();
 
             if(rigidTransformationType==GraphOptimizer::SixDegreesOfFreedom) //Rigid transformation 6DoF
             {
-                //Transform the vertex pose from G2O quaternion and traslation vector to Matrix<datatype,4,4>
+                //Transform the vertex pose from G2O quaternion and traslation vector to Eigen::Matrix<datatype,4,4>
                 VertexSE3* vertex = dynamic_cast<VertexSE3*>(optimizer.vertex(poseIdx));
                 double optimizedPoseQuaternion[7];
                 vertex->getEstimateData(optimizedPoseQuaternion);
@@ -225,7 +222,7 @@ public:
             }
             else //Rigid transformation 3DoF
             {
-                //Transform the vertex pose from G2O SE2 pose to Matrix<datatype,4,4>
+                //Transform the vertex pose from G2O SE2 pose to Eigen::Matrix<datatype,4,4>
                 VertexSE2* vertex = dynamic_cast<VertexSE2*>(optimizer.vertex(poseIdx));
                 double optimizedPoseSE2[3];
                 vertex->getEstimateData(optimizedPoseSE2);
