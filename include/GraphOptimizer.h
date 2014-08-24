@@ -27,9 +27,10 @@
 
 #include <vector>
 #include <Eigen/Core>
+//#include <Eigen/Quaternion.h>
 #include <string>
 
-typedef double datatype;
+typedef float datatype;
 
 /*!Abstract class that defines the mandatory methods that a 3D/6D GraphSLAM optimizer must implement.*/
 //template<class datatype>
@@ -56,9 +57,9 @@ public:
 
         // variable-size block solver
         //    linearSolver = new LinearSolverCholmod<BlockSolverX::PoseMatrixType>();
-        linearSolver = new LinearSolverDense<BlockSolverX::PoseMatrixType>();
-        solver_ptr = new BlockSolverX(linearSolver);
-        OptimizationAlgorithmLevenberg* solver = new OptimizationAlgorithmLevenberg(solver_ptr);
+        linearSolver = new g2o::LinearSolverDense<g2o::BlockSolverX::PoseMatrixType>();
+        solver_ptr = new g2o::BlockSolverX(linearSolver);
+        g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
 
         optimizer.setAlgorithm(solver);
 
@@ -67,20 +68,20 @@ public:
     }
 
     /*! Adds a new vertex to the graph. The provided 4x4 matrix will be considered as the pose of the new added vertex. It returns the index of the added vertex.*/
-    int addVertex(Eigen::Matrix<datatype,4,4>& vertexPose)
+    int addVertex(const Eigen::Matrix<double,4,4> vertexPose)
     {
         if(rigidTransformationType==GraphOptimizer::SixDegreesOfFreedom) //Rigid transformation 6DoF
         {
             //Transform pose from Eigen::Matrix<datatype,4,4> into Isometry3d to set up rotation and translation for this node
-            Isometry3d cam; // camera pose
-            Matrix3d m_rot = vertexPose.block(0,0,3,3);
-            cam = Quaterniond(m_rot);
+            Eigen::Isometry3d cam; // camera pose
+            Eigen::Matrix3d m_rot = vertexPose.block(0,0,3,3);
+            cam = Eigen::Quaterniond(m_rot);
             cam.translation() = vertexPose.block(0,3,3,1);
 //            Transform<datatype,3,Isometry> cam; // camera pose
 //            cam = Quaternion<datatype>(vertexPose.block(0,0,3,3));
 
             // set up node
-            VertexSE3 *vc = new VertexSE3();
+            g2o::VertexSE3 *vc = new g2o::VertexSE3();
             vc->setEstimate(cam);
 
             vc->setId(vertex_id);      // vertex id
@@ -125,18 +126,18 @@ public:
     /*! Adds an edge that defines a spatial constraint between the vertices "fromIdx" and "toIdx" with information matrix that determines the weight of the added edge.*/
     void addEdge(const int fromIdx,
                  const int toIdx,
-                 Eigen::Matrix<datatype,4,4>& relativePose,
-                 Eigen::Matrix<datatype,6,6>& informationMatrix)
+                 const Eigen::Matrix<double,4,4> relativePose,
+                 const Eigen::Matrix<double,6,6> informationMatrix)
     {
         if(rigidTransformationType==GraphOptimizer::SixDegreesOfFreedom) //Rigid transformation 6DoF
         {
             //Transform Eigen::Matrix<datatype,4,4> into 3D traslation and rotation for g2o
-            Vector3d t(relativePose(0,3),relativePose(1,3),relativePose(2,3));
-            Matrix3d m_rot = relativePose.block(0,0,3,3);
-            Quaterniond q(m_rot);
-            SE3Quat transf(q,t);	// relative transformation
+            Eigen::Vector3d t(relativePose(0,3),relativePose(1,3),relativePose(2,3));
+            Eigen::Matrix3d m_rot = relativePose.block(0,0,3,3);
+            Eigen::Quaterniond q(m_rot);
+            g2o::SE3Quat transf(q,t);	// relative transformation
 
-            EdgeSE3* edge = new EdgeSE3;
+            g2o::EdgeSE3* edge = new g2o::EdgeSE3;
             edge->vertices()[0] = optimizer.vertex(fromIdx);
             edge->vertices()[1] = optimizer.vertex(toIdx);
             edge->setMeasurement(transf);
@@ -182,7 +183,7 @@ public:
     }
 
     /*! Returns a vector with all the optimized poses of the graph.*/
-    void getPoses(std::vector<Eigen::Matrix<datatype,4,4>, aligned_allocator<Eigen::Matrix<datatype,4,4> > >& poses)
+    void getPoses(std::vector<Eigen::Matrix<datatype,4,4>, Eigen::aligned_allocator<Eigen::Matrix<datatype,4,4> > > &poses)
     {
         poses.clear();
         poses.resize(vertexIdx);
@@ -195,18 +196,18 @@ public:
             if(rigidTransformationType==GraphOptimizer::SixDegreesOfFreedom) //Rigid transformation 6DoF
             {
                 //Transform the vertex pose from G2O quaternion and traslation vector to Eigen::Matrix<datatype,4,4>
-                VertexSE3* vertex = dynamic_cast<VertexSE3*>(optimizer.vertex(poseIdx));
+                g2o::VertexSE3* vertex = dynamic_cast<g2o::VertexSE3*>(optimizer.vertex(poseIdx));
                 double optimizedPoseQuaternion[7];
                 vertex->getEstimateData(optimizedPoseQuaternion);
 
                 double qx,qy,qz,qr,qx2,qy2,qz2,qr2;
 
-                Quaterniond quat;
+                Eigen::Quaterniond quat;
                 quat.x()=optimizedPoseQuaternion[3];
                 quat.y()=optimizedPoseQuaternion[4];
                 quat.z()=optimizedPoseQuaternion[5];
                 quat.w()=optimizedPoseQuaternion[6];
-                Matrix3d rotationMatrix(quat);
+                Eigen::Matrix3d rotationMatrix(quat);
 
                 for(int i=0;i<3;i++)
                 {
@@ -223,7 +224,7 @@ public:
             else //Rigid transformation 3DoF
             {
                 //Transform the vertex pose from G2O SE2 pose to Eigen::Matrix<datatype,4,4>
-                VertexSE2* vertex = dynamic_cast<VertexSE2*>(optimizer.vertex(poseIdx));
+                g2o::VertexSE2* vertex = dynamic_cast<g2o::VertexSE2*>(optimizer.vertex(poseIdx));
                 double optimizedPoseSE2[3];
                 vertex->getEstimateData(optimizedPoseSE2);
 
@@ -238,7 +239,7 @@ public:
             }
 
             //Set the optimized pose to the vector of poses
-            poses[poseIdx]=optimizedPose;
+            poses[poseIdx] = optimizedPose;
         }
     }
 

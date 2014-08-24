@@ -110,7 +110,7 @@ public:
     CloudRGBD_Ext frameRGBD_[8];
 
     /*! Pose of this frame */
-    Eigen::Matrix4d pose;
+    Eigen::Matrix4f pose;
 
     /*! 3D Point cloud of the spherical frame */
     pcl::PointCloud<PointT>::Ptr sphereCloud;
@@ -298,10 +298,10 @@ public:
             //      cv::eigen2cv(frameRGBD_[sensor_id].m_depthEigUndistort, frameRGBD_[sensor_id].getDepthImage());
         }
 
-#if _DEBUG_MSG
+//#if _DEBUG_MSG
         double time_end = pcl::getTime();
         std::cout << "Undistort Frame360 took " << double (time_end - time_start) << std::endl;
-#endif
+//#endif
 
     }
 
@@ -381,18 +381,19 @@ public:
     /*! Stitch RGB-D image using a spherical representation */
     void stitchSphericalImage() // Parallelized with OpenMP
     {
+//        cout << "stitchSphericalImage\n";
         double time_start = pcl::getTime();
 
         int width_SphereImg = frameRGBD_[0].getRGBImage().rows * 8;
-        int height_SphereImg = width_SphereImg * 0.5 * 63.0/180; // Store only the part of the sphere which contains information
+        int height_SphereImg = width_SphereImg * 0.5 * 60.0/180; // Store only the part of the sphere which contains information
         sphereRGB = cv::Mat::zeros(height_SphereImg, width_SphereImg, CV_8UC3);
-        sphereDepth = cv::Mat::zeros(height_SphereImg, width_SphereImg, CV_32FC1);
-        cout << "stitchSphericalImage\n";
-#pragma omp parallel num_threads(8)
+        sphereDepth = cv::Mat::zeros(height_SphereImg, width_SphereImg, CV_16UC1);
+        #pragma omp parallel num_threads(8)
+//        for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
         {
             int sensor_id = omp_get_thread_num();
             stitchImage(sensor_id);
-            //      cout << "Stitcher omp " << sensor_id << endl;
+            // cout << "Stitcher omp " << sensor_id << endl;
         }
 
         double time_end = pcl::getTime();
@@ -560,14 +561,13 @@ public:
         sphereCloud->width = width_SphereImg;
         sphereCloud->is_dense = false;
 
-        float angle_px(1/angle_pixel);
+        float angle_pixel_inv(1/angle_pixel);
         int row_pixels = 0;
         float offset_phi = PI*31.5/180; // height_SphereImg((width_SphereImg/2) * 63.0/180),
         float PI_ = PI; // Does this spped-up the next loop?
         for(int row_phi=0; row_phi < height_SphereImg; row_phi++, row_pixels += width_SphereImg)
         {
-            float phi_i = row_phi*angle_px - offset_phi;// + PI/2;
-
+            float phi_i = offset_phi - row_phi*angle_pixel_inv;// + PI/2;
             float sin_phi = sin(phi_i);
             float cos_phi = cos(phi_i);
 
@@ -575,17 +575,17 @@ public:
             //      #pragma omp parallel for
             for(int col_theta=0; col_theta < width_SphereImg; col_theta++)
             {
-                float theta_i = col_theta*angle_px - PI_; // + PI;
-                float depth = sphereDepth.at<float>(row_phi,col_theta);
+                float theta_i = col_theta*angle_pixel_inv; // - PI;
+                float depth = 0.001f * sphereDepth.at<unsigned short>(row_phi,col_theta);
                 //      if(row_phi >50)
                 //        cout << "pos " << row_phi << " " << col_theta << " Phi/Theta " << phi_i << " " << theta_i << " depth " << depth << endl;
                 if(depth != 0)
                 {
                     //            cout << " Assign point in the cloud\n";
-                    sphereCloud->points[row_pixels+col_theta].x = sin(theta_i) * cos_phi * depth;
+                    sphereCloud->points[row_pixels+col_theta].x = sin_phi * depth;
                     //            sphereCloud->points[row_pixels+col_theta].x = cos(theta_i) * cos_phi * depth;
-                    sphereCloud->points[row_pixels+col_theta].y = sin_phi * depth;
-                    sphereCloud->points[row_pixels+col_theta].z = cos(theta_i) * cos_phi * depth;
+                    sphereCloud->points[row_pixels+col_theta].y = -cos_phi * sin(theta_i) * depth;
+                    sphereCloud->points[row_pixels+col_theta].z = -cos_phi * cos(theta_i) * depth;
                     //            sphereCloud->points[row_pixels+col_theta].z = sin(theta_i) * cos_phi * depth;
                     sphereCloud->points[row_pixels+col_theta].r = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[2];
                     sphereCloud->points[row_pixels+col_theta].g = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[1];
@@ -743,7 +743,7 @@ public:
         float maxDistHull = 0.5;
         float maxDistParallelHull = 0.09;
 
-        //    Eigen::Matrix4d Rt = calib->getRt_id(0);
+        //    Eigen::Matrix4f Rt = calib->getRt_id(0);
         //    planes.MergeWith(local_planes_[0], Rt);
         planes = local_planes_[0];
         std::set<unsigned> prev_planes, first_planes;
@@ -1094,32 +1094,33 @@ private:
     /*! Stitch both the RGB and the depth images corresponding to the sensor 'sensor_id' */
     void stitchImage(int sensor_id)
     {
-        Eigen::Vector3d virtualPoint, pointFromCamera;
-        const int size_w = frameRGBD_[sensor_id].getRGBImage().cols-1;
-        const int size_h = frameRGBD_[sensor_id].getRGBImage().rows-1;
-        const float offsetPhi = -sphereRGB.rows/2 + 0.5;
+        Eigen::Vector3f virtualPoint, pointFromCamera;
+        const int size_w = frameRGBD_[sensor_id].getRGBImage().cols;
+        const int size_h = frameRGBD_[sensor_id].getRGBImage().rows;
+        const float offsetPhi = sphereRGB.rows/2 - 0.5;
         const float offsetTheta = -frameRGBD_[sensor_id].getRGBImage().rows*15/2 + 0.5;
-        const float angle_pixel = 8*frameRGBD_[sensor_id].getRGBImage().rows/(2*PI);
+        const float angle_pixel = 2*PI/sphereRGB.cols;
+        const int marginStitching = 0;
 
         for(int row_phi=0; row_phi < sphereRGB.rows; row_phi++)
         {
-            //        int row_pixels = row_phi * frameRGBD_[sensor_id].getRGBImage().rows;
-            float phi_i = (row_phi+offsetPhi) / angle_pixel;// + PI/2;
-            virtualPoint(0) = -sin(phi_i);
+            //        int row_pixels = row_phi * size_h;
+            float phi_i = (offsetPhi-row_phi) * angle_pixel;// + PI/2;
+            virtualPoint(0) = sin(phi_i);
             float cos_phi = cos(phi_i);
 
             // Stitch each image from each sensor
             //        for(unsigned cam=0; cam < 8; cam++)
             //      #pragma omp parallel for
-            int init_col_sphere = (7-sensor_id)*frameRGBD_[sensor_id].getRGBImage().rows;
-            int end_col_sphere = (8-sensor_id)*frameRGBD_[sensor_id].getRGBImage().rows;
+            int init_col_sphere = (7-sensor_id)*size_h;
+            int end_col_sphere = (8-sensor_id)*size_h;
             if(sensor_id != 0)
-                end_col_sphere += 20;
+                end_col_sphere += marginStitching;
             if(sensor_id != 7)
-                init_col_sphere -= 20;
+                init_col_sphere -= marginStitching;
             for(int col_theta=init_col_sphere; col_theta < end_col_sphere; col_theta++)
             {
-                float theta_i = (col_theta+offsetTheta) / angle_pixel; // + PI;
+                float theta_i = (col_theta+offsetTheta) * angle_pixel; // + PI;
                 virtualPoint(1) = cos_phi*sin(theta_i);
                 virtualPoint(2) = cos_phi*cos(theta_i);
 
@@ -1132,9 +1133,11 @@ private:
                 if(u >= 0 && u < size_w && v >= 0 && v < size_h)
                 {
                     sphereRGB.at<cv::Vec3b>(row_phi,col_theta) = frameRGBD_[sensor_id].getRGBImage().at<cv::Vec3b>(v,u);
-
-                    if( pcl_isfinite(frameRGBD_[sensor_id].getDepthImage().at<float>(v,u)) )
-                        sphereDepth.at<float>(row_phi,col_theta) =frameRGBD_[sensor_id].getDepthImage().at<float>(v,u) * sqrt(1 + pow((u-calib->cameraMatrix(0,2))/calib->cameraMatrix(0,0),2) + pow((v-calib->cameraMatrix(1,2))/calib->cameraMatrix(1,1),2));
+//                    std::cout << " d " << frameRGBD_[sensor_id].getDepthImage().at<unsigned short>(v,u);
+                    if( pcl_isfinite(frameRGBD_[sensor_id].getDepthImage().at<unsigned short>(v,u)) ){
+                        sphereDepth.at<unsigned short>(row_phi,col_theta) = frameRGBD_[sensor_id].getDepthImage().at<unsigned short>(v,u) * sqrt(1 + pow((u-calib->cameraMatrix(0,2))/calib->cameraMatrix(0,0),2) + pow((v-calib->cameraMatrix(1,2))/calib->cameraMatrix(1,1),2));
+//                        std::cout << " dm " << sphereDepth.at<unsigned short>(row_phi,col_theta);
+                    }
                 }
             }
         }

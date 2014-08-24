@@ -79,7 +79,7 @@ class Relocalizer360
   {
     for(int i=Map.vpSpheres.size()-1; i >= 0; i--)
     {
-      bool bGoodRegistration = registerer.Register(Map.vpSpheres[i], currentFrame, max_match_planes, RegisterRGBD360::PLANAR_3DoF);
+      bool bGoodRegistration = registerer.RegisterPbMap(Map.vpSpheres[i], currentFrame, max_match_planes, RegisterRGBD360::PLANAR_3DoF);
       if(bGoodRegistration && registerer.getMatchedPlanes().size() >= 5 && registerer.getAreaMatched() > 10 )
       {
         relocKF = i;

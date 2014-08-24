@@ -32,14 +32,12 @@
 
 #include <mrpt/utils/CStream.h>
 
-#include <Map360.h>
+//#include <Map360.h>
 #include <Map360_Visualizer.h>
+#include <RegisterRGBD360.h>
 #include <TopologicalMap360.h>
 #include <LoopClosure360.h>
 #include <FilterPointCloud.h>
-#include <FilterPointCloud.h>
-#include <GraphOptimizer.h>
-//#include <GraphOptimizer_G2O.h>
 
 //#include <pcl/registration/icp.h>
 //#include <pcl/registration/icp_nl.h> //ICP LM
@@ -52,6 +50,7 @@
 #define MAX_MATCH_PLANES 25
 
 using namespace std;
+using namespace pcl;
 
 /*! This class contains the functionality to perform hybrid (metric-topological-semantic) SLAM.
  *  The input data is a stream of omnidirectional RGB-D images (from a recorded sequence). Tracking is tackled
@@ -62,10 +61,10 @@ using namespace std;
  */
 class SphereGraphSLAM
 {
-  private:
+private:
     Map360 Map;
 
-  public:
+public:
     SphereGraphSLAM()
     {
 
@@ -73,228 +72,293 @@ class SphereGraphSLAM
 
     ~SphereGraphSLAM()
     {
-      // Clean memory
-      for(unsigned i=0; i < Map.vpSpheres.size(); i++)
-        delete Map.vpSpheres[i];
+        // Clean memory
+        for(unsigned i=0; i < Map.vpSpheres.size(); i++)
+            delete Map.vpSpheres[i];
     }
+
+//    /*! Localize the current keyframe in the vicinity of nearestKF. This is done through PbMap registration
+//     * with nearestKF and its connected keyframes */
+//    void trackFrame(Frame360 &currentFrame) // nearestKF
+//    {
+
+//    }
+
+//    /*! Add a new keyframe to the map. The edges connecting it to the nearby KFs are also computed throgh dense spherical RGBD alignment.
+//        This should be done offline. */
+//    void addKeyframe(Frame360 &currentFrame) //, tracking information
+//    {
+
+
+//    }
 
     void run(string path, const int &selectSample)
     {
-      std::cout << "SphereGraphSLAM::run... " << std::endl;
+        std::cout << "SphereGraphSLAM::run... " << std::endl;
 
-      // Create the topological arrangement object
-      TopologicalMap360 topologicalMap(Map);
-      Map.currentArea = 0;
+        // Create the topological arrangement object
+        TopologicalMap360 topologicalMap(Map);
+        Map.currentArea = 0;
 
-      // Get the calibration matrices for the different sensors
-      Calib360 calib;
-      calib.loadExtrinsicCalibration();
-      calib.loadIntrinsicCalibration();
+        // Get the calibration matrices for the different sensors
+        Calib360 calib;
+        calib.loadExtrinsicCalibration();
+        calib.loadIntrinsicCalibration();
 
-      // Create registration object
-      RegisterRGBD360 registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH));
+        // Create registration object
+        RegisterRGBD360 registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH));
 
-      // Filter the point clouds before visualization
-      FilterPointCloud filter;
+        RegisterPhotoICP align360; // Dense RGB-D alignment
+        align360.useSaliency(false);
+//        align360.setVisualization(true);
+        align360.setGrayVariance(2.f/255);
 
-      int frame = 2; // Skip always the first frame, which sometimes contains errors
-      int frameOrder = 0;
-      int numCheckRegistration = 5; // Check 'numCheckRegistration' frames backwards registration
-      unsigned noAssoc_threshold = 40; // Limit the number of correspondences that are checked backwards when noAssoc_threshold are not associated
+        // Filter the point clouds before visualization
+        FilterPointCloud filter;
 
-      float trajectory_length = 0;
-      Eigen::Matrix4d currentPose = Eigen::Matrix4d::Identity();
+        int frame = 2; // Skip always the first frame, which sometimes contains errors
+        int frameOrder = 0;
+        int numCheckRegistration = 5; // Check 'numCheckRegistration' frames backwards registration
+        unsigned noAssoc_threshold = 40; // Limit the number of correspondences that are checked backwards when noAssoc_threshold are not associated
 
-      string fileName = path + mrpt::format("/sphere_images_%d.bin",frame);
+        float trajectory_length = 0;
+        Eigen::Matrix4f currentPose = Eigen::Matrix4f::Identity();
 
-      // Load first frame
-      Frame360* frame360 = new Frame360(&calib);
-      frame360->loadFrame(fileName);
-      frame360->undistort();
-//        frame360->stitchSphericalImage();
-      frame360->buildSphereCloud();
-      frame360->getPlanes();
-      frame360->id = frameOrder;
-      frame360->node = Map.currentArea;
+        string fileName = path + mrpt::format("/sphere_images_%d.bin",frame);
 
-      filter.filterEuclidean(frame360->sphereCloud);
-
-      Map.addKeyframe(frame360,currentPose);
-      Map.vOptimizedPoses.push_back( currentPose );
-      Map.vSelectedKFs.push_back(0);
-      Map.vTrajectoryIncrements.push_back(0);
-
-      // Topological Partitioning
-      Map.vsAreas.push_back( std::set<unsigned>() );
-      Map.vsAreas[Map.currentArea].insert(frameOrder);
-      Map.vsNeighborAreas.push_back( std::set<unsigned>() );	// Vector with numbers of neighbor areas (topological nodes)
-      Map.vsNeighborAreas[Map.currentArea].insert(Map.currentArea);
-      topologicalMap.vSSO.push_back( mrpt::math::CMatrix(1,1) );
-      topologicalMap.vSSO[Map.currentArea](frameOrder,frameOrder) = 0.0;
-
-      frame += selectSample;
-      fileName = path + mrpt::format("/sphere_images_%d.bin",frame);
-
-      // Start visualizer
-      Map360_Visualizer Viewer(Map);
-
-      // Graph-SLAM
-//      std::cout << "\t  mmConnectionKFs " << Map.mmConnectionKFs.size() << " \n";
-      LoopClosure360 loopCloser(Map);
-      float areaMatched, currentPlanarArea;
-//      GraphOptimizer_MRPT optimizer;
-//      optimizer.setRigidTransformationType(GraphOptimizer::SixDegreesOfFreedom);
-//      std::cout << "Added vertex: "<< optimizer.addVertex(currentPose) << std::endl;
-
-//      while( true )
-//        boost::this_thread::sleep (boost::posix_time::milliseconds (10));
-      while( fexists(fileName.c_str()) )
-      {
-      cout << "Frame " << fileName << endl;
-
-        // Load pointCloud
-        frame360 = new Frame360(&calib);
+        // Load first frame
+        Frame360* frame360 = new Frame360(&calib);
         frame360->loadFrame(fileName);
         frame360->undistort();
-//        frame360->stitchSphericalImage();
+        frame360->stitchSphericalImage();
         frame360->buildSphereCloud();
         frame360->getPlanes();
-        frame360->id = ++frameOrder;
+        frame360->id = frameOrder;
         frame360->node = Map.currentArea;
-        int newLocalFrameID = Map.vsAreas[Map.currentArea].size();
-        int newSizeLocalSSO = newLocalFrameID+1;
-        topologicalMap.vSSO[Map.currentArea].setSize(newSizeLocalSSO,newSizeLocalSSO);
-        topologicalMap.vSSO[Map.currentArea](newLocalFrameID,newLocalFrameID) = 0.0;
-//        currentPlanarArea = frame360->getPlanarArea();
 
-        // Track the current position. Search for Map.mmConnectionKFs in the previous frames TODO: (detect inconsistencies)
-        int compareLocalIdx = newLocalFrameID-1;
-        unsigned noAssoc= 0;
-        bool frameRegistered = false;
-        set<unsigned>::reverse_iterator compareSphereId = Map.vsAreas[Map.currentArea].rbegin();
-//      cout << "compareSphereId " << *compareSphereId << endl;
-        while(compareLocalIdx >= 0 && (compareLocalIdx >= newLocalFrameID-numCheckRegistration) && noAssoc < noAssoc_threshold)
-        {
-          std::cout<< "Register  " << frame360->id << " with " << compareLocalIdx << std::endl;
+        filter.filterEuclidean(frame360->sphereCloud);
 
-          // Register the pair of frames
-          if( registerer.RegisterPbMap(Map.vpSpheres[*compareSphereId], frame360, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_ODOMETRY_3DoF) )
-          {
-//            if(registerer.getMatchedPlanes().size() >= 8) //Do not select as a keyframe
-//              break;
-            cout << "Good TRACKING between " << frameOrder << " " << *compareSphereId << endl;
+        Map.addKeyframe(frame360,currentPose);
+        Map.vOptimizedPoses.push_back( currentPose );
+        Map.vSelectedKFs.push_back(0);
+        Map.vTrajectoryIncrements.push_back(0);
 
-            Matrix4d trackedRelPose = registerer.getPose().cast<double>();
-            currentPose = currentPose * trackedRelPose;
-//              std::cout<< "Added vertex: "<< optimizer.addVertex(currentPose) << std::endl;
+        // Topological Partitioning
+        Map.vsAreas.push_back( std::set<unsigned>() );
+        Map.vsAreas[Map.currentArea].insert(frameOrder);
+        Map.vsNeighborAreas.push_back( std::set<unsigned>() );	// Vector with numbers of neighbor areas (topological nodes)
+        Map.vsNeighborAreas[Map.currentArea].insert(Map.currentArea);
+        topologicalMap.vSSO.push_back( mrpt::math::CMatrix(1,1) );
+        topologicalMap.vSSO[Map.currentArea](frameOrder,frameOrder) = 0.0;
+        float score_SSO;
 
-
-            Map.vTrajectoryIncrements.push_back(Map.vTrajectoryIncrements.back() + trackedRelPose.block(0,3,3,1).norm());
-            trajectory_length += trackedRelPose.block(0,3,3,1).norm();
-
-            // Filter cloud
-            filter.filterEuclidean(frame360->sphereCloud);
-
-            // Lock map to add a new keyframe
-            {boost::mutex::scoped_lock updateLock(Map.mapMutex);
-              Map.addKeyframe(frame360, currentPose);
-              Map.vOptimizedPoses.push_back( Map.vOptimizedPoses.back() * trackedRelPose );
-              std::cout << "\t  mmConnectionKFs loop " << frameOrder << " " << *compareSphereId << " \n";
-              Map.mmConnectionKFs[frameOrder] = std::map<unsigned, std::pair<Eigen::Matrix4d, Eigen::Matrix<double,6,6> > >();
-              Map.mmConnectionKFs[frameOrder][*compareSphereId] = std::pair<Eigen::Matrix4d, Eigen::Matrix<double,6,6> >(trackedRelPose, registerer.getInfoMat().cast<double>());
-              Map.vsAreas[Map.currentArea].insert(frameOrder);
-            }
-
-            frameRegistered = true;
-
-          cout << "Add tracking SSO " << topologicalMap.vSSO[Map.currentArea].getRowCount() << " " << newLocalFrameID << " " << compareLocalIdx << endl;
-            topologicalMap.vSSO[Map.currentArea](newLocalFrameID,compareLocalIdx) = topologicalMap.vSSO[Map.currentArea](compareLocalIdx,newLocalFrameID)
-                                                                                  = registerer.getAreaMatched() / registerer.areaSource;
-//            cout << "SSO is " << topologicalMap.vSSO[Map.currentArea](newLocalFrameID,compareLocalIdx) << endl;
-//            Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic> informationMatrix = registerer.getAreaMatched() * Eigen::Matrix<double,6,6>::Identity();
-//            Eigen::Matrix4f relativePose = registerer.getPose();
-//            Eigen::Matrix<double,6,6> informationMatrix = registerer.getInfoMat();
-//            optimizer.addEdge(compareLocalIdx, newLocalFrameID, relativePose, informationMatrix);
-//            std::cout << "Add edge between " << compareLocalIdx << " and " << newLocalFrameID << "\n";
-
-            break; // Stop the loop when there is a valid registration
-          }
-          else
-            ++noAssoc;
-
-          --compareLocalIdx;
-          ++compareSphereId;
-        }
-        if(!frameRegistered) //
-        {
-          cout << "No registration available for " << fileName << endl;
-
-          topologicalMap.vSSO[Map.currentArea].setSize(newLocalFrameID,newLocalFrameID);
-
-          frame += selectSample;
-          --frameOrder;
-          fileName = path + mrpt::format("/sphere_images_%d.bin",frame);
-
-          continue;
-//          assert(false);
-        }
-//        // Calculate distance of furthest registration (approximated, we do not know if the last frame compared is actually the furthest)
-//        std::map<unsigned, pair<unsigned,Eigen::Matrix4f> >::iterator itFurthest = Map.mmConnectionKFs[frameOrder].begin(); // Aproximated
-//        cout << "Furthest distance is " << itFurthest->second.second.block(0,3,3,1).norm() << " diffFrameNum " << newLocalFrameID - itFurthest->first << endl;
-
-
-        // Synchronize topologicalMap with loopCloser
-        while( !loopCloser.connectionsLC.empty() )
-        {
-          std::map<unsigned, std::map<unsigned, float> >::iterator it_connectLC1 = loopCloser.connectionsLC.begin();
-//          currentPlanarArea = Map.vpSpheres[it_connectLC1->first]->getPlanarArea();
-          while( !it_connectLC1->second.empty() )
-          {
-            std::map<unsigned, float>::iterator it_connectLC2 = it_connectLC1->second.begin();
-            if(Map.vpSpheres[it_connectLC1->first]->node != Map.currentArea || Map.vpSpheres[it_connectLC2->first]->node != Map.currentArea)
-            {
-              loopCloser.connectionsLC.erase(it_connectLC1);
-              continue;
-            }
-            int localID1 = std::distance(Map.vsAreas[Map.currentArea].begin(), Map.vsAreas[Map.currentArea].find(it_connectLC1->first));
-            int localID2 = std::distance(Map.vsAreas[Map.currentArea].begin(), Map.vsAreas[Map.currentArea].find(it_connectLC2->first));
-          cout << "Add LC SSO " << topologicalMap.vSSO[Map.currentArea].getRowCount() << " " << localID1 << " " << localID2 << endl;
-            topologicalMap.vSSO[Map.currentArea](localID1,localID2) = topologicalMap.vSSO[Map.currentArea](localID2,localID1) =
-                                                                      it_connectLC2->second;
-            it_connectLC1->second.erase(it_connectLC2);
-          }
-          loopCloser.connectionsLC.erase(it_connectLC1);
-        }
-
-//        // Visibility divission (Normalized-cut)
-//        if(newLocalFrameID % 5 == 0)
-//        {
-//          double time_start = pcl::getTime();
-////          cout << "Eval partitions\n";
-//          topologicalMap.Partitioner();
-//
-//          cout << "\tPlaces\n";
-//          for( unsigned node = 0; node < Map.vsNeighborAreas.size(); node++ )
-//          {
-//            cout << "\t" << node << ":";
-//            for( set<unsigned>::iterator it = Map.vsNeighborAreas[node].begin(); it != Map.vsNeighborAreas[node].end(); it++ )
-//              cout << " " << *it;
-//            cout << endl;
-//          }
-//
-//          double time_end = pcl::getTime();
-//          std::cout << " Eval partitions took " << double (time_end - time_start)*10e3 << std::endl;
-//        }
-
-//        ++frameOrder;
         frame += selectSample;
         fileName = path + mrpt::format("/sphere_images_%d.bin",frame);
-      }
 
-//      while (!Viewer.viewer.wasStopped() )
-//        boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+        // Start visualizer
+        Map360_Visualizer Viewer(Map);
+        *Viewer.globalMap += *frame360->sphereCloud;
 
-      cout << "Path length " << trajectory_length << endl;
+        // Graph-SLAM
+        //      std::cout << "\t  mmConnectionKFs " << Map.mmConnectionKFs.size() << " \n";
+//        LoopClosure360 loopCloser(Map);
+        float areaMatched, currentPlanarArea;
+        //      GraphOptimizer_MRPT optimizer;
+        //      optimizer.setRigidTransformationType(GraphOptimizer::SixDegreesOfFreedom);
+        //      std::cout << "Added vertex: "<< optimizer.addVertex(currentPose.cast<double>()) << std::endl;
+
+        //      while( true )
+        //        boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+        while( fexists(fileName.c_str()) )
+        {
+            cout << "Frame " << fileName << endl;
+
+            // Load pointCloud
+            frame360 = new Frame360(&calib);
+            frame360->loadFrame(fileName);
+            frame360->undistort();
+            frame360->stitchSphericalImage();
+            frame360->buildSphereCloud();
+            frame360->getPlanes();
+            frame360->id = ++frameOrder;
+            frame360->node = Map.currentArea;
+            int newLocalFrameID = Map.vsAreas[Map.currentArea].size();
+            int newSizeLocalSSO = newLocalFrameID+1;
+            topologicalMap.vSSO[Map.currentArea].setSize(newSizeLocalSSO,newSizeLocalSSO);
+            topologicalMap.vSSO[Map.currentArea](newLocalFrameID,newLocalFrameID) = 0.0;
+            //        currentPlanarArea = frame360->getPlanarArea();
+
+            // Track the current position. Search for Map.mmConnectionKFs in the previous frames TODO: (detect inconsistencies)
+            int compareLocalIdx = newLocalFrameID-1;
+            unsigned noAssoc= 0;
+            bool frameRegistered = false;
+            set<unsigned>::reverse_iterator compareSphereId = Map.vsAreas[Map.currentArea].rbegin();
+            //      cout << "compareSphereId " << *compareSphereId << endl;
+            while(compareLocalIdx >= 0 && (compareLocalIdx >= newLocalFrameID-numCheckRegistration) && noAssoc < noAssoc_threshold)
+            {
+                std::cout << "Register  " << frame360->id << " with " << compareLocalIdx << std::endl;
+
+                // Register the pair of frames
+//                if( registerer.RegisterPbMap(Map.vpSpheres[*compareSphereId], frame360, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_ODOMETRY_3DoF) )
+                {
+//                    if(trackingScore(registerer, score_SSO) == 0)
+//                        continue;
+
+                    //            if(registerer.getMatchedPlanes().size() >= 8) //Do not select as a keyframe
+                    //              break;
+//                    cout << "Good TRACKING between " << frameOrder << " " << *compareSphereId << endl;
+
+//                    Eigen::Matrix4f trackedRelPose = registerer.getPose();
+//                    currentPose = currentPose * trackedRelPose;
+                    //              std::cout<< "Added vertex: "<< optimizer.addVertex(currentPose.cast<double>()) << std::endl;
+
+//                    double turn_x = -asin(trackedRelPose(2,0));
+//                    if(turn_x > 25*PI/180)
+//                    {
+                        cout << "Align Sphere " << endl;
+                        align360.setTargetFrame(frame360->sphereRGB, frame360->sphereDepth); // This looks to be interchanged wrt the perspective alignement, I still don't know why :(
+                        align360.setSourceFrame(Map.vpSpheres[*compareSphereId]->sphereRGB, Map.vpSpheres[*compareSphereId]->sphereDepth);
+                        align360.alignFrames360(trackedRelPose, RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//                        align360.alignFrames360(trackedRelPose, RegisterPhotoICP::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                        trackedRelPose = align360.getOptimalPose();
+                    }
+//                    else
+//                    {
+//                        cout << "Align imgs " << endl;
+//                        registerer.RegisterDensePhotoICP(Map.vpSpheres[*compareSphereId], frame360, Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_CONSISTENCY, RegisterRGBD360::DEFAULT_6DoF);
+////                        registerer.RegisterDensePhotoICP(Map.vpSpheres[*compareSphereId], frame360, trackedRelPose, RegisterPhotoICP::PHOTO_CONSISTENCY, RegisterRGBD360::DEFAULT_6DoF);
+//                        trackedRelPose = registerer.getPose();
+//                    }
+
+
+//                    float dist = trackedRelPose.block(0,3,3,1).norm();
+//                    cout << "dist " << dist << endl;
+//                    if(dist < 0.4)
+//                    {
+//                        bGoodRegistration = false;
+//                        delete frame360_2;
+//                        // Prepare the next frame selection\n";
+//                        frame += selectSample;
+//                        fileName = path_dataset + mrpt::format("/sphere_images_%d.bin",frame);
+//                        continue;
+//                    }
+
+                    currentPose = currentPose * trackedRelPose;
+
+                    Map.vTrajectoryIncrements.push_back(Map.vTrajectoryIncrements.back() + trackedRelPose.block(0,3,3,1).norm());
+                    trajectory_length += trackedRelPose.block(0,3,3,1).norm();
+
+                    // Filter cloud
+                    filter.filterEuclidean(frame360->sphereCloud);
+
+                    // Lock map to add a new keyframe
+                    {boost::mutex::scoped_lock updateLock(Map.mapMutex);
+                        Map.addKeyframe(frame360, currentPose);
+                        Map.vOptimizedPoses.push_back( Map.vOptimizedPoses.back() * trackedRelPose );
+                        std::cout << "\t  mmConnectionKFs loop " << frameOrder << " " << *compareSphereId << " \n";
+                        Map.mmConnectionKFs[frameOrder] = std::map<unsigned, std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> > >();
+                        Map.mmConnectionKFs[frameOrder][*compareSphereId] = std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> >(trackedRelPose, registerer.getInfoMat());
+                        Map.vsAreas[Map.currentArea].insert(frameOrder);
+
+                        // Update the global cloud
+                        pcl::PointCloud<PointT>::Ptr transformedCloud(new pcl::PointCloud<PointT>);
+                        pcl::transformPointCloud(*frame360->sphereCloud, *transformedCloud, currentPose);
+                        *(Viewer.globalMap) += *transformedCloud;
+                        filter.filterVoxel(Viewer.globalMap);
+//                    cout << "add a new keyframe \n";
+                    }
+
+                    frameRegistered = true;
+
+                    cout << "Add tracking SSO " << topologicalMap.vSSO[Map.currentArea].getRowCount() << " " << newLocalFrameID << " " << compareLocalIdx << endl;
+//                    float score_SSO;
+                    trackingScore(registerer, score_SSO);
+                    topologicalMap.vSSO[Map.currentArea](newLocalFrameID,compareLocalIdx) = topologicalMap.vSSO[Map.currentArea](compareLocalIdx,newLocalFrameID) = score_SSO;
+                    //            cout << "SSO is " << topologicalMap.vSSO[Map.currentArea](newLocalFrameID,compareLocalIdx) << endl;
+                    //            Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic> informationMatrix = registerer.getAreaMatched() * Eigen::Matrix<double,6,6>::Identity();
+                    //            Eigen::Matrix4f relativePose = registerer.getPose();
+                    //            Eigen::Matrix<double,6,6> informationMatrix = registerer.getInfoMat();
+                    //            optimizer.addEdge(compareLocalIdx, newLocalFrameID, relativePose.cast<double>(), informationMatrix.cast<double>());
+                    //            std::cout << "Add edge between " << compareLocalIdx << " and " << newLocalFrameID << "\n";
+
+                    break; // Stop the loop when there is a valid registration
+                }
+                else
+                    ++noAssoc;
+
+                --compareLocalIdx;
+                ++compareSphereId;
+            }
+            if(!frameRegistered) //
+            {
+                cout << "No registration available for " << fileName << endl;
+
+                topologicalMap.vSSO[Map.currentArea].setSize(newLocalFrameID,newLocalFrameID);
+
+                frame += selectSample;
+                --frameOrder;
+                fileName = path + mrpt::format("/sphere_images_%d.bin",frame);
+
+                continue;
+                //          assert(false);
+            }
+            //        // Calculate distance of furthest registration (approximated, we do not know if the last frame compared is actually the furthest)
+            //        std::map<unsigned, pair<unsigned,Eigen::Matrix4f> >::iterator itFurthest = Map.mmConnectionKFs[frameOrder].begin(); // Aproximated
+            //        cout << "Furthest distance is " << itFurthest->second.second.block(0,3,3,1).norm() << " diffFrameNum " << newLocalFrameID - itFurthest->first << endl;
+
+
+//            // Synchronize topologicalMap with loopCloser
+//            while( !loopCloser.connectionsLC.empty() )
+//            {
+//                std::map<unsigned, std::map<unsigned, float> >::iterator it_connectLC1 = loopCloser.connectionsLC.begin();
+//                //          currentPlanarArea = Map.vpSpheres[it_connectLC1->first]->getPlanarArea();
+//                while( !it_connectLC1->second.empty() )
+//                {
+//                    std::map<unsigned, float>::iterator it_connectLC2 = it_connectLC1->second.begin();
+//                    if(Map.vpSpheres[it_connectLC1->first]->node != Map.currentArea || Map.vpSpheres[it_connectLC2->first]->node != Map.currentArea)
+//                    {
+//                        loopCloser.connectionsLC.erase(it_connectLC1);
+//                        continue;
+//                    }
+//                    int localID1 = std::distance(Map.vsAreas[Map.currentArea].begin(), Map.vsAreas[Map.currentArea].find(it_connectLC1->first));
+//                    int localID2 = std::distance(Map.vsAreas[Map.currentArea].begin(), Map.vsAreas[Map.currentArea].find(it_connectLC2->first));
+//                    cout << "Add LC SSO " << topologicalMap.vSSO[Map.currentArea].getRowCount() << " " << localID1 << " " << localID2 << endl;
+//                    topologicalMap.vSSO[Map.currentArea](localID1,localID2) = topologicalMap.vSSO[Map.currentArea](localID2,localID1) =
+//                            it_connectLC2->second;
+//                    it_connectLC1->second.erase(it_connectLC2);
+//                }
+//                loopCloser.connectionsLC.erase(it_connectLC1);
+//            }
+
+            //        // Visibility divission (Normalized-cut)
+            //        if(newLocalFrameID % 5 == 0)
+            //        {
+            //          double time_start = pcl::getTime();
+            ////          cout << "Eval partitions\n";
+            //          topologicalMap.Partitioner();
+            //
+            //          cout << "\tPlaces\n";
+            //          for( unsigned node = 0; node < Map.vsNeighborAreas.size(); node++ )
+            //          {
+            //            cout << "\t" << node << ":";
+            //            for( set<unsigned>::iterator it = Map.vsNeighborAreas[node].begin(); it != Map.vsNeighborAreas[node].end(); it++ )
+            //              cout << " " << *it;
+            //            cout << endl;
+            //          }
+            //
+            //          double time_end = pcl::getTime();
+            //          std::cout << " Eval partitions took " << double (time_end - time_start)*10e3 << std::endl;
+            //        }
+
+            //        ++frameOrder;
+            frame += selectSample;
+            fileName = path + mrpt::format("/sphere_images_%d.bin",frame);
+        }
+
+        //      while (!Viewer.viewer.wasStopped() )
+        //        boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+
+        cout << "Path length " << trajectory_length << endl;
     }
 
 };
@@ -302,34 +366,34 @@ class SphereGraphSLAM
 
 void print_help(char ** argv)
 {
-  cout << "\nThis program performs metric-topological SLAM from the data stream recorded by an omnidirectional RGB-D sensor."
-       << " The directory containing the input raw omnidireactional RGB-D images (.frame360 files) has to be specified\n";
-//  cout << "usage: " << argv[0] << " [options] \n";
-//  cout << argv[0] << " -h | --help : shows this help" << endl;
-  cout << "  usage: " << argv[0] << " <pathToRawRGBDImagesDir> <selectSample=1> " << endl;
+    cout << "\nThis program performs metric-topological SLAM from the data stream recorded by an omnidirectional RGB-D sensor."
+         << " The directory containing the input raw omnidireactional RGB-D images (.frame360 files) has to be specified\n";
+    //  cout << "usage: " << argv[0] << " [options] \n";
+    //  cout << argv[0] << " -h | --help : shows this help" << endl;
+    cout << "  usage: " << argv[0] << " <pathToRawRGBDImagesDir> <selectSample=1> " << endl;
 }
 
 int main (int argc, char ** argv)
 {
-  if(argc < 2 || argc > 3 || pcl::console::find_switch(argc, argv, "-h") || pcl::console::find_switch(argc, argv, "--help"))
-  {
-    print_help(argv);
-    return 0;
-  }
+    if(argc < 2 || argc > 3 || pcl::console::find_switch(argc, argv, "-h") || pcl::console::find_switch(argc, argv, "--help"))
+    {
+        print_help(argv);
+        return 0;
+    }
 
-  // Set the path to the directory containing the omnidirectional RGB-D images
-  string path_dataset = static_cast<string>(argv[1]);
+    // Set the path to the directory containing the omnidirectional RGB-D images
+    string path_dataset = static_cast<string>(argv[1]);
 
-  // Set the sampling for the recorded frames (e.g. 1 -> all the frames are evaluated; 2-> each other frame is evaluated, etc.)
-  int selectSample = 1;
-  if(argc == 3)
-    selectSample = atoi(argv[2]);
+    // Set the sampling for the recorded frames (e.g. 1 -> all the frames are evaluated; 2-> each other frame is evaluated, etc.)
+    int selectSample = 1;
+    if(argc == 3)
+        selectSample = atoi(argv[2]);
 
-  cout << "Create SphereGraphSLAM object\n";
-  SphereGraphSLAM rgbd360_reg_seq;
-  rgbd360_reg_seq.run(path_dataset, selectSample);
+    cout << "Create SphereGraphSLAM object\n";
+    SphereGraphSLAM rgbd360_reg_seq;
+    rgbd360_reg_seq.run(path_dataset, selectSample);
 
-  cout << " EXIT\n";
+    cout << " EXIT\n";
 
-  return (0);
+    return (0);
 }

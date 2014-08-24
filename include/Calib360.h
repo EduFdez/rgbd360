@@ -50,13 +50,13 @@ class Calib360
   std::vector<clams::DiscreteDepthDistortionModel> intrinsic_model_;
 
   /*! The extrinsic parameters (relative position) of to each Asus XPL */
-  Eigen::Matrix4d Rt_[NUM_ASUS_SENSORS];
+  Eigen::Matrix4f Rt_[NUM_ASUS_SENSORS];
 
   /*! The inverse matrices of each Asus XPL's relative position */
-  Eigen::Matrix4d Rt_inv[NUM_ASUS_SENSORS];
+  Eigen::Matrix4f Rt_inv[NUM_ASUS_SENSORS];
 
   /*! The intrinsic pinhole camera model. WARNING: this is set fdepending on the chosen resolution (we use 320x240) */
-  Eigen::Matrix3d cameraMatrix;
+  Eigen::Matrix3f cameraMatrix;
 
   /*! Resolution mode of the device (default is QVGA = 320x240) */
   enum Resolution
@@ -88,14 +88,14 @@ class Calib360
   }
 
   /*! Return the relative position of the camera 'id' */
-  Eigen::Matrix4d getRt_id(int id) const
+  Eigen::Matrix4f getRt_id(int id) const
   {
     assert(id >= 0 && id < NUM_ASUS_SENSORS);
     return Rt_[id];
   }
 
   /*! Stitch both the RGB and the depth images corresponding to the sensor 'sensor_id' */
-  void setRt_id(int id, Eigen::Matrix4d &Rt)
+  void setRt_id(int id, Eigen::Matrix4f &Rt)
   {
     Rt_[id] = Rt;
   }

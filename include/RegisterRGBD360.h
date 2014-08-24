@@ -67,14 +67,14 @@ private:
     mrpt::pbmap::SubgraphMatcher matcher;
 
     /*! Pose of pTrg360 as seen from pRef360 */
-    Eigen::Matrix4d rigidTransf;
+    Eigen::Matrix4f rigidTransf;
 
     /*! 6x6 covariance matrix of the pose of pTrg360 as seen from pRef360 (the inverse of information matrix) */
-    Eigen::Matrix<double,6,6> covarianceM;
+    Eigen::Matrix<float,6,6> covarianceM;
 
     /*! 6x6 information matrix of the pose of pTrg360 as seen from pRef360 (the inverse of covariance matrix) */
-    //  Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic> informationM;
-    Eigen::Matrix<double,6,6> informationM;
+    //  Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic> informationM;
+    Eigen::Matrix<float,6,6> informationM;
 
     /*! The matched planar patches */
     std::map<unsigned, unsigned> bestMatch;
@@ -98,7 +98,7 @@ public:
         bRegistrationDone(false)
     {
         matcher.configLocaliser.load_params(configFile);
-        rigidTransf = Eigen::Matrix4d::Identity();
+        rigidTransf = Eigen::Matrix4f::Identity();
 #if _DEBUG_MSG
         matcher.configLocaliser.print_params();
 #endif
@@ -196,7 +196,7 @@ public:
     }
 
     /*! Return the pose of pTrg360 as seen from pRef360 */
-    Eigen::Matrix4d getPose()
+    Eigen::Matrix4f getPose()
     {
         if(!bRegistrationDone)
             RegisterPbMap();
@@ -205,7 +205,7 @@ public:
     }
 
     /*! Return the 6x6 covariance matrix of the pose of pTrg360 as seen from pRef360 */
-    Eigen::Matrix<double,6,6> getCovMat()
+    Eigen::Matrix<float,6,6> getCovMat()
     {
         if(!bRegistrationDone)
             RegisterPbMap();
@@ -216,7 +216,7 @@ public:
     }
 
     /*! Return the 6x6 information matrix of the pose of pTrg360 as seen from pRef360 */
-    Eigen::Matrix<double,6,6> getInfoMat()
+    Eigen::Matrix<float,6,6> & getInfoMat()
     {
         if(!bRegistrationDone)
             RegisterPbMap();
@@ -312,15 +312,15 @@ public:
         //    time_start = pcl::getTime();
 
         // Align the two frames
-        Eigen::Matrix4f rigidTransf_float;
-        Eigen::Matrix<float,6,6> infMat_float;
+//        Eigen::Matrix4f rigidTransf_float;
+//        Eigen::Matrix<float,6,6> infMat;
         mrpt::pbmap::ConsistencyTest fitModel(pRef360->planes, pTrg360->planes);
         //    rigidTransf = fitModel.initPose(bestMatch);
-        //    Eigen::Matrix4d rigidTransf = fitModel.estimatePose(bestMatch);
-        bool goodAlignment = fitModel.estimatePoseWithCovariance(bestMatch, rigidTransf_float, infMat_float);
-        //    Eigen::Matrix4d rigidTransf2 = fitModel.estimatePoseRANSAC(bestMatch);
-        rigidTransf = rigidTransf_float.cast<double>();
-        informationM = infMat_float.cast<double>();
+        //    Eigen::Matrix4f rigidTransf = fitModel.estimatePose(bestMatch);
+        bool goodAlignment = fitModel.estimatePoseWithCovariance(bestMatch, rigidTransf, informationM);
+        //    Eigen::Matrix4f rigidTransf2 = fitModel.estimatePoseRANSAC(bestMatch);
+//        rigidTransf = rigidTransf_float.cast<double>();
+//        informationM = infMat_float.cast<double>();
 
         if(goodAlignment) // Get the maximum matchable areas
         {
@@ -341,7 +341,10 @@ public:
       The parameter 'registMode' is used constraint the plane matching as
         0(DEFAULT_6DoF): unconstrained movement between frames,
         1(PLANAR_3DoF): planar movement (the camera is fixed in height) */
-    bool RegisterDensePhotoICP(Frame360 *frame1, Frame360 *frame2, Eigen::Matrix4d pose_estim = Eigen::Matrix4d::Identity(), registrationType registMode = DEFAULT_6DoF)
+    bool RegisterDensePhotoICP(Frame360 *frame1, Frame360 *frame2,
+                               Eigen::Matrix4f pose_estim = Eigen::Matrix4f::Identity(),
+                               RegisterPhotoICP::costFuncType method = RegisterPhotoICP::PHOTO_CONSISTENCY,
+                               registrationType registMode = DEFAULT_6DoF)
     {
         assert(frame1 && frame2);
         //    std::cout << "RegisterPhotoICP...\n";
@@ -352,7 +355,7 @@ public:
         // 2) Get Hessian and Gradient
         // 3) Iterate
 
-        Eigen::Matrix4d pose_estim_temp;
+        Eigen::Matrix4f pose_estim_temp;
 
         const float img_width = frame1->frameRGBD_[0].getRGBImage().cols;
         const float img_height = frame1->frameRGBD_[0].getRGBImage().rows;
@@ -371,13 +374,13 @@ public:
         {
             //      int sensor_id = omp_get_thread_num();
             alignSensorID[sensor_id].setCameraMatrix(camIntrinsicMat);
-            alignSensorID[sensor_id].setSourceFrame(frame1->frameRGBD_[sensor_id].getRGBImage(), frame1->frameRGBD_[sensor_id].getDepthImage());
-            alignSensorID[sensor_id].setTargetFrame(frame2->frameRGBD_[sensor_id].getRGBImage(), frame2->frameRGBD_[sensor_id].getDepthImage());
+            alignSensorID[sensor_id].setSourceFrame(frame2->frameRGBD_[sensor_id].getRGBImage(), frame2->frameRGBD_[sensor_id].getDepthImage());
+            alignSensorID[sensor_id].setTargetFrame(frame1->frameRGBD_[sensor_id].getRGBImage(), frame1->frameRGBD_[sensor_id].getDepthImage());
         }
 //std::cout << "Set the frames." << std::endl;
 
-        Eigen::Matrix<double,6,6> Hessian;
-        Eigen::Matrix<double,6,1> Gradient;
+        Eigen::Matrix<float,6,6> Hessian;
+        Eigen::Matrix<float,6,1> Gradient;
 
         for(int pyramidLevel = alignSensorID[0].nPyrLevels-1; pyramidLevel >= 0; pyramidLevel--)
         {
@@ -386,29 +389,32 @@ public:
 
             double lambda = 0.001; // Levenberg-Marquardt (LM) lambda
             double step = 10; // Update step
-            unsigned LM_maxIters = 3;
+            unsigned LM_maxIters = 1;
 
             int it = 0, maxIters = 10;
-            double tol_residual = pow(10,-10);
-            double tol_update = pow(10,-10);
-            Eigen::Matrix<double,6,1> update_pose; update_pose(0,0) = 1;
+            double tol_residual = pow(10,-1);
+            double tol_update = pow(10,-6);
+            Eigen::Matrix<float,6,1> update_pose; update_pose << 1, 1, 1, 1, 1, 1;
             double error = 0.0;
             std::vector<double> error2_SensorID(NUM_ASUS_SENSORS);
 
-            //    #pragma omp parallel num_threads(8)
+            omp_set_num_threads(8);
+//            #pragma omp parallel num_threads(8)
+            #pragma omp parallel for reduction (+:error)
             for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
             {
-                //      int sensor_id = omp_get_thread_num();
-                error2_SensorID[sensor_id] = alignSensorID[sensor_id].calcPhotoICPError_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id]);
-//            cout << "error2_SensorID[sensor_id] \n" << error2_SensorID[sensor_id] << endl;
+                error += alignSensorID[sensor_id].calcPhotoICPError_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id], method);
+//                int sensor_id = omp_get_thread_num();
+//                error2_SensorID[sensor_id] = alignSensorID[sensor_id].calcPhotoICPError_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id], method);
+//            std::cout << "error2_SensorID[sensor_id] \n" << error2_SensorID[sensor_id] << std::endl;
             }
-            for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
-                error += error2_SensorID[sensor_id];
+//            for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+//                error += error2_SensorID[sensor_id];
 
             double diff_error = error;
 
 #if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
-            cout << "Level " << pyramidLevel << " error " << error << endl;
+            std::cout << "Level_ " << pyramidLevel << " error " << error << std::endl;
 #endif
 
 #if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
@@ -416,43 +422,47 @@ cv::TickMeter tm;tm.start();
 #endif
             while(it < maxIters && update_pose.norm() > tol_update && diff_error > tol_residual) // The LM optimization stops either when the max iterations is reached, or when the alignment converges (error or pose do not change)
             {
-                Hessian = Eigen::Matrix<double,6,6>::Zero();
-                Gradient = Eigen::Matrix<double,6,1>::Zero();
+                Hessian = Eigen::Matrix<float,6,6>::Zero();
+                Gradient = Eigen::Matrix<float,6,1>::Zero();
 
-                //      int sensor_id = omp_get_thread_num();
-                for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+                #pragma omp parallel num_threads(8)
+//                for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
                 {
-                    //    #pragma omp parallel num_threads(8)
-                    alignSensorID[sensor_id].calcHessianGradient_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id]);
+                    int sensor_id = omp_get_thread_num();
+                    alignSensorID[sensor_id].calcHessianGradient_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id], method);
+//                    std::cout << "hessian \n" << alignSensorID[sensor_id].getHessian() << std::endl;
                 }
                 for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
                 {
+//                    std::cout << "hessian \n" << alignSensorID[sensor_id].getHessian() << std::endl;
                     Hessian += alignSensorID[sensor_id].getHessian();
                     Gradient += alignSensorID[sensor_id].getGradient();
                 }
-            cout << "Hessian \n" << Hessian << endl;
 
-                assert(Hessian.rank() == 6); // Make sure that the problem is observable
+//                assert(Hessian.rank() == 6); // Make sure that the problem is observable
+                if((Hessian + lambda*getDiagonalMatrix(Hessian)).rank() != 6)
+                {
+                    std::cout << "\t The problem is ILL-POSED \n";
+//                    std::cout << "Hessian \n" << Hessian << std::endl;
+//                    std::cout << "Gradient \n" << Gradient << std::endl;
+                    rigidTransf = pose_estim;
+                    return false;
+                }
 
                 // Compute the pose update
                 update_pose = -(Hessian + lambda*getDiagonalMatrix(Hessian)).inverse() * Gradient;
-                pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose)).getHomogeneousMatrixVal() * pose_estim;
-            cout << "update_pose \n" << update_pose.transpose() << endl;
-            cout << "pose_estim \n" << pose_estim << "\n pose_estim_temp \n" << pose_estim_temp << endl;
+                Eigen::Matrix<double,6,1> update_pose_d = update_pose.cast<double>();
+                pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d)).getHomogeneousMatrixVal().cast<float>() * pose_estim;
+//            cout << "update_pose \n" << update_pose.transpose() << endl;
+//            cout << "pose_estim \n" << pose_estim << "\n pose_estim_temp \n" << pose_estim_temp << endl;
 
                 double new_error = 0.0;
-                //    #pragma omp parallel num_threads(8)
+                #pragma omp parallel for reduction (+:new_error)
                 for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
-                {
-                    //      int sensor_id = omp_get_thread_num();
-                    error2_SensorID[sensor_id] = alignSensorID[sensor_id].calcPhotoICPError_robot(pyramidLevel, pose_estim_temp, frame1->calib->Rt_[sensor_id]);
-//                cout << "error2_SensorID[sensor_id] \n" << error2_SensorID[sensor_id] << endl;
-                }
-                for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
-                    new_error += error2_SensorID[sensor_id];
+                    new_error += alignSensorID[sensor_id].calcPhotoICPError_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id], method);
 
                 diff_error = error - new_error;
-            cout << "diff_error \n" << diff_error << endl;
+//            cout << "diff_error \n" << diff_error << endl;
                 if(diff_error > 0)
                 {
                     lambda /= step;
@@ -468,21 +478,17 @@ cv::TickMeter tm;tm.start();
                         lambda = lambda * step;
 
                         update_pose = -(Hessian + lambda*getDiagonalMatrix(Hessian)).inverse() * Gradient;
-                        pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose)).getHomogeneousMatrixVal() * pose_estim;
-                    cout << "update_pose LM \n" << update_pose.transpose() << endl;
+                        Eigen::Matrix<double,6,1> update_pose_d = update_pose.cast<double>();
+                        pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d)).getHomogeneousMatrixVal().cast<float>() * pose_estim;
+//                    cout << "update_pose LM \n" << update_pose.transpose() << endl;
 
-                        double new_error = 0.0;
-                        //    #pragma omp parallel num_threads(8)
+                        new_error = 0.0;
+                        #pragma omp parallel for reduction (+:new_error)
                         for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
-                        {
-                            //      int sensor_id = omp_get_thread_num();
-                            error2_SensorID[sensor_id] = alignSensorID[sensor_id].calcPhotoICPError_robot(pyramidLevel, pose_estim_temp, frame1->calib->Rt_[sensor_id]);
-                        }
-                        for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
-                            new_error += error2_SensorID[sensor_id];
+                            new_error += alignSensorID[sensor_id].calcPhotoICPError_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id], method);
                         diff_error = error - new_error;
 
-                        cout << "diff_error LM \n" << diff_error << endl;
+//                        cout << "diff_error LM \n" << diff_error << endl;
                         if(diff_error > 0)
                         {
                             pose_estim = pose_estim_temp;
@@ -494,9 +500,8 @@ cv::TickMeter tm;tm.start();
                 }
             }
 
-#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
-tm.stop(); std::cout << "Iterations " << it << " time = " << tm.getTimeSec() << " sec." << std::endl;
-#endif
+//            tm.stop(); std::cout << "Iterations " << it << " time = " << tm.getTimeSec() << " sec." << std::endl;
+
         }
 
         bRegistrationDone = true;
@@ -505,12 +510,33 @@ tm.stop(); std::cout << "Iterations " << it << " time = " << tm.getTimeSec() << 
         {
             std::cout << "Hessian.det() = " << Hessian.det() << std::endl;
             rigidTransf = pose_estim;
+            informationM = Hessian;
             return true;
         }
 //        else
 //            return false;
 
 //        return true;
+    }
+
+    enum trackingQuality{GOOD=0, WEAK, BAD};
+
+    /*! Evaluate the quality of the PbMap registration. The ratio of PbMap's matched area and the Euclidean distance are taken into account.
+        TODO: the score should be done from the covariance of the registration (least eigenvalue). */
+    int trackingScore(float &score)
+    {
+        // Euclidean distance
+        float dist = getPose().block(0,3,3,1).norm();
+
+        // Area 70 -30
+        score = getAreaMatched() / areaSource;
+
+        // Assign the tracking quality
+        if(score >= 0.7) // GOOD registration
+            return 0;
+        if(score >= 0.3) // WEAK registration
+            return 1;
+        return 2;
     }
 
 };

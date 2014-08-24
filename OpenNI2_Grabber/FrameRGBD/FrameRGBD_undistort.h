@@ -93,6 +93,11 @@ class FrameRGBD_undistort : public FrameRGBD
       loadDepthEigen();
       intrinsic_model.undistort(&m_depthEigUndistort);
 
+      // Change the original depth image by its udistorted version
+      cv::Mat depthInMeters;// = cv::Mat(m_depthImage.rows, m_depthImage.cols, CV_32FC1);
+      cv::eigen2cv(m_depthEigUndistort, depthInMeters);
+      depthInMeters.convertTo( m_depthImage, CV_16UC1, 1000 ); //CV_16UC1
+
       undistortedDepthAvailabe = true;
     }
     return m_depthEigUndistort;

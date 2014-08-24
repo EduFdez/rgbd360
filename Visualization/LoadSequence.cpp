@@ -118,25 +118,25 @@ class LoadSequence
           cv::imshow( "sphereRGB", frame360->sphereRGB );
 
           cv::Mat sphDepthVis;
-          frame360->sphereDepth.convertTo( sphDepthVis, CV_8U, 25 ); //CV_16UC1
+          frame360->sphereDepth.convertTo( sphDepthVis, CV_8U, 0.025 ); //CV_16UC1
           cv::imshow( "sphereDepth", sphDepthVis );
           cv::waitKey(1);
 
           if(mode == 2)
           {
-            frame360->sphereDepth.convertTo( frame360->sphereDepth, CV_8U, 25 ); //CV_16UC1
+            frame360->sphereDepth.convertTo( frame360->sphereDepth, CV_8U, 0.025 ); //CV_16UC1
 //            frame360->sphereDepth.convertTo( frame360->sphereDepth, CV_16U, 1000 ); //CV_16UC1
             cv::imwrite(path_results + mrpt::format("/rgb_%04d.png",frame), frame360->sphereRGB);
             cv::imwrite(path_results + mrpt::format("/depth_%04d.png",frame), frame360->sphereDepth);
-            for(unsigned sensor_id=0; sensor_id < 8; sensor_id++)
-            {
-                cv::imwrite(path_results + mrpt::format("/rgb_%04d_%d.png", frame, sensor_id), frame360->getFrameRGBD_id(sensor_id).getRGBImage());
+//            for(unsigned sensor_id=0; sensor_id < 8; sensor_id++)
+//            {
+//                cv::imwrite(path_results + mrpt::format("/rgb_%04d_%d.png", frame, sensor_id), frame360->getFrameRGBD_id(sensor_id).getRGBImage());
 
-//                cv::Mat auxDepthVis;
-//                frame360->getFrameRGBD_id(sensor_id).getDepthImage().convertTo( auxDepthVis, CV_8U, 0.025 ); //CV_16UC1
-                cv::imwrite(path_results + mrpt::format("/depth__%04d_%d.png", frame, sensor_id), frame360->getFrameRGBD_id(sensor_id).getDepthImage());
-            }
-            sleep(1000000000);
+////                cv::Mat auxDepthVis;
+////                frame360->getFrameRGBD_id(sensor_id).getDepthImage().convertTo( auxDepthVis, CV_8U, 0.025 ); //CV_16UC1
+//                cv::imwrite(path_results + mrpt::format("/depth__%04d_%d.png", frame, sensor_id), frame360->getFrameRGBD_id(sensor_id).getDepthImage());
+//            }
+//            sleep(1000000000);
           }
         }
         else if(mode == 3 || mode == 4)

@@ -48,16 +48,16 @@ struct Map360
   std::vector<Frame360*> vpSpheres;
 
   /*! Vector containing the global SE3 poses of vpSpheres (odometry) */
-  std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d> > vTrajectoryPoses;
+  std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > vTrajectoryPoses;
 
   /*! Vector of the global SE3 poses optimized with graphSLAM (or pose-graph SLAM)*/
-  std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d> > vOptimizedPoses;
+  std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > vOptimizedPoses;
 
   /*! Vector storing the euclidean distance between of each stored keyframe with respect to the previous one (the first element of the vector is neglected) */
   std::vector<float> vTrajectoryIncrements;
 
   /*! Double map storing the connections between keyframes. Each connection stores the SE3 pose and a 6x6 covariance matrix */
-  std::map<unsigned, std::map<unsigned, std::pair<Eigen::Matrix4d, Eigen::Matrix<double,6,6> > > > mmConnectionKFs;
+  std::map<unsigned, std::map<unsigned, std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> > > > mmConnectionKFs;
 
   /*! Topological area where the camera was last localized */
   unsigned currentArea;
@@ -73,7 +73,7 @@ struct Map360
 //  std::map<unsigned, unsigned> msSelectedKFs;
 
   /*! Local reference system for each topological area */
-  std::vector<Eigen::Matrix4d> vRef;
+  std::vector<Eigen::Matrix4f> vRef;
 
   /*! Mutex to syncrhronize eventual changes in the map */
   boost::mutex mapMutex;
@@ -87,7 +87,7 @@ struct Map360
   }
 
   /*! Add a new keyframe (sphere+pose) */
-  void addKeyframe(Frame360* sphere, Eigen::Matrix4d &pose)
+  void addKeyframe(Frame360* sphere, Eigen::Matrix4f &pose)
   {
     vpSpheres.push_back(sphere);
     vTrajectoryPoses.push_back(pose);

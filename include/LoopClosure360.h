@@ -122,9 +122,9 @@ class LoopClosure360
       while(Map.mmConnectionKFs.size() > numKFsOptim)
       {
 //      std::cout << "\t LC " << Map.mmConnectionKFs.size() << " " << numKFsOptim << " \n";
-        optimizer.addVertex(Map.vTrajectoryPoses[++numKFsOptim]);
-        std::map<unsigned, std::pair<Eigen::Matrix4d, Eigen::Matrix<double,6,6> > >::iterator itLink = Map.mmConnectionKFs[numKFsOptim].begin();
-        optimizer.addEdge(itLink->first, numKFsOptim, itLink->second.first, itLink->second.second);
+        optimizer.addVertex(Map.vTrajectoryPoses[++numKFsOptim].cast<double>());
+        std::map<unsigned, std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> > >::iterator itLink = Map.mmConnectionKFs[numKFsOptim].begin();
+        optimizer.addEdge(itLink->first, numKFsOptim, itLink->second.first.cast<double>(), itLink->second.second.cast<double>());
 
         if(vQueueNewKFs.size() < 2)
         {
@@ -145,11 +145,11 @@ class LoopClosure360
         vQueueNewKFs.erase(vQueueNewKFs.begin());
         Frame360 *newKF = Map.vpSpheres[newFrameID];
 //        Eigen::Matrix4d &newPose = Map.vTrajectoryPoses[newFrameID];
-        Eigen::Matrix4d &newPose = Map.vOptimizedPoses[newFrameID];
+        Eigen::Matrix4f &newPose = Map.vOptimizedPoses[newFrameID];
 //        int compareLocalIdx = vQueueNewKFs_match[0]-1;
 //        vQueueNewKFs_match.erase(vQueueNewKFs_match.begin());
 
-        // Search for loop closure constraints in the same current area's keyframes
+        // Search for loop closure constraints in the current local map
         std::vector<unsigned> vCompareWith;//(std::distance(Map.vsAreas[newKF->node].begin(), Map.vsAreas[newKF->node].find(compareLocalIdx)));
         for(std::set<unsigned>::iterator itKF = Map.vsAreas[newKF->node].begin(); itKF != Map.vsAreas[newKF->node].end() && *itKF < compareLocalIdx; itKF++) // Set the iterator to the previous KFs not matched yet
           vCompareWith.push_back(*itKF);
@@ -168,15 +168,29 @@ class LoopClosure360
           if( distance < Threshold_distance )
           {
           std::cout << "Check loop closure between " << newFrameID << " " << compareLocalIdx << "\n";
-            bool bGoodRegistration = registerer.Register(Map.vpSpheres[compareLocalIdx], newKF, 0, RegisterRGBD360::RegisterRGBD360::RegisterRGBD360::PLANAR_3DoF);
+            bool bGoodRegistration = registerer.RegisterPbMap(Map.vpSpheres[compareLocalIdx], newKF, 0, RegisterRGBD360::RegisterRGBD360::RegisterRGBD360::PLANAR_3DoF);
             if(bGoodRegistration && registerer.getMatchedPlanes().size() > minMatchesThreshold && registerer.getAreaMatched() > areaThreshold)
             {
               std::cout << "Loop closed between " << newFrameID << " and " << compareLocalIdx << " matchedArea " << registerer.getAreaMatched() << std::endl;
-//              Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic> informationMatrix = registerer.getAreaMatched() * registerer.getInfoMat().cast<double>();
-              Eigen::Matrix4d relativePose = registerer.getPose().cast<double>();
-              Eigen::Matrix<double,6,6> informationMatrix = registerer.getInfoMat().cast<double>();
-              optimizer.addEdge(compareLocalIdx, newFrameID, relativePose, informationMatrix);
-              Map.mmConnectionKFs[newFrameID][compareLocalIdx] = std::pair<Eigen::Matrix4d, Eigen::Matrix<double,6,6> >(relativePose, informationMatrix);
+              Eigen::Matrix4f relativePose = registerer.getPose();
+              Eigen::Matrix<float,6,6> informationMatrix = registerer.getInfoMat();
+
+//              // Refine registration
+//              RegisterPhotoICP align360;
+//              Map.vpSpheres[compareLocalIdx]->stitchSphericalImage();
+//              newKF->stitchSphericalImage();
+//          //    align360.useSaliency(true);
+//              align360.setSourceFrame(Map.vpSpheres[compareLocalIdx]->sphereRGB, Map.vpSpheres[compareLocalIdx]->sphereDepth); // The reference keyframe
+//              align360.setTargetFrame(newKF->sphereRGB, newKF->sphereDepth);
+////              align360.setVisualization(true);
+//              align360.setGrayVariance(5.f/255);
+//          //    align360.alignFrames360(relPosePbMap.cast<double>(), RegisterPhotoICP::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//              align360.alignFrames360(relativePose, RegisterPhotoICP::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//              Eigen::Matrix4f relativePoseDense = align360.getOptimalPose();
+//              Eigen::Matrix<float,6,6> informationMatrixDense = align360.getHessian();
+
+              optimizer.addEdge(compareLocalIdx, newFrameID, relativePose.cast<double>(), informationMatrix.cast<double>());
+              Map.mmConnectionKFs[newFrameID][compareLocalIdx] = std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> >(relativePose, informationMatrix);
               connectionsLC[newFrameID][compareLocalIdx] = registerer.getAreaMatched() / registerer.areaSource;
             std::cout << "Add edge between " << compareLocalIdx << " and " << newFrameID << "\n";
 //              break;
@@ -200,7 +214,7 @@ class LoopClosure360
             boost::mutex::scoped_lock updateLock(Map.mapMutex);
             optimizer.getPoses(Map.vOptimizedPoses);
             //Update the optimized pose
-            Eigen::Matrix4d &newPose = Map.vOptimizedPoses[newFrameID];
+            Eigen::Matrix4f &newPose = Map.vOptimizedPoses[newFrameID];
 //            std::cout << "First pose optimized \n" << Map.vOptimizedPoses[0] << std::endl;
           }
         }

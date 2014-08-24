@@ -66,7 +66,7 @@ float min_planes_registration = 4;
 float min_dist_keyframes = 0.2;
 
 /*! Maximum distance between two consecutive frames of a RGBD360 video sequence */
-float max_translation_odometry = 0.3;
+float max_translation_odometry = 1.8;
 
 /*! Maximum rotation between two consecutive frames of a RGBD360 video sequence */
 float max_rotation_odometry = 1.2;
@@ -86,7 +86,7 @@ double ablu [10] = {  0,   0, 1.0,   0, 1.0, 1.0,   0, 0.8,   0, 0.7};
 
 /*! Generate a skew-symmetric matrix from a 3D vector */
 template<typename dataType>
-Eigen::Matrix<dataType,3,3> skew(Eigen::Matrix<dataType,3,1> vec)
+Eigen::Matrix<dataType,3,3> skew(const Eigen::Matrix<dataType,3,1> vec)
 {
   Eigen::Matrix<dataType,3,3> skew_matrix = Eigen::Matrix<dataType,3,3>::Zero();
   skew_matrix(0,1) = -vec(2);
