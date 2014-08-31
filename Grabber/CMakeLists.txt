@@ -17,6 +17,9 @@ IF(BUILD_GRABBER)
 						libOpenNI2.so
 						libOniFile.so
 						libPS1080.so
+						#../build/libOpenNI2.so
+						#../build/OpenNI2/Drivers/libOniFile.so
+						#../build/OpenNI2/Drivers/libPS1080.so
 					   )
 
 ENDIF(BUILD_GRABBER)

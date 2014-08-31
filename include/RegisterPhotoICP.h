@@ -10,7 +10,7 @@
 #ifndef REGISTER_PHOTO_ICP_H
 #define REGISTER_PHOTO_ICP_H
 
-#define ENABLE_OPENMP 0
+#define ENABLE_OPENMP 1
 #define ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS 0
 
 #include "Miscellaneous.h"
@@ -152,6 +152,12 @@ public:
 
     /*! The average residual per pixel of photo/depth consistency.*/
     float avResidual;
+
+    /*! The average residual per pixel of photo consistency.*/
+    double avPhotoResidual;
+
+    /*! The average residual per pixel of depth consistency.*/
+    double avDepthResidual;
 
     /*! Number of pyramid levels.*/
     int nPyrLevels;
@@ -1727,8 +1733,11 @@ public:
                                     const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                     costFuncType method = PHOTO_CONSISTENCY )
     {
-        double error2 = 0.0;
-        int numValidPts = 0;
+//        double error2 = 0.0;
+        double PhotoResidual = 0.0;
+        double DepthResidual = 0.0;
+        int nValidPhotoPts = 0;
+        int nValidDepthPts = 0;
 
         const int nRows = graySrcPyr[pyramidLevel].rows;
         const int nCols = graySrcPyr[pyramidLevel].cols;
@@ -1829,7 +1838,8 @@ public:
 //        else
         {
 #if ENABLE_OPENMP
-#pragma omp parallel for reduction (+:error2,numValidPts)
+//#pragma omp parallel for reduction (+:error2,numValidPts)
+#pragma omp parallel for reduction (+:PhotoResidual,nValidPhotoPts,DepthResidual,nValidDepthPts)
 #endif
             for(int r=0;r<phi_res;r++)
             {
@@ -1890,9 +1900,10 @@ public:
     ////                                double weight = sqrt(2*stdDevReg*photoDiff2_norm-varianceRegularization) / photoDiff2_norm;
     //                                photoDiff2 = 2*stdDevReg*sqrt(photoDiff2)-varianceRegularization;
     //                            }
-                                error2 += weightedErrorPhoto*weightedErrorPhoto;
-                            cout << "photo err " << weightedErrorPhoto << endl;
-                                ++numValidPts;
+                                PhotoResidual += weightedErrorPhoto*weightedErrorPhoto;
+//                                error2 += weightedErrorPhoto*weightedErrorPhoto;
+//                            cout << "photo err " << weightedErrorPhoto << endl;
+                                ++nValidPhotoPts;
                             }
                             if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
                             {
@@ -1910,9 +1921,10 @@ public:
                                     float stdDev_depth1 = stdDevDepth*depth1;
                                     weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
                                     float weightedErrorDepth = weight_depth * depthDiff;
-                                    error2 += weightedErrorDepth*weightedErrorDepth;
-                                cout << "depth err " << weightedErrorDepth << endl;
-                                    ++numValidPts;
+                                    DepthResidual += weightedErrorDepth*weightedErrorDepth;
+//                                    error2 += weightedErrorDepth*weightedErrorDepth;
+//                                cout << "depth err " << weightedErrorDepth << endl;
+                                    ++nValidDepthPts;
                                 }
                             }
                         }
@@ -1920,8 +1932,9 @@ public:
                 }
             }
         }
-
-        return sqrt(error2 / numValidPts);
+        avPhotoResidual = sqrt(PhotoResidual / nValidPhotoPts);
+        avDepthResidual = sqrt(DepthResidual / nValidDepthPts);
+        return avPhotoResidual + avDepthResidual;
     }
 
 
@@ -2484,7 +2497,7 @@ public:
             unsigned LM_maxIters = 1;
 
             int it = 0, maxIters = 10;
-            double tol_residual = 1e-1;
+            double tol_residual = 1e-3;
             double tol_update = 1e-3;
             Eigen::Matrix<float,6,1> update_pose; update_pose << 1, 1, 1, 1, 1, 1;
             error = calcPhotoICPError_sphere(pyramidLevel, pose_estim, method);
@@ -2507,7 +2520,7 @@ public:
                 if(visualizeIterations)
                 {
                     cv::imshow("orig", grayTrgPyr[pyramidLevel]);
-//                    cv::imshow("src", graySrcPyr[pyramidLevel]);
+                    cv::imshow("src", graySrcPyr[pyramidLevel]);
 
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                     {

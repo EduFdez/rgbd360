@@ -108,35 +108,36 @@ int main (int argc, char ** argv)
 #endif
 
 
-//      // ICP alignement
-//      double time_start_icp = pcl::getTime();
-//      pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
+      // ICP alignement
+      double time_start_icp = pcl::getTime();
+      pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
 
-//      icp.setMaxCorrespondenceDistance (0.3);
-//      icp.setMaximumIterations (10);
-//      icp.setTransformationEpsilon (1e-6);
-//    //  icp.setEuclideanFitnessEpsilon (1);
-//      icp.setRANSACOutlierRejectionThreshold (0.1);
+      icp.setMaxCorrespondenceDistance (0.3);
+      icp.setMaximumIterations (10);
+      icp.setTransformationEpsilon (1e-6);
+    //  icp.setEuclideanFitnessEpsilon (1);
+      icp.setRANSACOutlierRejectionThreshold (0.1);
 
-//      // ICP
-//      // Filter the point clouds and remove nan points
-//      FilterPointCloud filter(0.1);
-//      filter.filterVoxel(frame360_1.sphereCloud);
-//      filter.filterVoxel(frame360_2.sphereCloud);
+      // ICP
+      // Filter the point clouds and remove nan points
+      FilterPointCloud filter(0.1);
+      filter.filterVoxel(frame360_1.sphereCloud);
+      filter.filterVoxel(frame360_2.sphereCloud);
 
-//      icp.setInputSource(frame360_2.sphereCloud);
-//      icp.setInputTarget(frame360_1.sphereCloud);
-//      pcl::PointCloud<PointT>::Ptr alignedICP(new pcl::PointCloud<PointT>);
-//      Matrix4f initRigidTransf = relPosePbMap;
-////      Matrix4f initRigidTransf = Matrix4f::Identity();
-//      icp.align(*alignedICP, initRigidTransf);
+      icp.setInputSource(frame360_2.sphereCloud);
+      icp.setInputTarget(frame360_1.sphereCloud);
+      pcl::PointCloud<PointT>::Ptr alignedICP(new pcl::PointCloud<PointT>);
+      Matrix4f initRigidTransf = relPosePbMap;
+//      Matrix4f initRigidTransf = Matrix4f::Identity();
+      icp.align(*alignedICP, initRigidTransf);
 
-//      double time_end_icp = pcl::getTime();
-//      std::cout << "ICP took " << double (time_end_icp - time_start_icp) << std::endl;
+      double time_end_icp = pcl::getTime();
+      std::cout << "ICP took " << double (time_end_icp - time_start_icp) << std::endl;
 
 //      std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
-//      Matrix4f icpTransformation = icp.getFinalTransformation();
-//      cout << "ICP transformation:\n" << icpTransformation << endl << "PbMap-Registration\n" << registerer.getPose() << endl;
+      std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
+      Matrix4f icpTransformation = icp.getFinalTransformation();
+      cout << "ICP transformation:\n" << icpTransformation << endl << "PbMap-Registration\n" << registerer.getPose() << endl;
 
 
     // Test: align one image
@@ -229,7 +230,7 @@ int main (int argc, char ** argv)
     // Dense Photo/Depth consistency spherical
     time_start = pcl::getTime();
     RegisterPhotoICP align360;
-    align360.setNumPyr(5);
+    align360.setNumPyr(4);
     frame360_1.stitchSphericalImage();
     frame360_2.stitchSphericalImage();
     align360.useSaliency(false);
@@ -255,14 +256,14 @@ int main (int argc, char ** argv)
     // The reference of the spherical image and the point Clouds are not the same! I should always use the same coordinate system (TODO)
     float angleOffset = 157.5;
     Matrix4f rotOffset = Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
-    Matrix4f initDenseMatching = rotOffset * dense_relPose * rotOffset.inverse();
+    Matrix4f initDenseMatching = rotOffset * relPosePbMap * rotOffset.inverse();
 //    cout << "initDenseMatching \n" << initDenseMatching << endl;
 
 //    align360.setVisualization(true);
-    align360.setGrayVariance(2.f/255);
-//    align360.alignFrames360(initDenseMatching, RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//    align360.setGrayVariance(4.f/255);
+    align360.alignFrames360(initDenseMatching, RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //    align360.alignFrames360(relPosePbMap, RegisterPhotoICP::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-    align360.alignFrames360(Matrix4f::Identity(), RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//    align360.alignFrames360(Matrix4f::Identity(), RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     Matrix4f relPoseDenseSphere = align360.getOptimalPose();
     Matrix4f relPoseDenseSphere_ref = rotOffset.inverse() * relPoseDenseSphere * rotOffset;
     time_end = pcl::getTime();
@@ -271,7 +272,7 @@ int main (int argc, char ** argv)
 
     angleOffset = 157.5;
     rotOffset = Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
-    cout << "relPoseDenseSphere_ref: " << align360.avResidual << "\n" << relPoseDenseSphere_ref << endl;
+    cout << "relPoseDenseSphere_ref: " << align360.avPhotoResidual << " " << align360.avDepthResidual << "\n" << relPoseDenseSphere_ref << endl;
 
     //    cv::imwrite( mrpt::format("/home/edu/rgb.png"), frame360_1.sphereRGB);
     //    cv::imwrite( mrpt::format("/home/edu/depth.png"), frame360_1.sphereDepth);
