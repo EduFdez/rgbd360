@@ -56,6 +56,159 @@ void print_help(char ** argv)
     cout << argv[0] << " <frame360_1_1.bin> <frame360_1_2.bin>" << endl;
 }
 
+//pcl::PointCloud<PointT>::Ptr imgCloud;
+//mrpt::pbmap::PbMap planes;
+
+//void getLocalPlanesInFrame2()
+//{
+//    // Segment planes
+//    //    cout << "extractPlaneFeatures\n";
+//    //      double extractPlanes_start = pcl::getTime();
+
+//    pcl::IntegralImageNormalEstimation<PointT, pcl::Normal> ne;
+//    ne.setNormalEstimationMethod (ne.COVARIANCE_MATRIX);
+//    ne.setMaxDepthChangeFactor (0.02); // For VGA: 0.02f, 10.0f
+//    ne.setNormalSmoothingSize (10.0f);
+//    ne.setDepthDependentSmoothing (true);
+
+//    pcl::OrganizedMultiPlaneSegmentation<PointT, pcl::Normal, pcl::Label> mps;
+//    mps.setMinInliers (200);
+//    mps.setAngularThreshold (0.039812); // (0.017453 * 2.0) // 3 degrees
+//    mps.setDistanceThreshold (0.02); //2cm
+
+//    pcl::PointCloud<pcl::Normal>::Ptr normal_cloud (new pcl::PointCloud<pcl::Normal>);
+//    ne.setInputCloud ( imgCloud );
+//    ne.compute (*normal_cloud);
+
+//    mps.setInputNormals (normal_cloud);
+//    mps.setInputCloud ( imgCloud );
+//    std::vector<pcl::PlanarRegion<PointT>, Eigen::aligned_allocator<pcl::PlanarRegion<PointT> > > regions;
+//    std::vector<pcl::ModelCoefficients> model_coefficients;
+//    std::vector<pcl::PointIndices> inlier_indices;
+//    pcl::PointCloud<pcl::Label>::Ptr labels (new pcl::PointCloud<pcl::Label>);
+//    std::vector<pcl::PointIndices> label_indices;
+//    std::vector<pcl::PointIndices> boundary_indices;
+//    mps.segmentAndRefine (regions, model_coefficients, inlier_indices, labels, label_indices, boundary_indices);
+//    //      mps.segment (model_coefficients, inlier_indices);
+//    //    cout << regions.size() << " planes detected\n";
+
+//    // Create a vector with the planes detected in this keyframe, and calculate their parameters (normal, center, pointclouds, etc.)
+//    for (size_t i = 0; i < regions.size (); i++)
+//    {
+//        //      std::cout << "curv " << regions[i].getCurvature() << std::endl;
+//        if(regions[i].getCurvature() > max_curvature_plane)
+//            continue;
+
+//        mrpt::pbmap::Plane plane;
+
+//        plane.v3center = regions[i].getCentroid ();
+//        plane.v3normal = Eigen::Vector3f(model_coefficients[i].values[0], model_coefficients[i].values[1], model_coefficients[i].values[2]);
+//        plane.d = model_coefficients[i].values[3];
+//        //        if( plane.v3normal.dot(plane.v3center) > 0)
+//        if( model_coefficients[i].values[3] < 0)
+//        {
+//            plane.v3normal = -plane.v3normal;
+//            plane.d = -plane.d;
+//        }
+//        plane.curvature = regions[i].getCurvature();
+//        //      cout << "normal " << plane.v3normal.transpose() << " center " << regions[i].getCentroid().transpose() << " " << plane.v3center.transpose() << endl;
+//        //    cout << "D " << -(plane.v3normal.dot(plane.v3center)) << " " << plane.d << endl;
+
+//        // Extract the planar inliers from the input cloud
+//        pcl::ExtractIndices<pcl::PointXYZRGBA> extract;
+//        extract.setInputCloud ( imgCloud );
+//        //        extract.setInputCloud ( cloud );
+//        extract.setIndices ( boost::make_shared<const pcl::PointIndices> (inlier_indices[i]) );
+//        extract.setNegative (false);
+//        extract.filter (*plane.planePointCloudPtr);    // Write the planar point cloud
+//        plane.inliers = inlier_indices[i].indices;
+//        //    cout << "Extract inliers\n";
+
+//        pcl::PointCloud<pcl::PointXYZRGBA>::Ptr contourPtr(new pcl::PointCloud<pcl::PointXYZRGBA>);
+//        contourPtr->points = regions[i].getContour();
+
+//        plane.calcConvexHull(contourPtr);
+//        plane.computeMassCenterAndArea();
+
+//        plane.calcElongationAndPpalDir();
+
+//        plane.calcPlaneHistH();
+
+//        // Check whether this region correspond to the same plane as a previous one (this situation may happen when there exists a small discontinuity in the observation)
+//        bool isSamePlane = false;
+//        for (size_t j = 0; j < planes.vPlanes.size(); j++)
+//            if( planes.vPlanes[j].isSamePlane(plane, 0.998, 0.1, 0.4) ) // The planes are merged if they are the same
+//            {
+//                //          cout << "Merge local region\n";
+//                isSamePlane = true;
+//                planes.vPlanes[j].mergePlane(plane);
+
+//                break;
+//            }
+//        if(!isSamePlane)
+//        {
+//            //          plane.calcMainColor();
+//            plane.id = planes.vPlanes.size();
+//            planes.vPlanes.push_back(plane);
+//        }
+//    }
+//    //      double extractPlanes_end = pcl::getTime();
+//    //    std::cout << planes.vPlanes.size() << " planes. Extraction in " << sensor_id << " took " << double (extractPlanes_end - extractPlanes_start) << std::endl;
+
+//    //      segmentation_im_[sensor_id] = true;
+//}
+
+///*! Visualization callback */
+//void viz_cb(pcl::visualization::PCLVisualizer& viz)
+//{
+
+//  {
+//    // Render the data
+//    viz.removeAllPointClouds();
+//    viz.removeAllShapes();
+//    viz.setSize(800,600); // Set the window size
+
+//    if (!viz.updatePointCloud (imgCloud, "sphereCloud"))
+//      viz.addPointCloud (imgCloud, "sphereCloud");
+
+//    char name[1024];
+
+//    {
+//      // Draw planes
+//      for(size_t i=0; i < planes.vPlanes.size(); i++)
+//      {
+//        mrpt::pbmap::Plane &plane_i = planes.vPlanes[i];
+//        sprintf (name, "normal_%u", static_cast<unsigned>(i));
+//        pcl::PointXYZ pt1, pt2; // Begin and end points of normal's arrow for visualization
+//        pt1 = pcl::PointXYZ(plane_i.v3center[0], plane_i.v3center[1], plane_i.v3center[2]);
+//        pt2 = pcl::PointXYZ(plane_i.v3center[0] + (0.5f * plane_i.v3normal[0]),
+//                            plane_i.v3center[1] + (0.5f * plane_i.v3normal[1]),
+//                            plane_i.v3center[2] + (0.5f * plane_i.v3normal[2]));
+//        viz.addArrow (pt2, pt1, ared[i%10], agrn[i%10], ablu[i%10], false, name);
+
+//        {
+//          sprintf (name, "n%u %s", static_cast<unsigned>(i), plane_i.label.c_str());
+////            sprintf (name, "n%u %.1f %.2f", static_cast<unsigned>(i), plane_i.curvature*1000, plane_i.areaHull);
+//          viz.addText3D (name, pt2, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name);
+//        }
+
+//        sprintf (name, "approx_plane_%02d", int (i));
+//        viz.addPolygon<PointT> (plane_i.polygonContourPtr, 0.5 * red[i%10], 0.5 * grn[i%10], 0.5 * blu[i%10], name);
+
+//        if(true)
+//        {
+//          sprintf (name, "plane_%02u", static_cast<unsigned>(i));
+//          pcl::visualization::PointCloudColorHandlerCustom <PointT> color (plane_i.planePointCloudPtr, red[i%10], grn[i%10], blu[i%10]);
+//          viz.addPointCloud (plane_i.planePointCloudPtr, color, name);
+//          viz.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, name);
+//        }
+
+//      }
+//    }
+
+//  }
+//}
+
 int main (int argc, char ** argv)
 {
     if(argc != 3)
@@ -76,15 +229,43 @@ int main (int argc, char ** argv)
     frame360_1.loadFrame(file360_1);
     frame360_1.undistort();
     frame360_1.buildSphereCloud();
-    //  frame360_1.getPlanes();
-    //  frame360_1.stitchSphericalImage();
+
+//    // Save images
+//    {
+//        int sensor_id = 5;
+//        imgCloud = frame360_1.getCloud_id(sensor_id);
+//        cv::Mat im_rgb = frame360_1.getFrameRGBD_id(sensor_id).getRGBImage();
+//        cv::imwrite(mrpt::format("/home/edu/rgb_%01d.png",sensor_id), im_rgb);
+//        getLocalPlanesInFrame2();
+
+//        cv::Mat imgSegmentation = im_rgb.clone();;
+//        for(size_t i=0; i < planes.vPlanes.size(); i++)
+//        {
+//            mrpt::pbmap::Plane &plane_i = planes.vPlanes[i];
+//            for(size_t j=0; j < plane_i.inliers.size(); j++)
+//            {
+//                int r = plane_i.inliers[j] / im_rgb.cols;
+//                int c = plane_i.inliers[j] % im_rgb.cols;
+//                imgSegmentation.at<cv::Vec3b>(r,c)[0] = blu[i%10];
+//                imgSegmentation.at<cv::Vec3b>(r,c)[1] = grn[i%10];
+//                imgSegmentation.at<cv::Vec3b>(r,c)[2] = red[i%10];
+//            }
+//        }
+
+//        cv::imwrite(mrpt::format("/home/edu/segmented_%01d.png",sensor_id), imgSegmentation);
+
+//        pcl::visualization::CloudViewer viewer("viz");
+//        viewer.runOnVisualizationThread(viz_cb, "viz_cb");
+
+//        mrpt::system::pause();
+//    }
+
 
     cout << "Create sphere 2\n";
     Frame360 frame360_2(&calib);
     frame360_2.loadFrame(file360_2);
     frame360_2.undistort();
     frame360_2.buildSphereCloud();
-    //  frame360_2.getPlanes();
 
     time_start = pcl::getTime();
     RegisterRGBD360 registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH));

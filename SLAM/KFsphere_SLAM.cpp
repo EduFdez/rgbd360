@@ -46,6 +46,7 @@
 #include <pcl/common/time.h>
 #include <pcl/console/parse.h>
 #include <boost/thread/thread.hpp>
+#include <mrpt/system/os.h>
 
 #define MAX_MATCH_PLANES 25
 
@@ -85,6 +86,13 @@ private:
     std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> > candidateKF_connection; // The register information of nearestKF
     float candidateKF_sso;
 
+    struct connection
+    {
+        unsigned KF_id;
+        std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> > geomConnection;
+        float sso;
+    };
+
 public:
     SphereGraphSLAM() :
         registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH)),
@@ -102,6 +110,16 @@ public:
         // Clean memory
         for(unsigned i=0; i < Map.vpSpheres.size(); i++)
             delete Map.vpSpheres[i];
+    }
+
+    // This function decides to select a new keyframe when the proposed keyframe does not have keyframes too near/related
+    bool isInNeighbourSubmap(unsigned submap, unsigned kf)
+    {
+        for(std::set<unsigned>::iterator it=Map.vsNeighborAreas[submap].begin(); it != Map.vsNeighborAreas[submap].end(); it++)
+            if( Map.vsAreas[*it].count(kf) )
+                return true;
+
+        return false;
     }
 
     // This function decides to select a new keyframe when the proposed keyframe does not have keyframes too near/related
@@ -192,7 +210,7 @@ public:
         // Filter the point clouds before visualization
         FilterPointCloud filter;
 
-        int frame = 2; // Skip always the first frame, which sometimes contains errors
+        int frame = 12; // Skip always the first frame, which sometimes contains errors
         int frameOrder = 0;
 
         Eigen::Matrix4f currentPose = Eigen::Matrix4f::Identity();
@@ -206,7 +224,7 @@ public:
         frame360->stitchSphericalImage();
         frame360->buildSphereCloud();
         frame360->getPlanes();
-        //      frame360->id = frame;
+        //frame360->id = frame;
         frame360->id = frameOrder;
         frame360->node = Map.currentArea;
 
@@ -250,6 +268,18 @@ public:
         bool bPrevKFSelected = true, bGoodTracking = true;
         int lastTrackedKF = 0; // Count the number of not tracked frames after the last registered one
 
+        // Dense RGB-D alignment
+        RegisterPhotoICP align360;
+        align360.setNumPyr(5);
+        align360.useSaliency(false);
+//        align360.setVisualization(true);
+        align360.setGrayVariance(3.f/255);
+        Eigen::Matrix4f rigidTransf_dense = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f rigidTransf_dense_ref = rigidTransf_dense;
+        // The reference of the spherical image and the point Clouds are not the same! I should always use the same coordinate system (TODO)
+        float angleOffset = 157.5;
+        Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
+
         while( fexists(fileName.c_str()) )
         {
             // Load pointCloud
@@ -262,123 +292,189 @@ public:
                 frame360->stitchSphericalImage();
                 frame360->buildSphereCloud();
                 frame360->getPlanes();
-                //        frame360->id = ++frameOrder;
+                frame360->id = frameOrder+1;
             }
+//            cout << " Load Keyframe \n" << endl;
 
             // The next frame to process
             frame += selectSample;
             fileName = path + mrpt::format("/sphere_images_%d.bin",frame);
 
-            // Register the pair of frames
-            bGoodTracking = registerer.RegisterPbMap(Map.vpSpheres[nearestKF], frame360, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
-            Matrix4f trackedRelPose = registerer.getPose();
-            cout << "bGoodTracking " << bGoodTracking << " with " << nearestKF << ". Distance "
-                 << registerer.getPose().block(0,3,3,1).norm() << " entropy " << registerer.calcEntropy() << " matches " << registerer.getMatchedPlanes().size() << " area " << registerer.getAreaMatched() << endl;
+//            // Register the pair of frames
+//            bGoodTracking = registerer.RegisterPbMap(Map.vpSpheres[nearestKF], frame360, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
+//            Matrix4f trackedRelPose = registerer.getPose();
+//            cout << "bGoodTracking " << bGoodTracking << " with " << nearestKF << ". Distance "
+//                 << registerer.getPose().block(0,3,3,1).norm() << " entropy " << registerer.calcEntropy() << " matches " << registerer.getMatchedPlanes().size() << " area " << registerer.getAreaMatched() << endl;
 
-            // If the registration is good, do not evaluate this KF and go to the next
-            if( bGoodTracking  && registerer.getMatchedPlanes().size() >= min_planes_registration && registerer.getAreaMatched() > 6 )//&& registerer.getPose().block(0,3,3,1).norm() < 1.5 )
-                //        if( bGoodTracking && registerer.getMatchedPlanes().size() > 6 && registerer.getPose().block(0,3,3,1).norm() < 1.0 )
+//            // If the registration is good, do not evaluate this KF and go to the next
+//            if( bGoodTracking  && registerer.getMatchedPlanes().size() >= min_planes_registration && registerer.getAreaMatched() > 6 )//&& registerer.getPose().block(0,3,3,1).norm() < 1.5 )
+//                //        if( bGoodTracking && registerer.getMatchedPlanes().size() > 6 && registerer.getPose().block(0,3,3,1).norm() < 1.0 )
+//            {
+//                float dist_odometry = 0; // diff_roatation
+//                if(candidateKF)
+//                    dist_odometry = (candidateKF_connection.first.block(0,3,3,1) - trackedRelPose.block(0,3,3,1)).norm();
+//                //          else
+//                //            dist_odometry = trackedRelPose.norm();
+//                if( dist_odometry < max_translation_odometry ) // Check that the registration is coherent with the camera movement (i.e. in odometry the registered frames must lay nearby)
+//                {
+//                    if(trackedRelPose.block(0,3,3,1).norm() > min_dist_keyframes) // Minimum distance to select a possible KF
+//                    {
+//                        cout << "Set candidateKF \n";
+//                        if(candidateKF)
+//                            delete candidateKF; // Delete previous candidateKF
+
+//                        candidateKF = frame360;
+//                        candidateKF_connection.first = trackedRelPose;
+//                        candidateKF_connection.second = registerer.getInfoMat();
+//                        candidateKF_sso = registerer.getAreaMatched() / registerer.areaSource;
+//                    }
+
+//                    { boost::mutex::scoped_lock updateLockVisualizer(Viewer.visualizationMutex);
+//                        Viewer.currentLocation.matrix() = (currentPose * trackedRelPose);
+//                        Viewer.bDrawCurrentLocation = true;
+//                    }
+
+//                    bPrevKFSelected = false;
+//                    lastTrackedKF = 0;
+//                }
+
+//                continue; // Eval next frame
+//            }
+
+        cout << "Align Spheres " << frame360->id << " and " << Map.vpSpheres[nearestKF]->id << endl;
+            double time_start_dense = pcl::getTime();
+            align360.setTargetFrame(Map.vpSpheres[nearestKF]->sphereRGB, Map.vpSpheres[nearestKF]->sphereDepth);
+            align360.setSourceFrame(frame360->sphereRGB, frame360->sphereDepth);
+            align360.alignFrames360(rigidTransf_dense_ref, RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            rigidTransf_dense_ref = align360.getOptimalPose();
+            rigidTransf_dense = rotOffset.inverse() * rigidTransf_dense_ref * rotOffset;
+            double time_end_dense = pcl::getTime();
+            std::cout << "Dense " << (time_end_dense - time_start_dense) << std::endl;
+            cout << " Residuals: " << align360.avPhotoResidual << " " << align360.avDepthResidual;
+            cout << " regist \n" << rigidTransf_dense << endl;
+
+            if(align360.avDepthResidual < 0.9)
             {
-                float dist_odometry = 0; // diff_roatation
-                if(candidateKF)
-                    dist_odometry = (candidateKF_connection.first.block(0,3,3,1) - trackedRelPose.block(0,3,3,1)).norm();
-                //          else
-                //            dist_odometry = trackedRelPose.norm();
-                if( dist_odometry < max_translation_odometry ) // Check that the registration is coherent with the camera movement (i.e. in odometry the registered frames must lay nearby)
-                {
-                    if(trackedRelPose.block(0,3,3,1).norm() > min_dist_keyframes) // Minimum distance to select a possible KF
-                    {
-                        cout << "Set candidateKF \n";
-                        if(candidateKF)
-                            delete candidateKF; // Delete previous candidateKF
+                assert(align360.avDepthResidual < 1.5);
 
-                        candidateKF = frame360;
-                        candidateKF_connection.first = trackedRelPose;
-                        candidateKF_connection.second = registerer.getInfoMat();
-                        candidateKF_sso = registerer.getAreaMatched() / registerer.areaSource;
-                    }
+//                { boost::mutex::scoped_lock updateLockVisualizer(Viewer.visualizationMutex);
+//                    Viewer.currentLocation.matrix() = (currentPose * rigidTransf_dense);
+//                    Viewer.bDrawCurrentLocation = true;
+//                }
 
-                    { boost::mutex::scoped_lock updateLockVisualizer(Viewer.visualizationMutex);
-                        Viewer.currentLocation.matrix() = (currentPose * trackedRelPose);
-                        Viewer.bDrawCurrentLocation = true;
-                    }
-
-                    bPrevKFSelected = false;
-                    lastTrackedKF = 0;
-                }
-
-                continue; // Eval next frame
+                delete frame360;
+//                bPrevKFSelected = false;
+                cout << "skip frame " << endl;
+                continue;
             }
+
+            // Check registration with nearby keyframes
+            vector<connection> vConnections;
+            for(unsigned kf=0; kf < Map.vpSpheres.size(); kf++)
+//                if(Map.vpSpheres[kf]->node == Map.currentArea && kf != nearestKF) // || Map.vsAreas[Map.currentArea].count(kf))
+                if((Map.vpSpheres[kf]->node == Map.currentArea || isInNeighbourSubmap(Map.currentArea,kf)) && kf != nearestKF)
+                    if((Map.vpSpheres[kf]->pose.block(0,3,3,1)-frame360->pose.block(0,3,3,1)).norm() < 3.0) // If the KFs are closeby
+                    {
+                        align360.setTargetFrame(Map.vpSpheres[kf]->sphereRGB, Map.vpSpheres[kf]->sphereDepth);
+                        align360.setSourceFrame(frame360->sphereRGB, frame360->sphereDepth);
+                        Eigen::Matrix4f initRigidTransfDense = rotOffset * (Map.vpSpheres[kf]->pose.inverse() * currentPose * rigidTransf_dense) * rotOffset.inverse();
+                        align360.alignFrames360(initRigidTransfDense, RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                        rigidTransf_dense_ref = align360.getOptimalPose();
+                        Eigen::Matrix4f rigidTransf_denseKF = rotOffset.inverse() * rigidTransf_dense_ref * rotOffset;
+
+                        cout << "CHECK WITH " << kf << " nearestKF " << nearestKF << " avDepthResidual " << align360.avDepthResidual << " sso " << align360.SSO << endl;
+                        mrpt::system::pause();
+
+                        if(align360.avDepthResidual < 0.7)
+                            break;
+                        else if(align360.avDepthResidual < 1.5) // Keep connection
+                        {
+                            connection Connection;
+                            Connection.KF_id = kf;
+                            Connection.geomConnection = pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> >(rigidTransf_denseKF, align360.getHessian());
+                            Connection.sso = align360.SSO;
+                            vConnections.push_back(Connection);
+                        }
+                    }
+            if(align360.avDepthResidual < 0.7)
+            {
+                delete frame360;
+                cout << "skip frame 2 " << endl;
+                continue;
+            }
+
+
+            candidateKF = frame360;
+            candidateKF_connection.first = rigidTransf_dense;
+            candidateKF_connection.second = align360.getHessian();
+            candidateKF_sso = align360.SSO;
+            cout << "SSO " << align360.SSO << endl;
+            cout << "Select keyframe " << frame360->id << endl;
+            rigidTransf_dense_ref = Eigen::Matrix4f::Identity();
 
             ++lastTrackedKF;
-            Viewer.bDrawCurrentLocation = false;
 
-            if(bPrevKFSelected) // If the previous frame was a keyframe, just try to register the next frame as usually
-            {
-                std::cout << "Tracking lost " << lastTrackedKF << "\n";
-                //          bGoodTracking = true; // Read a new frame in the next iteration
-                bPrevKFSelected = false;
-                continue;
-            }
+//            if(bPrevKFSelected) // If the previous frame was a keyframe, just try to register the next frame as usually
+//            {
+//                std::cout << "Tracking lost " << lastTrackedKF << "\n";
+//                //          bGoodTracking = true; // Read a new frame in the next iteration
+//                bPrevKFSelected = false;
+//                continue;
+//            }
 
-            if(lastTrackedKF > 3)
-            {
-                std::cout << "\n  Launch Relocalization \n";
-                double time_start = pcl::getTime();
+//            if(lastTrackedKF > 3)
+//            {
+//                std::cout << "\n  Launch Relocalization \n";
+//                double time_start = pcl::getTime();
 
-                if(relocalizer.relocalize(frame360) != -1)
-                {
-                    double time_end = pcl::getTime();
-                    std::cout << "Relocalization in " << Map.vpSpheres.size() << " KFs map took " << double (time_end - time_start) << std::endl;
-                    {
-                        boost::mutex::scoped_lock updateLockVisualizer(Viewer.visualizationMutex);
-                        Viewer.currentLocation.matrix() = (currentPose * trackedRelPose).cast<float>();
-                        Viewer.bDrawCurrentLocation = true;
-                    }
+//                if(relocalizer.relocalize(frame360) != -1)
+//                {
+//                    double time_end = pcl::getTime();
+//                    std::cout << "Relocalization in " << Map.vpSpheres.size() << " KFs map took " << double (time_end - time_start) << std::endl;
+//                    {
+//                        boost::mutex::scoped_lock updateLockVisualizer(Viewer.visualizationMutex);
+//                        Viewer.currentLocation.matrix() = (currentPose * trackedRelPose).cast<float>();
+//                        Viewer.bDrawCurrentLocation = true;
+//                    }
 
-                    lastTrackedKF = 0;
-                    candidateKF = frame360;
-                    candidateKF_connection.first = relocalizer.registerer.getPose();
-                    candidateKF_connection.second = relocalizer.registerer.getInfoMat();
-                    nearestKF = relocalizer.relocKF;
-                    currentPose = Map.vTrajectoryPoses[nearestKF]; //Map.vOptimizedPoses
-                    Viewer.currentSphere = nearestKF;
-                    std::cout << "Relocalized with " << nearestKF << " \n\n\n";
+//                    lastTrackedKF = 0;
+//                    candidateKF = frame360;
+//                    candidateKF_connection.first = relocalizer.registerer.getPose();
+//                    candidateKF_connection.second = relocalizer.registerer.getInfoMat();
+//                    nearestKF = relocalizer.relocKF;
+//                    currentPose = Map.vTrajectoryPoses[nearestKF]; //Map.vOptimizedPoses
+//                    Viewer.currentSphere = nearestKF;
+//                    std::cout << "Relocalized with " << nearestKF << " \n\n\n";
 
-                    continue;
-                }
-            }
+//                    continue;
+//                }
+//            }
 
-            if(!candidateKF)
-            {
-                std::cout << "_Tracking lost " << lastTrackedKF << "\n";
-                continue;
-            }
+//            if(!candidateKF)
+//            {
+//                std::cout << "_Tracking lost " << lastTrackedKF << "\n";
+//                continue;
+//            }
 
-            if( !shouldSelectKeyframe(frame360) )
-            {
-                cout << "  Do not add a keyframe yet. Now the camera is around KF " << nearestKF << endl;
-                candidateKF = NULL;
-                currentPose = Map.vTrajectoryPoses[nearestKF]; //Map.vOptimizedPoses
-                Viewer.currentSphere = nearestKF;
+//            if( !shouldSelectKeyframe(frame360) )
+//            {
+//                cout << "  Do not add a keyframe yet. Now the camera is around KF " << nearestKF << endl;
+//                candidateKF = NULL;
+//                currentPose = Map.vTrajectoryPoses[nearestKF]; //Map.vOptimizedPoses
+//                Viewer.currentSphere = nearestKF;
 
-                frame -= selectSample;
-                fileName = path + mrpt::format("/sphere_images_%d.bin",frame);
+//                frame -= selectSample;
+//                fileName = path + mrpt::format("/sphere_images_%d.bin",frame);
 
-                //          lastTrackedKF = 0;
-                //          bGoodTracking = true; // Read a new frame in the next iteration
-                //          bPrevKFSelected = true; // This avoids selecting a KF for which there is no registration
-                continue;
-            }
-
-            bPrevKFSelected = true;
-            frame -= selectSample;
-            fileName = path + mrpt::format("/sphere_images_%d.bin",frame);
-
-            cout << "\tGet previous frame as a keyframe " << frameOrder+1 << endl;
-            // Add new keyframe
-            candidateKF->id = ++frameOrder;
-            candidateKF->node = Map.currentArea;
+//                //          lastTrackedKF = 0;
+//                //          bGoodTracking = true; // Read a new frame in the next iteration
+//                //          bPrevKFSelected = true; // This avoids selecting a KF for which there is no registration
+//                continue;
+//            }
+//
+//            bPrevKFSelected = true;
+//            frame -= selectSample;
+//            fileName = path + mrpt::format("/sphere_images_%d.bin",frame);
 
             currentPose = currentPose * candidateKF_connection.first;
             //              std::cout<< "Added vertex: "<< optimizer.addVertex(currentPose) << std::endl;
@@ -388,14 +484,21 @@ public:
             // Filter cloud
             filter.filterEuclidean(candidateKF->sphereCloud);
 
+            cout << "\tGet previous frame as a keyframe " << frameOrder+1 << " dist " << candidateKF_connection.first.norm() << " candidateKF_sso " << candidateKF_sso << endl;
+            // Add new keyframe
+            candidateKF->id = ++frameOrder;
+            candidateKF->node = Map.currentArea;
+
             // Update topologicalMap
             int newLocalFrameID = Map.vsAreas[Map.currentArea].size();
             int newSizeLocalSSO = newLocalFrameID+1;
+            std::cout<< "newSizeLocalSSO "<< newSizeLocalSSO  << " " << newLocalFrameID << std::endl;
             topologicalMap.vSSO[Map.currentArea].setSize(newSizeLocalSSO,newSizeLocalSSO);
             topologicalMap.vSSO[Map.currentArea](newLocalFrameID,newLocalFrameID) = 0.0;
 
-            // Track the current position. Search for Map.mmConnectionKFs in the previous frames TODO: (detect inconsistencies)
+            // Track the current position. TODO: (detect inconsistencies)
             int compareLocalIdx = newLocalFrameID-1;
+            std::cout<< "compareLocalIdx "<< compareLocalIdx << std::endl;
             // Lock map to add a new keyframe
             {boost::mutex::scoped_lock updateLock(Map.mapMutex);
                 Map.addKeyframe(candidateKF, currentPose);
@@ -412,9 +515,16 @@ public:
             Viewer.currentSphere = nearestKF;
 
             //          cout << "Add tracking SSO " << topologicalMap.vSSO[Map.currentArea].getRowCount() << " " << newLocalFrameID << " " << compareLocalIdx << endl;
-            topologicalMap.vSSO[Map.currentArea](newLocalFrameID,compareLocalIdx) = topologicalMap.vSSO[Map.currentArea](compareLocalIdx,newLocalFrameID)
-                    = candidateKF_sso;
+            topologicalMap.vSSO[Map.currentArea](newLocalFrameID,compareLocalIdx) =
+                    topologicalMap.vSSO[Map.currentArea](compareLocalIdx,newLocalFrameID) = candidateKF_sso;
             //            cout << "SSO is " << topologicalMap.vSSO[Map.currentArea](newLocalFrameID,compareLocalIdx) << endl;
+
+            // Add for Map.mmConnectionKFs in the previous frames.
+            for(unsigned link=0; link < vConnections.size(); link++)
+            {
+                Map.mmConnectionKFs[frameOrder][vConnections[link].KF_id] = vConnections[link].geomConnection;
+                topologicalMap.addConnection(unsigned(frameOrder), vConnections[link].KF_id, vConnections[link].sso);
+            }
 
             //        // Calculate distance of furthest registration (approximated, we do not know if the last frame compared is actually the furthest)
             //        std::map<unsigned, pair<unsigned,Eigen::Matrix4f> >::iterator itFurthest = Map.mmConnectionKFs[frameOrder].begin(); // Aproximated
@@ -443,26 +553,34 @@ public:
             //          loopCloser.connectionsLC.erase(it_connectLC1);
             //        }
 
-            //        // Visibility divission (Normalized-cut)
-            //        if(newLocalFrameID % 5 == 0)
-            //        {
-            //          double time_start = pcl::getTime();
-            ////          cout << "Eval partitions\n";
-            //          topologicalMap.Partitioner();
-            //
-            //          cout << "\tPlaces\n";
-            //          for( unsigned node = 0; node < Map.vsNeighborAreas.size(); node++ )
-            //          {
-            //            cout << "\t" << node << ":";
-            //            for( set<unsigned>::iterator it = Map.vsNeighborAreas[node].begin(); it != Map.vsNeighborAreas[node].end(); it++ )
-            //              cout << " " << *it;
-            //            cout << endl;
-            //          }
-            //
-            //          double time_end = pcl::getTime();
-            //          std::cout << " Eval partitions took " << double (time_end - time_start)*10e3 << std::endl;
-            //        }
+                    // Visibility divission (Normalized-cut)
+                    if(newLocalFrameID % 1 == 0)
+                    {                        
+                    for(unsigned i=0; i < Map.vTrajectoryPoses.size(); i++)
+                        cout << "pose " << i << "\n" << Map.vTrajectoryPoses[i] << endl;
 
+                      double time_start = pcl::getTime();
+            //          cout << "Eval partitions\n";
+                      topologicalMap.Partitioner();
+
+                      for(unsigned i=0; i < Map.vTrajectoryPoses.size(); i++)
+                          cout << "pose " << i << "\n" << Map.vTrajectoryPoses[i] << endl;
+
+                      cout << "\tPlaces\n";
+                      for( unsigned node = 0; node < Map.vsNeighborAreas.size(); node++ )
+                      {
+                        cout << "\t" << node << ":";
+                        for( set<unsigned>::iterator it = Map.vsNeighborAreas[node].begin(); it != Map.vsNeighborAreas[node].end(); it++ )
+                          cout << " " << *it;
+                        cout << endl;
+                      }
+
+                      double time_end = pcl::getTime();
+                      std::cout << " Eval partitions took " << double (time_end - time_start)*10e3 << "ms" << std::endl;
+                    }
+
+//                    if(Map.vsNeighborAreas.size() > 1)
+//                        mrpt::system::pause();
         }
 
         //      while (!Viewer.viewer.wasStopped() )

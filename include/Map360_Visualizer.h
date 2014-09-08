@@ -146,6 +146,7 @@ public:
             }
             else if(nVizMode == 1)
             {
+//            cout << "Draw pointClouds " << Map.vTrajectoryPoses.size() << endl;
                 // Draw the overlapping keyframe's point clouds
                 if(!bGraphSLAM)
                 {
@@ -156,7 +157,7 @@ public:
                         if (!viz.updatePointCloud (Map.vpSpheres[i]->sphereCloud, name))
                             viz.addPointCloud (Map.vpSpheres[i]->sphereCloud, name);
                         Eigen::Affine3f Rt;
-                        Rt.matrix() = Map.vTrajectoryPoses[i].cast<float>();
+                        Rt.matrix() = Map.vTrajectoryPoses[i];//.cast<float>();
                         viz.updatePointCloudPose(name, Rt);
                     }
                 }
@@ -168,7 +169,7 @@ public:
                         if (!viz.updatePointCloud (Map.vpSpheres[i]->sphereCloud, name))
                             viz.addPointCloud (Map.vpSpheres[i]->sphereCloud, name);
                         Eigen::Affine3f Rt;
-                        Rt.matrix() = Map.vOptimizedPoses[i].cast<float>();
+                        Rt.matrix() = Map.vOptimizedPoses[i];//.cast<float>();
                         viz.updatePointCloudPose(name, Rt);
                     }
                 }
@@ -192,6 +193,7 @@ public:
             pcl::PointXYZ pt_center;//, pt_center_prev;
             if(!bGraphSLAM)
             {
+                //if(Map.vsAreas.size() > 1) cout << "Draw spheres " << Map.vTrajectoryPoses.size() << endl;
                 sphere_centers.resize(Map.vTrajectoryPoses.size());
                 //        for(unsigned i=0; i < Map.vpSpheres.size(); i++)
                 for(unsigned i=0; i < Map.vTrajectoryPoses.size(); i++)
@@ -209,6 +211,7 @@ public:
                 // Draw the locations of the keyframes
                 for(unsigned i=0; i< Map.vSelectedKFs.size(); i++)
                 {
+                    //if(Map.vsAreas.size() > 1) cout << " Draw sphere " << i << " " << Map.vSelectedKFs[i] << endl;
                     pt_center = pcl::PointXYZ(Map.vTrajectoryPoses[Map.vSelectedKFs[i]](0,3), Map.vTrajectoryPoses[Map.vSelectedKFs[i]](1,3), Map.vTrajectoryPoses[Map.vSelectedKFs[i]](2,3));
                     sprintf (name, "poseKF%u", i);
                     viz.addSphere (pt_center, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name);
@@ -241,8 +244,7 @@ public:
             // Draw edges
             for(std::map<unsigned, std::map<unsigned, std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> > > >::iterator it1=Map.mmConnectionKFs.begin();
                 it1 != Map.mmConnectionKFs.end(); it1++)
-                for(std::map<unsigned, std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> > >::iterator it2=it1->second.begin();
-                    it2 != it1->second.end(); it2++)
+                for(std::map<unsigned, std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> > >::iterator it2=it1->second.begin(); it2 != it1->second.end(); it2++)
                 {
                     //          std::cout << " Draw links " << it1->first << " " << it2->first << "\n";
                     sprintf (name, "link%u_%u", it1->first, it2->first);

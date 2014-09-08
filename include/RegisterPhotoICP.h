@@ -130,6 +130,9 @@ class RegisterPhotoICP
     /*! A threshold to select salient pixels on the intensity and depth images.*/
     float thresSaliency;
 
+//    /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
+//    float SSO;
+
     /*! If set to true, only the pixels with high gradient in the gray image are used (for both photo and depth minimization) */
     std::vector<std::vector<int> > vSalientPixels;
 
@@ -149,6 +152,9 @@ class RegisterPhotoICP
     std::vector<int> num_iterations;
 
 public:
+
+    /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
+    float SSO;
 
     /*! The average residual per pixel of photo/depth consistency.*/
     float avResidual;
@@ -1319,6 +1325,7 @@ public:
         }
         else
         {
+    std::cout << "calcPhotoICPError_robot error2 " << error2 << std::endl;
 #if ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2)
 #endif
@@ -1385,6 +1392,7 @@ public:
                                     error2 += weightedErrorDepth*weightedErrorDepth;
                                 }
                             }
+//                            std::cout << " error2 " << error2 << std::endl;
                         }
                     }
                 }
@@ -1743,6 +1751,11 @@ public:
         const int nCols = graySrcPyr[pyramidLevel].cols;
         const int phi_res = nRows;
         const int theta_res = nCols;
+        const int imgSize = nRows*nCols;
+
+        Eigen::VectorXf residualsPhoto = Eigen::VectorXf::Zero(imgSize);
+        Eigen::VectorXf residualsDepth = Eigen::VectorXf::Zero(imgSize);
+        Eigen::VectorXf invDepthBuffer = Eigen::VectorXf::Zero(imgSize);
 
         const float angle_res = 2*PI/theta_res;
         const float angle_res_inv = 1/angle_res;
@@ -1838,8 +1851,8 @@ public:
 //        else
         {
 #if ENABLE_OPENMP
-//#pragma omp parallel for reduction (+:error2,numValidPts)
-#pragma omp parallel for reduction (+:PhotoResidual,nValidPhotoPts,DepthResidual,nValidDepthPts)
+#pragma omp parallel for
+//#pragma omp parallel for reduction (+:PhotoResidual,nValidPhotoPts,DepthResidual,nValidDepthPts)
 #endif
             for(int r=0;r<phi_res;r++)
             {
@@ -1848,8 +1861,8 @@ public:
 //                {
 //                    float theta = c*angle_res;
 
-//                int size_img = nRows*nCols;
-//                for(int i=0; i < size_img; i++)
+//                int imgSize = nRows*nCols;
+//                for(int i=0; i < imgSize; i++)
                 {
                     //Compute the 3D coordinates of the pij of the source frame
                     float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c);
@@ -1882,6 +1895,11 @@ public:
 //                        cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << " " << nRows << "x" << nCols << endl;
                             assert(transformed_c_int >= 0 && transformed_c_int < theta_res);
 
+                            // Discard occluded points
+                            if(invDepthBuffer(i) > 0 && dist_inv < invDepthBuffer(i))
+                                continue;
+                            invDepthBuffer(i) = dist_inv;
+
                             if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                             {
                                 if(grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int) < thresSaliency &&
@@ -1900,10 +1918,12 @@ public:
     ////                                double weight = sqrt(2*stdDevReg*photoDiff2_norm-varianceRegularization) / photoDiff2_norm;
     //                                photoDiff2 = 2*stdDevReg*sqrt(photoDiff2)-varianceRegularization;
     //                            }
-                                PhotoResidual += weightedErrorPhoto*weightedErrorPhoto;
-//                                error2 += weightedErrorPhoto*weightedErrorPhoto;
-//                            cout << "photo err " << weightedErrorPhoto << endl;
-                                ++nValidPhotoPts;
+//                                PhotoResidual += weightedErrorPhoto*weightedErrorPhoto;
+////                                error2 += weightedErrorPhoto*weightedErrorPhoto;
+////                            cout << "photo err " << weightedErrorPhoto << endl;
+//                                ++nValidPhotoPts;
+
+                                residualsPhoto(i) = weightedErrorPhoto*weightedErrorPhoto;
                             }
                             if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
                             {
@@ -1921,16 +1941,28 @@ public:
                                     float stdDev_depth1 = stdDevDepth*depth1;
                                     weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
                                     float weightedErrorDepth = weight_depth * depthDiff;
-                                    DepthResidual += weightedErrorDepth*weightedErrorDepth;
-//                                    error2 += weightedErrorDepth*weightedErrorDepth;
-//                                cout << "depth err " << weightedErrorDepth << endl;
-                                    ++nValidDepthPts;
+//                                    DepthResidual += weightedErrorDepth*weightedErrorDepth;
+////                                    error2 += weightedErrorDepth*weightedErrorDepth;
+////                                cout << "depth err " << weightedErrorDepth << endl;
+//                                    ++nValidDepthPts;
+                                    residualsDepth(i) = weightedErrorDepth*weightedErrorDepth;
                                 }
                             }
                         }
                     }
                 }
             }
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:PhotoResidual,nValidPhotoPts,DepthResidual,nValidDepthPts)
+#endif
+            for(int i=0; i < imgSize; i++)
+            {
+                PhotoResidual += residualsPhoto(i);
+                DepthResidual += residualsDepth(i);
+                if(residualsPhoto(i) > 0) ++nValidPhotoPts;
+                if(residualsDepth(i) > 0) ++nValidDepthPts;
+            }
+
         }
         avPhotoResidual = sqrt(PhotoResidual / nValidPhotoPts);
         avDepthResidual = sqrt(DepthResidual / nValidDepthPts);
@@ -1950,6 +1982,7 @@ public:
         const int nCols = graySrcPyr[pyramidLevel].cols;
         const int phi_res = nRows;
         const int theta_res = nCols;
+        const int imgSize = nRows*nCols;
 
         const float angle_res = 2*PI/theta_res;
         const float angle_res_inv = 1/angle_res;
@@ -1959,6 +1992,14 @@ public:
         hessian = Eigen::Matrix<float,6,6>::Zero();
         gradient = Eigen::Matrix<float,6,1>::Zero();
 
+        Eigen::MatrixXf jacobiansPhoto(imgSize,6);
+        Eigen::VectorXf residualsPhoto = Eigen::VectorXf::Zero(imgSize);
+        Eigen::MatrixXf jacobiansDepth(imgSize,6);
+        Eigen::VectorXf residualsDepth = Eigen::VectorXf::Zero(imgSize);
+        Eigen::VectorXi validPixelsPhoto = Eigen::VectorXi::Zero(imgSize);
+        Eigen::VectorXi validPixelsDepth = Eigen::VectorXi::Zero(imgSize);
+        Eigen::VectorXf invDepthBuffer = Eigen::VectorXf::Zero(imgSize);
+
         const Eigen::Matrix3f rotation = poseGuess.block(0,0,3,3);
         const Eigen::Vector3f translation = poseGuess.block(0,3,3,1);
 
@@ -1967,6 +2008,9 @@ public:
         float stdDevPhoto_inv = 1./stdDevPhoto;
         float stdDevDepth_inv = 1./stdDevDepth;
 
+        int numVisiblePixels = 0;
+
+        //std::cout << " calcHessianAndGradient_sphere visualizeIterations " << visualizeIterations << std::endl;
         if(visualizeIterations)
         {
             if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
@@ -2127,6 +2171,7 @@ public:
 //        }
 //        else
         {
+//            cout << "compute hessian/gradient " << endl;
 //        int countSalientPix = 0;
 #if ENABLE_OPENMP
 #pragma omp parallel for
@@ -2142,8 +2187,7 @@ public:
 //                    float theta = c*angle_res;
 
 //            {
-//                int size_img = nRows*nCols;
-//                for(int i=0; i < size_img; i++)
+//                for(int i=0; i < imgSize; i++)
 //                {
                     //Compute the 3D coordinates of the pij of the source frame
                     float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c);
@@ -2184,6 +2228,12 @@ public:
                         if( (transformed_r_int>=0 && transformed_r_int < phi_res) && transformed_c_int < theta_res )
                         {
 //                            assert(transformed_c_int >= 0 && transformed_c_int < theta_res);
+                            // Discard occluded points
+                            if(invDepthBuffer(i) > 0 && dist_inv < invDepthBuffer(i))
+                                continue;
+                            invDepthBuffer(i) = dist_inv;
+
+                            ++numVisiblePixels;
 
                             //Compute the pixel jacobian
                             Eigen::Matrix<float,3,6> jacobianT36;
@@ -2286,22 +2336,141 @@ public:
                                 if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                                 {
                                     // Photometric component
-                                    hessian += jacobianPhoto.transpose()*jacobianPhoto;
-                                    gradient += jacobianPhoto.transpose()*weightedErrorPhoto;
+//                                    hessian += jacobianPhoto.transpose()*jacobianPhoto;
+//                                    gradient += jacobianPhoto.transpose()*weightedErrorPhoto;
+                                    // Take into account the possible occlusions
+                                    jacobiansPhoto.block(r*nCols+c,0,1,6) = jacobianPhoto;
+                                    residualsPhoto(r*nCols+c) = weightedErrorPhoto;
+                                    validPixelsPhoto(r*nCols+c) = 1;
                                 }
                                 if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
                                     if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
                                 {
                                     // Depth component (Plane ICL like)
-                                    hessian += jacobianDepth.transpose()*jacobianDepth;
-                                    gradient += jacobianDepth.transpose()*weightedErrorDepth;
+//                                    hessian += jacobianDepth.transpose()*jacobianDepth;
+//                                    gradient += jacobianDepth.transpose()*weightedErrorDepth;
+                                    // Take into account the possible occlusions
+                                    jacobiansDepth.block(r*nCols+c,0,1,6) = jacobianDepth;
+                                    residualsDepth(r*nCols+c) = weightedErrorDepth;
+                                    validPixelsDepth(r*nCols+c) = 1;
                                 }
                             }
                         }
                     }
                 }
             }
+            // Compute hessian and gradient
+            float h11=0,h12=0,h13=0,h14=0,h15=0,h16=0,h22=0,h23=0,h24=0,h25=0,h26=0,h33=0,h34=0,h35=0,h36=0,h44=0,h45=0,h46=0,h55=0,h56=0,h66=0;
+            float g1=0,g2=0,g3=0,g4=0,g5=0,g6=0;
+
+            if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+            {
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:h11,h12,h13,h14,h15,h16,h22,h23,h24,h25,h26,h33,h34,h35,h36,h44,h45,h46,h55,h56,h66,g1,g2,g3,g4,g5,g6) // Cannot reduce on Eigen types
+#endif
+                for(int i=0; i < imgSize; i++)
+                    if(validPixelsPhoto(i))
+                    {
+                        h11 += jacobiansPhoto(i,0)*jacobiansPhoto(i,0);
+                        h12 += jacobiansPhoto(i,0)*jacobiansPhoto(i,1);
+                        h13 += jacobiansPhoto(i,0)*jacobiansPhoto(i,2);
+                        h14 += jacobiansPhoto(i,0)*jacobiansPhoto(i,3);
+                        h15 += jacobiansPhoto(i,0)*jacobiansPhoto(i,4);
+                        h16 += jacobiansPhoto(i,0)*jacobiansPhoto(i,5);
+                        h22 += jacobiansPhoto(i,1)*jacobiansPhoto(i,1);
+                        h23 += jacobiansPhoto(i,1)*jacobiansPhoto(i,2);
+                        h24 += jacobiansPhoto(i,1)*jacobiansPhoto(i,3);
+                        h25 += jacobiansPhoto(i,1)*jacobiansPhoto(i,4);
+                        h26 += jacobiansPhoto(i,1)*jacobiansPhoto(i,5);
+                        h33 += jacobiansPhoto(i,2)*jacobiansPhoto(i,2);
+                        h34 += jacobiansPhoto(i,2)*jacobiansPhoto(i,3);
+                        h35 += jacobiansPhoto(i,2)*jacobiansPhoto(i,4);
+                        h36 += jacobiansPhoto(i,2)*jacobiansPhoto(i,5);
+                        h44 += jacobiansPhoto(i,3)*jacobiansPhoto(i,3);
+                        h45 += jacobiansPhoto(i,3)*jacobiansPhoto(i,4);
+                        h46 += jacobiansPhoto(i,3)*jacobiansPhoto(i,5);
+                        h55 += jacobiansPhoto(i,4)*jacobiansPhoto(i,4);
+                        h56 += jacobiansPhoto(i,4)*jacobiansPhoto(i,5);
+                        h66 += jacobiansPhoto(i,5)*jacobiansPhoto(i,5);
+
+                        g1 += jacobiansPhoto(i,0)*residualsPhoto(i);
+                        g2 += jacobiansPhoto(i,1)*residualsPhoto(i);
+                        g3 += jacobiansPhoto(i,2)*residualsPhoto(i);
+                        g4 += jacobiansPhoto(i,3)*residualsPhoto(i);
+                        g5 += jacobiansPhoto(i,4)*residualsPhoto(i);
+                        g6 += jacobiansPhoto(i,5)*residualsPhoto(i);
+                    }
+            }
+            if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+            {
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:h11,h12,h13,h14,h15,h16,h22,h23,h24,h25,h26,h33,h34,h35,h36,h44,h45,h46,h55,h56,h66,g1,g2,g3,g4,g5,g6) // Cannot reduce on Eigen types
+#endif
+                for(int i=0; i < imgSize; i++)
+                    if(validPixelsDepth(i))
+                    {
+                        h11 += jacobiansDepth(i,0)*jacobiansDepth(i,0);
+                        h12 += jacobiansDepth(i,0)*jacobiansDepth(i,1);
+                        h13 += jacobiansDepth(i,0)*jacobiansDepth(i,2);
+                        h14 += jacobiansDepth(i,0)*jacobiansDepth(i,3);
+                        h15 += jacobiansDepth(i,0)*jacobiansDepth(i,4);
+                        h16 += jacobiansDepth(i,0)*jacobiansDepth(i,5);
+                        h22 += jacobiansDepth(i,1)*jacobiansDepth(i,1);
+                        h23 += jacobiansDepth(i,1)*jacobiansDepth(i,2);
+                        h24 += jacobiansDepth(i,1)*jacobiansDepth(i,3);
+                        h25 += jacobiansDepth(i,1)*jacobiansDepth(i,4);
+                        h26 += jacobiansDepth(i,1)*jacobiansDepth(i,5);
+                        h33 += jacobiansDepth(i,2)*jacobiansDepth(i,2);
+                        h34 += jacobiansDepth(i,2)*jacobiansDepth(i,3);
+                        h35 += jacobiansDepth(i,2)*jacobiansDepth(i,4);
+                        h36 += jacobiansDepth(i,2)*jacobiansDepth(i,5);
+                        h44 += jacobiansDepth(i,3)*jacobiansDepth(i,3);
+                        h45 += jacobiansDepth(i,3)*jacobiansDepth(i,4);
+                        h46 += jacobiansDepth(i,3)*jacobiansDepth(i,5);
+                        h55 += jacobiansDepth(i,4)*jacobiansDepth(i,4);
+                        h56 += jacobiansDepth(i,4)*jacobiansDepth(i,5);
+                        h66 += jacobiansDepth(i,5)*jacobiansDepth(i,5);
+
+                        g1 += jacobiansDepth(i,0)*residualsDepth(i);
+                        g2 += jacobiansDepth(i,1)*residualsDepth(i);
+                        g3 += jacobiansDepth(i,2)*residualsDepth(i);
+                        g4 += jacobiansDepth(i,3)*residualsDepth(i);
+                        g5 += jacobiansDepth(i,4)*residualsDepth(i);
+                        g6 += jacobiansDepth(i,5)*residualsDepth(i);
+                    }
+            }
+            // Assign the values for the hessian and gradient
+            hessian(0,0) = h11;
+            hessian(0,1) = hessian(1,0) = h12;
+            hessian(0,2) = hessian(2,0) = h13;
+            hessian(0,3) = hessian(3,0) = h14;
+            hessian(0,4) = hessian(4,0) = h15;
+            hessian(0,5) = hessian(5,0) = h16;
+            hessian(1,1) = h22;
+            hessian(1,2) = hessian(2,1) = h23;
+            hessian(1,3) = hessian(3,1) = h24;
+            hessian(1,4) = hessian(4,1) = h25;
+            hessian(1,5) = hessian(5,1) = h26;
+            hessian(2,2) = h33;
+            hessian(2,3) = hessian(3,2) = h34;
+            hessian(2,4) = hessian(4,2) = h35;
+            hessian(2,5) = hessian(5,2) = h36;
+            hessian(3,3) = h44;
+            hessian(3,4) = hessian(4,3) = h45;
+            hessian(3,5) = hessian(5,3) = h46;
+            hessian(4,4) = h55;
+            hessian(4,5) = hessian(5,4) = h56;
+            hessian(5,5) = h66;
+
+            gradient(0) = g1;
+            gradient(1) = g2;
+            gradient(2) = g3;
+            gradient(3) = g4;
+            gradient(4) = g5;
+            gradient(5) = g6;
         }
+        SSO = (float)numVisiblePixels / imgSize;
+//        std::cout << "numVisiblePixels " << numVisiblePixels << " imgSize " << imgSize << " sso " << SSO << std::endl;
     }
 
     /*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
@@ -2428,6 +2597,7 @@ public:
       * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution. */
     void alignFrames360(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(), costFuncType method = PHOTO_CONSISTENCY)
     {
+//    std::cout << "alignFrames360 " << std::endl;
         double align360_start = pcl::getTime();
 
         double error;
@@ -2503,15 +2673,16 @@ public:
             error = calcPhotoICPError_sphere(pyramidLevel, pose_estim, method);
             double diff_error = error;
 #if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
+//            std::cout << "pose_estim \n " << pose_estim << std::endl;
             std::cout << "Level " << pyramidLevel << " error " << error << std::endl;
-            cout << "salient " << vSalientPixels[pyramidLevel].size() << endl;
+//            cout << "salient " << vSalientPixels[pyramidLevel].size() << endl;
 #endif
             while(it < maxIters && update_pose.norm() > tol_update && diff_error > tol_residual) // The LM optimization stops either when the max iterations is reached, or when the alignment converges (error or pose do not change)
             {
 #if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
                 cv::TickMeter tm;tm.start();
 #endif
-
+//                std::cout << "calcHessianAndGradient_sphere " << std::endl;
                 calcHessianAndGradient_sphere(pyramidLevel, pose_estim, method);
 //            std::cout << "hessian \n" << hessian << std::endl;
 //            std::cout << "gradient \n" << gradient.transpose() << std::endl;

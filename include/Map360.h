@@ -42,56 +42,57 @@
  */
 struct Map360
 {
- public:
+public:
 
-  /*! Vector of spherical keyframes (created from omnidirectional RGB-D images) */
-  std::vector<Frame360*> vpSpheres;
+    /*! Vector of spherical keyframes (created from omnidirectional RGB-D images) */
+    std::vector<Frame360*> vpSpheres;
 
-  /*! Vector containing the global SE3 poses of vpSpheres (odometry) */
-  std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > vTrajectoryPoses;
+    /*! Vector containing the global SE3 poses of vpSpheres (odometry) */
+    std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > vTrajectoryPoses;
 
-  /*! Vector of the global SE3 poses optimized with graphSLAM (or pose-graph SLAM)*/
-  std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > vOptimizedPoses;
+    /*! Vector of the global SE3 poses optimized with graphSLAM (or pose-graph SLAM)*/
+    std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > vOptimizedPoses;
 
-  /*! Vector storing the euclidean distance between of each stored keyframe with respect to the previous one (the first element of the vector is neglected) */
-  std::vector<float> vTrajectoryIncrements;
+    /*! Vector storing the euclidean distance between of each stored keyframe with respect to the previous one (the first element of the vector is neglected) */
+    std::vector<float> vTrajectoryIncrements;
 
-  /*! Double map storing the connections between keyframes. Each connection stores the SE3 pose and a 6x6 covariance matrix */
-  std::map<unsigned, std::map<unsigned, std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> > > > mmConnectionKFs;
+    /*! Double map storing the connections between keyframes. Each connection stores the SE3 pose and a 6x6 covariance matrix */
+    std::map<unsigned, std::map<unsigned, std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> > > > mmConnectionKFs;
 
-  /*! Topological area where the camera was last localized */
-  unsigned currentArea;
+    /*! Topological area where the camera was last localized */
+    unsigned currentArea;
 
-  /*! std::map defining the topological areas, where they key is the topological reference and the value contains the keyframe indices */
-  std::vector< std::set<unsigned> > vsAreas;
+    /*! std::map defining the topological areas, where they key is the topological reference and the value contains the keyframe indices */
+    std::vector< std::set<unsigned> > vsAreas;
 
-  /*! Vector storing the indices of neighboring topologial nodes */
-  std::vector< std::set<unsigned> > vsNeighborAreas;
+    /*! Vector storing the indices of neighboring topologial nodes */
+    std::vector< std::set<unsigned> > vsNeighborAreas;
 
-  /*! Selected keyframes (they correspond to the most representative (most highly connected) sphere of each area) */
-  std::vector<unsigned> vSelectedKFs;
-//  std::map<unsigned, unsigned> msSelectedKFs;
+    /*! Selected keyframes (they correspond to the most representative (most highly connected) sphere of each area) */
+    std::vector<unsigned> vSelectedKFs;
+    //  std::map<unsigned, unsigned> msSelectedKFs;
 
-  /*! Local reference system for each topological area */
-  std::vector<Eigen::Matrix4f> vRef;
+    /*! Local reference system for each topological area */
+    std::vector<Eigen::Matrix4f> vRef;
 
-  /*! Mutex to syncrhronize eventual changes in the map */
-  boost::mutex mapMutex;
+    /*! Mutex to syncrhronize eventual changes in the map */
+    boost::mutex mapMutex;
 
-  Map360() //:
-//    currentArea(0)
-  {
-//    std::set<unsigned> firstArea;
-//    firstArea.reserve(100);
-//    vsAreas.push_back(firstArea);
-  }
+    Map360() //:
+    //    currentArea(0)
+    {
+        //    std::set<unsigned> firstArea;
+        //    firstArea.reserve(100);
+        //    vsAreas.push_back(firstArea);
+    }
 
-  /*! Add a new keyframe (sphere+pose) */
-  void addKeyframe(Frame360* sphere, Eigen::Matrix4f &pose)
-  {
-    vpSpheres.push_back(sphere);
-    vTrajectoryPoses.push_back(pose);
-  }
+    /*! Add a new keyframe (sphere+pose) */
+    void addKeyframe(Frame360* sphere, Eigen::Matrix4f &pose)
+    {
+        sphere->pose = pose;
+        vpSpheres.push_back(sphere);
+        vTrajectoryPoses.push_back(pose);
+    }
 };
 
 #endif

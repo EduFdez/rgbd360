@@ -114,6 +114,15 @@ class LoopClosure360
     int minMatchesThreshold = 5; // Thresholds for the loop closure to reduce the number of inconsistent matches
     float areaThreshold = 15.0;
 
+    // Dense RGB-D alignment
+    RegisterPhotoICP align360;
+    align360.setNumPyr(5);
+    align360.useSaliency(false);
+    //align360.setVisualization(true);
+    align360.setGrayVariance(3.f/255);
+    float angleOffset = 157.5;
+    Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
+
     // The first keyframe should always correspond with the frame of reference (Identity). WARNING: if this is not like that, then some changes have to be done!!!
     while(!bShouldStop) // Infinite loop
     {
@@ -164,7 +173,7 @@ class LoopClosure360
 
 //      std::cout << "Check loop closure with " << compareLocalIdx << " \n";
           float distance = (newPose.block(0,3,3,1) - Map.vTrajectoryPoses[compareLocalIdx].block(0,3,3,1)).norm();
-          float Threshold_distance = std::max(2.f, factorDistance*(Map.vTrajectoryIncrements[newFrameID] - Map.vTrajectoryIncrements[compareLocalIdx]) );
+          float Threshold_distance = std::max(3.f, factorDistance*(Map.vTrajectoryIncrements[newFrameID] - Map.vTrajectoryIncrements[compareLocalIdx]) );
           if( distance < Threshold_distance )
           {
           std::cout << "Check loop closure between " << newFrameID << " " << compareLocalIdx << "\n";
@@ -175,19 +184,16 @@ class LoopClosure360
               Eigen::Matrix4f relativePose = registerer.getPose();
               Eigen::Matrix<float,6,6> informationMatrix = registerer.getInfoMat();
 
-//              // Refine registration
-//              RegisterPhotoICP align360;
-//              Map.vpSpheres[compareLocalIdx]->stitchSphericalImage();
-//              newKF->stitchSphericalImage();
-//          //    align360.useSaliency(true);
-//              align360.setSourceFrame(Map.vpSpheres[compareLocalIdx]->sphereRGB, Map.vpSpheres[compareLocalIdx]->sphereDepth); // The reference keyframe
-//              align360.setTargetFrame(newKF->sphereRGB, newKF->sphereDepth);
-////              align360.setVisualization(true);
-//              align360.setGrayVariance(5.f/255);
-//          //    align360.alignFrames360(relPosePbMap.cast<double>(), RegisterPhotoICP::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//              align360.alignFrames360(relativePose, RegisterPhotoICP::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//              Eigen::Matrix4f relativePoseDense = align360.getOptimalPose();
-//              Eigen::Matrix<float,6,6> informationMatrixDense = align360.getHessian();
+              // Refine registration
+              RegisterPhotoICP align360;
+              Map.vpSpheres[compareLocalIdx]->stitchSphericalImage();
+              newKF->stitchSphericalImage();
+              align360.setSourceFrame(Map.vpSpheres[compareLocalIdx]->sphereRGB, Map.vpSpheres[compareLocalIdx]->sphereDepth); // The reference keyframe
+              align360.setTargetFrame(newKF->sphereRGB, newKF->sphereDepth);
+              Eigen::Matrix4f initTransf_dense = rotOffset * relativePose * rotOffset.inverse();
+              align360.alignFrames360(initTransf_dense, RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+              relativePose = rotOffset.inverse() * align360.getOptimalPose() * rotOffset;
+              informationMatrix = align360.getHessian();
 
               optimizer.addEdge(compareLocalIdx, newFrameID, relativePose.cast<double>(), informationMatrix.cast<double>());
               Map.mmConnectionKFs[newFrameID][compareLocalIdx] = std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> >(relativePose, informationMatrix);
