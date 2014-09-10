@@ -174,7 +174,7 @@ public:
     //    optimizer.setUserLambdaInit(0.01);
 
         optimizer.computeActiveErrors();
-        cout << "Initial chi2 = " << FIXED(optimizer.chi2()) << endl;
+//        cout << "Initial chi2 = " << FIXED(optimizer.chi2()) << endl;
 
         optimizer.setVerbose(true);
 

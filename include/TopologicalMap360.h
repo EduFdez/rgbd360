@@ -373,7 +373,7 @@ public:
         if(SSO.getRowCount() < 3)
             return;
 
-        mrpt::graphs::CGraphPartitioner<mrpt::math::CMatrix>::RecursiveSpectralPartition(SSO, parts, 0.2, false, true, true, 3);
+        mrpt::graphs::CGraphPartitioner<mrpt::math::CMatrix>::RecursiveSpectralPartition(SSO, parts, 0.4, false, true, true, 3);
         std::cout << "Time RecursiveSpectralPartition " << time.Tac()*1000 << "ms" << std::endl;
 
         int numberOfNewMaps = parts.size() - numPrevNeigNodes;

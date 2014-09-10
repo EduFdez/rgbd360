@@ -273,7 +273,10 @@ public:
             else if(event.getKeySym () == "l" || event.getKeySym () == "L")
                 bGraphSLAM = !bGraphSLAM;
             else if(event.getKeySym () == "m" || event.getKeySym () == "M")
+            {
                 nVizMode = (nVizMode+1) % 4;
+                std::cout << "Visualizatio swap to mode " << nVizMode << endl;
+            }
         }
     }
 

@@ -40,7 +40,7 @@ IF(BUILD_SLAM)
 						../include/LoopClosure360.h
 						../include/GraphOptimizer.h
 
-						#../GraphOptimization/GraphOptimizer_.h
+						#../GraphOptimization/GraphOptimizer.h
 						#../GraphOptimization/GraphOptimizer_G2O.h
 						#../GraphOptimization/GraphOptimizer_G2O.cpp
 						#../GraphOptimization/GraphOptimizer_MRPT.h

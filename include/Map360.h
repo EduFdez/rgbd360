@@ -65,10 +65,10 @@ public:
     /*! std::map defining the topological areas, where they key is the topological reference and the value contains the keyframe indices */
     std::vector< std::set<unsigned> > vsAreas;
 
-    /*! Vector storing the indices of neighboring topologial nodes */
+    /*! Vector storing the indices of neighboring topologial nodes (it also contains the current node) */
     std::vector< std::set<unsigned> > vsNeighborAreas;
 
-    /*! Selected keyframes (they correspond to the most representative (most highly connected) sphere of each area) */
+    /*! Selected keyframes: they correspond to the most representative (most highly connected) sphere of each area. It is represented in global indexation */
     std::vector<unsigned> vSelectedKFs;
     //  std::map<unsigned, unsigned> msSelectedKFs;
 
