@@ -53,7 +53,7 @@ IF(BUILD_SLAM)
 					${PCL_LIBRARIES}
 					${Boost_SERIALIZATION_LIBRARY}
 					${G2O_LIBS}
-				   boost_serialization
+				   	boost_serialization
 					   )
 
 	# Declare the target (an executable)

@@ -379,6 +379,12 @@ public:
                 continue;
             }
 
+            // The last frame is a candidate for a KF
+            candidateKF = frame360;
+            candidateKF_connection.first = rigidTransf_dense;
+            candidateKF_connection.second = align360.getHessian();
+            candidateKF_sso = align360.SSO;
+
             // Check registration with nearby keyframes
             vector<connection> vConnections;
             unsigned kf;
@@ -451,13 +457,9 @@ public:
             }
 
 
-            candidateKF = frame360;
-            candidateKF_connection.first = rigidTransf_dense;
-            candidateKF_connection.second = align360.getHessian();
-            candidateKF_sso = align360.SSO;
             cout << "SSO " << align360.SSO << endl;
             cout << "Select keyframe " << frame360->id << endl;
-            cout << "Information \n" << align360.getHessian() << endl;
+            cout << "Information \n" << candidateKF_connection.second << endl;
             rigidTransf_dense_ref = Eigen::Matrix4f::Identity();
 
             ++lastTrackedKF;
@@ -526,12 +528,15 @@ public:
 
             currentPose = currentPose * candidateKF_connection.first;
             std::cout<< "Added vertex: "<< optimizer.addVertex(currentPose.cast<double>()) << std::endl;
+            std::cout<< "Added addEdge:" << nearestKF << " " << Map.vpSpheres.size() << "\n" << candidateKF_connection.first.cast<double>() << "\n";
             optimizer.addEdge(nearestKF, Map.vpSpheres.size(), candidateKF_connection.first.cast<double>(), candidateKF_connection.second.cast<double>());
+            std::cout<< "Added addEdge:\n";
 
             Map.vTrajectoryIncrements.push_back(Map.vTrajectoryIncrements.back() + candidateKF_connection.first.block(0,3,3,1).norm());
-
+std::cout<< "Added addEdge:\n";
             // Filter cloud
             filter.filterEuclidean(candidateKF->sphereCloud);
+    std::cout<< "filterEuclidean:\n";
 
             cout << "\tGet previous frame as a keyframe " << frameOrder+1 << " dist " << candidateKF_connection.first.norm() << " candidateKF_sso " << candidateKF_sso << endl;
             // Add new keyframe

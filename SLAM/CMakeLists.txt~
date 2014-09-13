@@ -80,6 +80,7 @@ IF(BUILD_SLAM)
 					${OpenCV_LIBS}
 					${PCL_LIBRARIES}
 					${Boost_SERIALIZATION_LIBRARY}
+					${G2O_LIBS}
 				   boost_serialization
 					   )
 ENDIF(BUILD_SLAM)
