@@ -25,6 +25,9 @@
 #include <g2o/types/slam2d/vertex_se2.h>
 #include <g2o/types/slam2d/edge_se2.h>
 
+//#include <include/RRR.hpp>
+//typedef RRR < G2O_Interface	< g2o::VertexSE2, g2o::EdgeSE2> > RRR_3D_G2O;
+
 #include <vector>
 #include <Eigen/Core>
 //#include <Eigen/Quaternion.h>
@@ -41,6 +44,8 @@ private:
     g2o::SparseOptimizer optimizer;
     g2o::BlockSolverX::LinearSolverType * linearSolver;
     g2o::BlockSolverX * solver_ptr;
+
+//    RRR_3D_G2O *rrr;
 
 public:
 
@@ -65,6 +70,12 @@ public:
 
         //Set the vertex index to 0
         vertexIdx=0;
+
+//        /* Initialized RRR with the parameters defined */
+//        int clusteringThreshold = 10;
+//        int nIter = 4;
+//        rrr = new RRR_3D_G2O(clusteringThreshold,nIter);
+//        rrr->setOptimizer(&optimizer);
     }
 
     /*! Adds a new vertex to the graph. The provided 4x4 matrix will be considered as the pose of the new added vertex. It returns the index of the added vertex.*/
@@ -180,6 +191,15 @@ public:
 
         //Run optimization
         optimizer.optimize(10);
+
+        /* Find loop closure that are consistent
+         * If the function is passed a bool variable with value true,
+         * it will automatically elimiate all the wrong loops from the
+         * original optimizer. Otherwise, the function removeIncorrectLoops()
+         * can be called to do the same.
+         */
+//        rrr->robustify();
+//        rrr->removeIncorrectLoops();
     }
 
     /*! Returns a vector with all the optimized poses of the graph.*/

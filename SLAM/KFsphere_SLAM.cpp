@@ -38,7 +38,7 @@
 #include <Relocalizer360.h>
 #include <LoopClosure360.h>
 #include <FilterPointCloud.h>
-#include "GraphOptimizer.h" // Pose-Graph optimization
+#include <GraphOptimizer.h> // Pose-Graph optimization
 
 //#include <pcl/registration/icp.h>
 //#include <pcl/registration/icp_nl.h> //ICP LM

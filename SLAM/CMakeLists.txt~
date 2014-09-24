@@ -2,15 +2,21 @@ IF(BUILD_SLAM)
 
 	# G2O library
 	# Set up the top-level include directories
-	SET(G2O_INCLUDE ${RGBD360_SOURCE_DIR}/../g2o/trunk CACHE PATH "Directory of G2O")
-	INCLUDE_DIRECTORIES(${G2O_INCLUDE})
+	#SET(G2O_INCLUDE ${RGBD360_SOURCE_DIR}/../g2o/trunk CACHE PATH "Directory of G2O")
+	SET(G2O_INCLUDE ${RGBD360_SOURCE_DIR}/../g2o_latif/trunk CACHE PATH "Directory of G2O")
+        INCLUDE_DIRECTORIES(${G2O_INCLUDE})
 
-	# Add g2o lib dir
-	LINK_DIRECTORIES(${G2O_INCLUDE}/lib)
+        # Add rrr lib dir
+        SET(RRR_INCLUDE ${RGBD360_SOURCE_DIR}/../rrr CACHE PATH "Directory of RRR")
+        INCLUDE_DIRECTORIES(${RRR_INCLUDE})
+
+        #LINK_DIRECTORIES(${G2O_INCLUDE}/lib)
 
 	#Generate config.h 
-	configure_file(${RGBD360_SOURCE_DIR}/../g2o/trunk/config.h.in ${RGBD360_SOURCE_DIR}/../g2o/trunk/g2o/config.h)
-	INSTALL(FILES ${RGBD360_SOURCE_DIR}/../g2o/trunk/g2o/config.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/g2o)
+	#configure_file(${RGBD360_SOURCE_DIR}/../g2o/trunk/config.h.in ${RGBD360_SOURCE_DIR}/../g2o/trunk/g2o/config.h)
+	#INSTALL(FILES ${RGBD360_SOURCE_DIR}/../g2o/trunk/g2o/config.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/g2o)
+	configure_file(${RGBD360_SOURCE_DIR}/../g2o_latif/trunk/config.h.in ${RGBD360_SOURCE_DIR}/../g2o_latif/trunk/g2o/config.h)
+	INSTALL(FILES ${RGBD360_SOURCE_DIR}/../g2o_latif/trunk/g2o/config.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/g2o)
 
 	# Include the subdirectories
 	#ADD_SUBDIRECTORY(g2o/trunk)
@@ -22,7 +28,8 @@ IF(BUILD_SLAM)
 	#include_directories(${G2O_DIR})
 	#link_directories(${G2O_DIR}/lib)
 
-	SET(G2O_LIBS g2o_cli g2o_ext_freeglut_minimal g2o_simulator g2o_solver_slam2d_linear g2o_types_icp g2o_types_slam2d g2o_core g2o_interface g2o_solver_csparse g2o_solver_structure_only g2o_types_sba g2o_types_slam3d g2o_csparse_extension g2o_opengl_helper g2o_solver_dense g2o_stuff g2o_types_sclam2d g2o_viewer g2o_ext_csparse g2o_parser g2o_solver_pcg g2o_types_data g2o_types_sim3 cxsparse ${CHOLMOD_LIBRARIES})
+	#SET(G2O_LIBS g2o_cli g2o_ext_freeglut_minimal g2o_simulator g2o_solver_slam2d_linear g2o_types_icp g2o_types_slam2d g2o_core g2o_interface g2o_solver_csparse g2o_solver_structure_only g2o_types_sba g2o_types_slam3d g2o_csparse_extension g2o_opengl_helper g2o_solver_dense g2o_stuff g2o_types_sclam2d g2o_viewer g2o_ext_csparse g2o_parser g2o_solver_pcg g2o_types_data g2o_types_sim3 cxsparse ${CHOLMOD_LIBRARIES})
+	SET(G2O_LIBS g2o_cli g2o_ext_freeglut_minimal g2o_simulator g2o_solver_slam2d_linear g2o_types_icp g2o_types_slam2d g2o_core g2o_interface g2o_solver_csparse g2o_solver_structure_only g2o_types_sba g2o_types_slam3d g2o_csparse_extension g2o_opengl_helper g2o_solver_dense g2o_stuff g2o_types_sclam2d g2o_viewer g2o_parser g2o_solver_pcg g2o_types_data g2o_types_sim3 cxsparse ${CHOLMOD_LIBRARIES})
 
 	#INCLUDE_DIRECTORIES(${RGBD360_SOURCE_DIR}/GraphOptimization)
 
@@ -53,7 +60,7 @@ IF(BUILD_SLAM)
 					${PCL_LIBRARIES}
 					${Boost_SERIALIZATION_LIBRARY}
 					${G2O_LIBS}
-				   boost_serialization
+				   	boost_serialization
 					   )
 
 	# Declare the target (an executable)
