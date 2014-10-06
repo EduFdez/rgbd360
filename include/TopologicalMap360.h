@@ -51,9 +51,12 @@ private:
     //  RegisterRGBD360 registerer;
 
     /*! SSO matrices coupling adjacent topological areas */
-    std::map<unsigned, std::map<unsigned, mrpt::math::CMatrix> > mmNeigSSO;  // A sub-map also contains the SSO matrix w.r.t. its neighbors (with bigger index)
+    std::map<unsigned, std::map<unsigned, mrpt::math::CMatrix> > mmNeigSSO;  // A sub-map also contains the SSO matrix w.r.t. its neighbors (bigger index neighbours)
 
 public:
+
+//    /*! SSO matrices coupling adjacent topological areas */
+//    std::map<unsigned, std::map<unsigned, mrpt::math::CMatrix> > mmNeigSSO;  // A sub-map also contains the SSO matrix w.r.t. its neighbors (with bigger index)
 
     //  /*! Mutex to syncrhronize eventual changes in the map topological arrangement */
     //  boost::mutex topologicalMutex;
@@ -74,6 +77,32 @@ public:
 
     }
 
+    /*! Add new KFs. This set the size of the SSO matrices of the current Area and its neighbor connections */
+    void addKeyframe(unsigned currentArea)
+    {
+        int newLocalFrameID = vSSO[Map.currentArea].getColCount();
+        int newSizeLocalSSO = newLocalFrameID + 1;
+        // Re-adjust size of adjacency matrices
+        for(std::set<unsigned>::iterator it=Map.vsNeighborAreas[Map.currentArea].begin(); it != Map.vsNeighborAreas[Map.currentArea].end(); it++)
+        {
+            if(*it == Map.currentArea)
+            {
+                vSSO[Map.currentArea].setSize(newSizeLocalSSO,newSizeLocalSSO);
+                vSSO[Map.currentArea](newLocalFrameID,newLocalFrameID) = 0.0;
+            }
+            else if(*it < Map.currentArea)
+            {
+                std::cout << " sizeSSO neig1 " << *it << " " << Map.currentArea << " " << mmNeigSSO[*it][Map.currentArea].getRowCount() << " " << mmNeigSSO[*it][Map.currentArea].getColCount() << std::endl;
+                mmNeigSSO[*it][Map.currentArea].setSize(mmNeigSSO[*it][Map.currentArea].getRowCount(), newSizeLocalSSO);
+            }
+            else
+            {
+                std::cout << " sizeSSO neig2 "<< Map.currentArea << " " << *it  << " " << mmNeigSSO[Map.currentArea][*it].getRowCount() << " " << mmNeigSSO[Map.currentArea][*it].getColCount() << std::endl;
+                mmNeigSSO[Map.currentArea][*it].setSize(newSizeLocalSSO, mmNeigSSO[Map.currentArea][*it].getColCount());
+            }
+        }
+    }
+
     /*! Add new connection between two KFs */
     void addConnection(unsigned kf1_global, unsigned kf2_global, float &sso)
     {
@@ -89,9 +118,15 @@ public:
             Map.vsNeighborAreas[Map.vpSpheres[kf1_global]->node].insert( Map.vpSpheres[kf2_global]->node );
             Map.vsNeighborAreas[Map.vpSpheres[kf2_global]->node].insert( Map.vpSpheres[kf1_global]->node );
 
-            unsigned node1 = Map.vpSpheres[kf1_global]->node < Map.vpSpheres[kf2_global]->node ? Map.vpSpheres[kf1_global]->node : Map.vpSpheres[kf2_global]->node;
-            unsigned node2 = Map.vpSpheres[kf1_global]->node > Map.vpSpheres[kf2_global]->node ? Map.vpSpheres[kf1_global]->node : Map.vpSpheres[kf2_global]->node;
-            mmNeigSSO[node1][node2](kf1_local_ord, kf2_local_ord) = mmNeigSSO[node1][node2](kf2_local_ord, kf1_local_ord) = sso;
+//            unsigned node1 = Map.vpSpheres[kf1_global]->node < Map.vpSpheres[kf2_global]->node ? Map.vpSpheres[kf1_global]->node : Map.vpSpheres[kf2_global]->node;
+//            unsigned node2 = Map.vpSpheres[kf1_global]->node > Map.vpSpheres[kf2_global]->node ? Map.vpSpheres[kf1_global]->node : Map.vpSpheres[kf2_global]->node;
+//            if(kf1_local_ord >= Map.vsAreas[node1].size() || kf2_local_ord >= Map.vsAreas[node2].size())
+//                std::cout << "Nodes " << Map.vsAreas[node1].size() << " " << kf1_local_ord << " " << Map.vsAreas[node2].size() << " " << kf2_local_ord << " nSSO " << mmNeigSSO[node1][node2].getRowCount() << "x" << mmNeigSSO[node1][node2].getColCount() << std::endl;
+//            mmNeigSSO[node1][node2](kf1_local_ord, kf2_local_ord) = mmNeigSSO[node1][node2](kf2_local_ord, kf1_local_ord) = sso;
+            if(Map.vpSpheres[kf1_global]->node < Map.vpSpheres[kf2_global]->node)
+                mmNeigSSO[Map.vpSpheres[kf1_global]->node][Map.vpSpheres[kf2_global]->node](kf1_local_ord, kf2_local_ord) = sso;
+            else
+                mmNeigSSO[Map.vpSpheres[kf2_global]->node][Map.vpSpheres[kf1_global]->node](kf2_local_ord, kf1_local_ord) = sso;
         }
     }
 
@@ -276,12 +311,12 @@ public:
             {
                 std::cout << " with neighbor " << neig1st->first << std::endl;
                 // Check for non-zero elements
-                for( unsigned KF_pos1st = 0; KF_pos1st < Map.vsAreas[neig1st->first].size(); KF_pos1st++ )
+//                for( unsigned KF_pos1st = 0; KF_pos1st < Map.vsAreas[neig1st->first].size(); KF_pos1st++ )
+                for( unsigned KF_pos1st = 0; KF_pos1st < neig1st->second.getColCount(); KF_pos1st++ )
                 {
-                    for( unsigned KF_pos2nd = 0; KF_pos2nd < Map.vsAreas[neig2nd->first].size(); KF_pos2nd++ )
+//                    for( unsigned KF_pos2nd = 0; KF_pos2nd < Map.vsAreas[neig2nd->first].size(); KF_pos2nd++ )
+                    for( unsigned KF_pos2nd = 0; KF_pos2nd < neig1st->second.getRowCount(); KF_pos2nd++ )
                     {
-                        if( KF_pos2nd >= neig1st->second.getRowCount() || KF_pos1st >= neig1st->second.getColCount() )
-                            assert(false);
                         //                std::cout << "Matrix dimensions " << neig1st->second.getRowCount() << "x" << neig1st->second.getColCount() << " trying to access " << KF_pos2nd << " " << KF_pos1st << std::endl;
                         if( neig1st->second(KF_pos2nd,KF_pos1st) > 0 )
                         {
@@ -373,7 +408,7 @@ public:
         if(SSO.getRowCount() < 3)
             return;
 
-        mrpt::graphs::CGraphPartitioner<mrpt::math::CMatrix>::RecursiveSpectralPartition(SSO, parts, 0.4, false, true, true, 3);
+        mrpt::graphs::CGraphPartitioner<mrpt::math::CMatrix>::RecursiveSpectralPartition(SSO, parts, 0.8, false, true, true, 3);
         std::cout << "Time RecursiveSpectralPartition " << time.Tac()*1000 << "ms" << std::endl;
 
         int numberOfNewMaps = parts.size() - numPrevNeigNodes;

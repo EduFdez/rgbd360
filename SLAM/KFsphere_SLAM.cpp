@@ -213,7 +213,7 @@ public:
         // Filter the point clouds before visualization
         FilterPointCloud filter;
 
-        int frame = 312; // Skip always the first frame, which sometimes contains errors
+        int frame = 282; // Skip always the first frame, which sometimes contains errors
         int frameOrder = 0;
 
         Eigen::Matrix4f currentPose = Eigen::Matrix4f::Identity();
@@ -236,7 +236,7 @@ public:
         filter.filterEuclidean(frame360->sphereCloud);
 
         Map.addKeyframe(frame360,currentPose);
-        Map.vOptimizedPoses.push_back( currentPose );
+//        Map.vOptimizedPoses.push_back( currentPose );
         Map.vSelectedKFs.push_back(0);
         Map.vTrajectoryIncrements.push_back(0);
 
@@ -263,6 +263,7 @@ public:
         GraphOptimizer optimizer;
         optimizer.setRigidTransformationType(GraphOptimizer::SixDegreesOfFreedom);
         std::cout << "Added vertex: "<< optimizer.addVertex(currentPose.cast<double>()) << std::endl;
+        bool bHasNewLC = false;
 
         Frame360 *candidateKF = NULL; // A reference to the last registered frame to add as a keyframe when needed
         std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> > candidateKF_connection; // The register information of nearestKF
@@ -280,8 +281,8 @@ public:
         align360.useSaliency(false);
         //        align360.setVisualization(true);
         align360.setGrayVariance(3.f/255);
-//        float selectKF_ICPdist = 0.9f;
-        float selectKF_ICPdist = 1.1f;
+        double selectKF_ICPdist = 0.9;
+//        double selectKF_ICPdist = 1.1;
         double thresholdConnections = 1.5;
         Eigen::Matrix4f rigidTransf_dense = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f rigidTransf_dense_ref = rigidTransf_dense;
@@ -309,37 +310,37 @@ public:
             frame += selectSample;
             fileName = path + mrpt::format("/sphere_images_%d.bin",frame);
 
-            //            // Register the pair of frames
-            //            bGoodTracking = registerer.RegisterPbMap(Map.vpSpheres[nearestKF], frame360, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
-            //            Matrix4f trackedRelPose = registerer.getPose();
-            //            cout << "bGoodTracking " << bGoodTracking << " with " << nearestKF << ". Distance "
-            //                 << registerer.getPose().block(0,3,3,1).norm() << " entropy " << registerer.calcEntropy() << " matches " << registerer.getMatchedPlanes().size() << " area " << registerer.getAreaMatched() << endl;
+            // Register the pair of frames
+            bGoodTracking = registerer.RegisterPbMap(Map.vpSpheres[nearestKF], frame360, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
+            Matrix4f trackedPosePbMap = registerer.getPose();
+            cout << "bGoodTracking " << bGoodTracking << " with " << nearestKF << ". Distance "
+                 << registerer.getPose().block(0,3,3,1).norm() << " entropy " << registerer.calcEntropy() << " matches " << registerer.getMatchedPlanes().size() << " area " << registerer.getAreaMatched() << endl;
 
             //            // If the registration is good, do not evaluate this KF and go to the next
-            //            if( bGoodTracking  && registerer.getMatchedPlanes().size() >= min_planes_registration && registerer.getAreaMatched() > 6 )//&& registerer.getPose().block(0,3,3,1).norm() < 1.5 )
+            //            if( bGoodTracking  && registerer.getMatchedPlanes().size() >= min_planes_registration && registerer.getAreaMatched() > 12 )//&& registerer.getPose().block(0,3,3,1).norm() < 1.5 )
             //                //        if( bGoodTracking && registerer.getMatchedPlanes().size() > 6 && registerer.getPose().block(0,3,3,1).norm() < 1.0 )
             //            {
             //                float dist_odometry = 0; // diff_roatation
             //                if(candidateKF)
-            //                    dist_odometry = (candidateKF_connection.first.block(0,3,3,1) - trackedRelPose.block(0,3,3,1)).norm();
+            //                    dist_odometry = (candidateKF_connection.first.block(0,3,3,1) - trackedPosePbMap.block(0,3,3,1)).norm();
             //                //          else
-            //                //            dist_odometry = trackedRelPose.norm();
+            //                //            dist_odometry = trackedPosePbMap.norm();
             //                if( dist_odometry < max_translation_odometry ) // Check that the registration is coherent with the camera movement (i.e. in odometry the registered frames must lay nearby)
             //                {
-            //                    if(trackedRelPose.block(0,3,3,1).norm() > min_dist_keyframes) // Minimum distance to select a possible KF
+            //                    if(trackedPosePbMap.block(0,3,3,1).norm() > min_dist_keyframes) // Minimum distance to select a possible KF
             //                    {
             //                        cout << "Set candidateKF \n";
             //                        if(candidateKF)
             //                            delete candidateKF; // Delete previous candidateKF
 
             //                        candidateKF = frame360;
-            //                        candidateKF_connection.first = trackedRelPose;
+            //                        candidateKF_connection.first = trackedPosePbMap;
             //                        candidateKF_connection.second = registerer.getInfoMat();
             //                        candidateKF_sso = registerer.getAreaMatched() / registerer.areaSource;
             //                    }
 
             //                    { boost::mutex::scoped_lock updateLockVisualizer(Viewer.visualizationMutex);
-            //                        Viewer.currentLocation.matrix() = (currentPose * trackedRelPose);
+            //                        Viewer.currentLocation.matrix() = (currentPose * trackedPosePbMap);
             //                        Viewer.bDrawCurrentLocation = true;
             //                    }
 
@@ -350,32 +351,47 @@ public:
             //                continue; // Eval next frame
             //            }
 
+            if(bGoodTracking && registerer.getMatchedPlanes().size() >= 6 && registerer.getAreaMatched() > 12)
+            {
+                delete frame360;
+                rigidTransf_dense_ref = rotOffset * trackedPosePbMap * rotOffset.inverse();
+
+                { boost::mutex::scoped_lock updateLockVisualizer(Viewer.visualizationMutex);
+                    Viewer.currentLocation.matrix() = (currentPose * rigidTransf_dense);
+                    Viewer.bDrawCurrentLocation = true;
+                }
+
+                cout << " skip frame PbMap " << endl;
+                continue;
+            }
+
             cout << "Align Spheres " << frame360->id << " and " << Map.vpSpheres[nearestKF]->id << endl;
             double time_start_dense = pcl::getTime();
             align360.setTargetFrame(Map.vpSpheres[nearestKF]->sphereRGB, Map.vpSpheres[nearestKF]->sphereDepth);
             align360.setSourceFrame(frame360->sphereRGB, frame360->sphereDepth);
+//            rigidTransf_dense_ref = rotOffset * registerer.getPose() * rotOffset.inverse();
             align360.alignFrames360(rigidTransf_dense_ref, RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             Eigen::Matrix4f rigidTransf_dense_ref_prev = rigidTransf_dense_ref;
             rigidTransf_dense_ref = align360.getOptimalPose();
             rigidTransf_dense = rotOffset.inverse() * rigidTransf_dense_ref * rotOffset;
             double time_end_dense = pcl::getTime();
-            std::cout << "Dense " << (time_end_dense - time_start_dense) << std::endl;
+            //std::cout << "Dense " << (time_end_dense - time_start_dense) << std::endl;
             double depth_residual = align360.avDepthResidual;
             cout << " Residuals: " << align360.avPhotoResidual << " " << align360.avDepthResidual;
-            cout << " regist \n" << rigidTransf_dense << endl;
+            //cout << " regist \n" << rigidTransf_dense << endl;
+
+            { boost::mutex::scoped_lock updateLockVisualizer(Viewer.visualizationMutex);
+                Viewer.currentLocation.matrix() = (currentPose * rigidTransf_dense);
+                Viewer.bDrawCurrentLocation = true;
+            }
 
             if(align360.avDepthResidual < selectKF_ICPdist && isOdometryContinuousMotion(rigidTransf_dense_ref_prev, rigidTransf_dense_ref, 0.2))
             {
 //                assert(align360.avDepthResidual < 1.5);
 
-                //                { boost::mutex::scoped_lock updateLockVisualizer(Viewer.visualizationMutex);
-                //                    Viewer.currentLocation.matrix() = (currentPose * rigidTransf_dense);
-                //                    Viewer.bDrawCurrentLocation = true;
-                //                }
-
                 delete frame360;
                 //                bPrevKFSelected = false;
-                cout << "skip frame " << endl;
+                cout << " skip frame " << endl;
                 continue;
             }
 
@@ -445,10 +461,12 @@ public:
                 }
             if(align360.avDepthResidual < selectKF_ICPdist)
             {
+                cout << "\t align360.avDepthResidual " << align360.avDepthResidual << " " << selectKF_ICPdist << " " << kf << endl;
                 if(align360.avDepthResidual < depth_residual)
                 {
                     currentPose = Map.vpSpheres[kf]->pose;
                     nearestKF = kf;
+                    Viewer.currentSphere = nearestKF;
                     cout << "\t nearestKF " << nearestKF << endl;
                 }
                 delete frame360;
@@ -481,12 +499,6 @@ public:
             //                {
             //                    double time_end = pcl::getTime();
             //                    std::cout << "Relocalization in " << Map.vpSpheres.size() << " KFs map took " << double (time_end - time_start) << std::endl;
-            //                    {
-            //                        boost::mutex::scoped_lock updateLockVisualizer(Viewer.visualizationMutex);
-            //                        Viewer.currentLocation.matrix() = (currentPose * trackedRelPose).cast<float>();
-            //                        Viewer.bDrawCurrentLocation = true;
-            //                    }
-
             //                    lastTrackedKF = 0;
             //                    candidateKF = frame360;
             //                    candidateKF_connection.first = relocalizer.registerer.getPose();
@@ -530,10 +542,19 @@ public:
             std::cout<< "Added vertex: "<< optimizer.addVertex(currentPose.cast<double>()) << std::endl;
             std::cout<< "Added addEdge:" << nearestKF << " " << Map.vpSpheres.size() << "\n" << candidateKF_connection.first.cast<double>() << "\n";
             optimizer.addEdge(nearestKF, Map.vpSpheres.size(), candidateKF_connection.first.cast<double>(), candidateKF_connection.second.cast<double>());
-            std::cout<< "Added addEdge:\n";
+
+            std::cout<< " Edge PbMap: " << bGoodTracking << " " << registerer.getMatchedPlanes().size() << " " << registerer.getAreaMatched() << " " << diffRotation(trackedPosePbMap, rigidTransf_dense) << " " << difTranslation(trackedPosePbMap, rigidTransf_dense) << "\n";
+
+            if(bGoodTracking && registerer.getMatchedPlanes().size() >= 4 && registerer.getAreaMatched() > 6)
+                if(diffRotation(trackedPosePbMap, rigidTransf_dense) < 5 && difTranslation(trackedPosePbMap, rigidTransf_dense) < 0.1) // If the difference is less than 5º and 10 cm, add the PbMap connection
+                {
+                    optimizer.addEdge(nearestKF, Map.vpSpheres.size(), trackedPosePbMap.cast<double>(), registerer.getInfoMat().cast<double>());
+                    std::cout<< "Added addEdge PbMap\n";
+                    std::cout<< "Edge PbMap\n" << registerer.getInfoMat() << endl;
+                    std::cout<< "Edge Dense" << candidateKF_connection.second << endl;
+                }
 
             Map.vTrajectoryIncrements.push_back(Map.vTrajectoryIncrements.back() + candidateKF_connection.first.block(0,3,3,1).norm());
-std::cout<< "Added addEdge:\n";
             // Filter cloud
             filter.filterEuclidean(candidateKF->sphereCloud);
     std::cout<< "filterEuclidean:\n";
@@ -545,10 +566,26 @@ std::cout<< "Added addEdge:\n";
 
             // Update topologicalMap
             int newLocalFrameID = Map.vsAreas[Map.currentArea].size();
-            int newSizeLocalSSO = newLocalFrameID+1;
-            std::cout<< "newSizeLocalSSO "<< newSizeLocalSSO  << " " << newLocalFrameID << std::endl;
-            topologicalMap.vSSO[Map.currentArea].setSize(newSizeLocalSSO,newSizeLocalSSO);
-            topologicalMap.vSSO[Map.currentArea](newLocalFrameID,newLocalFrameID) = 0.0;
+            topologicalMap.addKeyframe(Map.currentArea);
+            std::cout<< "newSizeLocalSSO "<< newLocalFrameID+1 << std::endl;
+//            int newSizeLocalSSO = newLocalFrameID+1;
+//            topologicalMap.vSSO[Map.currentArea].setSize(newSizeLocalSSO,newSizeLocalSSO);
+//            topologicalMap.vSSO[Map.currentArea](newLocalFrameID,newLocalFrameID) = 0.0;
+//            // Re-adjust size of adjacency matrices
+//            for(set<unsigned>::iterator it=Map.vsNeighborAreas[Map.currentArea].begin(); it != Map.vsNeighborAreas[Map.currentArea].end(); it++)
+//            {
+//                assert(*it != Map.currentArea);
+
+//                if(*it < Map.currentArea)
+//                {
+//                    cout << " sizeSSO neig " << topologicalMap.mmNeigSSO[*it][Map.currentArea].getRowCount() << endl;
+//                    topologicalMap.mmNeigSSO[*it][Map.currentArea].setSize(5, newSizeLocalSSO);
+//                }
+//                else
+//                {
+//                    topologicalMap.mmNeigSSO[Map.currentArea][*it].setSize(newSizeLocalSSO, topologicalMap.mmNeigSSO[*it][Map.currentArea].getRowCount());
+//                }
+//            }
 
             // Track the current position. TODO: (detect inconsistencies)
             int compareLocalIdx = newLocalFrameID-1;
@@ -556,7 +593,7 @@ std::cout<< "Added addEdge:\n";
             // Lock map to add a new keyframe
             {boost::mutex::scoped_lock updateLock(Map.mapMutex);
                 Map.addKeyframe(candidateKF, currentPose);
-                Map.vOptimizedPoses.push_back( Map.vOptimizedPoses.back() * candidateKF_connection.first );
+                //Map.vOptimizedPoses.push_back( Map.vOptimizedPoses[nearestKF] * candidateKF_connection.first );
                 std::cout << "\t  mmConnectionKFs loop " << frameOrder << " " << nearestKF << " \n";
                 Map.mmConnectionKFs[frameOrder] = std::map<unsigned, std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> > >();
                 Map.mmConnectionKFs[frameOrder][nearestKF] = std::pair<Eigen::Matrix4f, Eigen::Matrix<float,6,6> >(candidateKF_connection.first, candidateKF_connection.second);
@@ -568,6 +605,7 @@ std::cout<< "Added addEdge:\n";
             candidateKF = NULL;
             nearestKF = frameOrder;
             Viewer.currentSphere = nearestKF;
+//            Viewer.bFreezeFrame = false;
 
             cout << "Add tracking SSO " << endl;
             if((topologicalMap.vSSO[Map.currentArea].getRowCount() <= newLocalFrameID) && (topologicalMap.vSSO[Map.currentArea].getRowCount() <= compareLocalIdx))
@@ -578,13 +616,21 @@ std::cout<< "Added addEdge:\n";
             cout << "SSO is " << topologicalMap.vSSO[Map.currentArea](newLocalFrameID,compareLocalIdx) << endl;
 
             // Add for Map.mmConnectionKFs in the previous frames.
-            cout << "Add vConnections " << vConnections.size() << endl;
-            for(unsigned link=0; link < vConnections.size(); link++)
+            if(vConnections.size() > 0)// && frameOrder !=3  && frameOrder !=4)
             {
-                Map.mmConnectionKFs[frameOrder][vConnections[link].KF_id] = vConnections[link].geomConnection;
-                topologicalMap.addConnection(unsigned(frameOrder), vConnections[link].KF_id, vConnections[link].sso);
-                optimizer.addEdge(vConnections[link].KF_id, unsigned(frameOrder), vConnections[link].geomConnection.first.cast<double>(), vConnections[link].geomConnection.second.cast<double>());
-            cout << "frameOrder " << frameOrder << " " << Map.vpSpheres.size() << endl;
+                bHasNewLC = true;
+                cout << "Add vConnections " << vConnections.size() << endl;
+                for(unsigned link=0; link < vConnections.size(); link++)
+                {
+//                    cout << "Add vConnections between " << frameOrder << " " << vConnections[link].KF_id << "\n";
+//                    cout << vConnections[link].KF_id << " sso " << vConnections[link].sso << "\n";
+                    Map.mmConnectionKFs[frameOrder][vConnections[link].KF_id] = vConnections[link].geomConnection;
+//                    cout << "Add vConnections_ A\n";
+                    topologicalMap.addConnection(unsigned(frameOrder), vConnections[link].KF_id, vConnections[link].sso);
+//                    cout << "Add vConnections_ B\n";
+                    optimizer.addEdge(vConnections[link].KF_id, unsigned(frameOrder), vConnections[link].geomConnection.first.cast<double>(), vConnections[link].geomConnection.second.cast<double>());
+//                cout << "frameOrder " << frameOrder << " " << Map.vpSpheres.size() << endl;
+                }
             }
 
             //        // Calculate distance of furthest registration (approximated, we do not know if the last frame compared is actually the furthest)
@@ -614,25 +660,51 @@ std::cout<< "Added addEdge:\n";
             //              loopCloser.connectionsLC.erase(it_connectLC1);
             //            }
 
-            // Optimize graphSLAM (like with g2o)
+            // Optimize graphSLAM with g2o
+            if(bHasNewLC)
             {
                 std::cout << "Optimize graph SLAM \n";
                 double time_start = pcl::getTime();
                 //Optimize the graph
+//                for(int j=0; j < Map.vpSpheres.size(); j++)
+//                {
+////                    std::cout << "optimizedPose " << poseIdx << " submap " << Map.vpSpheres[j]->node << " same? " << Map.vOptimizedPoses[j]==Map.vTrajectoryPoses[j] ? 1 : 0 << std::endl;
+//                    g2o::OptimizableGraph::Vertex *vertex_j = optimizer.optimizer.vertex(j);
+//                    if(Map.vpSpheres[j]->node == Map.currentArea && j != Map.vSelectedKFs[Map.currentArea])
+//                        vertex_j->setFixed(false);
+//                    else
+//                        vertex_j->setFixed(true);
+//                }
+                //VertexContainer vertices = optimizer.activeVertices.activeVertices();
+
                 optimizer.optimizeGraph();
                 double time_end = pcl::getTime();
                 std::cout << " Optimize graph SLAM " << Map.vpSpheres.size() << " took " << double (time_end - time_start) << " s.\n";
+
+//                for(int j=0; j < Map.vpSpheres.size(); j++)
+//                    std::cout << "optimizedPose " << j << endl << Map.vOptimizedPoses[j] << endl;
 
                 //Update the optimized poses (for loopClosure detection & visualization)
                 {
                     boost::mutex::scoped_lock updateLock(Map.mapMutex);
                     optimizer.getPoses(Map.vOptimizedPoses);
-                    //Update the optimized pose
-                    Eigen::Matrix4f &newPose = Map.vOptimizedPoses.back();
-                    std::cout << "First pose optimized \n" << Map.vOptimizedPoses[0] << std::endl;
-                    std::cout << "newPose \n" << newPose << "\n previos \n" << currentPose << std::endl;
-                    currentPose = newPose;
+                    //Viewer.currentLocation.matrix() = Map.vOptimizedPoses.back();
                 }
+
+//                for(int j=0; j < Map.vpSpheres.size(); j++)
+//                    std::cout << "optimizedPose " << j << endl << Map.vOptimizedPoses[j] << endl;
+
+                //Update the optimized pose
+                //Eigen::Matrix4f &newPose = Map.vOptimizedPoses.back();
+//                std::cout << "First pose optimized \n" << Map.vOptimizedPoses[0] << std::endl;
+
+//                assert(Map.vpSpheres.size() == Map.vOptimizedPoses.size());
+//                for(int j=0; j < Map.vpSpheres.size(); j++)
+//                    std::cout << "optimizedPose " << j << " " << optimizer.optimizer.vertex(j)->fixed() << " submap " << Map.vpSpheres[j]->node << std::endl; //<< " same? " << Map.vOptimizedPoses[j]==Map.vTrajectoryPoses[j] ? 1 : 0 << std::endl;
+//                std::cout << "newPose \n" << Map.vOptimizedPoses.back() << "\n previous \n" << currentPose << std::endl;
+
+                currentPose = Map.vOptimizedPoses.back();
+                bHasNewLC = false;
             }
 
             // Visibility divission (Normalized-cut)
@@ -644,6 +716,16 @@ std::cout<< "Added addEdge:\n";
                 double time_start = pcl::getTime();
                 //          cout << "Eval partitions\n";
                 topologicalMap.Partitioner();
+
+                for(int j=0; j < Map.vpSpheres.size(); j++)
+                {
+//                    std::cout << "optimizedPose " << poseIdx << " submap " << Map.vpSpheres[j]->node << " same? " << Map.vOptimizedPoses[j]==Map.vTrajectoryPoses[j] ? 1 : 0 << std::endl;
+                    g2o::OptimizableGraph::Vertex *vertex_j = optimizer.optimizer.vertex(j);
+                    if(Map.vpSpheres[j]->node == Map.currentArea && j != Map.vSelectedKFs[Map.currentArea])
+                        vertex_j->setFixed(false);
+                    else
+                        vertex_j->setFixed(true);
+                }
 
                 //                      for(unsigned i=0; i < Map.vTrajectoryPoses.size(); i++)
                 //                          cout << "pose " << i << "\n" << Map.vTrajectoryPoses[i] << endl;
@@ -661,8 +743,10 @@ std::cout<< "Added addEdge:\n";
                 std::cout << " Eval partitions took " << double (time_end - time_start)*10e3 << "ms" << std::endl;
             }
 
-            //                    if(Map.vsNeighborAreas.size() > 1)
-            //                        mrpt::system::pause();
+            //if(Map.vsNeighborAreas.size() > 1)
+                //mrpt::system::pause();
+
+//            Viewer.bFreezeFrame = false;
         }
 
         //      while (!Viewer.viewer.wasStopped() )

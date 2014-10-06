@@ -42,7 +42,7 @@
  */
 struct Map360
 {
-public:
+  public:
 
     /*! Vector of spherical keyframes (created from omnidirectional RGB-D images) */
     std::vector<Frame360*> vpSpheres;
@@ -92,6 +92,7 @@ public:
         sphere->pose = pose;
         vpSpheres.push_back(sphere);
         vTrajectoryPoses.push_back(pose);
+        vOptimizedPoses.push_back(pose);
     }
 };
 

@@ -25,8 +25,8 @@
 #include <g2o/types/slam2d/vertex_se2.h>
 #include <g2o/types/slam2d/edge_se2.h>
 
-//#include <include/RRR.hpp>
-//typedef RRR < G2O_Interface	< g2o::VertexSE2, g2o::EdgeSE2> > RRR_3D_G2O;
+#include <include/RRR.hpp>
+typedef RRR < G2O_Interface	< g2o::VertexSE2, g2o::EdgeSE2> > RRR_3D_G2O;
 
 #include <vector>
 #include <Eigen/Core>
@@ -39,13 +39,14 @@ typedef float datatype;
 //template<class datatype>
 class GraphOptimizer
 {
-private:
+//private:
+public:
     int vertexIdx;
     g2o::SparseOptimizer optimizer;
     g2o::BlockSolverX::LinearSolverType * linearSolver;
     g2o::BlockSolverX * solver_ptr;
 
-//    RRR_3D_G2O *rrr;
+    RRR_3D_G2O *rrr;
 
 public:
 
@@ -58,7 +59,8 @@ public:
     {
         rigidTransformationType = GraphOptimizer::SixDegreesOfFreedom;
 
-        optimizer.setVerbose(false);
+//        optimizer.setVerbose(false);
+        optimizer.setVerbose(true);
 
         // variable-size block solver
         //    linearSolver = new LinearSolverCholmod<BlockSolverX::PoseMatrixType>();
@@ -75,7 +77,7 @@ public:
 //        int clusteringThreshold = 10;
 //        int nIter = 4;
 //        rrr = new RRR_3D_G2O(clusteringThreshold,nIter);
-//        rrr->setOptimizer(&optimizer);
+////        rrr->setOptimizer(&optimizer);
     }
 
     /*! Adds a new vertex to the graph. The provided 4x4 matrix will be considered as the pose of the new added vertex. It returns the index of the added vertex.*/
@@ -179,6 +181,7 @@ public:
     void optimizeGraph()
     {
         //Prepare and run the optimization
+//        marginalized()
         optimizer.initializeOptimization();
 
         //Set the initial Levenberg-Marquardt lambda
@@ -187,7 +190,7 @@ public:
         optimizer.computeActiveErrors();
 //        cout << "Initial chi2 = " << FIXED(optimizer.chi2()) << endl;
 
-        optimizer.setVerbose(true);
+//        optimizer.setVerbose(true);
 
         //Run optimization
         optimizer.optimize(10);
@@ -198,7 +201,9 @@ public:
          * original optimizer. Otherwise, the function removeIncorrectLoops()
          * can be called to do the same.
          */
+//        rrr->setOptimizer(&optimizer);
 //        rrr->robustify();
+//        rrr->robustify(true);
 //        rrr->removeIncorrectLoops();
     }
 
@@ -208,10 +213,12 @@ public:
         poses.clear();
         poses.resize(vertexIdx);
 
+//    cout << "vertexIdx = " << vertexIdx << endl;
+
         #pragma omp parallel for
-        for(int poseIdx=0;poseIdx<vertexIdx;poseIdx++)
+        for(int poseIdx=0; poseIdx < vertexIdx; poseIdx++)
         {
-            Eigen::Matrix<datatype,4,4> optimizedPose = Eigen::Matrix<datatype,4,4>::Zero();
+            Eigen::Matrix<datatype,4,4> optimizedPose = Eigen::Matrix<datatype,4,4>::Identity();
 
             if(rigidTransformationType==GraphOptimizer::SixDegreesOfFreedom) //Rigid transformation 6DoF
             {
@@ -239,7 +246,6 @@ public:
                 optimizedPose(0,3)=optimizedPoseQuaternion[0];
                 optimizedPose(1,3)=optimizedPoseQuaternion[1];
                 optimizedPose(2,3)=optimizedPoseQuaternion[2];
-                optimizedPose(3,3)=1;
             }
             else //Rigid transformation 3DoF
             {

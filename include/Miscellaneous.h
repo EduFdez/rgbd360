@@ -124,6 +124,33 @@ bool fexists(const char *filename)
   return ifile;
 }
 
+/*! Calculate the rotation difference between the two poses */
+float diffRotation(Eigen::Matrix4f &pose1, Eigen::Matrix4f &pose2)
+{
+    // Eigen::Matrix3f relativeRotation = pose1.block(0,0,3,3).transpose() * pose2.block(0,0,3,3);
+    //    Eigen::Isometry3d cam; // camera pose
+    Eigen::Matrix3f m_rot1 = pose1.block(0,0,3,3);
+    Eigen::Quaternionf _pose1(m_rot1);
+    Eigen::Matrix3f m_rot2 = pose2.block(0,0,3,3);
+    Eigen::Quaternionf _pose2(m_rot2);
+
+    float anglePoses = _pose1.angularDistance(_pose2); // in radians
+//    std::cout << "  anglePoses " << anglePoses << std::endl;
+
+    return RAD2DEG(anglePoses);
+}
+
+/*! Calculate the rotation difference between the two poses */
+float difTranslation(Eigen::Matrix4f &pose1, Eigen::Matrix4f &pose2)
+{
+    Eigen::Matrix4f relativePose = pose1.inverse() * pose2;
+    std::cout << "  distPoses " << relativePose.block(0,3,3,1).norm() << std::endl;
+    return relativePose.block(0,3,3,1).norm(); // in meters
+//    Eigen::Vector3f diffTrans = pose1.block(0,3,3,1) -
+}
+
+
+
 ///* Transform pose from Tawsif reference system to the one of RGBD360 */
 //Eigen::Matrix4f T_axis, T_rot_offset, T, T_edu_tawsif;
 //void loadTransf_edu_tawsif()

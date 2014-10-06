@@ -33,7 +33,7 @@
 #ifndef MAP360_VISUALIZER_H
 #define MAP360_VISUALIZER_H
 
-//#define RECORD_VIDEO 0
+#define RECORD_VIDEO 1
 
 #include "Map360.h"
 #include <pcl/visualization/cloud_viewer.h>
@@ -53,6 +53,9 @@ public:
 
     /*! Freeze the viewer */
     bool bFreezeFrame;
+
+//    /*! Set some properties for the viewer in the first run */
+//    bool bFirstRun;
 
     /*! Draw the camera's current location */
     bool bDrawCurrentLocation;
@@ -96,8 +99,10 @@ public:
         currentSphere(-1),
         bFreezeFrame(false),
         bGraphSLAM(false),
+//        bFirstRun(true),
         numScreenshot(0)
     {
+//        viewer.setFullScreen(true); // ERROR. This only works with PCLVisualizer
         viewer.runOnVisualizationThread (boost::bind(&Map360_Visualizer::viz_cb, this, _1), "viz_cb");
         viewer.registerKeyboardCallback (&Map360_Visualizer::keyboardEventOccurred, *this);
     }
@@ -111,6 +116,12 @@ public:
     /*! Visualization callback */
     void viz_cb (pcl::visualization::PCLVisualizer& viz)
     {
+//        if(bFirstRun)
+//        {
+//            viz.setFullScreen(true);
+//            bFirstRun = false;
+//        }
+
         //    std::cout << "Map360_Visualizer::viz_cb(...)\n";
         if (Map.vpSpheres.size() == 0 || bFreezeFrame)
         {
@@ -186,11 +197,42 @@ public:
                     Rt.matrix() = Map.vOptimizedPoses[Map.vSelectedKFs[i]];
                     viz.updatePointCloudPose(name, Rt);
                 }
+                boost::this_thread::sleep (boost::posix_time::milliseconds (10));
             }
 
             // Draw sphere locations
             assert( Map.vTrajectoryPoses.size() == Map.vpSpheres.size() );
             pcl::PointXYZ pt_center;//, pt_center_prev;
+
+//            std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > *vPoses;
+//            if(bGraphSLAM)
+//                (*vPoses) = Map.vOptimizedPoses;
+//            assert( (*vPoses).size() == (*vPoses).size() );
+
+//            //if(Map.vsAreas.size() > 1) cout << "Draw spheres " << (*vPoses).size() << endl;
+//            sphere_centers.resize((*vPoses).size());
+//            //        for(unsigned i=0; i < Map.vpSpheres.size(); i++)
+//            for(unsigned i=0; i < (*vPoses).size(); i++)
+//            {
+//                pt_center = pcl::PointXYZ((*vPoses)[i](0,3), (*vPoses)[i](1,3), (*vPoses)[i](2,3));
+//                sphere_centers[i] = pt_center;
+//                sprintf (name, "pose%u", i);
+//                viz.addSphere (pt_center, 0.04, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
+
+//                sprintf (name, "%u", i);
+//                pt_center.x += 0.05;
+//                viz.addText3D (name, pt_center, 0.05, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
+//            }
+
+//            // Draw the locations of the selected keyframes
+//            for(unsigned i=0; i< Map.vSelectedKFs.size(); i++)
+//            {
+//                //if(Map.vsAreas.size() > 1) cout << " Draw sphere " << i << " " << Map.vSelectedKFs[i] << endl;
+//                pt_center = pcl::PointXYZ((*vPoses)[Map.vSelectedKFs[i]](0,3), (*vPoses)[Map.vSelectedKFs[i]](1,3), (*vPoses)[Map.vSelectedKFs[i]](2,3));
+//                sprintf (name, "poseKF%u", i);
+//                viz.addSphere (pt_center, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name);
+//            }
+
             if(!bGraphSLAM)
             {
                 //if(Map.vsAreas.size() > 1) cout << "Draw spheres " << Map.vTrajectoryPoses.size() << endl;
@@ -201,21 +243,26 @@ public:
                     pt_center = pcl::PointXYZ(Map.vTrajectoryPoses[i](0,3), Map.vTrajectoryPoses[i](1,3), Map.vTrajectoryPoses[i](2,3));
                     sphere_centers[i] = pt_center;
                     sprintf (name, "pose%u", i);
-                    viz.addSphere (pt_center, 0.04, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
+                    if(i != currentSphere)
+                        viz.addSphere (pt_center, 0.04, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
+                    else
+                        viz.addSphere (pt_center, 0.04, ared[(Map.vpSpheres[i]->node+5)%10], agrn[(Map.vpSpheres[i]->node+5)%10], ablu[(Map.vpSpheres[i]->node+5)%10], name);
 
                     sprintf (name, "%u", i);
                     pt_center.x += 0.05;
                     viz.addText3D (name, pt_center, 0.05, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
                 }
 
-                // Draw the locations of the keyframes
+                // Draw the locations of the selected keyframes
                 for(unsigned i=0; i< Map.vSelectedKFs.size(); i++)
                 {
                     //if(Map.vsAreas.size() > 1) cout << " Draw sphere " << i << " " << Map.vSelectedKFs[i] << endl;
                     pt_center = pcl::PointXYZ(Map.vTrajectoryPoses[Map.vSelectedKFs[i]](0,3), Map.vTrajectoryPoses[Map.vSelectedKFs[i]](1,3), Map.vTrajectoryPoses[Map.vSelectedKFs[i]](2,3));
                     sprintf (name, "poseKF%u", i);
-                    viz.addSphere (pt_center, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name);
-                }
+                    if(Map.vSelectedKFs[i] != currentSphere)
+                        viz.addSphere (pt_center, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name);
+                    else
+                        viz.addSphere (pt_center, 0.1, ared[(i+5)%10], agrn[(i+5)%10], ablu[(i+5)%10], name);                    }
             }
             else
             {
@@ -225,19 +272,25 @@ public:
                     pt_center = pcl::PointXYZ(Map.vOptimizedPoses[i](0,3), Map.vOptimizedPoses[i](1,3), Map.vOptimizedPoses[i](2,3));
                     sphere_centers[i] = pt_center;
                     sprintf (name, "pose%u", i);
-                    viz.addSphere (pt_center, 0.04, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
+                    if(i != currentSphere)
+                        viz.addSphere (pt_center, 0.04, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
+                    else
+                        viz.addSphere (pt_center, 0.04, ared[(Map.vpSpheres[i]->node+5)%10], agrn[(Map.vpSpheres[i]->node+5)%10], ablu[(Map.vpSpheres[i]->node+5)%10], name);
 
                     sprintf (name, "%u", i);
                     pt_center.x += 0.05;
                     viz.addText3D (name, pt_center, 0.05, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
                 }
 
-                // Draw the locations of the keyframes
+                // Draw the locations of the selected keyframes
                 for(unsigned i=0; i< Map.vSelectedKFs.size(); i++)
                 {
                     pt_center = pcl::PointXYZ(Map.vOptimizedPoses[Map.vSelectedKFs[i]](0,3), Map.vOptimizedPoses[Map.vSelectedKFs[i]](1,3), Map.vOptimizedPoses[Map.vSelectedKFs[i]](2,3));
                     sprintf (name, "poseKF%u", i);
-                    viz.addSphere (pt_center, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name);
+                    if(Map.vSelectedKFs[i] != currentSphere)
+                        viz.addSphere (pt_center, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name);
+                    else
+                        viz.addSphere (pt_center, 0.1, ared[(i+5)%10], agrn[(i+5)%10], ablu[(i+5)%10], name);
                 }
             }
 
@@ -251,11 +304,11 @@ public:
                     viz.addLine (sphere_centers[it1->first], sphere_centers[it2->first], name);
                 }
 
-            //      bFreezeFrame = true;
+//            bFreezeFrame = true;
 
 #if RECORD_VIDEO
             std::string screenshotFile = mrpt::format("im_%04u.png", ++numScreenshot);
-            viz.saveScreenshot (screenshotFile);
+            viz.saveScreenshot(screenshotFile);
 #endif
 
             updateLock.unlock();
@@ -272,7 +325,7 @@ public:
                 bFreezeFrame = !bFreezeFrame;
             else if(event.getKeySym () == "l" || event.getKeySym () == "L")
                 bGraphSLAM = !bGraphSLAM;
-            else if(event.getKeySym () == "m" || event.getKeySym () == "M")
+            else if(event.getKeySym () == "n" || event.getKeySym () == "N")
             {
                 nVizMode = (nVizMode+1) % 4;
                 std::cout << "Visualizatio swap to mode " << nVizMode << endl;
