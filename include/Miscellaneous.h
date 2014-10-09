@@ -75,7 +75,6 @@ float max_rotation_odometry = 1.2;
     represent the ratio between the maximum and the minimum eigenvalue of the system */
 float threshold_conditioning = 8000.0;
 
-/*! Generate a skew-symmetric matrix from a 3D vector */
 unsigned char red [10] = {255,   0,   0, 255, 255,   0, 255, 204,   0, 255};
 unsigned char grn [10] = {  0, 255,   0, 255,   0, 255, 160,  51, 128, 222};
 unsigned char blu [10] = {  0,   0, 255,   0, 255, 255, 0  , 204,   0, 173};

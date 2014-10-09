@@ -283,7 +283,7 @@ public:
         align360.setGrayVariance(3.f/255);
         double selectKF_ICPdist = 0.9;
 //        double selectKF_ICPdist = 1.1;
-        double thresholdConnections = 1.5;
+        double thresholdConnections = 2.5; // Distance in meters to evaluate possible connections
         Eigen::Matrix4f rigidTransf_dense = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f rigidTransf_dense_ref = rigidTransf_dense;
         // The reference of the spherical image and the point Clouds are not the same! I should always use the same coordinate system (TODO)
@@ -544,7 +544,6 @@ public:
             optimizer.addEdge(nearestKF, Map.vpSpheres.size(), candidateKF_connection.first.cast<double>(), candidateKF_connection.second.cast<double>());
 
             std::cout<< " Edge PbMap: " << bGoodTracking << " " << registerer.getMatchedPlanes().size() << " " << registerer.getAreaMatched() << " " << diffRotation(trackedPosePbMap, rigidTransf_dense) << " " << difTranslation(trackedPosePbMap, rigidTransf_dense) << "\n";
-
             if(bGoodTracking && registerer.getMatchedPlanes().size() >= 4 && registerer.getAreaMatched() > 6)
                 if(diffRotation(trackedPosePbMap, rigidTransf_dense) < 5 && difTranslation(trackedPosePbMap, rigidTransf_dense) < 0.1) // If the difference is less than 5º and 10 cm, add the PbMap connection
                 {
@@ -557,7 +556,7 @@ public:
             Map.vTrajectoryIncrements.push_back(Map.vTrajectoryIncrements.back() + candidateKF_connection.first.block(0,3,3,1).norm());
             // Filter cloud
             filter.filterEuclidean(candidateKF->sphereCloud);
-    std::cout<< "filterEuclidean:\n";
+        std::cout<< "filterEuclidean:\n";
 
             cout << "\tGet previous frame as a keyframe " << frameOrder+1 << " dist " << candidateKF_connection.first.norm() << " candidateKF_sso " << candidateKF_sso << endl;
             // Add new keyframe
@@ -699,8 +698,8 @@ public:
 //                std::cout << "First pose optimized \n" << Map.vOptimizedPoses[0] << std::endl;
 
 //                assert(Map.vpSpheres.size() == Map.vOptimizedPoses.size());
-//                for(int j=0; j < Map.vpSpheres.size(); j++)
-//                    std::cout << "optimizedPose " << j << " " << optimizer.optimizer.vertex(j)->fixed() << " submap " << Map.vpSpheres[j]->node << std::endl; //<< " same? " << Map.vOptimizedPoses[j]==Map.vTrajectoryPoses[j] ? 1 : 0 << std::endl;
+                for(int j=0; j < Map.vpSpheres.size(); j++)
+                    std::cout << "optimizedPose " << j << " " << optimizer.optimizer.vertex(j)->fixed() << " submap " << Map.vpSpheres[j]->node << std::endl; //<< " same? " << Map.vOptimizedPoses[j]==Map.vTrajectoryPoses[j] ? 1 : 0 << std::endl;
 //                std::cout << "newPose \n" << Map.vOptimizedPoses.back() << "\n previous \n" << currentPose << std::endl;
 
                 currentPose = Map.vOptimizedPoses.back();
@@ -717,15 +716,16 @@ public:
                 //          cout << "Eval partitions\n";
                 topologicalMap.Partitioner();
 
-                for(int j=0; j < Map.vpSpheres.size(); j++)
-                {
-//                    std::cout << "optimizedPose " << poseIdx << " submap " << Map.vpSpheres[j]->node << " same? " << Map.vOptimizedPoses[j]==Map.vTrajectoryPoses[j] ? 1 : 0 << std::endl;
-                    g2o::OptimizableGraph::Vertex *vertex_j = optimizer.optimizer.vertex(j);
-                    if(Map.vpSpheres[j]->node == Map.currentArea && j != Map.vSelectedKFs[Map.currentArea])
-                        vertex_j->setFixed(false);
-                    else
-                        vertex_j->setFixed(true);
-                }
+//                // Set only the current submap's keyframes as optimizable vertex in Graph-SLAM
+//                for(int j=0; j < Map.vpSpheres.size(); j++)
+//                {
+////                    std::cout << "optimizedPose " << poseIdx << " submap " << Map.vpSpheres[j]->node << " same? " << Map.vOptimizedPoses[j]==Map.vTrajectoryPoses[j] ? 1 : 0 << std::endl;
+//                    g2o::OptimizableGraph::Vertex *vertex_j = optimizer.optimizer.vertex(j);
+//                    if(Map.vpSpheres[j]->node == Map.currentArea && j != Map.vSelectedKFs[Map.currentArea])
+//                        vertex_j->setFixed(false);
+//                    else
+//                        vertex_j->setFixed(true);
+//                }
 
                 //                      for(unsigned i=0; i < Map.vTrajectoryPoses.size(); i++)
                 //                          cout << "pose " << i << "\n" << Map.vTrajectoryPoses[i] << endl;
