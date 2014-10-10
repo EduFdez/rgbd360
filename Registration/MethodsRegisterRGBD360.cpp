@@ -440,6 +440,7 @@ int main (int argc, char ** argv)
     Matrix4f initDenseMatching = rotOffset * relPosePbMap * rotOffset.inverse();
 //    cout << "initDenseMatching \n" << initDenseMatching << endl;
 
+    time_start = pcl::getTime();
 //    align360.setVisualization(true);
 //    align360.setGrayVariance(4.f/255);
     align360.alignFrames360(initDenseMatching, RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
@@ -449,11 +450,26 @@ int main (int argc, char ** argv)
     Matrix4f relPoseDenseSphere_ref = rotOffset.inverse() * relPoseDenseSphere * rotOffset;
     time_end = pcl::getTime();
     std::cout << "Spherical dense alignment took " << double (time_end - time_start) << std::endl;
-//    cout << "relPoseDenseSphere: " << align360.avResidual << "\n" << relPoseDenseSphere << endl;
+    cout << "relPoseDenseSphere: " << align360.avResidual << " " << align360.avPhotoResidual << " " << align360.avDepthResidual << "\n" << relPoseDenseSphere_ref << endl;
+    //cout << "relPoseDenseSphere_ref: " << align360.avPhotoResidual << " " << align360.avDepthResidual << "\n" << relPoseDenseSphere_ref << endl;
 
-    angleOffset = 157.5;
-    rotOffset = Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
-    cout << "relPoseDenseSphere_ref: " << align360.avPhotoResidual << " " << align360.avDepthResidual << "\n" << relPoseDenseSphere_ref << endl;
+    time_start = pcl::getTime();
+    align360.alignFrames360(initDenseMatching, RegisterPhotoICP::PHOTO_DEPTH, 1); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    relPoseDenseSphere = align360.getOptimalPose();
+    relPoseDenseSphere_ref = rotOffset.inverse() * relPoseDenseSphere * rotOffset;
+    time_end = pcl::getTime();
+    std::cout << "Spherical dense alignment took " << double (time_end - time_start) << std::endl;
+    cout << "relPoseDenseSphere: " << align360.avResidual << " " << align360.avPhotoResidual << " " << align360.avDepthResidual << "\n" << relPoseDenseSphere_ref << endl;
+
+    time_start = pcl::getTime();
+    align360.setVisualization(true);
+    align360.alignFrames360(initDenseMatching, RegisterPhotoICP::PHOTO_DEPTH, 2); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    relPoseDenseSphere = align360.getOptimalPose();
+    relPoseDenseSphere_ref = rotOffset.inverse() * relPoseDenseSphere * rotOffset;
+    time_end = pcl::getTime();
+    std::cout << "Spherical dense alignment took " << double (time_end - time_start) << std::endl;
+    cout << "relPoseDenseSphere: " << align360.avResidual << " " << align360.avPhotoResidual << " " << align360.avDepthResidual << "\n" << relPoseDenseSphere_ref << endl;
+
 
     //    cv::imwrite( mrpt::format("/home/edu/rgb.png"), frame360_1.sphereRGB);
     //    cv::imwrite( mrpt::format("/home/edu/depth.png"), frame360_1.sphereDepth);

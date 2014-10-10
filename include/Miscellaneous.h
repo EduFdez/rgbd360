@@ -148,7 +148,25 @@ float difTranslation(Eigen::Matrix4f &pose1, Eigen::Matrix4f &pose2)
 //    Eigen::Vector3f diffTrans = pose1.block(0,3,3,1) -
 }
 
+/*! Compute the mean and standard deviation from a std::vector of float/double values.*/
+template<typename dataType>
+void calcMeanAndStDev(std::vector<dataType> &v, dataType &mean, dataType &stdev)
+{
+    dataType sum = std::accumulate(v.begin(), v.end(), 0.0);
+    mean =  sum / v.size();
 
+//    dataType accum = 0.0;
+//    std::for_each (v.begin(), v.end(), [&](const dataType d) {
+//        accum += (d - mean) * (d - mean);
+//    });
+//    stdev = sqrt(accum / (v.size()-1));
+
+    std::vector<dataType> diff(v.size());
+    std::transform(v.begin(), v.end(), diff.begin(),
+                   std::bind2nd(std::minus<double>(), mean));
+    dataType sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+    stdev = std::sqrt(sq_sum / v.size()-1);
+}
 
 ///* Transform pose from Tawsif reference system to the one of RGBD360 */
 //Eigen::Matrix4f T_axis, T_rot_offset, T, T_edu_tawsif;

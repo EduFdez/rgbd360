@@ -11,7 +11,7 @@
 #define REGISTER_PHOTO_ICP_H
 
 #define ENABLE_OPENMP 1
-#define ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS 0
+//#define ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS 1
 
 #include "Miscellaneous.h"
 
@@ -155,6 +155,15 @@ class RegisterPhotoICP
 
     /*! Warped intensity image for visualization purposes.*/
     cv::Mat warped_source_depthImage;
+
+    /*! Vector containing the indices of the pixels that move forward in the source image.*/
+    std::vector<int> mask_dynamic_objectFront;
+
+    /*! Vector containing the indices of the pixels that move backward in the source image.*/
+    std::vector<int> mask_dynamic_objectBack;
+
+    /*! Vector containing the indices of the occluded pixels in the source image.*/
+    std::vector<int> mask_occlusion;
 
     /*! LUT of 3D points of the spherical image.*/
     std::vector<Eigen::Vector3f> LUT_xyz_sphere;
@@ -492,11 +501,11 @@ public:
     };
 
     /*! Project pixel spherical */
-    inline void projectSphere(int &theta_res, int &phi_res, float &phi_FoV, int &c, int &r, float &depth, Eigen::Matrix4f &poseGuess,
+    inline void projectSphere(int &nCols, int &nRows, float &phi_FoV, int &c, int &r, float &depth, Eigen::Matrix4f &poseGuess,
                               int &transformed_r_int, int &transformed_c_int) // output parameters
     {
-        float phi = r*(2*phi_FoV/phi_res);
-        float theta = c*(2*PI/theta_res);
+        float phi = r*(2*phi_FoV/nRows);
+        float theta = c*(2*PI/nCols);
 
         //Compute the 3D coordinates of the pij of the source frame
         Eigen::Vector4f point3D;
@@ -512,8 +521,8 @@ public:
         //Project the 3D point to the S2 sphere
         float phi_trg = asin(transformedPoint3D(2)/depth_trg);
         float theta_trg = atan2(-transformedPoint3D(1),-transformedPoint3D(2));
-        transformed_r_int = round(phi_trg*phi_res/phi_FoV + phi_res/2);
-        transformed_c_int = round(theta_trg*theta_res/(2*PI));
+        transformed_r_int = round(phi_trg*nRows/phi_FoV + nRows/2);
+        transformed_c_int = round(theta_trg*nCols/(2*PI));
     };
 
     /*! Huber weight for robust estimation. */
@@ -684,8 +693,7 @@ public:
                             if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                             {
                                 //Obtain the pixel values that will be used to compute the pixel residual
-                                float pixel1 = graySrcPyr[pyramidLevel].data[i]; // Intensity value of the pixel(r,c) of source frame
-                                //float pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
+                                float pixel1 = graySrcPyr[pyramidLevel].at<float>(i); // Intensity value of the pixel(r,c) of source frame
                                 float pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
                                 float photoDiff = pixel2 - pixel1;
                                 weight_photo = weightHuber(photoDiff,stdDevPhoto)*stdDevPhoto_inv;
@@ -728,7 +736,7 @@ public:
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-    void calcHessianAndGradient(const int &pyramidLevel,
+    void calcHessGrad(const int &pyramidLevel,
                                const Eigen::Matrix4f poseGuess,
                                costFuncType method = PHOTO_CONSISTENCY)
     {
@@ -978,7 +986,7 @@ public:
                             if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                             {
                                 if(visualizeIterations)
-                                    warped_source_grayImage.at<float>(transformed_r_int,transformed_c_int) = graySrcPyr[pyramidLevel].data[i];
+                                    warped_source_grayImage.at<float>(transformed_r_int,transformed_c_int) = graySrcPyr[pyramidLevel].at<float>(i);
 
                                 Eigen::Matrix<float,1,2> target_imgGradient;
                                 target_imgGradient(0,0) = grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);//(i);
@@ -987,8 +995,7 @@ public:
                                     continue;
 
                                 //Obtain the pixel values that will be used to compute the pixel residual
-                                // pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
-                                pixel1 = graySrcPyr[pyramidLevel].data[i]; // Intensity value of the pixel(r,c) of source frame
+                                pixel1 = graySrcPyr[pyramidLevel].at<float>(i); // Intensity value of the pixel(r,c) of source frame
                                 pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
     //                        cout << "pixel1 " << pixel1 << " pixel2 " << pixel2 << endl;
                                 float photoDiff = pixel2 - pixel1;
@@ -1179,7 +1186,7 @@ public:
 //        else
         {
 #if ENABLE_OPENMP
-#pragma omp parallel//for reduction (+:error2)
+#pragma omp parallel for reduction (+:nValidDepthPts) // nValidPhotoPts,  //for reduction (+:error2)
 #endif
             for (int i=0; i < LUT_xyz_sphere.size(); i++)
                 {
@@ -1203,14 +1210,15 @@ public:
                             (transformed_c_int>=0 && transformed_c_int < nCols) )
                         {
                             // Discard occluded points
-                            if(invDepthBuffer(i) > 0 && inv_transformedPz < invDepthBuffer(i))
+                            int ii = transformed_r_int*nCols + transformed_c_int; // The index of the pixel in the target image
+                            if(invDepthBuffer(ii) > 0 && inv_transformedPz < invDepthBuffer(ii)) // the current pixel is occluded
                                 continue;
-                            invDepthBuffer(i) = inv_transformedPz;
+                            invDepthBuffer(ii) = inv_transformedPz;
 
                             if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                             {
                                 //Obtain the pixel values that will be used to compute the pixel residual
-                                float pixel1 = graySrcPyr[pyramidLevel].data[i]; // Intensity value of the pixel(r,c) of source frame
+                                float pixel1 = graySrcPyr[pyramidLevel].at<float>(i); // Intensity value of the pixel(r,c) of source frame
                                 //float pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
                                 float pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
                                 float photoDiff = pixel2 - pixel1;
@@ -1223,7 +1231,7 @@ public:
     ////                                double weight = sqrt(2*stdDevReg*photoDiff2_norm-varianceRegularization) / photoDiff2_norm;
     //                                photoDiff2 = 2*stdDevReg*sqrt(photoDiff2)-varianceRegularization;
     //                            }
-                                residualsPhoto(i) = weightedErrorPhoto*weightedErrorPhoto;
+                                residualsPhoto(ii) = weightedErrorPhoto*weightedErrorPhoto;
                                 // error2 += weightedErrorPhoto*weightedErrorPhoto;
 //                            std::cout << "error2 " << error2 << " weightedErrorPhoto " << weightedErrorPhoto << " " << weight_photo << " " << photoDiff << std::endl;
                             }
@@ -1240,7 +1248,8 @@ public:
                                     weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
                                     float weightedErrorDepth = weight_depth * depthDiff;
                                     //error2 += weightedErrorDepth*weightedErrorDepth;
-                                    residualsDepth(i) = weightedErrorDepth*weightedErrorDepth;
+                                    residualsDepth(ii) = weightedErrorDepth*weightedErrorDepth;
+                                    ++nValidDepthPts;
                                 }
                             }
                         }
@@ -1248,27 +1257,28 @@ public:
                 }
             //}
 #if ENABLE_OPENMP
-#pragma omp parallel for reduction (+:PhotoResidual,nValidPhotoPts,DepthResidual,nValidDepthPts)
+#pragma omp parallel for reduction (+:PhotoResidual,DepthResidual) // nValidPhotoPts, nValidDepthPts
 #endif
             for(int i=0; i < imgSize; i++)
             {
                 PhotoResidual += residualsPhoto(i);
                 DepthResidual += residualsDepth(i);
-                if(residualsPhoto(i) > 0) ++nValidPhotoPts;
-                if(residualsDepth(i) > 0) ++nValidDepthPts;
+//                if(residualsPhoto(i) > 0) ++nValidPhotoPts;
+//                if(residualsDepth(i) > 0) ++nValidDepthPts;
             }
         }
 
-        avPhotoResidual = sqrt(PhotoResidual / nValidPhotoPts);
+        //avPhotoResidual = sqrt(PhotoResidual / nValidPhotoPts);
+        avPhotoResidual = sqrt(PhotoResidual / nValidDepthPts);
         avDepthResidual = sqrt(DepthResidual / nValidDepthPts);
         return avPhotoResidual + avDepthResidual;
         //return error2;
     }
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient. */
-    void calcHessianAndGradient_Occ1(const int &pyramidLevel,
-                                   const Eigen::Matrix4f poseGuess,
-                                   costFuncType method = PHOTO_CONSISTENCY)
+    void calcHessGrad_Occ1(const int &pyramidLevel,
+                           const Eigen::Matrix4f poseGuess,
+                           costFuncType method = PHOTO_CONSISTENCY)
     {
         int nRows = graySrcPyr[pyramidLevel].rows;
         int nCols = graySrcPyr[pyramidLevel].cols;
@@ -1374,7 +1384,7 @@ public:
                         {
                             //Obtain the pixel values that will be used to compute the pixel residual
                             //pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
-                            pixel1 = graySrcPyr[pyramidLevel].data[i]; // Intensity value of the pixel(r,c) of source frame
+                            pixel1 = graySrcPyr[pyramidLevel].at<float>(i); // Intensity value of the pixel(r,c) of source frame
                             pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
     //                        cout << "pixel1 " << pixel1 << " pixel2 " << pixel2 << endl;
                             float photoDiff = pixel2 - pixel1;
@@ -1403,7 +1413,6 @@ public:
                             if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
                             {
                                 // depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
-                                // depth1 = depthSrcPyr[pyramidLevel].data[i]; // Depth value of the pixel(r,c) of the warped frame 1 (target)
                                 float depth1 = transformedPoint3D(2);
                                 float depthDiff = depth2 - depth1;
                                 //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
@@ -1566,7 +1575,7 @@ public:
 //        else
         {
 #if ENABLE_OPENMP
-#pragma omp parallel//for reduction (+:error2)
+#pragma omp parallel for reduction (+:nValidDepthPts) // nValidPhotoPts,  //for reduction (+:error2)
 #endif
             for (int i=0; i < LUT_xyz_sphere.size(); i++)
                 {
@@ -1589,18 +1598,26 @@ public:
                         if( (transformed_r_int>=0 && transformed_r_int < nRows) &&
                             (transformed_c_int>=0 && transformed_c_int < nCols) )
                         {
-                            // Discard occluded points
-                            if(invDepthBuffer(i) > 0 && inv_transformedPz < invDepthBuffer(i))
+                            // Discard outliers (occluded and moving points)
+                            float depth2 = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                            float depthDiff = depth2 - inv_transformedPz;
+                            if(fabs(depthDiff) > thresDepthOutliers)
                                 continue;
-                            invDepthBuffer(i) = inv_transformedPz;
 
-                            // Discard outlies: both from occlusions and moving objects
-                            if( fabs() )
+                            // Discard occluded points
+                            int ii = transformed_r_int*nCols + transformed_c_int; // The index of the pixel in the target image
+                            if(invDepthBuffer(ii) > 0 && inv_transformedPz < invDepthBuffer(ii)) // the current pixel is occluded
+                                continue;
+                            invDepthBuffer(ii) = inv_transformedPz;
+
+
+//                            // Discard outlies: both from occlusions and moving objects
+//                            if( fabs() )
 
                             if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                             {
                                 //Obtain the pixel values that will be used to compute the pixel residual
-                                float pixel1 = graySrcPyr[pyramidLevel].data[i]; // Intensity value of the pixel(r,c) of source frame
+                                float pixel1 = graySrcPyr[pyramidLevel].at<float>(i); // Intensity value of the pixel(r,c) of source frame
                                 //float pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
                                 float pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
                                 float photoDiff = pixel2 - pixel1;
@@ -1613,7 +1630,7 @@ public:
     ////                                double weight = sqrt(2*stdDevReg*photoDiff2_norm-varianceRegularization) / photoDiff2_norm;
     //                                photoDiff2 = 2*stdDevReg*sqrt(photoDiff2)-varianceRegularization;
     //                            }
-                                residualsPhoto(i) = weightedErrorPhoto*weightedErrorPhoto;
+                                residualsPhoto(ii) = weightedErrorPhoto*weightedErrorPhoto;
                                 // error2 += weightedErrorPhoto*weightedErrorPhoto;
 //                            std::cout << "error2 " << error2 << " weightedErrorPhoto " << weightedErrorPhoto << " " << weight_photo << " " << photoDiff << std::endl;
                             }
@@ -1630,7 +1647,8 @@ public:
                                     weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
                                     float weightedErrorDepth = weight_depth * depthDiff;
                                     //error2 += weightedErrorDepth*weightedErrorDepth;
-                                    residualsDepth(i) = weightedErrorDepth*weightedErrorDepth;
+                                    residualsDepth(ii) = weightedErrorDepth*weightedErrorDepth;
+                                    ++nValidDepthPts;
                                 }
                             }
                         }
@@ -1638,27 +1656,28 @@ public:
                 }
             //}
 #if ENABLE_OPENMP
-#pragma omp parallel for reduction (+:PhotoResidual,nValidPhotoPts,DepthResidual,nValidDepthPts)
+#pragma omp parallel for reduction (+:PhotoResidual,DepthResidual) // nValidPhotoPts, nValidDepthPts
 #endif
             for(int i=0; i < imgSize; i++)
             {
                 PhotoResidual += residualsPhoto(i);
                 DepthResidual += residualsDepth(i);
-                if(residualsPhoto(i) > 0) ++nValidPhotoPts;
-                if(residualsDepth(i) > 0) ++nValidDepthPts;
+//                if(residualsPhoto(i) > 0) ++nValidPhotoPts;
+//                if(residualsDepth(i) > 0) ++nValidDepthPts;
             }
         }
 
-        avPhotoResidual = sqrt(PhotoResidual / nValidPhotoPts);
+        //avPhotoResidual = sqrt(PhotoResidual / nValidPhotoPts);
+        avPhotoResidual = sqrt(PhotoResidual / nValidDepthPts);
         avDepthResidual = sqrt(DepthResidual / nValidDepthPts);
         return avPhotoResidual + avDepthResidual;
         //return error2;
     }
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient. */
-    void calcHessianAndGradient_Occ1(const int &pyramidLevel,
-                                   const Eigen::Matrix4f poseGuess,
-                                   costFuncType method = PHOTO_CONSISTENCY)
+    void calcHessGrad_Occ2(const int &pyramidLevel,
+                           const Eigen::Matrix4f poseGuess,
+                           costFuncType method = PHOTO_CONSISTENCY)
     {
         int nRows = graySrcPyr[pyramidLevel].rows;
         int nCols = graySrcPyr[pyramidLevel].cols;
@@ -1764,7 +1783,7 @@ public:
                         {
                             //Obtain the pixel values that will be used to compute the pixel residual
                             //pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
-                            pixel1 = graySrcPyr[pyramidLevel].data[i]; // Intensity value of the pixel(r,c) of source frame
+                            pixel1 = graySrcPyr[pyramidLevel].at<float>(i); // Intensity value of the pixel(r,c) of source frame
                             pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
     //                        cout << "pixel1 " << pixel1 << " pixel2 " << pixel2 << endl;
                             float photoDiff = pixel2 - pixel1;
@@ -1793,7 +1812,6 @@ public:
                             if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
                             {
                                 // depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
-                                // depth1 = depthSrcPyr[pyramidLevel].data[i]; // Depth value of the pixel(r,c) of the warped frame 1 (target)
                                 float depth1 = transformedPoint3D(2);
                                 float depthDiff = depth2 - depth1;
                                 //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
@@ -1840,6 +1858,526 @@ public:
     }
 
 
+    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
+        This is done following the work in:
+        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
+        in Computer Vision Workshops (ICCV Workshops), 2011. */
+    double calcPhotoICP_SqError(const int &pyramidLevel, const Eigen::Matrix4f poseGuess, double varPhoto = pow(3./255,2), double varDepth = 0.0001, costFuncType method = PHOTO_CONSISTENCY)
+    {
+        double error2 = 0.0; // Squared error
+
+        const int nRows = graySrcPyr[pyramidLevel].rows;
+        const int nCols = graySrcPyr[pyramidLevel].cols;
+
+        const float scaleFactor = 1.0/pow(2,pyramidLevel);
+        const float fx = cameraMatrix(0,0)*scaleFactor;
+        const float fy = cameraMatrix(1,1)*scaleFactor;
+        const float ox = cameraMatrix(0,2)*scaleFactor;
+        const float oy = cameraMatrix(1,2)*scaleFactor;
+        const float inv_fx = 1./fx;
+        const float inv_fy = 1./fy;
+
+//        float varianceRegularization = 1; // 63%
+//        float stdDevReg = sqrt(varianceRegularization);
+        float weight_photo = 1./stdDevPhoto, weight_depth = 1./stdDevDepth; // The weights should include the Huber estimator plus the information of the covariance
+        float stdDevPhoto_inv = 1./stdDevPhoto;
+        float stdDevDepth_inv = 1./stdDevDepth;
+
+//    std::cout << "poseGuess \n" << poseGuess << std::endl;
+
+        Eigen::Matrix3f rotation = poseGuess.block(0,0,3,3);
+        Eigen::Vector3f translation = poseGuess.block(0,3,3,1);
+
+        if(bUseSalientPixels)
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2)
+#endif
+            for (int i=0; i < vSalientPixels[pyramidLevel].size(); i++)
+            {
+                //                int i = nCols*r+c; //vector index
+                int r = vSalientPixels[pyramidLevel][i] / nCols;
+                int c = vSalientPixels[pyramidLevel][i] % nCols;
+
+                //Compute the 3D coordinates of the pij of the source frame
+                Eigen::Vector3f point3D;
+                point3D(2) = depthSrcPyr[pyramidLevel].at<float>(r,c);
+                if(minDepth < point3D(2) && point3D(2) < maxDepth) //Compute the jacobian only for the valid points
+                {
+                    point3D(0)=(c - ox) * point3D(2) * inv_fx;
+                    point3D(1)=(r - oy) * point3D(2) * inv_fy;
+
+                    //Transform the 3D point using the transformation matrix Rt
+                    Eigen::Vector3f transformedPoint3D = rotation*point3D + translation;
+
+                    //Project the 3D point to the 2D plane
+                    float inv_transformedPz = 1.0/transformedPoint3D(2);
+                    float transformed_r,transformed_c; // 2D coordinates of the transformed pixel(r,c) of frame 1
+                    transformed_c = (transformedPoint3D(0) * fx)*inv_transformedPz + ox; //transformed x (2D)
+                    transformed_r = (transformedPoint3D(1) * fy)*inv_transformedPz + oy; //transformed y (2D)
+                    int transformed_r_int = round(transformed_r);
+                    int transformed_c_int = round(transformed_c);
+
+                    //Asign the intensity value to the warped image and compute the difference between the transformed
+                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                    if( (transformed_r_int>=0 && transformed_r_int < nRows) &&
+                        (transformed_c_int>=0 && transformed_c_int < nCols) )
+                    {
+                        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                        {
+                            //Obtain the pixel values that will be used to compute the pixel residual
+                            float pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
+                            float pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                            float photoDiff = pixel2 - pixel1;
+                            weight_photo = weightHuber(photoDiff,stdDevPhoto)*stdDevPhoto_inv;
+                            float weightedErrorPhoto = weight_photo * photoDiff;
+                            // Apply M-estimator weighting
+//                            if(photoDiff2 > varianceRegularization)
+//                            {
+////                                float photoDiff2_norm = sqrt(photoDiff2);
+////                                double weight = sqrt(2*stdDevReg*photoDiff2_norm-varianceRegularization) / photoDiff2_norm;
+//                                photoDiff2 = 2*stdDevReg*sqrt(photoDiff2)-varianceRegularization;
+//                            }
+                            error2 += weightedErrorPhoto*weightedErrorPhoto;
+
+                        }
+                        if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                        {
+                            float depth2 = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                            if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
+                            {
+                                //Obtain the depth values that will be used to the compute the depth residual
+                                float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
+                                float depthDiff = depth2 - depth1;
+                                //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
+                                float stdDev_depth1 = stdDevDepth*depth1;
+                                weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                float weightedErrorDepth = weight_depth * depthDiff;
+                                error2 += weightedErrorDepth*weightedErrorDepth;
+                            }
+                        }
+                    }
+                }
+            }
+        else
+        {
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2)
+#endif
+            for (int r=0;r<nRows;r++)
+            {
+                for (int c=0;c<nCols;c++)
+                {
+                    //                int i = nCols*r+c; //vector index
+
+                    //Compute the 3D coordinates of the pij of the source frame
+                    Eigen::Vector3f point3D;
+                    point3D(2) = depthSrcPyr[pyramidLevel].at<float>(r,c);
+                    if(minDepth < point3D(2) && point3D(2) < maxDepth) //Compute the jacobian only for the valid points
+                    {
+                        point3D(0)=(c - ox) * point3D(2) * inv_fx;
+                        point3D(1)=(r - oy) * point3D(2) * inv_fy;
+
+                        //Transform the 3D point using the transformation matrix Rt
+                        Eigen::Vector3f transformedPoint3D = rotation*point3D + translation;
+
+                        //Project the 3D point to the 2D plane
+                        float inv_transformedPz = 1.0/transformedPoint3D(2);
+                        float transformed_r,transformed_c; // 2D coordinates of the transformed pixel(r,c) of frame 1
+                        transformed_c = (transformedPoint3D(0) * fx)*inv_transformedPz + ox; //transformed x (2D)
+                        transformed_r = (transformedPoint3D(1) * fy)*inv_transformedPz + oy; //transformed y (2D)
+                        int transformed_r_int = round(transformed_r);
+                        int transformed_c_int = round(transformed_c);
+
+                        //Asign the intensity value to the warped image and compute the difference between the transformed
+                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                        if( (transformed_r_int>=0 && transformed_r_int < nRows) &&
+                            (transformed_c_int>=0 && transformed_c_int < nCols) )
+                        {
+                            if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                            {
+                                //Obtain the pixel values that will be used to compute the pixel residual
+                                float pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
+                                float pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                                float photoDiff = pixel2 - pixel1;
+                                weight_photo = weightHuber(photoDiff,stdDevPhoto)*stdDevPhoto_inv;
+                                float weightedErrorPhoto = weight_photo * photoDiff;
+                                // Apply M-estimator weighting
+    //                            if(photoDiff2 > varianceRegularization)
+    //                            {
+    ////                                float photoDiff2_norm = sqrt(photoDiff2);
+    ////                                double weight = sqrt(2*stdDevReg*photoDiff2_norm-varianceRegularization) / photoDiff2_norm;
+    //                                photoDiff2 = 2*stdDevReg*sqrt(photoDiff2)-varianceRegularization;
+    //                            }
+                                error2 += weightedErrorPhoto*weightedErrorPhoto;
+//                            std::cout << "error2 " << error2 << " weightedErrorPhoto " << weightedErrorPhoto << " " << weight_photo << " " << photoDiff << std::endl;
+                            }
+                            if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                            {
+                                float depth2 = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                                if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
+                                {
+                                    //Obtain the depth values that will be used to the compute the depth residual
+                                    float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
+                                    float depthDiff = depth2 - depth1;
+                                    //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
+                                    float stdDev_depth1 = stdDevDepth*depth1;
+                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    float weightedErrorDepth = weight_depth * depthDiff;
+                                    error2 += weightedErrorDepth*weightedErrorDepth;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return error2;
+    }
+
+    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
+        This is done following the work in:
+        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
+        in Computer Vision Workshops (ICCV Workshops), 2011. */
+    void calcHessianAndGradient(const int &pyramidLevel,
+                               const Eigen::Matrix4f poseGuess,
+                               costFuncType method = PHOTO_CONSISTENCY)
+    {
+        int nRows = graySrcPyr[pyramidLevel].rows;
+        int nCols = graySrcPyr[pyramidLevel].cols;
+
+        float scaleFactor = 1.0/pow(2,pyramidLevel);
+        float fx = cameraMatrix(0,0)*scaleFactor;
+        float fy = cameraMatrix(1,1)*scaleFactor;
+        float ox = cameraMatrix(0,2)*scaleFactor;
+        float oy = cameraMatrix(1,2)*scaleFactor;
+        float inv_fx = 1./fx;
+        float inv_fy = 1./fy;
+
+        hessian = Eigen::Matrix<float,6,6>::Zero();
+        gradient = Eigen::Matrix<float,6,1>::Zero();
+
+        float weight_photo = 1./stdDevPhoto, weight_depth = 1./stdDevDepth; // The weights should include the Huber estimator plus the information of the covariance
+//        depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
+
+//        double varianceRegularization = 1; // 63%
+//        double stdDevReg = sqrt(varianceRegularization);
+        float stdDevPhoto_inv = 1./stdDevPhoto;
+        float stdDevDepth_inv = 1./stdDevDepth;
+
+        Eigen::Matrix3f rotation = poseGuess.block(0,0,3,3);
+        Eigen::Vector3f translation = poseGuess.block(0,3,3,1);
+
+        if(visualizeIterations)
+        {
+            if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                warped_source_grayImage = cv::Mat::zeros(nRows,nCols,graySrcPyr[pyramidLevel].type());
+            if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                warped_source_depthImage = cv::Mat::zeros(nRows,nCols,depthSrcPyr[pyramidLevel].type());
+        }
+
+//        if(bUseSalientPixels)
+//        {
+//#if ENABLE_OPENMP
+//#pragma omp parallel for
+//#endif
+//            for (int i=0; i < vSalientPixels[pyramidLevel].size(); i++)
+//            {
+//                int r = vSalientPixels[pyramidLevel][i] / nCols;
+//                int c = vSalientPixels[pyramidLevel][i] % nCols;
+////            cout << "vSalientPixels[pyramidLevel][i] " << vSalientPixels[pyramidLevel][i] << " " << r << " " << c << endl;
+
+//                //Compute the 3D coordinates of the pij of the source frame
+//                Eigen::Vector3f point3D;
+//                point3D(2) = depthSrcPyr[pyramidLevel].at<float>(r,c);
+////            cout << "z " << depthSrcPyr[pyramidLevel].at<float>(r,c) << endl;
+//                if(minDepth < point3D(2) && point3D(2) < maxDepth) //Compute the jacobian only for the valid points
+//                {
+//                    point3D(0)=(c - ox) * point3D(2) * inv_fx;
+//                    point3D(1)=(r - oy) * point3D(2) * inv_fy;
+
+//                    //Transform the 3D point using the transformation matrix Rt
+//                    Eigen::Vector3f rotatedPoint3D = rotation*point3D;
+//                    Eigen::Vector3f transformedPoint3D = rotatedPoint3D + translation;
+//                    rotatedPoint3D = transformedPoint3D;
+////                    Eigen::Vector3f transformedPoint3D = rotation*point3D + translation;
+
+//                    //Project the 3D point to the 2D plane
+//                    float inv_transformedPz = 1.0/transformedPoint3D(2);
+//                    float transformed_r,transformed_c; // 2D coordinates of the transformed pixel(r,c) of frame 1
+//                    transformed_c = (transformedPoint3D(0) * fx)*inv_transformedPz + ox; //transformed x (2D)
+//                    transformed_r = (transformedPoint3D(1) * fy)*inv_transformedPz + oy; //transformed y (2D)
+//                    int transformed_r_int = round(transformed_r);
+//                    int transformed_c_int = round(transformed_c);
+
+//                    //Asign the intensity value to the warped image and compute the difference between the transformed
+//                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+//                    if( (transformed_r_int>=0 && transformed_r_int < nRows) &&
+//                        (transformed_c_int>=0 && transformed_c_int < nCols) )
+//                    {
+//                        //Compute the pixel jacobian
+//                        Eigen::Matrix<float,2,6> jacobianWarpRt;
+
+//                        //Derivative with respect to x
+//                        jacobianWarpRt(0,0)=fx*inv_transformedPz;
+//                        jacobianWarpRt(1,0)=0;
+
+//                        //Derivative with respect to y
+//                        jacobianWarpRt(0,1)=0;
+//                        jacobianWarpRt(1,1)=fy*inv_transformedPz;
+
+//                        //Derivative with respect to z
+//                        jacobianWarpRt(0,2)=-fx*transformedPoint3D(0)*inv_transformedPz*inv_transformedPz;
+//                        jacobianWarpRt(1,2)=-fy*transformedPoint3D(1)*inv_transformedPz*inv_transformedPz;
+
+//                        //Derivative with respect to \lambda_x
+//                        jacobianWarpRt(0,3)=-fx*rotatedPoint3D(1)*transformedPoint3D(0)*inv_transformedPz*inv_transformedPz;
+//                        jacobianWarpRt(1,3)=-fy*(rotatedPoint3D(2)+rotatedPoint3D(1)*transformedPoint3D(1)*inv_transformedPz)*inv_transformedPz;
+
+//                        //Derivative with respect to \lambda_y
+//                        jacobianWarpRt(0,4)= fx*(rotatedPoint3D(2)+rotatedPoint3D(0)*transformedPoint3D(0)*inv_transformedPz)*inv_transformedPz;
+//                        jacobianWarpRt(1,4)= fy*rotatedPoint3D(0)*transformedPoint3D(1)*inv_transformedPz*inv_transformedPz;
+
+//                        //Derivative with respect to \lambda_z
+//                        jacobianWarpRt(0,5)=-fx*rotatedPoint3D(1)*inv_transformedPz;
+//                        jacobianWarpRt(1,5)= fy*rotatedPoint3D(0)*inv_transformedPz;
+
+////                        float weight_photo = 1./stdDevPhoto, weight_depth = 1./stdDevDepth; // The weights should include the Huber estimator plus the information of the covariance
+////                        float photoDiff2, depthDiff2;
+//                        float pixel1, pixel2, depth1, depth2;
+//                        float weightedErrorPhoto, weightedErrorDepth;
+//                        Eigen::Matrix<float,1,6> jacobianPhoto, jacobianDepth;
+
+//                        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+//                        {
+//                            //Obtain the pixel values that will be used to compute the pixel residual
+//                            pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
+//                            pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+////                        cout << "pixel1 " << pixel1 << " pixel2 " << pixel2 << endl;
+//                            float photoDiff = pixel2 - pixel1;
+//                            weight_photo = weightHuber(photoDiff,stdDevPhoto)*stdDevPhoto_inv;
+////                            if(photoDiff2 > varianceRegularization)
+////                                weight_photo = sqrt(2*stdDevReg*abs(photoDiff2)-varianceRegularization) / photoDiff2_norm;
+//                            weightedErrorPhoto = weight_photo * photoDiff;
+
+//                            //Apply the chain rule to compound the image gradients with the projective+RigidTransform jacobians
+//                            Eigen::Matrix<float,1,2> target_imgGradient;
+//                            target_imgGradient(0,0) = grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);//(i);
+//                            target_imgGradient(0,1) = grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+//                            jacobianPhoto = weight_photo * target_imgGradient*jacobianWarpRt;
+////                        cout << "target_imgGradient " << target_imgGradient << endl;
+
+//                            if(visualizeIterations)
+//                                warped_source_grayImage.at<float>(transformed_r_int,transformed_c_int) = pixel1;
+//                        }
+//                        if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+//                        {
+//                            //Obtain the depth values that will be used to the compute the depth residual
+//                            depth2 = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+//                            if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
+//                            {
+//                                depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
+//                                float depthDiff = depth2 - depth1;
+//                                //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
+//                                float stdDev_depth1 = stdDevDepth*depth1;
+//                                weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+//                                weightedErrorDepth = weight_depth * depthDiff;
+
+//                                //Depth jacobian:
+//                                //Apply the chain rule to compound the depth gradients with the projective+RigidTransform jacobians
+//                                Eigen::Matrix<float,1,2> target_depthGradient;
+//                                target_depthGradient(0,0) = depthTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+//                                target_depthGradient(0,1) = depthTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+
+//                                Eigen::Matrix<float,1,6> jacobianRt_z;
+//                                jacobianRt_z << 0,0,1,rotatedPoint3D(1),-rotatedPoint3D(0),0;
+//                                jacobianDepth = weight_depth * (target_depthGradient*jacobianWarpRt-jacobianRt_z);
+////                            cout << "jacobianDepth " << jacobianDepth << " weightedErrorDepth " << weightedErrorDepth << endl;
+
+//                                if(visualizeIterations)
+//                                    warped_source_depthImage.at<float>(transformed_r_int,transformed_c_int) = depth1;
+//                            }
+//                        }
+
+//                        //Assign the pixel residual and jacobian to its corresponding row
+//#if ENABLE_OPENMP
+//#pragma omp critical
+//#endif
+//                        {
+//                            if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+//                            {
+//                                // Photometric component
+////                                hessian += jacobianPhoto.transpose()*jacobianPhoto / varPhoto;
+//                                hessian += jacobianPhoto.transpose()*jacobianPhoto;
+//                                gradient += jacobianPhoto.transpose()*weightedErrorPhoto;
+//                            }
+//                            if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+//                                if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
+//                            {
+//                                // Depth component (Plane ICL like)
+//                                hessian += jacobianDepth.transpose()*jacobianDepth;
+//                                gradient += jacobianDepth.transpose()*weightedErrorDepth;
+//                            }
+//                        }
+
+//                    }
+//                }
+//            }
+//        }
+//        else
+        {
+#if ENABLE_OPENMP
+#pragma omp parallel for
+#endif
+            for (int r=0;r<nRows;r++)
+            {
+                for (int c=0;c<nCols;c++)
+                {
+                    //Compute the 3D coordinates of the pij of the source frame
+                    Eigen::Vector3f point3D;
+                    point3D(2) = depthSrcPyr[pyramidLevel].at<float>(r,c);
+    //            cout << "z " << depthSrcPyr[pyramidLevel].at<float>(r,c) << endl;
+                    if(minDepth < point3D(2) && point3D(2) < maxDepth) //Compute the jacobian only for the valid points
+                    {
+                        point3D(0)=(c - ox) * point3D(2) * inv_fx;
+                        point3D(1)=(r - oy) * point3D(2) * inv_fy;
+
+                        //Transform the 3D point using the transformation matrix Rt
+    //                    Eigen::Vector3f rotatedPoint3D = rotation*point3D;
+    //                    Eigen::Vector3f transformedPoint3D = rotatedPoint3D + translation;
+                        Eigen::Vector3f transformedPoint3D = rotation*point3D + translation;
+
+                        //Project the 3D point to the 2D plane
+                        float inv_transformedPz = 1.0/transformedPoint3D(2);
+                        float transformed_r,transformed_c; // 2D coordinates of the transformed pixel(r,c) of frame 1
+                        transformed_c = (transformedPoint3D(0) * fx)*inv_transformedPz + ox; //transformed x (2D)
+                        transformed_r = (transformedPoint3D(1) * fy)*inv_transformedPz + oy; //transformed y (2D)
+                        int transformed_r_int = round(transformed_r);
+                        int transformed_c_int = round(transformed_c);
+
+                        //Asign the intensity value to the warped image and compute the difference between the transformed
+                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                        if( (transformed_r_int>=0 && transformed_r_int < nRows) &&
+                            (transformed_c_int>=0 && transformed_c_int < nCols) )
+                        {
+                            //Compute the pixel jacobian
+                            Eigen::Matrix<float,2,6> jacobianWarpRt;
+
+                            //Derivative with respect to x
+                            jacobianWarpRt(0,0)=fx*inv_transformedPz;
+                            jacobianWarpRt(1,0)=0;
+
+                            //Derivative with respect to y
+                            jacobianWarpRt(0,1)=0;
+                            jacobianWarpRt(1,1)=fy*inv_transformedPz;
+
+                            //Derivative with respect to z
+                            float inv_transformedPz_2 = inv_transformedPz*inv_transformedPz;
+                            jacobianWarpRt(0,2)=-fx*transformedPoint3D(0)*inv_transformedPz_2;
+                            jacobianWarpRt(1,2)=-fy*transformedPoint3D(1)*inv_transformedPz_2;
+
+                            //Derivative with respect to \lambda_x
+                            jacobianWarpRt(0,3)=-fx*transformedPoint3D(1)*transformedPoint3D(0)*inv_transformedPz_2;
+                            jacobianWarpRt(1,3)=-fy*(1+transformedPoint3D(1)*transformedPoint3D(1)*inv_transformedPz_2);
+
+                            //Derivative with respect to \lambda_y
+                            jacobianWarpRt(0,4)= fx*(1+transformedPoint3D(0)*transformedPoint3D(0)*inv_transformedPz_2);
+                            jacobianWarpRt(1,4)= fy*transformedPoint3D(0)*transformedPoint3D(1)*inv_transformedPz_2;
+
+                            //Derivative with respect to \lambda_z
+                            jacobianWarpRt(0,5)=-fx*transformedPoint3D(1)*inv_transformedPz;
+                            jacobianWarpRt(1,5)= fy*transformedPoint3D(0)*inv_transformedPz;
+
+    //                        double weight_photo = 1./stdDevPhoto, weight_depth = 1./stdDevDepth; // The weights should include the Huber estimator plus the information of the covariance
+    //                        float photoDiff2, depthDiff2;
+                            float pixel1, pixel2, depth1, depth2;
+                            float weightedErrorPhoto, weightedErrorDepth;
+                            Eigen::Matrix<float,1,6> jacobianPhoto, jacobianDepth;
+
+                            if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                            {
+                                if(visualizeIterations)
+                                    warped_source_grayImage.at<float>(transformed_r_int,transformed_c_int) = graySrcPyr[pyramidLevel].at<float>(r,c);
+
+                                Eigen::Matrix<float,1,2> target_imgGradient;
+                                target_imgGradient(0,0) = grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);//(i);
+                                target_imgGradient(0,1) = grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                                if(target_imgGradient(0,0) < thresSaliency && target_imgGradient(0,1) < thresSaliency)
+                                    continue;
+
+                                //Obtain the pixel values that will be used to compute the pixel residual
+                                pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
+                                pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+    //                        cout << "pixel1 " << pixel1 << " pixel2 " << pixel2 << endl;
+                                float photoDiff = pixel2 - pixel1;
+                                weight_photo = weightHuber(photoDiff,stdDevPhoto)*stdDevPhoto_inv;
+    //                            if(photoDiff2 > varianceRegularization)
+    //                                weight_photo = sqrt(2*stdDevReg*abs(photoDiff2)-varianceRegularization) / photoDiff2_norm;
+                                weightedErrorPhoto = weight_photo * photoDiff;
+
+                                //Apply the chain rule to compound the image gradients with the projective+RigidTransform jacobians
+                                jacobianPhoto = weight_photo * target_imgGradient*jacobianWarpRt;
+    //                        cout << "target_imgGradient " << target_imgGradient << endl;
+                            }
+                            if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                            {
+                                if(visualizeIterations)
+                                    warped_source_depthImage.at<float>(transformed_r_int,transformed_c_int) = depthSrcPyr[pyramidLevel].at<float>(r,c);
+
+                                Eigen::Matrix<float,1,2> target_depthGradient;
+                                target_depthGradient(0,0) = depthTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                                target_depthGradient(0,1) = depthTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                                if(target_depthGradient(0,0) < thresSaliency && target_depthGradient(0,1) < thresSaliency)
+                                    continue;
+
+                                //Obtain the depth values that will be used to the compute the depth residual
+                                depth2 = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                                if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
+                                {
+                                    depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
+                                    float depthDiff = depth2 - depth1;
+                                    //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
+                                    float stdDev_depth1 = stdDevDepth*depth1;
+                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    weightedErrorDepth = weight_depth * depthDiff;
+
+                                    //Depth jacobian:
+                                    //Apply the chain rule to compound the depth gradients with the projective+RigidTransform jacobians
+                                    Eigen::Matrix<float,1,6> jacobianRt_z;
+                                    jacobianRt_z << 0,0,1,transformedPoint3D(1),-transformedPoint3D(0),0;
+                                    jacobianDepth = weight_depth * (target_depthGradient*jacobianWarpRt-jacobianRt_z);
+    //                            cout << "jacobianDepth " << jacobianDepth << " weightedErrorDepth " << weightedErrorDepth << endl;
+                                }
+                            }
+
+                            //Assign the pixel residual and jacobian to its corresponding row
+    #if ENABLE_OPENMP
+    #pragma omp critical
+    #endif
+                            {
+                                if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                                {
+                                    // Photometric component
+    //                                hessian += jacobianPhoto.transpose()*jacobianPhoto / varPhoto;
+                                    hessian += jacobianPhoto.transpose()*jacobianPhoto;
+                                    gradient += jacobianPhoto.transpose()*weightedErrorPhoto;
+                                }
+                                if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                                    if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
+                                {
+                                    // Depth component (Plane ICL like)
+                                    hessian += jacobianDepth.transpose()*jacobianDepth;
+                                    gradient += jacobianDepth.transpose()*weightedErrorDepth;
+                                }
+                            }
+
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
@@ -1853,12 +2391,10 @@ public:
 
         const int nRows = graySrcPyr[pyramidLevel].rows;
         const int nCols = graySrcPyr[pyramidLevel].cols;
-        const int phi_res = nRows;
-        const int theta_res = nCols;
-        const float angle_res = 2*PI/theta_res;
+        const float angle_res = 2*PI/nCols;
         const float angle_res_inv = 1/angle_res;
-        const float phi_FoV = angle_res*phi_res; // The vertical FOV in radians
-        const float half_phi_res = 0.5*phi_res-0.5;
+        const float phi_FoV = angle_res*nRows; // The vertical FOV in radians
+        const float half_nRows = 0.5*nRows-0.5;
 
         double weight_photo = 1./stdDevPhoto, weight_depth = 1./stdDevDepth; // The weights should include the Huber estimator plus the information of the covariance
         // depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
@@ -1879,7 +2415,7 @@ public:
 //                int c = vSalientPixels[pyramidLevel][i] % nCols;
 ////            cout << "vSalientPixels[pyramidLevel][i] " << vSalientPixels[pyramidLevel][i] << " " << r << " " << c << endl;
 
-//                float phi = (half_phi_res-r)*angle_res;
+//                float phi = (half_nRows-r)*angle_res;
 //                float theta = c*angle_res;
 
 //                //Compute the 3D coordinates of the pij of the source frame
@@ -1902,14 +2438,14 @@ public:
 //                    float dist_inv = 1.f / transformedPoint3D.norm();
 //                    float phi_trg = asin(transformedPoint3D(0)*dist_inv);
 //                    float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-//                    int transformed_r_int = round(half_phi_res-phi_trg*angle_res_inv);
+//                    int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
 //                    int transformed_c_int = round(theta_trg*angle_res_inv);
 ////                cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
 //                    //Asign the intensity value to the warped image and compute the difference between the transformed
 //                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
-//                    if( (transformed_r_int>=0 && transformed_r_int < phi_res) && transformed_c_int < theta_res )
+//                    if( (transformed_r_int>=0 && transformed_r_int < nRows) && transformed_c_int < nCols )
 //                    {
-//                        assert(transformed_c_int >= 0 && transformed_c_int < theta_res);
+//                        assert(transformed_c_int >= 0 && transformed_c_int < nCols);
 
 //                        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
 //                        {
@@ -1951,17 +2487,16 @@ public:
 #if ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2,numValidPts)
 #endif
-//            for(int r=0;r<phi_res;r++)
+//            for(int r=0;r<nRows;r++)
 //            {
-//                // float phi = (half_phi_res-r)*angle_res;
-//                for(int c=0;c<theta_res;c++)
+//                // float phi = (half_nRows-r)*angle_res;
+//                for(int c=0;c<nCols;c++)
 //                    // {
 //                    // float theta = c*angle_res;
 //                    // int size_img = nRows*nCols;
                 for(int i=0; i < LUT_xyz_sphere.size(); i++)
                 {
                     //Compute the 3D coordinates of the pij of the source frame
-                    float depth1 = depthSrcPyr[pyramidLevel].data[i];
                     //float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c);
                     // std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << std::endl;
                     //int i = r*nCols + c;
@@ -1977,18 +2512,19 @@ public:
                         Eigen::Vector3f transformedPoint3D = rotation*LUT_xyz_sphere[i] + translation;
                         // cout << "3D pts " << point3D.transpose() << " trnasformed " << transformedPoint3D.transpose() << endl;
                         //Project the 3D point to the S2 sphere
-                        float dist_inv = 1.f / transformedPoint3D.norm();
+                        float dist = transformedPoint3D.norm();
+                        float dist_inv = 1.f / dist;
                         float phi_trg = asin(transformedPoint3D(0)*dist_inv);
                         float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-                        int transformed_r_int = round(half_phi_res-phi_trg*angle_res_inv);
+                        int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
                         int transformed_c_int = round(theta_trg*angle_res_inv);
                         // cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
                         //Asign the intensity value to the warped image and compute the difference between the transformed
                         //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
-                        if( (transformed_r_int>=0 && transformed_r_int < phi_res) && transformed_c_int < theta_res )
+                        if( (transformed_r_int>=0 && transformed_r_int < nRows) && transformed_c_int < nCols )
                         {
                             // cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << " " << nRows << "x" << nCols << endl;
-                            assert(transformed_c_int >= 0 && transformed_c_int < theta_res);
+                            assert(transformed_c_int >= 0 && transformed_c_int < nCols);
                             if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                             {
                                 if(grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int) < thresSaliency &&
@@ -1996,7 +2532,7 @@ public:
                                     continue;
                                 //Obtain the pixel values that will be used to compute the pixel residual
                                 //float pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
-                                float pixel1 = graySrcPyr[pyramidLevel].data[i]; // Intensity value of the pixel(r,c) of source frame
+                                float pixel1 = graySrcPyr[pyramidLevel].at<float>(i); // Intensity value of the pixel(r,c) of source frame
                                 float pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
                                 float photoDiff = pixel2 - pixel1;
                                 weight_photo = weightHuber(photoDiff,stdDevPhoto)*stdDevPhoto_inv; // Apply M-estimator weighting
@@ -2008,7 +2544,7 @@ public:
                                 // photoDiff2 = 2*stdDevReg*sqrt(photoDiff2)-varianceRegularization;
                                 // }
                                 error2 += weightedErrorPhoto*weightedErrorPhoto;
-                                cout << "photo err " << weightedErrorPhoto << endl;
+                                //cout << "photo err " << weightedErrorPhoto << endl;
                                 ++numValidPts;
                             }
                             if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
@@ -2016,18 +2552,19 @@ public:
                                 float depth2 = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
                                 if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
                                 {
-                                    if(depthTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int) < thresSaliency &&
-                                            depthTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int) < thresSaliency)
+                                    if( depthTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int) < thresSaliency &&
+                                        depthTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int) < thresSaliency)
                                         continue;
+
                                     //Obtain the depth values that will be used to the compute the depth residual
                                     //float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
-                                    float depthDiff = depth2 - depth1;
+                                    float depthDiff = depth2 - dist;
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*depth1;
+                                    float stdDev_depth1 = stdDevDepth*depth2; // We assume that: depth1 ~ depth2 -> stdDev_depth1 ~ stdDev_depth2
                                     weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
                                     float weightedErrorDepth = weight_depth * depthDiff;
                                     error2 += weightedErrorDepth*weightedErrorDepth;
-                                    cout << "depth err " << weightedErrorDepth << endl;
+                                    //cout << "depth err " << weightedErrorDepth << endl;
                                     ++numValidPts;
                                 }
                             }
@@ -2043,33 +2580,46 @@ public:
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-    void calcHessianAndGradient_sphere( const int &pyramidLevel,
-                                        const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                        costFuncType method = PHOTO_CONSISTENCY )
+    void calcHessGrad_sphere(   const int &pyramidLevel,
+                                const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
+                                costFuncType method = PHOTO_CONSISTENCY )
     {
         const int nRows = graySrcPyr[pyramidLevel].rows;
         const int nCols = graySrcPyr[pyramidLevel].cols;
-        const int phi_res = nRows;
-        const int theta_res = nCols;
-        const float angle_res = 2*PI/theta_res;
+        const int imgSize = nRows*nCols;
+
+        const float angle_res = 2*PI/nCols;
         const float angle_res_inv = 1/angle_res;
-        const float phi_FoV = angle_res*phi_res; // The vertical FOV in radians
-        const float half_phi_res = 0.5*phi_res-0.5;
+        const float phi_FoV = angle_res*nRows; // The vertical FOV in radians
+        const float half_nRows = 0.5*nRows-0.5;
+
         hessian = Eigen::Matrix<float,6,6>::Zero();
         gradient = Eigen::Matrix<float,6,1>::Zero();
+
+        Eigen::MatrixXf jacobiansPhoto(imgSize,6);
+        Eigen::VectorXf residualsPhoto = Eigen::VectorXf::Zero(imgSize);
+        Eigen::MatrixXf jacobiansDepth(imgSize,6);
+        Eigen::VectorXf residualsDepth = Eigen::VectorXf::Zero(imgSize);
+        Eigen::VectorXi validPixelsPhoto = Eigen::VectorXi::Zero(imgSize);
+        Eigen::VectorXi validPixelsDepth = Eigen::VectorXi::Zero(imgSize);
+        Eigen::VectorXf invDepthBuffer = Eigen::VectorXf::Zero(imgSize);
+
         const Eigen::Matrix3f rotation = poseGuess.block(0,0,3,3);
         const Eigen::Vector3f translation = poseGuess.block(0,3,3,1);
+
         float weight_photo = 1./stdDevPhoto, weight_depth = 1./stdDevDepth; // The weights should include the Huber estimator plus the information of the covariance
         // depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
         float stdDevPhoto_inv = 1./stdDevPhoto;
         float stdDevDepth_inv = 1./stdDevDepth;
 
+        int numVisiblePixels = 0;
+
         if(visualizeIterations)
         {
             if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
-                warped_source_grayImage = cv::Mat::zeros(phi_res,theta_res,graySrcPyr[pyramidLevel].type());
+                warped_source_grayImage = cv::Mat::zeros(nRows,nCols,graySrcPyr[pyramidLevel].type());
             if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
-                warped_source_depthImage = cv::Mat::zeros(phi_res,theta_res,depthSrcPyr[pyramidLevel].type());
+                warped_source_depthImage = cv::Mat::zeros(nRows,nCols,depthSrcPyr[pyramidLevel].type());
         }
 
 //        if(bUseSalientPixels)
@@ -2083,7 +2633,7 @@ public:
 //                int c = vSalientPixels[pyramidLevel][i] % nCols;
 ////            cout << "vSalientPixels[pyramidLevel][i] " << vSalientPixels[pyramidLevel][i] << " " << r << " " << c << endl;
 
-//                float phi = (half_phi_res-r)*angle_res;
+//                float phi = (half_nRows-r)*angle_res;
 //                float theta = c*angle_res;
 
 //                //Compute the 3D coordinates of the pij of the source frame
@@ -2105,14 +2655,14 @@ public:
 //                    float dist_inv = 1.f / transformedPoint3D.norm();
 //                    float phi_trg = asin(transformedPoint3D(0)*dist_inv);
 //                    float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-//                    int transformed_r_int = round(half_phi_res-phi_trg*angle_res_inv);
+//                    int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
 //                    int transformed_c_int = round(theta_trg*angle_res_inv);
 ////                cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
 //                    //Asign the intensity value to the warped image and compute the difference between the transformed
 //                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
-//                    if( (transformed_r_int>=0 && transformed_r_int < phi_res) && transformed_c_int < theta_res )
+//                    if( (transformed_r_int>=0 && transformed_r_int < nRows) && transformed_c_int < nCols )
 //                    {
-//                        assert(transformed_c_int >= 0 && transformed_c_int < theta_res);
+//                        assert(transformed_c_int >= 0 && transformed_c_int < nCols);
 
 //                        //Compute the pixel jacobian
 //                        Eigen::Matrix<float,3,6> jacobianT36;
@@ -2228,22 +2778,22 @@ public:
 #if ENABLE_OPENMP
 #pragma omp parallel for
 #endif
-            for(int r=0;r<phi_res;r++)
-            {
-                // float phi = (half_phi_res-r)*angle_res;
-                // float sin_phi = sin(phi);
-                // float cos_phi = cos(phi);
-                for(int c=0;c<theta_res;c++)
-                {
+//            for(int r=0;r<nRows;r++)
+//            {
+//                // float phi = (half_nRows-r)*angle_res;
+//                // float sin_phi = sin(phi);
+//                // float cos_phi = cos(phi);
+//                for(int c=0;c<nCols;c++)
+//                {
                     // float theta = c*angle_res;
                     // {
                     // int size_img = nRows*nCols;
-                    // for(int i=0; i < size_img; i++)
-                    // {
+                 for(int i=0; i < LUT_xyz_sphere.size(); i++)
+                 {
                     //Compute the 3D coordinates of the pij of the source frame
-                    float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c);
+                    //float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c);
                     // std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << std::endl;
-                    int i = r*nCols + c;
+                    //int i = r*nCols + c;
                     if(LUT_xyz_sphere[i](0) != INVALID_POINT) //Compute the jacobian only for the valid points
                         // if(minDepth < depth1 && depth1 < maxDepth) //Compute the jacobian only for the valid points
                     {
@@ -2261,25 +2811,29 @@ public:
                         Eigen::Vector3f transformedPoint3D = rotation*LUT_xyz_sphere[i] + translation;
                         // cout << "3D pts " << point3D.transpose() << " trnasformed " << transformedPoint3D.transpose() << endl;
                         //Project the 3D point to the S2 sphere
-                        float dist_inv = 1.f / transformedPoint3D.norm();
+                        float dist = transformedPoint3D.norm();
+                        float dist_inv = 1.f / dist;
                         float phi_trg = asin(transformedPoint3D(0)*dist_inv);
                         float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-                        int transformed_r_int = round(half_phi_res-phi_trg*angle_res_inv);
+                        int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
                         int transformed_c_int = round(theta_trg*angle_res_inv);
                         // float phi_trg = asin(transformedPoint3D(1)*dist_inv);
                         // float theta_trg = atan2(transformedPoint3D(1),-transformedPoint3D(2))+PI;
-                        // int transformed_r_int = round(half_phi_res-phi_trg*angle_res_inv);
+                        // int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
                         // int transformed_c_int = round(theta_trg*angle_res_inv);
                         // cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
                         //Asign the intensity value to the warped image and compute the difference between the transformed
                         //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
-                        if( (transformed_r_int>=0 && transformed_r_int < phi_res) && transformed_c_int < theta_res )
+                        if( (transformed_r_int>=0 && transformed_r_int < nRows) && transformed_c_int < nCols )
                         {
-                            // assert(transformed_c_int >= 0 && transformed_c_int < theta_res);
+                            ++numVisiblePixels;
+
+                            // assert(transformed_c_int >= 0 && transformed_c_int < nCols);
                             //Compute the pixel jacobian
                             Eigen::Matrix<float,3,6> jacobianT36;
                             jacobianT36.block(0,0,3,3) = Eigen::Matrix<float,3,3>::Identity();
                             jacobianT36.block(0,3,3,3) = -skew( transformedPoint3D );
+
                             // The Jacobian of the spherical projection
                             Eigen::Matrix<float,2,3> jacobianProj23;
                             // Jacobian of theta with respect to x,y,z
@@ -2306,6 +2860,7 @@ public:
                             // jacobianProj23_(1,1) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(1);
                             // jacobianProj23_(1,2) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(2);
                             // std::cout << "jacobianProj23 \n " << jacobianProj23 << " \n jacobianProj23_ \n " << jacobianProj23_ << std::endl;
+
                             Eigen::Matrix<float,2,6> jacobianWarpRt = jacobianProj23 * jacobianT36;
                             float pixel1, pixel2, depth2;
                             float weightedErrorPhoto, weightedErrorDepth;
@@ -2313,14 +2868,17 @@ public:
                             if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                             {
                                 if(visualizeIterations)
-                                    warped_source_grayImage.at<float>(transformed_r_int,transformed_c_int) = graySrcPyr[pyramidLevel].at<float>(r,c);
+                                    warped_source_grayImage.at<float>(transformed_r_int,transformed_c_int) = graySrcPyr[pyramidLevel].at<float>(i);
+
                                 Eigen::Matrix<float,1,2> target_imgGradient;
                                 target_imgGradient(0,0) = grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);//(i);
                                 target_imgGradient(0,1) = grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
                                 if(target_imgGradient(0,0) < thresSaliency && target_imgGradient(0,1) < thresSaliency)
                                     continue;
+
                                 //Obtain the pixel values that will be used to compute the pixel residual
-                                pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
+                                //pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
+                                pixel1 = graySrcPyr[pyramidLevel].at<float>(i); // Intensity value of the pixel(r,c) of source frame
                                 pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
                                 // std::cout << "pixel1 " << pixel1 << " pixel2 " << pixel2 << std::endl;
                                 float photoDiff = pixel2 - pixel1;
@@ -2332,6 +2890,10 @@ public:
                                 jacobianPhoto = weight_photo * target_imgGradient*jacobianWarpRt;
                                 // std::cout << "weight_photo " << weight_photo << " target_imgGradient " << target_imgGradient << "\njacobianWarpRt\n" << jacobianWarpRt << std::endl;
                                 // std::cout << "jacobianPhoto " << jacobianPhoto << " weightedErrorPhoto " << weightedErrorPhoto << std::endl;
+
+                                jacobiansPhoto.block(i,0,1,6) = jacobianPhoto;
+                                residualsPhoto(i) = weightedErrorPhoto;
+                                validPixelsPhoto(i) = 1;
                             }
                             if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
                             {
@@ -2340,15 +2902,17 @@ public:
                                 if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
                                 {
                                     if(visualizeIterations)
-                                        warped_source_depthImage.at<float>(transformed_r_int,transformed_c_int) = depth1;
+                                        warped_source_depthImage.at<float>(transformed_r_int,transformed_c_int) = dist;
+
                                     Eigen::Matrix<float,1,2> target_depthGradient;
                                     target_depthGradient(0,0) = depthTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
                                     target_depthGradient(0,1) = depthTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
                                     if(target_depthGradient(0,0) < thresSaliency && target_depthGradient(0,1) < thresSaliency)
                                         continue;
-                                    float depthDiff = depth2 - depth1;
+
+                                    float depthDiff = depth2 - dist;
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*depth1;
+                                    float stdDev_depth1 = stdDevDepth*depth2; // We assume that: depth1 ~ depth2 -> stdDev_depth1 ~ stdDev_depth2
                                     weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
                                     weightedErrorDepth = weight_depth * depthDiff;
                                     //Depth jacobian:
@@ -2356,38 +2920,153 @@ public:
                                     Eigen::Matrix<float,1,3> jacobianDepthSrc = transformedPoint3D*dist_inv;
                                     jacobianDepth = weight_depth * (target_depthGradient*jacobianWarpRt-jacobianDepthSrc*jacobianT36);
                                     // std::cout << "jacobianDepth " << jacobianDepth << " weightedErrorDepth " << weightedErrorDepth << std::endl;
+
+                                    jacobiansDepth.block(i,0,1,6) = jacobianDepth;
+                                    residualsDepth(i) = weightedErrorDepth;
+                                    validPixelsDepth(i) = 1;
                                 }
                             }
                             //Assign the pixel residual and jacobian to its corresponding row
-#if ENABLE_OPENMP
-#pragma omp critical
-#endif
-                            {
-                                if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
-                                {
-                                    // Photometric component
-                                    hessian += jacobianPhoto.transpose()*jacobianPhoto;
-                                    gradient += jacobianPhoto.transpose()*weightedErrorPhoto;
-                                }
-                                if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
-                                    if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
-                                    {
-                                        // Depth component (Plane ICL like)
-                                        hessian += jacobianDepth.transpose()*jacobianDepth;
-                                        gradient += jacobianDepth.transpose()*weightedErrorDepth;
-                                    }
-                            }
-                        }
+//#if ENABLE_OPENMP
+//#pragma omp critical
+//#endif
+//                            {
+//                                if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+//                                {
+//                                    // Photometric component
+//                                    hessian += jacobianPhoto.transpose()*jacobianPhoto;
+//                                    gradient += jacobianPhoto.transpose()*weightedErrorPhoto;
+//                                }
+//                                if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+//                                    if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
+//                                    {
+//                                        // Depth component (Plane ICL like)
+//                                        hessian += jacobianDepth.transpose()*jacobianDepth;
+//                                        gradient += jacobianDepth.transpose()*weightedErrorDepth;
+//                                    }
+//                            }
+//                        }
                     }
                 }
-            }
+            //}
         }
+
+        // Compute hessian and gradient
+        float h11=0,h12=0,h13=0,h14=0,h15=0,h16=0,h22=0,h23=0,h24=0,h25=0,h26=0,h33=0,h34=0,h35=0,h36=0,h44=0,h45=0,h46=0,h55=0,h56=0,h66=0;
+        float g1=0,g2=0,g3=0,g4=0,g5=0,g6=0;
+
+        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+        {
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:h11,h12,h13,h14,h15,h16,h22,h23,h24,h25,h26,h33,h34,h35,h36,h44,h45,h46,h55,h56,h66,g1,g2,g3,g4,g5,g6) // Cannot reduce on Eigen types
+#endif
+            for(int i=0; i < imgSize; i++)
+                if(validPixelsPhoto(i))
+                {
+                    h11 += jacobiansPhoto(i,0)*jacobiansPhoto(i,0);
+                    h12 += jacobiansPhoto(i,0)*jacobiansPhoto(i,1);
+                    h13 += jacobiansPhoto(i,0)*jacobiansPhoto(i,2);
+                    h14 += jacobiansPhoto(i,0)*jacobiansPhoto(i,3);
+                    h15 += jacobiansPhoto(i,0)*jacobiansPhoto(i,4);
+                    h16 += jacobiansPhoto(i,0)*jacobiansPhoto(i,5);
+                    h22 += jacobiansPhoto(i,1)*jacobiansPhoto(i,1);
+                    h23 += jacobiansPhoto(i,1)*jacobiansPhoto(i,2);
+                    h24 += jacobiansPhoto(i,1)*jacobiansPhoto(i,3);
+                    h25 += jacobiansPhoto(i,1)*jacobiansPhoto(i,4);
+                    h26 += jacobiansPhoto(i,1)*jacobiansPhoto(i,5);
+                    h33 += jacobiansPhoto(i,2)*jacobiansPhoto(i,2);
+                    h34 += jacobiansPhoto(i,2)*jacobiansPhoto(i,3);
+                    h35 += jacobiansPhoto(i,2)*jacobiansPhoto(i,4);
+                    h36 += jacobiansPhoto(i,2)*jacobiansPhoto(i,5);
+                    h44 += jacobiansPhoto(i,3)*jacobiansPhoto(i,3);
+                    h45 += jacobiansPhoto(i,3)*jacobiansPhoto(i,4);
+                    h46 += jacobiansPhoto(i,3)*jacobiansPhoto(i,5);
+                    h55 += jacobiansPhoto(i,4)*jacobiansPhoto(i,4);
+                    h56 += jacobiansPhoto(i,4)*jacobiansPhoto(i,5);
+                    h66 += jacobiansPhoto(i,5)*jacobiansPhoto(i,5);
+
+                    g1 += jacobiansPhoto(i,0)*residualsPhoto(i);
+                    g2 += jacobiansPhoto(i,1)*residualsPhoto(i);
+                    g3 += jacobiansPhoto(i,2)*residualsPhoto(i);
+                    g4 += jacobiansPhoto(i,3)*residualsPhoto(i);
+                    g5 += jacobiansPhoto(i,4)*residualsPhoto(i);
+                    g6 += jacobiansPhoto(i,5)*residualsPhoto(i);
+                }
+        }
+        if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+        {
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:h11,h12,h13,h14,h15,h16,h22,h23,h24,h25,h26,h33,h34,h35,h36,h44,h45,h46,h55,h56,h66,g1,g2,g3,g4,g5,g6) // Cannot reduce on Eigen types
+#endif
+            for(int i=0; i < imgSize; i++)
+                if(validPixelsDepth(i))
+                {
+                    h11 += jacobiansDepth(i,0)*jacobiansDepth(i,0);
+                    h12 += jacobiansDepth(i,0)*jacobiansDepth(i,1);
+                    h13 += jacobiansDepth(i,0)*jacobiansDepth(i,2);
+                    h14 += jacobiansDepth(i,0)*jacobiansDepth(i,3);
+                    h15 += jacobiansDepth(i,0)*jacobiansDepth(i,4);
+                    h16 += jacobiansDepth(i,0)*jacobiansDepth(i,5);
+                    h22 += jacobiansDepth(i,1)*jacobiansDepth(i,1);
+                    h23 += jacobiansDepth(i,1)*jacobiansDepth(i,2);
+                    h24 += jacobiansDepth(i,1)*jacobiansDepth(i,3);
+                    h25 += jacobiansDepth(i,1)*jacobiansDepth(i,4);
+                    h26 += jacobiansDepth(i,1)*jacobiansDepth(i,5);
+                    h33 += jacobiansDepth(i,2)*jacobiansDepth(i,2);
+                    h34 += jacobiansDepth(i,2)*jacobiansDepth(i,3);
+                    h35 += jacobiansDepth(i,2)*jacobiansDepth(i,4);
+                    h36 += jacobiansDepth(i,2)*jacobiansDepth(i,5);
+                    h44 += jacobiansDepth(i,3)*jacobiansDepth(i,3);
+                    h45 += jacobiansDepth(i,3)*jacobiansDepth(i,4);
+                    h46 += jacobiansDepth(i,3)*jacobiansDepth(i,5);
+                    h55 += jacobiansDepth(i,4)*jacobiansDepth(i,4);
+                    h56 += jacobiansDepth(i,4)*jacobiansDepth(i,5);
+                    h66 += jacobiansDepth(i,5)*jacobiansDepth(i,5);
+
+                    g1 += jacobiansDepth(i,0)*residualsDepth(i);
+                    g2 += jacobiansDepth(i,1)*residualsDepth(i);
+                    g3 += jacobiansDepth(i,2)*residualsDepth(i);
+                    g4 += jacobiansDepth(i,3)*residualsDepth(i);
+                    g5 += jacobiansDepth(i,4)*residualsDepth(i);
+                    g6 += jacobiansDepth(i,5)*residualsDepth(i);
+                }
+        }
+        // Assign the values for the hessian and gradient
+        hessian(0,0) = h11;
+        hessian(0,1) = hessian(1,0) = h12;
+        hessian(0,2) = hessian(2,0) = h13;
+        hessian(0,3) = hessian(3,0) = h14;
+        hessian(0,4) = hessian(4,0) = h15;
+        hessian(0,5) = hessian(5,0) = h16;
+        hessian(1,1) = h22;
+        hessian(1,2) = hessian(2,1) = h23;
+        hessian(1,3) = hessian(3,1) = h24;
+        hessian(1,4) = hessian(4,1) = h25;
+        hessian(1,5) = hessian(5,1) = h26;
+        hessian(2,2) = h33;
+        hessian(2,3) = hessian(3,2) = h34;
+        hessian(2,4) = hessian(4,2) = h35;
+        hessian(2,5) = hessian(5,2) = h36;
+        hessian(3,3) = h44;
+        hessian(3,4) = hessian(4,3) = h45;
+        hessian(3,5) = hessian(5,3) = h46;
+        hessian(4,4) = h55;
+        hessian(4,5) = hessian(5,4) = h56;
+        hessian(5,5) = h66;
+
+        gradient(0) = g1;
+        gradient(1) = g2;
+        gradient(2) = g3;
+        gradient(3) = g4;
+        gradient(4) = g5;
+        gradient(5) = g6;
     }
+    SSO = (float)numVisiblePixels / imgSize;
+//        std::cout << "numVisiblePixels " << numVisiblePixels << " imgSize " << imgSize << " sso " << SSO << std::endl;
+}
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-        This is done following the work in:
-        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
-        in Computer Vision Workshops (ICCV Workshops), 2011. */
+        Occlusions are taken into account by a Z-buffer. */
     double errorPhotoICP_sphereOcc1(const int &pyramidLevel,
                                     const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                     costFuncType method = PHOTO_CONSISTENCY )
@@ -2400,18 +3079,17 @@ public:
 
         const int nRows = graySrcPyr[pyramidLevel].rows;
         const int nCols = graySrcPyr[pyramidLevel].cols;
-        const int phi_res = nRows;
-        const int theta_res = nCols;
+
         const int imgSize = nRows*nCols;
 
         Eigen::VectorXf residualsPhoto = Eigen::VectorXf::Zero(imgSize);
         Eigen::VectorXf residualsDepth = Eigen::VectorXf::Zero(imgSize);
         Eigen::VectorXf invDepthBuffer = Eigen::VectorXf::Zero(imgSize);
 
-        const float angle_res = 2*PI/theta_res;
+        const float angle_res = 2*PI/nCols;
         const float angle_res_inv = 1/angle_res;
-        const float phi_FoV = angle_res*phi_res; // The vertical FOV in radians
-        const float half_phi_res = 0.5*phi_res-0.5;
+        const float phi_FoV = angle_res*nRows; // The vertical FOV in radians
+        const float half_nRows = 0.5*nRows-0.5;
 
         double weight_photo = 1./stdDevPhoto, weight_depth = 1./stdDevDepth; // The weights should include the Huber estimator plus the information of the covariance
 //        depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
@@ -2423,15 +3101,16 @@ public:
 
         {
 #if ENABLE_OPENMP
-#pragma omp parallel for
+#pragma omp parallel for reduction (+:nValidDepthPts) // nValidPhotoPts,  //for reduction (+:error2)
 #endif
-            for(int r=0;r<phi_res;r++)
-            {
-                for(int c=0;c<theta_res;c++)
+//            for(int r=0;r<nRows;r++)
+//            {
+//                for(int c=0;c<nCols;c++)
+                for(int i=0; i < LUT_xyz_sphere.size(); i++)
                 {
                     //Compute the 3D coordinates of the pij of the source frame
-                    float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c);
-                    int i = r*nCols + c;
+                    //float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c);
+                    //int i = r*nCols + c;
                     if(LUT_xyz_sphere[i](0) != INVALID_POINT) //Compute the jacobian only for the valid points
                     {
                         Eigen::Vector3f point3D = LUT_xyz_sphere[i]; // The LUT allows to not recalculate the source point cloud for each iteration
@@ -2441,23 +3120,26 @@ public:
     //                cout << "3D pts " << point3D.transpose() << " trnasformed " << transformedPoint3D.transpose() << endl;
 
                         //Project the 3D point to the S2 sphere
-                        float dist_inv = 1.f / transformedPoint3D.norm();
+                        float dist = transformedPoint3D.norm();
+                        float dist_inv = 1.f / dist;
                         float phi_trg = asin(transformedPoint3D(0)*dist_inv);
                         float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-                        int transformed_r_int = round(half_phi_res-phi_trg*angle_res_inv);
+                        int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
                         int transformed_c_int = round(theta_trg*angle_res_inv);
     //                cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
                         //Asign the intensity value to the warped image and compute the difference between the transformed
                         //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
-                        if( (transformed_r_int>=0 && transformed_r_int < phi_res) && transformed_c_int < theta_res )
+                        if( (transformed_r_int>=0 && transformed_r_int < nRows) && transformed_c_int < nCols )
                         {
 //                        cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << " " << nRows << "x" << nCols << endl;
-                            assert(transformed_c_int >= 0 && transformed_c_int < theta_res);
+                            assert(transformed_c_int >= 0 && transformed_c_int < nCols);
 
                             // Discard occluded points
-                            if(invDepthBuffer(i) > 0 && dist_inv < invDepthBuffer(i))
+                            int ii = transformed_r_int*nCols + transformed_c_int; // The index of the pixel in the target image
+                            if(invDepthBuffer(ii) > 0 && dist_inv < invDepthBuffer(ii)) // the current pixel is occluded
                                 continue;
-                            invDepthBuffer(i) = dist_inv;
+                            invDepthBuffer(ii) = dist_inv;
+
 
                             if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                             {
@@ -2467,12 +3149,14 @@ public:
                                     continue;
 
                                 //Obtain the pixel values that will be used to compute the pixel residual
-                                float pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
+                                //float pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
+                                float pixel1 = graySrcPyr[pyramidLevel].at<float>(i); // Intensity value of the pixel(r,c) of source frame
                                 float pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
                                 float photoDiff = pixel2 - pixel1;
                                 weight_photo = weightHuber(photoDiff,stdDevPhoto)*stdDevPhoto_inv; // Apply M-estimator weighting
                                 float weightedErrorPhoto = weight_photo * photoDiff;
-                                residualsPhoto(i) = weightedErrorPhoto*weightedErrorPhoto;
+                                residualsPhoto(ii) = weightedErrorPhoto*weightedErrorPhoto;
+                                ++nValidPhotoPts;
                             }
                             if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
                             {
@@ -2485,33 +3169,37 @@ public:
                                         continue;
 
                                     //Obtain the depth values that will be used to the compute the depth residual
-                                    float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
-                                    float depthDiff = depth2 - depth1;
-                                    float stdDev_depth1 = stdDevDepth*depth1;
+                                    //float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
+                                    float depthDiff = depth2 - dist;
+                                    float stdDev_depth1 = stdDevDepth*depth2;
                                     weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
                                     float weightedErrorDepth = weight_depth * depthDiff;
-                                    residualsDepth(i) = weightedErrorDepth*weightedErrorDepth;
+                                    residualsDepth(ii) = weightedErrorDepth*weightedErrorDepth;
+                                    ++nValidDepthPts;
                                 }
                             }
                         }
                     }
                 }
-            }
+            //}
 #if ENABLE_OPENMP
-#pragma omp parallel for reduction (+:PhotoResidual,nValidPhotoPts,DepthResidual,nValidDepthPts)
+#pragma omp parallel for reduction (+:PhotoResidual,DepthResidual) // nValidPhotoPts, nValidDepthPts
 #endif
             for(int i=0; i < imgSize; i++)
             {
                 PhotoResidual += residualsPhoto(i);
                 DepthResidual += residualsDepth(i);
-                if(residualsPhoto(i) > 0) ++nValidPhotoPts;
-                if(residualsDepth(i) > 0) ++nValidDepthPts;
+//                if(residualsPhoto(i) > 0) ++nValidPhotoPts;
+//                if(residualsDepth(i) > 0) ++nValidDepthPts;
             }
-
         }
-        avPhotoResidual = sqrt(PhotoResidual / nValidPhotoPts);
+
+        std::cout << "nValidPhotoPts " << nValidPhotoPts << " nValidDepthPts " << nValidDepthPts << std::endl;
+        //avPhotoResidual = sqrt(PhotoResidual / nValidPhotoPts);
+        avPhotoResidual = sqrt(PhotoResidual / nValidDepthPts);
         avDepthResidual = sqrt(DepthResidual / nValidDepthPts);
         return avPhotoResidual + avDepthResidual;
+        //return error2;
     }
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
@@ -2522,14 +3210,12 @@ public:
     {
         const int nRows = graySrcPyr[pyramidLevel].rows;
         const int nCols = graySrcPyr[pyramidLevel].cols;
-        const int phi_res = nRows;
-        const int theta_res = nCols;
         const int imgSize = nRows*nCols;
 
-        const float angle_res = 2*PI/theta_res;
+        const float angle_res = 2*PI/nCols;
         const float angle_res_inv = 1/angle_res;
-        const float phi_FoV = angle_res*phi_res; // The vertical FOV in radians
-        const float half_phi_res = 0.5*phi_res-0.5;
+        const float phi_FoV = angle_res*nRows; // The vertical FOV in radians
+        const float half_nRows = 0.5*nRows-0.5;
 
         hessian = Eigen::Matrix<float,6,6>::Zero();
         gradient = Eigen::Matrix<float,6,1>::Zero();
@@ -2556,9 +3242,9 @@ public:
         if(visualizeIterations)
         {
             if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
-                warped_source_grayImage = cv::Mat::zeros(phi_res,theta_res,graySrcPyr[pyramidLevel].type());
+                warped_source_grayImage = cv::Mat::zeros(nRows,nCols,graySrcPyr[pyramidLevel].type());
             if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
-                warped_source_depthImage = cv::Mat::zeros(phi_res,theta_res,depthSrcPyr[pyramidLevel].type());
+                warped_source_depthImage = cv::Mat::zeros(nRows,nCols,depthSrcPyr[pyramidLevel].type());
         }
 
         {
@@ -2567,22 +3253,22 @@ public:
 #if ENABLE_OPENMP
 #pragma omp parallel for
 #endif
-            for(int r=0;r<phi_res;r++)
-            {
-                // float phi = (half_phi_res-r)*angle_res;
-                // float sin_phi = sin(phi);
-                // float cos_phi = cos(phi);
-                for(int c=0;c<theta_res;c++)
-                {
+//            for(int r=0;r<nRows;r++)
+//            {
+//                // float phi = (half_nRows-r)*angle_res;
+//                // float sin_phi = sin(phi);
+//                // float cos_phi = cos(phi);
+//                for(int c=0;c<nCols;c++)
+//                {
                     // float theta = c*angle_res;
                     // {
                     // int size_img = nRows*nCols;
-                    // for(int i=0; i < size_img; i++)
-                    // {
+                 for(int i=0; i < LUT_xyz_sphere.size(); i++)
+                 {
                     //Compute the 3D coordinates of the pij of the source frame
-                    float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c);
+                    //float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c);
                     // std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << std::endl;
-                    int i = r*nCols + c;
+                    //int i = r*nCols + c;
                     if(LUT_xyz_sphere[i](0) != INVALID_POINT) //Compute the jacobian only for the valid points
                         // if(minDepth < depth1 && depth1 < maxDepth) //Compute the jacobian only for the valid points
                     {
@@ -2601,21 +3287,22 @@ public:
     //                cout << "3D pts " << point3D.transpose() << " trnasformed " << transformedPoint3D.transpose() << endl;
 
                         //Project the 3D point to the S2 sphere
-                        float dist_inv = 1.f / transformedPoint3D.norm();
+                        float dist = transformedPoint3D.norm();
+                        float dist_inv = 1.f / dist;
                         float phi_trg = asin(transformedPoint3D(0)*dist_inv);
                         float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-                        int transformed_r_int = round(half_phi_res-phi_trg*angle_res_inv);
+                        int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
                         int transformed_c_int = round(theta_trg*angle_res_inv);
 //                        float phi_trg = asin(transformedPoint3D(1)*dist_inv);
 //                        float theta_trg = atan2(transformedPoint3D(1),-transformedPoint3D(2))+PI;
-//                        int transformed_r_int = round(half_phi_res-phi_trg*angle_res_inv);
+//                        int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
 //                        int transformed_c_int = round(theta_trg*angle_res_inv);
 //                    cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
                         //Asign the intensity value to the warped image and compute the difference between the transformed
                         //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
-                        if( (transformed_r_int>=0 && transformed_r_int < phi_res) && transformed_c_int < theta_res )
+                        if( (transformed_r_int>=0 && transformed_r_int < nRows) && transformed_c_int < nCols )
                         {
-//                            assert(transformed_c_int >= 0 && transformed_c_int < theta_res);
+//                            assert(transformed_c_int >= 0 && transformed_c_int < nCols);
                             // Discard occluded points
                             if(invDepthBuffer(i) > 0 && dist_inv < invDepthBuffer(i))
                                 continue;
@@ -2664,7 +3351,7 @@ public:
                             if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                             {
                                 if(visualizeIterations)
-                                    warped_source_grayImage.at<float>(transformed_r_int,transformed_c_int) = graySrcPyr[pyramidLevel].at<float>(r,c);
+                                    warped_source_grayImage.at<float>(transformed_r_int,transformed_c_int) = graySrcPyr[pyramidLevel].at<float>(i);
 
                                 Eigen::Matrix<float,1,2> target_imgGradient;
                                 target_imgGradient(0,0) = grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);//(i);
@@ -2673,7 +3360,8 @@ public:
                                     continue;
 
                                 //Obtain the pixel values that will be used to compute the pixel residual
-                                pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
+                                //pixel1 = graySrcPyr[pyramidLevel].at<float>(r,c); // Intensity value of the pixel(r,c) of source frame
+                                pixel1 = graySrcPyr[pyramidLevel].at<float>(i); // Intensity value of the pixel(r,c) of source frame
                                 pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
     //                        std::cout << "pixel1 " << pixel1 << " pixel2 " << pixel2 << std::endl;
                                 float photoDiff = pixel2 - pixel1;
@@ -2694,7 +3382,7 @@ public:
                                 if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
                                 {
                                     if(visualizeIterations)
-                                        warped_source_depthImage.at<float>(transformed_r_int,transformed_c_int) = depth1;
+                                        warped_source_depthImage.at<float>(transformed_r_int,transformed_c_int) = dist;
 
                                     Eigen::Matrix<float,1,2> target_depthGradient;
                                     target_depthGradient(0,0) = depthTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
@@ -2702,9 +3390,9 @@ public:
                                     if(target_depthGradient(0,0) < thresSaliency && target_depthGradient(0,1) < thresSaliency)
                                         continue;
 
-                                    float depthDiff = depth2 - depth1;
+                                    float depthDiff = depth2 - dist;
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*depth1;
+                                    float stdDev_depth1 = stdDevDepth*depth2; // We assume that: depth1 ~ depth2 -> stdDev_depth1 ~ stdDev_depth2
                                     weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
                                     weightedErrorDepth = weight_depth * depthDiff;
 
@@ -2727,9 +3415,9 @@ public:
 //                                    hessian += jacobianPhoto.transpose()*jacobianPhoto;
 //                                    gradient += jacobianPhoto.transpose()*weightedErrorPhoto;
                                     // Take into account the possible occlusions
-                                    jacobiansPhoto.block(r*nCols+c,0,1,6) = jacobianPhoto;
-                                    residualsPhoto(r*nCols+c) = weightedErrorPhoto;
-                                    validPixelsPhoto(r*nCols+c) = 1;
+                                    jacobiansPhoto.block(i,0,1,6) = jacobianPhoto;
+                                    residualsPhoto(i) = weightedErrorPhoto;
+                                    validPixelsPhoto(i) = 1;
                                 }
                                 if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
                                     if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
@@ -2738,15 +3426,15 @@ public:
 //                                    hessian += jacobianDepth.transpose()*jacobianDepth;
 //                                    gradient += jacobianDepth.transpose()*weightedErrorDepth;
                                     // Take into account the possible occlusions
-                                    jacobiansDepth.block(r*nCols+c,0,1,6) = jacobianDepth;
-                                    residualsDepth(r*nCols+c) = weightedErrorDepth;
-                                    validPixelsDepth(r*nCols+c) = 1;
+                                    jacobiansDepth.block(i,0,1,6) = jacobianDepth;
+                                    residualsDepth(i) = weightedErrorDepth;
+                                    validPixelsDepth(i) = 1;
                                 }
                             }
                         }
                     }
                 }
-            }
+            //}
             // Compute hessian and gradient
             float h11=0,h12=0,h13=0,h14=0,h15=0,h16=0,h22=0,h23=0,h24=0,h25=0,h26=0,h33=0,h34=0,h35=0,h36=0,h44=0,h45=0,h46=0,h55=0,h56=0,h66=0;
             float g1=0,g2=0,g3=0,g4=0,g5=0,g6=0;
@@ -2861,6 +3549,549 @@ public:
 //        std::cout << "numVisiblePixels " << numVisiblePixels << " imgSize " << imgSize << " sso " << SSO << std::endl;
     }
 
+    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
+        Occlusions are taken into account by a Z-buffer. */
+    double errorPhotoICP_sphereOcc2(const int &pyramidLevel,
+                                    const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
+                                    costFuncType method = PHOTO_CONSISTENCY )
+    {
+//        double error2 = 0.0;
+        double PhotoResidual = 0.0;
+        double DepthResidual = 0.0;
+        int nValidPhotoPts = 0;
+        int nValidDepthPts = 0;
+
+        const int nRows = graySrcPyr[pyramidLevel].rows;
+        const int nCols = graySrcPyr[pyramidLevel].cols;
+
+        const int imgSize = nRows*nCols;
+
+        Eigen::VectorXf residualsPhoto = Eigen::VectorXf::Zero(imgSize);
+        Eigen::VectorXf residualsDepth = Eigen::VectorXf::Zero(imgSize);
+        Eigen::VectorXf invDepthBuffer = Eigen::VectorXf::Zero(imgSize);
+
+        const float angle_res = 2*PI/nCols;
+        const float angle_res_inv = 1/angle_res;
+        const float phi_FoV = angle_res*nRows; // The vertical FOV in radians
+        const float half_nRows = 0.5*nRows-0.5;
+
+        double weight_photo = 1./stdDevPhoto, weight_depth = 1./stdDevDepth; // The weights should include the Huber estimator plus the information of the covariance
+//        depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
+        double stdDevPhoto_inv = 1./stdDevPhoto;
+        double stdDevDepth_inv = 1./stdDevDepth;
+
+        const Eigen::Matrix3f rotation = poseGuess.block(0,0,3,3);
+        const Eigen::Vector3f translation = poseGuess.block(0,3,3,1);
+
+        {
+//#if ENABLE_OPENMP
+//#pragma omp parallel for reduction (+:nValidDepthPts) // nValidPhotoPts,  //for reduction (+:error2)
+//#endif
+//            for(int r=0;r<nRows;r++)
+//            {
+//                for(int c=0;c<nCols;c++)
+            for(int i=0; i < LUT_xyz_sphere.size(); i++)
+            {
+                //Compute the 3D coordinates of the pij of the source frame
+                //float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c);
+                //int i = r*nCols + c;
+                if(LUT_xyz_sphere[i](0) != INVALID_POINT) //Compute the jacobian only for the valid points
+                {
+                    Eigen::Vector3f point3D = LUT_xyz_sphere[i]; // The LUT allows to not recalculate the source point cloud for each iteration
+
+                        //Transform the 3D point using the transformation matrix Rt
+                        Eigen::Vector3f transformedPoint3D = rotation*point3D + translation;
+    //                cout << "3D pts " << point3D.transpose() << " trnasformed " << transformedPoint3D.transpose() << endl;
+
+                        //Project the 3D point to the S2 sphere
+                        float dist = transformedPoint3D.norm();
+                        float dist_inv = 1.f / dist;
+                        float phi_trg = asin(transformedPoint3D(0)*dist_inv);
+                        float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
+                        int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
+                        int transformed_c_int = round(theta_trg*angle_res_inv);
+    //                cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
+                        //Asign the intensity value to the warped image and compute the difference between the transformed
+                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                        if( (transformed_r_int>=0 && transformed_r_int < nRows) && transformed_c_int < nCols )
+                        {
+//                        cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << " " << nRows << "x" << nCols << endl;
+                            assert(transformed_c_int >= 0 && transformed_c_int < nCols);
+
+                            // Discard outliers (occluded and moving points)
+                            float depth2 = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                            float depthDiff = depth2 - dist;
+                            if(fabs(depthDiff) > thresDepthOutliers)
+                                continue;
+
+                            // Discard occluded points
+                            int ii = transformed_r_int*nCols + transformed_c_int; // The index of the pixel in the target image
+                            if(invDepthBuffer(ii) > 0 && dist_inv < invDepthBuffer(ii)) // the current pixel is occluded
+                                continue;
+                            invDepthBuffer(ii) = dist_inv;
+
+                            ++nValidDepthPts;
+
+                            if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                            {
+                                // Filter the pixels according to the image gradients
+                                if(grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int) < thresSaliency &&
+                                   grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int) < thresSaliency)
+                                    continue;
+
+                                //Obtain the pixel values that will be used to compute the pixel residual
+                                float pixel1 = graySrcPyr[pyramidLevel].at<float>(i); // Intensity value of the pixel(r,c) of source frame
+                                float pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                                float photoDiff = pixel2 - pixel1;
+                                weight_photo = weightHuber(photoDiff,stdDevPhoto)*stdDevPhoto_inv; // Apply M-estimator weighting
+                                float weightedErrorPhoto = weight_photo * photoDiff;
+                                residualsPhoto(i) = weightedErrorPhoto*weightedErrorPhoto;
+                            }
+                            if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                            {
+                                if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
+                                {
+                                    // Filter the pixels according to the image gradients
+                                    if(depthTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int) < thresSaliency &&
+                                       depthTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int) < thresSaliency)
+                                        continue;
+
+                                    //Obtain the depth values that will be used to the compute the depth residual
+                                    //float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
+                                    float stdDev_depth1 = stdDevDepth*depth2;
+                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    float weightedErrorDepth = weight_depth * depthDiff;
+                                    residualsDepth(i) = weightedErrorDepth*weightedErrorDepth;
+//                                    ++nValidDepthPts;
+                                }
+                            }
+                        }
+                    }
+                }
+            //}
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:PhotoResidual,DepthResidual) // nValidPhotoPts, nValidDepthPts
+#endif
+            for(int i=0; i < imgSize; i++)
+            {
+//                std::cout << "residualsPhoto(i) " << residualsPhoto(i) << std::endl;
+                PhotoResidual += residualsPhoto(i);
+                DepthResidual += residualsDepth(i);
+//                if(residualsPhoto(i) > 0) ++nValidPhotoPts;
+//                if(residualsDepth(i) > 0) ++nValidDepthPts;
+            }
+        }
+
+        //avPhotoResidual = sqrt(PhotoResidual / nValidPhotoPts);
+        avPhotoResidual = sqrt(PhotoResidual / nValidDepthPts);
+        avDepthResidual = sqrt(DepthResidual / nValidDepthPts);
+        //std::cout << "avPhotoResidual " << avPhotoResidual << " PhotoResidual " << PhotoResidual << " nValidDepthPts " << nValidDepthPts << std::endl;
+        return avPhotoResidual + avDepthResidual;
+        //return error2;
+    }
+
+    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
+        This function takes into account the occlusions and the moving pixels by applying a filter on the maximum depth error */
+    void calcHessGrad_sphereOcc2( const int &pyramidLevel,
+                                    const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
+                                    costFuncType method = PHOTO_CONSISTENCY )
+    {
+        const int nRows = graySrcPyr[pyramidLevel].rows;
+        const int nCols = graySrcPyr[pyramidLevel].cols;
+        const int imgSize = nRows*nCols;
+
+        const float angle_res = 2*PI/nCols;
+        const float angle_res_inv = 1/angle_res;
+        const float phi_FoV = angle_res*nRows; // The vertical FOV in radians
+        const float half_nRows = 0.5*nRows-0.5;
+
+        hessian = Eigen::Matrix<float,6,6>::Zero();
+        gradient = Eigen::Matrix<float,6,1>::Zero();
+
+        Eigen::MatrixXf jacobiansPhoto(imgSize,6);
+        Eigen::VectorXf residualsPhoto = Eigen::VectorXf::Zero(imgSize);
+        Eigen::MatrixXf jacobiansDepth(imgSize,6);
+        Eigen::VectorXf residualsDepth = Eigen::VectorXf::Zero(imgSize);
+        Eigen::VectorXi validPixelsPhoto = Eigen::VectorXi::Zero(imgSize);
+        Eigen::VectorXi validPixelsDepth = Eigen::VectorXi::Zero(imgSize);
+        Eigen::VectorXf invDepthBuffer = Eigen::VectorXf::Zero(imgSize);
+
+        const Eigen::Matrix3f rotation = poseGuess.block(0,0,3,3);
+        const Eigen::Vector3f translation = poseGuess.block(0,3,3,1);
+
+        float weight_photo = 1./stdDevPhoto, weight_depth = 1./stdDevDepth; // The weights should include the Huber estimator plus the information of the covariance
+//        depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
+        float stdDevPhoto_inv = 1./stdDevPhoto;
+        float stdDevDepth_inv = 1./stdDevDepth;
+
+        int numVisiblePixels = 0;
+
+        //std::cout << " calcHessianAndGradient_sphere visualizeIterations " << visualizeIterations << std::endl;
+        if(visualizeIterations)
+        {
+            if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                warped_source_grayImage = cv::Mat::zeros(nRows,nCols,graySrcPyr[pyramidLevel].type());
+            if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                warped_source_depthImage = cv::Mat::zeros(nRows,nCols,depthSrcPyr[pyramidLevel].type());
+
+            // Initialize the masks to segment the dynamic objects and the occlusions
+            mask_dynamic_objectFront.resize(imgSize/8);
+            mask_dynamic_objectBack.resize(imgSize/8);
+            mask_occlusion.resize(imgSize/8);
+        }
+
+        int nDynPixF = 0, nDynPixB = 0, nOccPix = 0;
+        Eigen::VectorXf correspTrgSrc = Eigen::VectorXf::Zero(imgSize);
+        std::vector<float> depthDiff_(imgSize,-1);
+
+        {
+//            cout << "compute hessian/gradient " << endl;
+//        int countSalientPix = 0;
+#if ENABLE_OPENMP
+#pragma omp parallel for
+#endif
+//            for(int r=0;r<nRows;r++)
+//            {
+//                // float phi = (half_nRows-r)*angle_res;
+//                // float sin_phi = sin(phi);
+//                // float cos_phi = cos(phi);
+//                for(int c=0;c<nCols;c++)
+//                {
+                    // float theta = c*angle_res;
+                    // {
+                    // int size_img = nRows*nCols;
+                for(int i=0; i < LUT_xyz_sphere.size(); i++)
+                {
+                   //Compute the 3D coordinates of the pij of the source frame
+                   //float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c);
+                   // std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << std::endl;
+                   //int i = r*nCols + c;
+                    if(LUT_xyz_sphere[i](0) != INVALID_POINT) //Compute the jacobian only for the valid points
+                        // if(minDepth < depth1 && depth1 < maxDepth) //Compute the jacobian only for the valid points
+                    {
+                        // Eigen::Vector3f point3D = LUT_xyz_sphere[i];
+                        // point3D(0) = depth1*sin_phi;
+                        // point3D(1) = -depth1*cos_phi*sin(theta);
+                        // point3D(2) = -depth1*cos_phi*cos(theta);
+                        // point3D(1) = depth1*sin(phi);
+                        // point3D(0) = depth1*cos(phi)*sin(theta);
+                        // point3D(2) = -depth1*cos(phi)*cos(theta);
+                        //Transform the 3D point using the transformation matrix Rt
+                        // Eigen::Vector3f rotatedPoint3D = rotation*point3D;
+                        // Eigen::Vector3f transformedPoint3D = rotatedPoint3D + translation;
+                        //Eigen::Vector3f transformedPoint3D = rotation*point3D + translation;
+                        Eigen::Vector3f transformedPoint3D = rotation*LUT_xyz_sphere[i] + translation;
+    //                cout << "3D pts " << point3D.transpose() << " trnasformed " << transformedPoint3D.transpose() << endl;
+
+                        //Project the 3D point to the S2 sphere
+                        float dist = transformedPoint3D.norm();
+                        float dist_inv = 1.f / dist;
+                        float phi_trg = asin(transformedPoint3D(0)*dist_inv);
+                        float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
+                        int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
+                        int transformed_c_int = round(theta_trg*angle_res_inv);
+//                        float phi_trg = asin(transformedPoint3D(1)*dist_inv);
+//                        float theta_trg = atan2(transformedPoint3D(1),-transformedPoint3D(2))+PI;
+//                        int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
+//                        int transformed_c_int = round(theta_trg*angle_res_inv);
+//                    cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
+                        //Asign the intensity value to the warped image and compute the difference between the transformed
+                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                        if( (transformed_r_int>=0 && transformed_r_int < nRows) && transformed_c_int < nCols )
+                        {
+//                            assert(transformed_c_int >= 0 && transformed_c_int < nCols);
+
+                            // Discard outliers (occluded and moving points)
+                            float depth2 = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                            float depthDiff = depth2 - dist;
+                            if(fabs(depthDiff) > thresDepthOutliers)
+                            {
+                                if(visualizeIterations)
+                                    if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                                    {
+                                        if(depthDiff > 0)
+                                            mask_dynamic_objectFront[nDynPixF++] = i;
+                                        else
+                                            mask_dynamic_objectBack[nDynPixB++] = i;
+                                    }
+                                //assert(false);
+                                continue;
+                            }
+
+                            // Discard occluded points
+                            int ii = transformed_r_int*nCols + transformed_c_int; // The index of the pixel in the target image
+                            if(invDepthBuffer(ii) == 0)
+                                ++numVisiblePixels;
+                            else
+                            {
+                                //assert(false);
+                                if(dist_inv < invDepthBuffer(ii)) // the current pixel is occluded
+                                {
+                                    mask_occlusion[nOccPix++] = i;
+                                    continue;
+                                }
+                                else // The previous pixel used was occluded
+                                    mask_occlusion[nOccPix++] = correspTrgSrc[ii];
+                            }
+
+                            invDepthBuffer(ii) = dist_inv;
+                            correspTrgSrc(ii) = i;
+
+                            //Compute the pixel jacobian
+                            Eigen::Matrix<float,3,6> jacobianT36;
+                            jacobianT36.block(0,0,3,3) = Eigen::Matrix<float,3,3>::Identity();
+                            jacobianT36.block(0,3,3,3) = -skew( transformedPoint3D );
+
+                            // The Jacobian of the spherical projection
+                            Eigen::Matrix<float,2,3> jacobianProj23;
+                            // Jacobian of theta with respect to x,y,z
+                            float z_inv = 1.f / transformedPoint3D(2);
+                            float z_inv2 = z_inv*z_inv;
+                            float D_atan_theta = 1.f / (1 + transformedPoint3D(1)*transformedPoint3D(1)*z_inv2) *angle_res_inv;
+                            jacobianProj23(0,0) = 0;
+                            jacobianProj23(0,1) = D_atan_theta * z_inv;
+                            jacobianProj23(0,2) = -transformedPoint3D(1) * z_inv2 * D_atan_theta;
+    //                        jacobianProj23(0,2) = -D_atan_theta * z_inv;
+    //                        jacobianProj23(0,1) = transformedPoint3D(1) * z_inv2 * D_atan_theta;
+                            // Jacobian of phi with respect to x,y,z
+                            float dist_inv2 = dist_inv*dist_inv;
+                            float x_dist_inv2 = transformedPoint3D(0)*dist_inv2;
+                            float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) *angle_res_inv;
+                            jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*x_dist_inv2);
+                            jacobianProj23(1,1) = D_asin * (x_dist_inv2*transformedPoint3D(1)*dist_inv);
+                            jacobianProj23(1,2) = D_asin * (x_dist_inv2*transformedPoint3D(2)*dist_inv);
+//                            float y2_z2_inv = 1.f / (transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
+//                            float sq_y2_z2 = sqrt(y2_z2_inv);
+//                            float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*y2_z2_inv) *angle_res_inv;;
+//                            Eigen::Matrix<float,2,3> jacobianProj23_;
+//                            jacobianProj23_(1,0) = - D_atan * sq_y2_z2;
+//                            jacobianProj23_(1,1) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(1);
+//                            jacobianProj23_(1,2) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(2);
+//                        std::cout << "jacobianProj23 \n " << jacobianProj23 << " \n jacobianProj23_ \n " << jacobianProj23_ << std::endl;
+
+                            Eigen::Matrix<float,2,6> jacobianWarpRt = jacobianProj23 * jacobianT36;
+
+                            float pixel1, pixel2;
+                            float weightedErrorPhoto, weightedErrorDepth;
+                            Eigen::Matrix<float,1,6> jacobianPhoto, jacobianDepth;
+
+                            if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                            {
+                                if(visualizeIterations)
+                                    warped_source_grayImage.at<float>(transformed_r_int,transformed_c_int) = graySrcPyr[pyramidLevel].at<float>(i);
+
+                                Eigen::Matrix<float,1,2> target_imgGradient;
+                                target_imgGradient(0,0) = grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);//(i);
+                                target_imgGradient(0,1) = grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                                if(target_imgGradient(0,0) < thresSaliency && target_imgGradient(0,1) < thresSaliency)
+                                    continue;
+
+                                //Obtain the pixel values that will be used to compute the pixel residual
+                                pixel1 = graySrcPyr[pyramidLevel].at<float>(i); // Intensity value of the pixel(r,c) of source frame
+                                pixel2 = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+    //                        std::cout << "pixel1 " << pixel1 << " pixel2 " << pixel2 << std::endl;
+                                float photoDiff = pixel2 - pixel1;
+                                weight_photo = weightHuber(photoDiff,stdDevPhoto)*stdDevPhoto_inv;
+    //                            if(photoDiff2 > varianceRegularization)
+    //                                weight_photo = sqrt(2*stdDevReg*abs(photoDiff2)-varianceRegularization) / photoDiff2_norm;
+                                weightedErrorPhoto = weight_photo * photoDiff;
+
+                                //Apply the chain rule to compound the image gradients with the projective+RigidTransform jacobians
+                                jacobianPhoto = weight_photo * target_imgGradient*jacobianWarpRt;
+    //                        std::cout << "weight_photo " << weight_photo << " target_imgGradient " << target_imgGradient << "\njacobianWarpRt\n" << jacobianWarpRt << std::endl;
+    //                        std::cout << "jacobianPhoto " << jacobianPhoto << " weightedErrorPhoto " << weightedErrorPhoto << std::endl;
+                            }
+                            if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                            {
+                                //Obtain the depth values that will be used to the compute the depth residual
+                                depth2 = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                                if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
+                                {
+                                    if(visualizeIterations)
+                                        warped_source_depthImage.at<float>(transformed_r_int,transformed_c_int) = dist;
+
+                                    Eigen::Matrix<float,1,2> target_depthGradient;
+                                    target_depthGradient(0,0) = depthTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                                    target_depthGradient(0,1) = depthTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                                    if(target_depthGradient(0,0) < thresSaliency && target_depthGradient(0,1) < thresSaliency)
+                                        continue;
+
+                                    float depthDiff = depth2 - dist;
+                                    //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
+                                    float stdDev_depth1 = stdDevDepth*depth2; // We assume that: depth1 ~ depth2 -> stdDev_depth1 ~ stdDev_depth2
+                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    weightedErrorDepth = weight_depth * depthDiff;
+
+                                    //Depth jacobian:
+                                    //Apply the chain rule to compound the depth gradients with the projective+RigidTransform jacobians
+                                    Eigen::Matrix<float,1,3> jacobianDepthSrc = transformedPoint3D*dist_inv;
+                                    jacobianDepth = weight_depth * (target_depthGradient*jacobianWarpRt-jacobianDepthSrc*jacobianT36);
+    //                            std::cout << "jacobianDepth " << jacobianDepth << " weightedErrorDepth " << weightedErrorDepth << std::endl;
+                                }
+                            }
+
+                            //Assign the pixel residual and jacobian to its corresponding row. The critical section avoids very weird situations, is it necessary?
+    #if ENABLE_OPENMP
+    #pragma omp critical
+    #endif
+                            {
+                                if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                                {
+                                    // Photometric component
+//                                    hessian += jacobianPhoto.transpose()*jacobianPhoto;
+//                                    gradient += jacobianPhoto.transpose()*weightedErrorPhoto;
+                                    // Take into account the possible occlusions
+                                    jacobiansPhoto.block(ii,0,1,6) = jacobianPhoto;
+                                    residualsPhoto(ii) = weightedErrorPhoto;
+                                    validPixelsPhoto(ii) = 1;
+                                }
+                                if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                                    if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
+                                {
+                                    // Depth component (Plane ICL like)
+//                                    hessian += jacobianDepth.transpose()*jacobianDepth;
+//                                    gradient += jacobianDepth.transpose()*weightedErrorDepth;
+                                    // Take into account the possible occlusions
+                                    jacobiansDepth.block(ii,0,1,6) = jacobianDepth;
+                                    residualsDepth(ii) = weightedErrorDepth;
+                                    validPixelsDepth(ii) = 1;
+                                    depthDiff_[ii] = fabs(depthDiff);
+                                }
+                            }
+                        }
+                    }
+                }
+            //}
+
+            if(visualizeIterations)
+            {
+                mask_dynamic_objectFront.resize(nDynPixF);
+                mask_dynamic_objectBack.resize(nDynPixB);
+                mask_occlusion.resize(nOccPix);
+            }
+
+            // Compute hessian and gradient
+            float h11=0,h12=0,h13=0,h14=0,h15=0,h16=0,h22=0,h23=0,h24=0,h25=0,h26=0,h33=0,h34=0,h35=0,h36=0,h44=0,h45=0,h46=0,h55=0,h56=0,h66=0;
+            float g1=0,g2=0,g3=0,g4=0,g5=0,g6=0;
+
+            if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+            {
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:h11,h12,h13,h14,h15,h16,h22,h23,h24,h25,h26,h33,h34,h35,h36,h44,h45,h46,h55,h56,h66,g1,g2,g3,g4,g5,g6) // Cannot reduce on Eigen types
+#endif
+                for(int i=0; i < imgSize; i++)
+                    if(validPixelsPhoto(i))
+                    {
+                        h11 += jacobiansPhoto(i,0)*jacobiansPhoto(i,0);
+                        h12 += jacobiansPhoto(i,0)*jacobiansPhoto(i,1);
+                        h13 += jacobiansPhoto(i,0)*jacobiansPhoto(i,2);
+                        h14 += jacobiansPhoto(i,0)*jacobiansPhoto(i,3);
+                        h15 += jacobiansPhoto(i,0)*jacobiansPhoto(i,4);
+                        h16 += jacobiansPhoto(i,0)*jacobiansPhoto(i,5);
+                        h22 += jacobiansPhoto(i,1)*jacobiansPhoto(i,1);
+                        h23 += jacobiansPhoto(i,1)*jacobiansPhoto(i,2);
+                        h24 += jacobiansPhoto(i,1)*jacobiansPhoto(i,3);
+                        h25 += jacobiansPhoto(i,1)*jacobiansPhoto(i,4);
+                        h26 += jacobiansPhoto(i,1)*jacobiansPhoto(i,5);
+                        h33 += jacobiansPhoto(i,2)*jacobiansPhoto(i,2);
+                        h34 += jacobiansPhoto(i,2)*jacobiansPhoto(i,3);
+                        h35 += jacobiansPhoto(i,2)*jacobiansPhoto(i,4);
+                        h36 += jacobiansPhoto(i,2)*jacobiansPhoto(i,5);
+                        h44 += jacobiansPhoto(i,3)*jacobiansPhoto(i,3);
+                        h45 += jacobiansPhoto(i,3)*jacobiansPhoto(i,4);
+                        h46 += jacobiansPhoto(i,3)*jacobiansPhoto(i,5);
+                        h55 += jacobiansPhoto(i,4)*jacobiansPhoto(i,4);
+                        h56 += jacobiansPhoto(i,4)*jacobiansPhoto(i,5);
+                        h66 += jacobiansPhoto(i,5)*jacobiansPhoto(i,5);
+
+                        g1 += jacobiansPhoto(i,0)*residualsPhoto(i);
+                        g2 += jacobiansPhoto(i,1)*residualsPhoto(i);
+                        g3 += jacobiansPhoto(i,2)*residualsPhoto(i);
+                        g4 += jacobiansPhoto(i,3)*residualsPhoto(i);
+                        g5 += jacobiansPhoto(i,4)*residualsPhoto(i);
+                        g6 += jacobiansPhoto(i,5)*residualsPhoto(i);
+                    }
+            }
+            if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+            {
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:h11,h12,h13,h14,h15,h16,h22,h23,h24,h25,h26,h33,h34,h35,h36,h44,h45,h46,h55,h56,h66,g1,g2,g3,g4,g5,g6) // Cannot reduce on Eigen types
+#endif
+                for(int i=0; i < imgSize; i++)
+                    if(validPixelsDepth(i))
+                    {
+                        h11 += jacobiansDepth(i,0)*jacobiansDepth(i,0);
+                        h12 += jacobiansDepth(i,0)*jacobiansDepth(i,1);
+                        h13 += jacobiansDepth(i,0)*jacobiansDepth(i,2);
+                        h14 += jacobiansDepth(i,0)*jacobiansDepth(i,3);
+                        h15 += jacobiansDepth(i,0)*jacobiansDepth(i,4);
+                        h16 += jacobiansDepth(i,0)*jacobiansDepth(i,5);
+                        h22 += jacobiansDepth(i,1)*jacobiansDepth(i,1);
+                        h23 += jacobiansDepth(i,1)*jacobiansDepth(i,2);
+                        h24 += jacobiansDepth(i,1)*jacobiansDepth(i,3);
+                        h25 += jacobiansDepth(i,1)*jacobiansDepth(i,4);
+                        h26 += jacobiansDepth(i,1)*jacobiansDepth(i,5);
+                        h33 += jacobiansDepth(i,2)*jacobiansDepth(i,2);
+                        h34 += jacobiansDepth(i,2)*jacobiansDepth(i,3);
+                        h35 += jacobiansDepth(i,2)*jacobiansDepth(i,4);
+                        h36 += jacobiansDepth(i,2)*jacobiansDepth(i,5);
+                        h44 += jacobiansDepth(i,3)*jacobiansDepth(i,3);
+                        h45 += jacobiansDepth(i,3)*jacobiansDepth(i,4);
+                        h46 += jacobiansDepth(i,3)*jacobiansDepth(i,5);
+                        h55 += jacobiansDepth(i,4)*jacobiansDepth(i,4);
+                        h56 += jacobiansDepth(i,4)*jacobiansDepth(i,5);
+                        h66 += jacobiansDepth(i,5)*jacobiansDepth(i,5);
+
+                        g1 += jacobiansDepth(i,0)*residualsDepth(i);
+                        g2 += jacobiansDepth(i,1)*residualsDepth(i);
+                        g3 += jacobiansDepth(i,2)*residualsDepth(i);
+                        g4 += jacobiansDepth(i,3)*residualsDepth(i);
+                        g5 += jacobiansDepth(i,4)*residualsDepth(i);
+                        g6 += jacobiansDepth(i,5)*residualsDepth(i);
+                    }
+            }
+            // Assign the values for the hessian and gradient
+            hessian(0,0) = h11;
+            hessian(0,1) = hessian(1,0) = h12;
+            hessian(0,2) = hessian(2,0) = h13;
+            hessian(0,3) = hessian(3,0) = h14;
+            hessian(0,4) = hessian(4,0) = h15;
+            hessian(0,5) = hessian(5,0) = h16;
+            hessian(1,1) = h22;
+            hessian(1,2) = hessian(2,1) = h23;
+            hessian(1,3) = hessian(3,1) = h24;
+            hessian(1,4) = hessian(4,1) = h25;
+            hessian(1,5) = hessian(5,1) = h26;
+            hessian(2,2) = h33;
+            hessian(2,3) = hessian(3,2) = h34;
+            hessian(2,4) = hessian(4,2) = h35;
+            hessian(2,5) = hessian(5,2) = h36;
+            hessian(3,3) = h44;
+            hessian(3,4) = hessian(4,3) = h45;
+            hessian(3,5) = hessian(5,3) = h46;
+            hessian(4,4) = h55;
+            hessian(4,5) = hessian(5,4) = h56;
+            hessian(5,5) = h66;
+
+            gradient(0) = g1;
+            gradient(1) = g2;
+            gradient(2) = g3;
+            gradient(3) = g4;
+            gradient(4) = g5;
+            gradient(5) = g6;
+        }
+        SSO = (float)numVisiblePixels / imgSize;
+//        std::cout << "numVisiblePixels " << numVisiblePixels << " imgSize " << imgSize << " sso " << SSO << std::endl;
+
+        std::vector<float> diffDepth(imgSize);
+        int validPt = 0;
+        for(int i=0; i < imgSize; i++)
+            diffDepth[validPt++] = depthDiff_[i];
+        float diffDepthMean, diffDepthStDev;
+        calcMeanAndStDev(diffDepth, diffDepthMean, diffDepthStDev);
+        std::cout << "diffDepthMean " << diffDepthMean << " diffDepthStDev " << diffDepthStDev << " trans " << poseGuess.block(0,3,3,1).norm() << " sso " << SSO << std::endl;
+    }
+
     /*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
       * This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
       * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution. */
@@ -2925,7 +4156,7 @@ public:
                 cv::TickMeter tm;tm.start();
 #endif
 
-                calcHessianAndGradient(pyramidLevel, pose_estim, method);
+                calcHessGrad(pyramidLevel, pose_estim, method);
 //                assert(hessian.rank() == 6); // Make sure that the problem is observable
                 if((hessian + lambda*getDiagonalMatrix(hessian)).rank() != 6)
                 {
@@ -3014,11 +4245,15 @@ public:
 
     /*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
       * This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
-      * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution. */
-    void alignFrames360(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(), costFuncType method = PHOTO_CONSISTENCY)
+      * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
+      * The input parameter occlusion stands for: (0->Regular dense registration, 1->Occlusion1, 2->Occlusion2)
+    */
+    void alignFrames360(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(), costFuncType method = PHOTO_CONSISTENCY, const int occlusion = 0)
     {
 //    std::cout << "alignFrames360 " << std::endl;
         double align360_start = pcl::getTime();
+
+        thresDepthOutliers = maxDepthOutliers;
 
         double error;
         Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
@@ -3056,10 +4291,10 @@ public:
                 v_sinTheta[c] = sin(theta);
                 v_cosTheta[c] = cos(theta);
             }
-            const float half_phi_res = 0.5*nRows-0.5;
+            const float half_nRows = 0.5*nRows-0.5;
             for(int r=0;r<nRows;r++)
             {
-                float phi = (half_phi_res-r)*angle_res;
+                float phi = (half_nRows-r)*angle_res;
                 float sin_phi = sin(phi);
                 float cos_phi = cos(phi);
 
@@ -3089,7 +4324,14 @@ public:
             double tol_residual = 1e-3;
             double tol_update = 1e-3;
             Eigen::Matrix<float,6,1> update_pose; update_pose << 1, 1, 1, 1, 1, 1;
-            error = errorPhotoICP_sphere(pyramidLevel, pose_estim, method);
+            //error = errorPhotoICP_sphere(pyramidLevel, pose_estim, method);
+            if(occlusion == 0)
+                error = errorPhotoICP_sphere(pyramidLevel, pose_estim, method);
+            else if(occlusion == 1)
+                error = errorPhotoICP_sphereOcc1(pyramidLevel, pose_estim, method);
+            else if(occlusion == 2)
+                error = errorPhotoICP_sphereOcc2(pyramidLevel, pose_estim, method);
+
             double diff_error = error;
 #if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
 //            std::cout << "pose_estim \n " << pose_estim << std::endl;
@@ -3101,16 +4343,58 @@ public:
 #if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
                 cv::TickMeter tm;tm.start();
 #endif
-//                std::cout << "calcHessianAndGradient_sphere " << std::endl;
-                calcHessianAndGradient_sphere(pyramidLevel, pose_estim, method);
-//            std::cout << "hessian \n" << hessian << std::endl;
-//            std::cout << "gradient \n" << gradient.transpose() << std::endl;
-//                assert(hessian.rank() == 6); // Make sure that the problem is observable
+////                std::cout << "calcHessianAndGradient_sphere " << std::endl;
+//                calcHessGrad_sphere(pyramidLevel, pose_estim, method);
+////            std::cout << "hessian \n" << hessian << std::endl;
+////            std::cout << "gradient \n" << gradient.transpose() << std::endl;
+////                assert(hessian.rank() == 6); // Make sure that the problem is observable
+
+                if(occlusion == 0)
+                    calcHessGrad_sphere(pyramidLevel, pose_estim, method);
+                else if(occlusion == 1)
+                    calcHessGrad_sphereOcc1(pyramidLevel, pose_estim, method);
+                else if(occlusion == 2)
+                    calcHessGrad_sphereOcc2(pyramidLevel, pose_estim, method);
+                else
+                    assert(false);
 
                 if(visualizeIterations)
                 {
+                std::cout << "visualizeIterations visualizeIterations visualizeIterations visualizeIterations visualizeIterations visualizeIterations visualizeIterations visualizeIterations visualizeIterations  \n";
+                    // Draw the segmented features: pixels moving forward and backward and occlusions
+                    cv::Mat segmentedSrcImg;
+                    cvtColor(graySrcPyr[pyramidLevel], segmentedSrcImg, CV_GRAY2RGB);
+                    for(unsigned j=0; j < mask_dynamic_objectFront.size(); j++)
+                    {
+//                        cv::Vec3b colorSegmentF; colorSegmentF[0] = 255; colorSegmentF[1] = 0; colorSegmentF[2] = 0;
+//                        cv::Vec3b colorSegment = CV_RGB(255,0,0);
+//                        segmentedSrcImg.data[mask_dynamic_objectFront[j]] = 255;
+                        int r = mask_dynamic_objectFront[j] / nCols;
+                        int c = mask_dynamic_objectFront[j] % nCols;
+                        segmentedSrcImg.at<cv::Vec3b>(r,c)[0] = 1;
+                        segmentedSrcImg.at<cv::Vec3b>(r,c)[1] = 0;
+                        segmentedSrcImg.at<cv::Vec3b>(r,c)[2] = 0;
+                    }
+                    for(unsigned j=0; j < mask_dynamic_objectBack.size(); j++)
+                    {
+                        int r = mask_dynamic_objectBack[j] / nCols;
+                        int c = mask_dynamic_objectBack[j] % nCols;
+                        segmentedSrcImg.at<cv::Vec3b>(r,c)[0] = 0;
+                        segmentedSrcImg.at<cv::Vec3b>(r,c)[1] = 1;
+                        segmentedSrcImg.at<cv::Vec3b>(r,c)[2] = 0;
+                    }
+                    for(unsigned j=0; j < mask_occlusion.size(); j++)
+                    {
+                        int r = mask_occlusion[j] / nCols;
+                        int c = mask_occlusion[j] % nCols;
+                        segmentedSrcImg.at<cv::Vec3b>(r,c)[0] = 0;
+                        segmentedSrcImg.at<cv::Vec3b>(r,c)[1] = 0;
+                        segmentedSrcImg.at<cv::Vec3b>(r,c)[2] = 1;
+                    }
+
                     cv::imshow("orig", grayTrgPyr[pyramidLevel]);
                     cv::imshow("src", graySrcPyr[pyramidLevel]);
+                    cv::imshow("SegmentedSRC", segmentedSrcImg);
 
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                     {
@@ -3148,9 +4432,19 @@ public:
                 Eigen::Matrix<double,6,1> update_pose_d = update_pose.cast<double>();
 //                update_pose_d.block(0,0,3,1) = -update_pose_d.block(0,0,3,1);
                 pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d), true).getHomogeneousMatrixVal().cast<float>() * pose_estim;
-//            std::cout << "update_pose \n" << update_pose.transpose() << " \n ";// << mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d), true).getHomogeneousMatrixVal().cast<float>() << std::endl;
+#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
+                std::cout << "update_pose \n" << update_pose.transpose() << " \n ";// << mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d), true).getHomogeneousMatrixVal().cast<float>() << std::endl;
+#endif
 
-                double new_error = errorPhotoICP_sphere(pyramidLevel, pose_estim_temp, method);
+                //double new_error = errorPhotoICP_sphere(pyramidLevel, pose_estim_temp, method);
+                double new_error;
+                if(occlusion == 0)
+                    new_error = errorPhotoICP_sphere(pyramidLevel, pose_estim_temp, method);
+                else if(occlusion == 1)
+                    new_error = errorPhotoICP_sphereOcc1(pyramidLevel, pose_estim_temp, method);
+                else if(occlusion == 2)
+                    new_error = errorPhotoICP_sphereOcc2(pyramidLevel, pose_estim_temp, method);
+
                 diff_error = error - new_error;
 #if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
                 cout << "diff_error " << diff_error << endl;
