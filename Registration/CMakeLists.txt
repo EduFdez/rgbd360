@@ -19,6 +19,20 @@ IF(BUILD_REGISTRATION)
 					   )
 
 	# Declare the target (an executable)
+	ADD_EXECUTABLE(RegisterRGBD_dataset RegisterRGBD_dataset.cpp
+					../include/Miscellaneous.h
+					../include/RegisterPhotoICP.h
+					../third_party/cvShowManyImages.h
+	)
+
+	TARGET_LINK_LIBRARIES(RegisterRGBD_dataset
+					${MRPT_LIBS}
+					${OpenCV_LIBS}
+					${PCL_LIBRARIES}
+					${Boost_SERIALIZATION_LIBRARY}
+					   )
+
+	# Declare the target (an executable)
 	ADD_EXECUTABLE(MethodsRegisterRGBD360 MethodsRegisterRGBD360.cpp
 						../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
 						../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h

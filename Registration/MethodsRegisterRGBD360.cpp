@@ -238,7 +238,7 @@ int main (int argc, char ** argv)
 //        cv::imwrite(mrpt::format("/home/edu/rgb_%01d.png",sensor_id), im_rgb);
 //        getLocalPlanesInFrame2();
 
-//        cv::Mat imgSegmentation = im_rgb.clone();;
+//        cv::Mat imgSegmentation = im_rgb.clone();
 //        for(size_t i=0; i < planes.vPlanes.size(); i++)
 //        {
 //            mrpt::pbmap::Plane &plane_i = planes.vPlanes[i];
@@ -318,7 +318,7 @@ int main (int argc, char ** argv)
 //      std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
       std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
       Matrix4f icpTransformation = icp.getFinalTransformation();
-      cout << "ICP transformation:\n" << icpTransformation << endl << "PbMap-Registration\n" << registerer.getPose() << endl;
+      cout << "ICP transformation:\n" << icpTransformation << endl;// << "PbMap-Registration\n" << registerer.getPose() << endl;
 
 
     // Test: align one image

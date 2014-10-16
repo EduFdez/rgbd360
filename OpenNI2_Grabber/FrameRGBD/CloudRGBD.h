@@ -128,35 +128,75 @@ class CloudRGBD : public FrameRGBD
       m_pointCloudPtr->is_dense = false;
       m_pointCloudPtr->points.resize(height*width);
 
-      #if ENABLE_OPENMP_MULTITHREADING_FrameRGBD
-      #pragma omp parallel for
-      #endif
-      for( int y = 0; y < height; y++ )
+      if(m_depthImage.type() == CV_16U) // The image pixels are presented in millimetres
       {
-        for( int x = 0; x < width; x++ )
-        {
-          cv::Vec3b& bgr = m_rgbImage.at<cv::Vec3b>(y,x);
-          m_pointCloudPtr->points[width*y+x].r = bgr[2];
-          m_pointCloudPtr->points[width*y+x].g = bgr[1];
-          m_pointCloudPtr->points[width*y+x].b = bgr[0];
+          float minDepth_ = minDepth*1000;
+          float maxDepth_ = maxDepth*1000;
+#if ENABLE_OPENMP_MULTITHREADING_FrameRGBD
+#pragma omp parallel for
+#endif
+          for( int y = 0; y < height; y++ )
+          {
+            for( int x = 0; x < width; x++ )
+            {
+              cv::Vec3b& bgr = m_rgbImage.at<cv::Vec3b>(y,x);
+              m_pointCloudPtr->points[width*y+x].r = bgr[2];
+              m_pointCloudPtr->points[width*y+x].g = bgr[1];
+              m_pointCloudPtr->points[width*y+x].b = bgr[0];
 
-          float z = 0.001 * m_depthImage.at<unsigned short>(y,x); //convert from milimeters to meters
-//              std::cout << "Build " << z << " " << m_depthImage.at<float>(y,x) << std::endl;
-          if(z>0 && z>=minDepth && z<=maxDepth) //If the point has valid depth information assign the 3D point to the point cloud
-          {
-            m_pointCloudPtr->points[width*y+x].x = (x - ox) * z * inv_fx;
-            m_pointCloudPtr->points[width*y+x].y = (y - oy) * z * inv_fy;
-//                    m_pointCloudPtr->points[width*y+x].x = -(y - oy) * z * inv_fy;
-//                    m_pointCloudPtr->points[width*y+x].y = (x - ox) * z * inv_fx;
-            m_pointCloudPtr->points[width*y+x].z = z;
+              float z = 0.001 * m_depthImage.at<unsigned short>(y,x); //convert from milimeters to meters
+              //std::cout << "Build " << z << std::endl;
+              //if(z>0 && z>=minDepth_ && z<=maxDepth_) //If the point has valid depth information assign the 3D point to the point cloud
+              if(z>=minDepth_ && z<=maxDepth_) //If the point has valid depth information assign the 3D point to the point cloud
+              {
+                m_pointCloudPtr->points[width*y+x].x = (x - ox) * z * inv_fx;
+                m_pointCloudPtr->points[width*y+x].y = (y - oy) * z * inv_fy;
+    //                    m_pointCloudPtr->points[width*y+x].x = -(y - oy) * z * inv_fy;
+    //                    m_pointCloudPtr->points[width*y+x].y = (x - ox) * z * inv_fx;
+                m_pointCloudPtr->points[width*y+x].z = z;
+              }
+              else //else, assign a NAN value
+              {
+                m_pointCloudPtr->points[width*y+x].x = std::numeric_limits<float>::quiet_NaN ();
+                m_pointCloudPtr->points[width*y+x].y = std::numeric_limits<float>::quiet_NaN ();
+                m_pointCloudPtr->points[width*y+x].z = std::numeric_limits<float>::quiet_NaN ();
+              }
+            }
           }
-          else //else, assign a NAN value
+      }
+      else if(m_depthImage.type() == CV_32F) // The image pixels are presented in metres
+      {
+#if ENABLE_OPENMP_MULTITHREADING_FrameRGBD
+#pragma omp parallel for
+#endif
+          for( int y = 0; y < height; y++ )
           {
-            m_pointCloudPtr->points[width*y+x].x = std::numeric_limits<float>::quiet_NaN ();
-            m_pointCloudPtr->points[width*y+x].y = std::numeric_limits<float>::quiet_NaN ();
-            m_pointCloudPtr->points[width*y+x].z = std::numeric_limits<float>::quiet_NaN ();
+              for( int x = 0; x < width; x++ )
+              {
+                  cv::Vec3b& bgr = m_rgbImage.at<cv::Vec3b>(y,x);
+                  m_pointCloudPtr->points[width*y+x].r = bgr[2];
+                  m_pointCloudPtr->points[width*y+x].g = bgr[1];
+                  m_pointCloudPtr->points[width*y+x].b = bgr[0];
+
+                  float z = m_depthImage.at<float>(y,x); //convert from milimeters to meters
+                  //std::cout << "Build " << z << std::endl;
+                  //if(z>0 && z>=minDepth && z<=maxDepth) //If the point has valid depth information assign the 3D point to the point cloud
+                  if(z>=minDepth && z<=maxDepth) //If the point has valid depth information assign the 3D point to the point cloud
+                  {
+                      m_pointCloudPtr->points[width*y+x].x = (x - ox) * z * inv_fx;
+                      m_pointCloudPtr->points[width*y+x].y = (y - oy) * z * inv_fy;
+                      //                    m_pointCloudPtr->points[width*y+x].x = -(y - oy) * z * inv_fy;
+                      //                    m_pointCloudPtr->points[width*y+x].y = (x - ox) * z * inv_fx;
+                      m_pointCloudPtr->points[width*y+x].z = z;
+                  }
+                  else //else, assign a NAN value
+                  {
+                      m_pointCloudPtr->points[width*y+x].x = std::numeric_limits<float>::quiet_NaN ();
+                      m_pointCloudPtr->points[width*y+x].y = std::numeric_limits<float>::quiet_NaN ();
+                      m_pointCloudPtr->points[width*y+x].z = std::numeric_limits<float>::quiet_NaN ();
+                  }
+              }
           }
-        }
       }
 
       //The point cloud is now available
@@ -192,47 +232,96 @@ class CloudRGBD : public FrameRGBD
         m_pointCloudPtr->is_dense = false;
         m_pointCloudPtr->points.resize(height*width/(downsamplingStep*downsamplingStep));
 
-//        #if ENABLE_OPENMP_MULTITHREADING_FrameRGBD
-//        #pragma omp parallel for
-//        #endif
-        int pt_idx = 0;
-        for( int y = 0; y < height; y+=downsamplingStep )
+
+        if(m_depthImage.type() == CV_16U)
         {
-            for( int x = 0; x < width; x+=downsamplingStep, ++pt_idx)
+            int pt_idx = 0;
+#if ENABLE_OPENMP_MULTITHREADING_FrameRGBD
+#pragma omp parallel for shared(pt_idx)
+#endif
+            for( int y = 0; y < height; y+=downsamplingStep )
             {
-//              int pt_idx = m_pointCloudPtr->width*(y/downsamplingStep)+(x/downsamplingStep);
-
-              cv::Vec3b& bgr = m_rgbImage.at<cv::Vec3b>(y,x);
-              m_pointCloudPtr->points[pt_idx].r = bgr[2];
-              m_pointCloudPtr->points[pt_idx].g = bgr[1];
-              m_pointCloudPtr->points[pt_idx].b = bgr[0];
-
-              bool nanPoint = true;
-              for( int yy = 0; yy < downsamplingStep; yy++ )
-               for( int xx = 0; xx < downsamplingStep; xx++ )
-               {
-                float z = 0.001 * m_depthImage.at<unsigned short>(y+yy,x+xx); //convert from milimeters to meters
-//                float z = m_depthImage.at<float>(y,x); //convert from milimeters to meters
-//              std::cout << "Build " << z << " " << m_depthImage.at<float>(y,x) << std::endl;
-                if(z>=minDepth && z<=maxDepth) //If the point has valid depth information assign the 3D point to the point cloud
+                for( int x = 0; x < width; x+=downsamplingStep, ++pt_idx)
                 {
-                    m_pointCloudPtr->points[pt_idx].x = (x - ox) * z * inv_fx;
-                    m_pointCloudPtr->points[pt_idx].y = (y - oy) * z * inv_fy;
-//                    m_pointCloudPtr->points[pt_idx].x = -(y - oy) * z * inv_fy;
-//                    m_pointCloudPtr->points[pt_idx].y = (x - ox) * z * inv_fx;
-                    m_pointCloudPtr->points[pt_idx].z = z;
+                    // int pt_idx = m_pointCloudPtr->width*(y/downsamplingStep)+(x/downsamplingStep);
 
-                    nanPoint = false;
-                    yy = downsamplingStep;
-                    break;
+                    cv::Vec3b& bgr = m_rgbImage.at<cv::Vec3b>(y,x);
+                    m_pointCloudPtr->points[pt_idx].r = bgr[2];
+                    m_pointCloudPtr->points[pt_idx].g = bgr[1];
+                    m_pointCloudPtr->points[pt_idx].b = bgr[0];
+
+                    bool nanPoint = true;
+                    for( int yy = 0; yy < downsamplingStep; yy++ )
+                        for( int xx = 0; xx < downsamplingStep; xx++ )
+                        {
+                            float z = 0.001 * m_depthImage.at<unsigned short>(y+yy,x+xx); //convert from milimeters to meters
+                            //float z = m_depthImage.at<float>(y,x); //convert from milimeters to meters
+                            //std::cout << "Build " << z << " " << m_depthImage.at<float>(y,x) << std::endl;
+                            if(z>=minDepth && z<=maxDepth) //If the point has valid depth information assign the 3D point to the point cloud
+                            {
+                                m_pointCloudPtr->points[pt_idx].x = (x - ox) * z * inv_fx;
+                                m_pointCloudPtr->points[pt_idx].y = (y - oy) * z * inv_fy;
+                                //                    m_pointCloudPtr->points[pt_idx].x = -(y - oy) * z * inv_fy;
+                                //                    m_pointCloudPtr->points[pt_idx].y = (x - ox) * z * inv_fx;
+                                m_pointCloudPtr->points[pt_idx].z = z;
+
+                                nanPoint = false;
+                                yy = downsamplingStep;
+                                break;
+                            }
+                        }
+                    if(nanPoint) // assign a NAN value
+                    {
+                        m_pointCloudPtr->points[pt_idx].x = std::numeric_limits<float>::quiet_NaN ();
+                        m_pointCloudPtr->points[pt_idx].y = std::numeric_limits<float>::quiet_NaN ();
+                        m_pointCloudPtr->points[pt_idx].z = std::numeric_limits<float>::quiet_NaN ();
+                    }
                 }
-               }
-              if(nanPoint) // assign a NAN value
-              {
-                  m_pointCloudPtr->points[pt_idx].x = std::numeric_limits<float>::quiet_NaN ();
-                  m_pointCloudPtr->points[pt_idx].y = std::numeric_limits<float>::quiet_NaN ();
-                  m_pointCloudPtr->points[pt_idx].z = std::numeric_limits<float>::quiet_NaN ();
-              }
+            }
+        }
+        else if(m_depthImage.type() == CV_32F)
+        {
+            int pt_idx = 0;
+#if ENABLE_OPENMP_MULTITHREADING_FrameRGBD
+#pragma omp parallel for shared(pt_idx)
+#endif
+            for( int y = 0; y < height; y+=downsamplingStep )
+            {
+                for( int x = 0; x < width; x+=downsamplingStep, ++pt_idx)
+                {
+                    //              int pt_idx = m_pointCloudPtr->width*(y/downsamplingStep)+(x/downsamplingStep);
+
+                    cv::Vec3b& bgr = m_rgbImage.at<cv::Vec3b>(y,x);
+                    m_pointCloudPtr->points[pt_idx].r = bgr[2];
+                    m_pointCloudPtr->points[pt_idx].g = bgr[1];
+                    m_pointCloudPtr->points[pt_idx].b = bgr[0];
+
+                    bool nanPoint = true;
+                    for( int yy = 0; yy < downsamplingStep; yy++ )
+                        for( int xx = 0; xx < downsamplingStep; xx++ )
+                        {
+                            float z = m_depthImage.at<float>(y,x); //convert from milimeters to meters
+                            //std::cout << "Build " << z << " " << m_depthImage.at<float>(y,x) << std::endl;
+                            if(z>=minDepth && z<=maxDepth) //If the point has valid depth information assign the 3D point to the point cloud
+                            {
+                                m_pointCloudPtr->points[pt_idx].x = (x - ox) * z * inv_fx;
+                                m_pointCloudPtr->points[pt_idx].y = (y - oy) * z * inv_fy;
+                                //                    m_pointCloudPtr->points[pt_idx].x = -(y - oy) * z * inv_fy;
+                                //                    m_pointCloudPtr->points[pt_idx].y = (x - ox) * z * inv_fx;
+                                m_pointCloudPtr->points[pt_idx].z = z;
+
+                                nanPoint = false;
+                                yy = downsamplingStep;
+                                break;
+                            }
+                        }
+                    if(nanPoint) // assign a NAN value
+                    {
+                        m_pointCloudPtr->points[pt_idx].x = std::numeric_limits<float>::quiet_NaN ();
+                        m_pointCloudPtr->points[pt_idx].y = std::numeric_limits<float>::quiet_NaN ();
+                        m_pointCloudPtr->points[pt_idx].z = std::numeric_limits<float>::quiet_NaN ();
+                    }
+                }
             }
         }
 
