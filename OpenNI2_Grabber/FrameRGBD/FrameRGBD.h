@@ -104,7 +104,7 @@ class FrameRGBD
     //If the intensity image has been already computed, don't compute it again
     if(!intensityImageAvailable)
     {
-      cv::cvtColor(m_rgbImage,m_intensityImage,CV_BGR2GRAY);
+      cv::cvtColor(m_rgbImage,m_intensityImage, CV_BGR2GRAY);
 
       //The intensity image is now available
       intensityImageAvailable = true;

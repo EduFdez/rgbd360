@@ -82,7 +82,8 @@ cv::Mat downsampleDepth(cv::Mat &source)
     //use cvResize to resize source_ to a destination image
     cvResize(source_, destination);
 
-    m_depthImage = cv::Mat(destination);
+    //m_depthImage = cv::Mat(destination);
+    m_depthImage = cv::cvarrToMat(destination);
 
     depthImageAvailable = true;
   }
@@ -105,7 +106,8 @@ cv::Mat downsampleIntensity(cv::Mat &source)
     //use cvResize to resize source_ to a destination image
     cvResize(source_, destination);
 
-    m_intensityImage = cv::Mat(destination);
+    //m_intensityImage = cv::Mat(destination);
+    m_depthImage = cv::cvarrToMat(destination);
   }
 
   return m_intensityImage;
@@ -127,7 +129,8 @@ inline cv::Mat downsampleRGB(cv::Mat &source)
     //use cvResize to resize source_ to a destination image
     cvResize(source_, destination);
 
-    m_rgbImage = cv::Mat(destination);
+    //m_rgbImage = cv::Mat(destination);
+    m_rgbImage = cv::cvarrToMat(destination);
 
 //    pyrDown(InputArray src, OutputArray dst, const Size& dstsize=Size(), int borderType=BORDER_DEFAULT )
 //

@@ -29,7 +29,7 @@
  *  Author: efernand Fernandez-Moral
  */
 
-#include <Frame360.h>
+#include <Frame360_stereo.h>
 #include <Frame360_Visualizer.h>
 #include <pcl/console/parse.h>
 
@@ -48,21 +48,19 @@ void print_help(char ** argv)
  */
 int main (int argc, char ** argv)
 {
-  if(argc != 2 || pcl::console::find_switch(argc, argv, "-h") || pcl::console::find_switch(argc, argv, "--help"))
+  if(argc != 3 || pcl::console::find_switch(argc, argv, "-h") || pcl::console::find_switch(argc, argv, "--help"))
   {
     print_help(argv);
     return 0;
   }
 
-  string fileName = static_cast<string>(argv[1]);
+  string fileDepth = static_cast<string>(argv[1]);
+  string fileRGB = static_cast<string>(argv[2]);
 
-  Calib360 calib;
-  calib.loadIntrinsicCalibration();
-  calib.loadExtrinsicCalibration();
-
-  Frame360 frame360(&calib);
-  frame360.loadFrame(fileName);
-  frame360.undistort();
+  Frame360_stereo frame360;
+  //frame360.loadFrame(fileName);
+  frame360.loadDepth(fileDepth);
+  frame360.loadRGB(fileRGB);
   frame360.buildSphereCloud();
   frame360.getPlanes();
 

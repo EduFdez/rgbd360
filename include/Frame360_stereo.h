@@ -30,20 +30,18 @@
  * Author: Eduardo Fernandez-Moral
  */
 
-#ifndef FRAME360_H
-#define FRAME360_H
+#ifndef FRAME360_STEREO_H
+#define FRAME360_STEREO_H
 
 #ifndef _DEBUG_MSG
 #define _DEBUG_MSG 0
 #endif
 
-#define USE_BILATERAL_FILTER 1
-#define DOWNSAMPLE_160 1
+//#define USE_BILATERAL_FILTER 1
+//#define DOWNSAMPLE_160 1
 
 #include <mrpt/pbmap.h>
-#include <mrpt/pbmap/Miscellaneous.h>
 
-#include "Calib360.h"
 #include "Miscellaneous.h"
 
 #include <pcl/point_cloud.h>
@@ -68,9 +66,6 @@
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <cvmat_serialization.h>
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-//#include <opencv2/opencv.hpp>
 
 #include <CloudRGBD_Ext.h>
 #include <DownsampleRGBD.h>
@@ -84,21 +79,35 @@
 
 //#include <omp.h>
 
+#define N_THREADS 8 // 3
 
 typedef pcl::PointXYZRGBA PointT;
 
 /*! This class defines the omnidirectional RGB-D frame 'Frame360'. It contains a serie of attributes and methods to
  *  produce the omnidirectional images, and to obtain the spherical point cloud and a the planar representation for it
  */
-class Frame360
+class Frame360_stereo
 {
 public:
 
     /*! Frame ID*/
     unsigned id;
 
+    /*! Frame height*/
+    unsigned short height_;
+
+    /*! Frame width*/
+    unsigned short width_;
+
     /*! Topological node where this frame (keyframe) is located */
     unsigned node;
+
+    bool bStereoSphere;
+
+    unsigned n_split_cloud_;
+
+    /*! The 8 RGB-D images captured by the omnidirectional device */
+    cv::Mat rgb_[6];
 
     /*! Spherical (omnidirectional) RGB image. The term spherical means that the same solid angle is assigned to each pixel */
     cv::Mat sphereRGB;
@@ -106,12 +115,11 @@ public:
     /*! Spherical (omnidirectional) Depth image*/
     cv::Mat sphereDepth;
 
-    /*! The 8 sets of planes segmented from each camera */
-    std::vector<mrpt::pbmap::PbMap> local_planes_;
-
     /*! The 8 RGB-D images captured by the omnidirectional device */
-    //  FrameRGBD frameRGBD_[8];
     CloudRGBD_Ext frameRGBD_[8];
+
+    /*! The 8 (or 3) sets of planes segmented from each camera */
+    std::vector<mrpt::pbmap::PbMap> local_planes_;
 
     /*! Pose of this frame */
     Eigen::Matrix4f pose;
@@ -122,30 +130,28 @@ public:
     /*! PbMap of the spherical frame */
     mrpt::pbmap::PbMap planes;
 
-    /*! Calibration object */
-    Calib360 *calib;
-
 private:
 
     /*! Time-stamp of the spherical frame (it corresponds to the last capture of the 8 sensors, as they are not syncronized) */
     uint64_t timeStamp;
 
-    /*! The 8 separate point clouds from each single Asus XPL */
-    pcl::PointCloud<PointT>::Ptr cloud_[8];
+    /*! The 8 (or 3) separate point clouds from each single Asus XPL */
+    pcl::PointCloud<PointT>::Ptr cloud_[3];
 
     //  /*! Has the spherical point cloud already been built? */
     //  bool bSphereCloudBuilt;
 
 public:
     /*! Constructor */
-    Frame360(Calib360 *calib360) :
-        calib(calib360),
+    Frame360_stereo() :
         sphereCloud(new pcl::PointCloud<PointT>()),
         //    bSphereCloudBuilt(false),
         node(0)
     {
-        local_planes_.resize(8);
-        for(unsigned sensor_id=0; sensor_id<8; sensor_id++)
+        bStereoSphere = true;
+        n_split_cloud_ = 3;
+        local_planes_.resize (n_split_cloud_);
+        for(unsigned sensor_id=0; sensor_id < n_split_cloud_; sensor_id++)
         {
             cloud_[sensor_id].reset(new pcl::PointCloud<PointT>());
         }
@@ -166,15 +172,8 @@ public:
     /*! Return the the point cloudgrabbed by the sensor 'id' */
     pcl::PointCloud<PointT>::Ptr getCloud_id(int id)
     {
-        assert(id >= 0 && id < 8);
+        assert(id >= 0 && id < n_split_cloud_);
         return cloud_[id];
-    }
-
-    /*! Return the the point FrameRGBD by the sensor 'id' */
-    CloudRGBD_Ext getFrameRGBD_id(int id)
-    {
-        assert(id >= 0 && id < 8);
-        return frameRGBD_[id];
     }
 
     /*! Set the spherical image timestamp */
@@ -227,41 +226,99 @@ public:
         load_PbMap_Cloud(pointCloudPath, pbmapPath);
     }
 
+//    template<class Archive> void
+//    serialize (Archive & ar, const unsigned int version);
+//    {
+//      ar & height_;
+//      ar & width_;
+//      //ar & sphereDepth.data();
+//    }
+
+////namespace boost {
+////  namespace serialization {
+//    /** Serialization support for cv::Mat */
+//    template<class Archive>
+//    void save (Archive & ar, const unsigned int version)
+//    {
+//      ar & height_;
+//      ar & width_;
+
+//      const size_t data_size = sphereDepth.cols * sphereDepth.rows * 4; // 4 bytes per pixel
+//      ar & boost::serialization::make_array(sphereDepth.ptr(), data_size);
+//    }
+
+//    /** Serialization support for cv::Mat */
+//    template <class Archive>
+//    void load (Archive & ar, const unsigned int version)
+//    {
+//      ar & height_;
+//      ar & width_;
+
+//      int cols(width_), rows(height_);
+//      sphereDepth.create (rows, cols, CV_32FC1);
+
+//      size_t data_size = cols * rows * 4; // 4 bytes per pixel
+//      ar & boost::serialization::make_array(Frame360_stereo.ptr(), data_size);
+//    }
+
     /*! Load a spherical RGB-D image from the raw data stored in a binary file */
-    void loadFrame(std::string &binaryFile)
+    void loadDepth(std::string &binaryFile)
     {
         double time_start = pcl::getTime();
 
-        //    std::cout << "Opening binary file... " << binaryFile << std::endl;
-        std::ifstream ifs(binaryFile.c_str(), std::ios::in | std::ios::binary);
-        //    std::cout << " binary file... " << binaryFile << std::endl;
+        std::ifstream file (binaryFile.c_str(), std::ios::in | std::ios::binary);
 
-        try{// use scope to ensure archive goes out of scope before stream
+//        char *mem_block;
+//        size = file.tellg();
+//        std::cout << "file.tellg() " << file.tellg() << std::endl;
+//        memblock = new char [size];
+//        file.seekg (0, ios::beg);
+//        file.read (mem_block, size);
+//        file.close ();
 
-            boost::archive::binary_iarchive binary360(ifs);
-
-            cv::Mat timeStampMatrix;
-            for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
-                binary360 >> frameRGBD_[sensor_id].getRGBImage() >> frameRGBD_[sensor_id].getDepthImage();
-            binary360 >> timeStampMatrix;
-            get_uint64_t_ofMatrixRepresentation(timeStampMatrix, timeStamp);
-
-        }catch(const boost::archive::archive_exception &e){}
+        //    char data[5447684]; // = 2048*665*4+2+2
+        char *header_property = new char[2]; // Read height_ and width_
+        file.seekg (0, ios::beg);
+        file.read (header_property, 2);
+        unsigned short *height = reinterpret_cast<unsigned short*> (header_property);
+        height_ = *height;
+        file.seekg (2, ios::beg);
+        file.read (header_property, 2);
+        unsigned short *width = reinterpret_cast<unsigned short*> (header_property);
+        width_ = *width;
+        sphereDepth.create(height_, width_, CV_32FC1);
+        unsigned char *mem_block = sphereDepth.data;
+        streampos size = file.tellg() - 4; // Header is 4 bytes: 2 unsigned short for height and width
+        std::cout << "file.tellg() " << file.tellg() << std::endl;
+        //mem_block = new char [size];
+        file.seekg (0, ios::beg);
+        file.read (mem_block, size);
+        file.close ();
 
         //Close the binary bile
-        ifs.close();
-
-#pragma omp parallel num_threads(8)
-        {
-            int sensor_id = omp_get_thread_num();
-            frameRGBD_[sensor_id].loadDepthEigen();
-        }
+        file.close();
 
         //    bSphereCloudBuilt = false; // The spherical PointCloud of the frame just loaded is not built yet
 
 #if _DEBUG_MSG
         double time_end = pcl::getTime();
-        std::cout << "Load Frame360 took " << double (time_end - time_start) << std::endl;
+        std::cout << "loadDepth took " << double (time_end - time_start) << std::endl;
+#endif
+    }
+
+    /*! Load a spherical RGB-D image from the raw data stored in a binary file */
+    void loadRGB(std::string &fileNamePNG)
+    {
+        double time_start = pcl::getTime();
+
+        std::ifstream file (binaryFile.c_str(), std::ios::in | std::ios::binary);
+
+        sphereRGB = imread (fileNamePNG.c_str(), cv::CV_LOAD_IMAGE_COLOR);
+
+
+#if _DEBUG_MSG
+        double time_end = pcl::getTime();
+        std::cout << "loadRGB took " << double (time_end - time_start) << std::endl;
 #endif
     }
 
@@ -271,7 +328,7 @@ public:
 
         //    getIntensityImage();
         //
-        //    #pragma omp parallel num_threads(8)
+        //    #pragma omp parallel num_threads(N_THREADS)
         //    {
         //      int sensor_id = omp_get_thread_num();
         //      int sum_intensity[8];
@@ -295,7 +352,7 @@ public:
         double time_start = pcl::getTime();
         //    std::cout << "Undistort Frame360\n";
 
-#pragma omp parallel num_threads(8)
+#pragma omp parallel num_threads(N_THREADS)
         {
             int sensor_id = omp_get_thread_num();
             undistortDepthSensor(sensor_id);
@@ -332,106 +389,25 @@ public:
     /*! Serialize the omnidirectional RGB-D image */
     void serialize(std::string &fileName)
     {
-        std::ofstream ofs_images(fileName.c_str(), std::ios::out | std::ios::binary);
-        boost::archive::binary_oarchive oa_images(ofs_images);
+//        assert(bStereoSphere==false);
+//        std::ofstream ofs_images(fileName.c_str(), std::ios::out | std::ios::binary);
+//        boost::archive::binary_oarchive oa_images(ofs_images);
 
-        for(int sensor_id = 0; sensor_id < 8; sensor_id++)
-            oa_images << frameRGBD_[sensor_id].getRGBImage() << frameRGBD_[sensor_id].getDepthImage();
-        cv::Mat timeStampMatrix;
-        getMatrixNumberRepresentationOf_uint64_t(timeStamp,timeStampMatrix);
-        oa_images << timeStampMatrix;
+//        for(int sensor_id = 0; sensor_id < n_split_cloud_; sensor_id++)
+//            oa_images << frameRGBD_[sensor_id].getRGBImage() << frameRGBD_[sensor_id].getDepthImage();
+//        cv::Mat timeStampMatrix;
+//        getMatrixNumberRepresentationOf_uint64_t(timeStamp,timeStampMatrix);
+//        oa_images << timeStampMatrix;
 
-        ofs_images.close();
+//        ofs_images.close();
     }
 
-    /*! Concatenate the different RGB-D images to obtain the omnidirectional one (stich images without using the spherical representation) */
-    void fastStitchImage360() // Parallelized with OpenMP
-    {
-        double time_start = pcl::getTime();
 
-        int width_im = frameRGBD_[0].getRGBImage().rows;
-        int width_SphereImg = frameRGBD_[0].getRGBImage().rows * 8;
-        int height_SphereImg = frameRGBD_[0].getRGBImage().cols;
-        sphereRGB = cv::Mat::zeros(height_SphereImg, width_SphereImg, CV_8UC3);
-        sphereDepth = cv::Mat::zeros(height_SphereImg, width_SphereImg, CV_32FC1);
-
-        for(int sensor_id = 0; sensor_id < 8; sensor_id++)
-            //    #pragma omp parallel num_threads(8)
-        {
-            //      int sensor_id = omp_get_thread_num();
-
-            // RGB
-            cv::Mat rgb_transposed, rgb_rotated;
-            cv::transpose(frameRGBD_[7-sensor_id].getRGBImage(), rgb_transposed);
-            cv::flip(rgb_transposed, rgb_rotated, 0);
-            cv::Mat tmp = sphereRGB(cv::Rect(sensor_id*width_im, 0, frameRGBD_[0].getRGBImage().rows, frameRGBD_[0].getRGBImage().cols));
-            rgb_rotated.copyTo(tmp);
-
-            // Depth
-            //      cv::Mat depth_transposed, depth_rotated;
-            //      cvTranspose(frameRGBD_[7-sensor_id].getDepthImage(), depth_transposed);
-            //      cv::flip(depth_transposed, depth_rotated, 0);
-            //      cv::Mat tmp_depth =  sphereDepth(cv::Rect(sensor_id*width_im, 0, frameRGBD_[0].getDepthImage().rows, frameRGBD_[0].getDepthImage().cols));
-            //      depth_rotated.copyTo(tmp_depth);
-        }
-
-#if _DEBUG_MSG
-        double time_end = pcl::getTime();
-        std::cout << "fastStitchImage360 took " << double (time_end - time_start) << std::endl;
-#endif
-
-    }
 
     /*! Stitch RGB-D image using a spherical representation */
     void stitchSphericalImage() // Parallelized with OpenMP
     {
-//        cout << "stitchSphericalImage\n";
-        double time_start = pcl::getTime();
 
-        int width_SphereImg = frameRGBD_[0].getRGBImage().rows * 8;
-        int height_SphereImg = width_SphereImg * 0.5 * 60.0/180; // Store only the part of the sphere which contains information
-        sphereRGB = cv::Mat::zeros(height_SphereImg, width_SphereImg, CV_8UC3);
-        sphereDepth = cv::Mat::zeros(height_SphereImg, width_SphereImg, CV_16UC1);
-        #pragma omp parallel num_threads(8)
-//        for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
-        {
-            int sensor_id = omp_get_thread_num();
-            stitchImage(sensor_id);
-            // cout << "Stitcher omp " << sensor_id << endl;
-        }
-
-        double time_end = pcl::getTime();
-        std::cout << "stitchSphericalImage took " << double (time_end - time_start) << std::endl;
-    }
-
-    /*! Downsample and filter the individual point clouds from the different Asus XPL */
-    void buildCloudsDownsampleAndFilter()
-    {
-        double time_start = pcl::getTime();
-
-#pragma omp parallel num_threads(8)
-        {
-            int sensor_id = omp_get_thread_num();
-
-            // Filter pointClouds
-            pcl::FastBilateralFilter<pcl::PointXYZRGBA> filter;
-            filter.setSigmaS(10.0);
-            filter.setSigmaR(0.05);
-
-#if DOWNSAMPLE_160
-            //        DownsampleRGBD downsampler(2);
-            //        frameRGBD_[sensor_id].setPointCloud(downsampler.downsamplePointCloud(frameRGBD_[sensor_id].getPointCloudUndist()));
-            frameRGBD_[sensor_id].getDownsampledPointCloudUndist(2);
-#endif
-
-#if USE_BILATERAL_FILTER
-            filter.setInputCloud(frameRGBD_[sensor_id].getPointCloud());
-            filter.filter(*frameRGBD_[sensor_id].getPointCloud());
-#endif
-        }
-
-        double time_end = pcl::getTime();
-        std::cout << "Build single clouds + downsample + filter took " << double (time_end - time_start) << std::endl;
     }
 
     /*! Build the cloud from the 'sensor_id' Asus XPL */
@@ -471,91 +447,6 @@ public:
 
         double time_start = pcl::getTime();
 
-        //      #pragma omp parallel num_threads(8) // I still don't understand why this doesn't work
-        for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
-        {
-            //        int sensor_id = omp_get_thread_num();
-//            cout << "build " << sensor_id << endl;
-#if DOWNSAMPLE_160
-            DownsampleRGBD downsampler(2);
-            frameRGBD_[sensor_id].setPointCloud(downsampler.downsamplePointCloud(frameRGBD_[sensor_id].getPointCloudUndist()));
-            //          frameRGBD_[sensor_id].getDownsampledPointCloudUndist(2);
-#else
-            frameRGBD_[sensor_id].getPointCloudUndist();
-#endif
-        }
-        //      std::cout << "Downsample image\n";
-
-#pragma omp parallel num_threads(8)
-        {
-            int sensor_id = omp_get_thread_num();
-
-#if USE_BILATERAL_FILTER
-            pcl::FastBilateralFilter<pcl::PointXYZRGBA> filter;
-            filter.setSigmaS (10.0);
-            filter.setSigmaR (0.05);
-            filter.setInputCloud(frameRGBD_[sensor_id].getPointCloud());
-            filter.filter(*frameRGBD_[sensor_id].getPointCloud());
-#endif
-
-            pcl::transformPointCloud(*frameRGBD_[sensor_id].getPointCloud(),*cloud_[sensor_id],calib->getRt_id(sensor_id));
-        }
-
-        *sphereCloud = *cloud_[0];
-        for(unsigned sensor_id=1; sensor_id < 8; ++sensor_id)
-            *sphereCloud += *cloud_[sensor_id];
-
-        sphereCloud->height = cloud_[0]->width;
-        sphereCloud->width = 8 * cloud_[0]->height;
-        sphereCloud->is_dense = false;
-
-        //    bSphereCloudBuilt = true;
-
-#if _DEBUG_MSG
-        double time_end = pcl::getTime();
-        std::cout << "PointCloud sphere construction took " << double (time_end - time_start) << std::endl;
-#endif
-
-    }
-
-    /*! Fast version of the method 'buildSphereCloud'. This one performs more poorly for plane segmentation. */
-    void buildSphereCloud_fast()
-    {
-        double time_start = pcl::getTime();
-
-#pragma omp parallel num_threads(8) // I still don't understand why this doesn't work
-        //      for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
-        {
-            int sensor_id = omp_get_thread_num();
-#if DOWNSAMPLE_160
-            frameRGBD_[sensor_id].getDownsampledPointCloudUndist(2);
-#else
-            frameRGBD_[sensor_id].getPointCloudUndist();
-#endif
-
-            pcl::transformPointCloud(*frameRGBD_[sensor_id].getPointCloud(),*cloud_[sensor_id],calib->getRt_id(sensor_id));
-        }
-
-        *sphereCloud = *cloud_[0];
-        for(unsigned sensor_id=1; sensor_id < 8; ++sensor_id)
-            *sphereCloud += *cloud_[sensor_id];
-
-        sphereCloud->height = cloud_[0]->width;
-        sphereCloud->width = 8 * cloud_[0]->height;
-        sphereCloud->is_dense = false;
-
-#if _DEBUG_MSG
-        double time_end = pcl::getTime();
-        std::cout << "buildSphereCloud_fast took " << double (time_end - time_start) << std::endl;
-#endif
-
-    }
-
-    /*! Build the point cloud from the spherical image representation */
-    void buildSphereCloud_fromImage()
-    {
-        double time_start = pcl::getTime();
-
         size_t height_SphereImg = sphereRGB.rows;
         size_t width_SphereImg = sphereRGB.cols;
         float angle_pixel(width_SphereImg/(2*PI));
@@ -565,32 +456,25 @@ public:
         sphereCloud->width = width_SphereImg;
         sphereCloud->is_dense = false;
 
-        float angle_pixel_inv(1/angle_pixel);
-        int row_pixels = 0;
-        float offset_phi = PI*31.5/180; // height_SphereImg((width_SphereImg/2) * 63.0/180),
-        float PI_ = PI; // Does this spped-up the next loop?
-        for(int row_phi=0; row_phi < height_SphereImg; row_phi++, row_pixels += width_SphereImg)
-        {
-            float phi_i = offset_phi - row_phi*angle_pixel_inv;// + PI/2;
-            float sin_phi = sin(phi_i);
-            float cos_phi = cos(phi_i);
+        float min_depth = 0.f;
+        float max_depth = 10.f;
 
-            // Stitch each image from each sensor
-            //      #pragma omp parallel for
-            for(int col_theta=0; col_theta < width_SphereImg; col_theta++)
+        float step_theta = 2*PI / sphereDepth.cols;
+        float step_phi = step_theta;
+        int pixel_count = 0;
+        int start_phi = 166, end_phi = 166 + sphereDepth.rows;
+        for(int row_phi=start_phi; row_phi < end_phi; row_phi++)//, row_pixels += width_SphereImg)
+        {
+            float phi = row_phi*step_phi - PI/2;
+            for(int col_theta=0; col_theta < sphereDepth.cols; col_theta++, pixel_count++)
             {
-                float theta_i = col_theta*angle_pixel_inv; // - PI;
-                float depth = 0.001f * sphereDepth.at<unsigned short>(row_phi,col_theta);
-                //      if(row_phi >50)
-                //        cout << "pos " << row_phi << " " << col_theta << " Phi/Theta " << phi_i << " " << theta_i << " depth " << depth << endl;
-                if(depth != 0)
+                if(depth > min_depth && depth < max_depth)
                 {
-                    //            cout << " Assign point in the cloud\n";
-                    sphereCloud->points[row_pixels+col_theta].x = sin_phi * depth;
-                    //            sphereCloud->points[row_pixels+col_theta].x = cos(theta_i) * cos_phi * depth;
-                    sphereCloud->points[row_pixels+col_theta].y = -cos_phi * sin(theta_i) * depth;
-                    sphereCloud->points[row_pixels+col_theta].z = -cos_phi * cos(theta_i) * depth;
-                    //            sphereCloud->points[row_pixels+col_theta].z = sin(theta_i) * cos_phi * depth;
+                    float theta = col_theta*step_theta - PI;
+                    float depth = sphereDepth.at<float> (row_phi, col_theta);
+                    sphereCloud->points[pixel_count].x = sin(theta)*cos(phi) * depth;
+                    sphereCloud->points[pixel_count].y = sin(phi) * depth;
+                    sphereCloud->points[pixel_count].z = cos(theta)*cos(phi) * depth;
                     sphereCloud->points[row_pixels+col_theta].r = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[2];
                     sphereCloud->points[row_pixels+col_theta].g = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[1];
                     sphereCloud->points[row_pixels+col_theta].b = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[0];
@@ -604,12 +488,15 @@ public:
             }
         }
 
+        //    bSphereCloudBuilt = true;
+
 #if _DEBUG_MSG
         double time_end = pcl::getTime();
-        std::cout << "PointCloud sphere from image took " << double (time_end - time_start) << std::endl;
+        std::cout << "PointCloud sphere construction took " << double (time_end - time_start) << std::endl;
 #endif
 
     }
+
 
     /*! Create the PbMap of the spherical point cloud */
     void getPlanes()
@@ -617,7 +504,7 @@ public:
         std::cout << "Frame360.getPlanes()\n";
         double extractPlanes_start = pcl::getTime();
 
-#pragma omp parallel num_threads(8)
+#pragma omp parallel num_threads(N_THREADS)
         {
             int sensor_id = omp_get_thread_num();
             getPlanesSensor(sensor_id);
@@ -642,8 +529,8 @@ public:
     {
         double time_start = pcl::getTime();
 
-        //    #pragma omp parallel num_threads(8)
-        for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+        //    #pragma omp parallel num_threads(N_THREADS)
+        for(unsigned sensor_id=0; sensor_id < n_split_cloud_; ++sensor_id)
         {
             //      int sensor_id = omp_get_thread_num();
             getLocalPlanesInFrame(sensor_id);
@@ -755,7 +642,7 @@ public:
             first_planes.insert(planes.vPlanes[i].id);
         prev_planes = first_planes;
 
-        for(unsigned sensor_id=1; sensor_id < 8; ++sensor_id)
+        for(unsigned sensor_id=1; sensor_id < n_split_cloud_; ++sensor_id)
         {
             size_t j;
             std::set<unsigned> next_prev_planes;
@@ -1098,53 +985,7 @@ private:
     /*! Stitch both the RGB and the depth images corresponding to the sensor 'sensor_id' */
     void stitchImage(int sensor_id)
     {
-        Eigen::Vector3f virtualPoint, pointFromCamera;
-        const int size_w = frameRGBD_[sensor_id].getRGBImage().cols;
-        const int size_h = frameRGBD_[sensor_id].getRGBImage().rows;
-        const float offsetPhi = sphereRGB.rows/2 - 0.5;
-        const float offsetTheta = -frameRGBD_[sensor_id].getRGBImage().rows*15/2 + 0.5;
-        const float angle_pixel = 2*PI/sphereRGB.cols;
-        const int marginStitching = 0;
 
-        for(int row_phi=0; row_phi < sphereRGB.rows; row_phi++)
-        {
-            //        int row_pixels = row_phi * size_h;
-            float phi_i = (offsetPhi-row_phi) * angle_pixel;// + PI/2;
-            virtualPoint(0) = sin(phi_i);
-            float cos_phi = cos(phi_i);
-
-            // Stitch each image from each sensor
-            //        for(unsigned cam=0; cam < 8; cam++)
-            //      #pragma omp parallel for
-            int init_col_sphere = (7-sensor_id)*size_h;
-            int end_col_sphere = (8-sensor_id)*size_h;
-            if(sensor_id != 0)
-                end_col_sphere += marginStitching;
-            if(sensor_id != 7)
-                init_col_sphere -= marginStitching;
-            for(int col_theta=init_col_sphere; col_theta < end_col_sphere; col_theta++)
-            {
-                float theta_i = (col_theta+offsetTheta) * angle_pixel; // + PI;
-                virtualPoint(1) = cos_phi*sin(theta_i);
-                virtualPoint(2) = cos_phi*cos(theta_i);
-
-                //          pointFromCamera = calib->Rt_10.block(0,0,3,3) * virtualPoint + calib->Rt_10.block(0,3,3,1);
-                pointFromCamera = calib->Rt_inv[sensor_id].block(0,0,3,3) * virtualPoint + calib->Rt_inv[sensor_id].block(0,3,3,1);
-                float u = calib->cameraMatrix(0,0) * pointFromCamera(0) / pointFromCamera(2) + calib->cameraMatrix(0,2);
-                float v = calib->cameraMatrix(1,1) * pointFromCamera(1) / pointFromCamera(2) + calib->cameraMatrix(1,2);
-
-                //          #pragma omp critical
-                if(u >= 0 && u < size_w && v >= 0 && v < size_h)
-                {
-                    sphereRGB.at<cv::Vec3b>(row_phi,col_theta) = frameRGBD_[sensor_id].getRGBImage().at<cv::Vec3b>(v,u);
-//                    std::cout << " d " << frameRGBD_[sensor_id].getDepthImage().at<unsigned short>(v,u);
-                    if( pcl_isfinite(frameRGBD_[sensor_id].getDepthImage().at<unsigned short>(v,u)) ){
-                        sphereDepth.at<unsigned short>(row_phi,col_theta) = frameRGBD_[sensor_id].getDepthImage().at<unsigned short>(v,u) * sqrt(1 + pow((u-calib->cameraMatrix(0,2))/calib->cameraMatrix(0,0),2) + pow((v-calib->cameraMatrix(1,2))/calib->cameraMatrix(1,1),2));
-//                        std::cout << " dm " << sphereDepth.at<unsigned short>(row_phi,col_theta);
-                    }
-                }
-            }
-        }
     }
 
 };

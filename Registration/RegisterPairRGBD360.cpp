@@ -144,8 +144,8 @@ cout << "Create sphere 2\n";
   double time_end = pcl::getTime();
   std::cout << "ICP took " << double (time_end - time_start) << std::endl;
 
-  std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
-  Eigen::Matrix4d icpTransformation = icp.getFinalTransformation().cast<double>();
+  //std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
+  Eigen::Matrix4f icpTransformation = icp.getFinalTransformation(); //.cast<double>();
   cout << "ICP transformation:\n" << icpTransformation << endl << "PbMap-Registration\n" << registerer.getPose() << endl;
 
   // Visualize
@@ -153,9 +153,9 @@ cout << "Create sphere 2\n";
   // It runs PCL viewer in a different thread.
 //    cout << "Superimpose cloud\n";
   Map360 Map;
-  Eigen::Matrix4d pose = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
   Map.addKeyframe(&frame360_1, pose );
-  pose = registerer.getPose().cast<double>();
+  pose = registerer.getPose();//.cast<double>();
   Map.addKeyframe(&frame360_2, pose );
   Map.vOptimizedPoses = Map.vTrajectoryPoses;
   Map.vOptimizedPoses[1] = icpTransformation;

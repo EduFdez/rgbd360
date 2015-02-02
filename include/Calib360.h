@@ -112,6 +112,7 @@ class Calib360
     {
 //    std::cout << "Load intrinsic model " << sensor_id+1 << std::endl;registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH));
       intrinsic_model_[sensor_id].load(mrpt::format("%s/distortion_model%i", pathToIntrinsicModel.c_str(), sensor_id+1));
+      //int resolution_downsampling = static_cast<int>(resolution);
       intrinsic_model_[sensor_id].downsampleParams(2);//(resolution);
 //      std::cout << intrinsic_model_[sensor_id].status() << std::endl;
     }

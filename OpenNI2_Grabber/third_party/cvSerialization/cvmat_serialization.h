@@ -3,10 +3,13 @@
 #ifndef CVMAT_SERIALIZATION_H
 #define CVMAT_SERIALIZATION_H
 
-//#include <opencv2/opencv.hpp>
+#include <opencv2/opencv.hpp>
+//#include <opencv2/highgui/highgui.hpp>
 //#include <opencv2/highgui/highgui_c.h>
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
+//#include "opencv2/highgui/highgui.hpp"
+//#include "opencv2/imgproc/imgproc.hpp"
+//#include <opencv/cv.h>
+//#include <opencv/highgui.h>
 
 #include <boost/serialization/split_free.hpp>
 #include <boost/serialization/vector.hpp>

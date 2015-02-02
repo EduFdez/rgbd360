@@ -24,10 +24,11 @@
 //#include <mrpt/gui.h>
 #include <mrpt/math/utils.h>
 
+#include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <opencv2/contrib/contrib.hpp> //TickMeter
+//#include <opencv2/contrib/contrib.hpp> //TickMeter
 #include <iostream>
 #include <fstream>
 

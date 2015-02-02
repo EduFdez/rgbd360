@@ -1,5 +1,7 @@
 IF(BUILD_SLAM)
 
+	INCLUDE_DIRECTORIES( ${OpenCV_INCLUDE_DIRS} )
+
 	# G2O library
 	#find_package(G2O)
         #INCLUDE_DIRECTORIES(${G2O_INCLUDE_DIR})
@@ -7,15 +9,18 @@ IF(BUILD_SLAM)
 
 	# Set up the top-level include directories
 	#SET(G2O_INCLUDE_DIR ${RGBD360_SOURCE_DIR}/../g2o/trunk CACHE PATH "Directory of G2O")
-	SET(G2O_INCLUDE_DIR /home/edu/Libraries/g2o_ylatif/trunk CACHE PATH "Directory of G2O")
+	SET(G2O_INCLUDE_DIR /home/edu/Libraries/g2o/trunk CACHE PATH "Directory of G2O")
+	#SET(G2O_INCLUDE_DIR /home/edu/Libraries/g2o_ylatif/trunk CACHE PATH "Directory of G2O")
         INCLUDE_DIRECTORIES(${G2O_INCLUDE_DIR})
         LINK_DIRECTORIES(${G2O_INCLUDE_DIR}/lib)
 
 	#Generate config.h 
 	#configure_file(${RGBD360_SOURCE_DIR}/../g2o/trunk/config.h.in ${RGBD360_SOURCE_DIR}/../g2o/trunk/g2o/config.h)
 	#INSTALL(FILES ${RGBD360_SOURCE_DIR}/../g2o/trunk/g2o/config.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/g2o)
-	configure_file(/home/edu/Libraries/g2o_ylatif/trunk/config.h.in /home/edu/Libraries/g2o_ylatif/trunk/g2o/config.h)
-	INSTALL(FILES /home/edu/Libraries/g2o_ylatif/trunk/g2o/config.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/g2o)
+	configure_file(/home/efernand/Libraries/g2o/config.h.in /home/efernand/bin/g2o/g2o/config.h) # "${PROJECT_BINARY_DIR}/TutorialConfig.h 
+	#INSTALL(FILES /home/edu/Libraries/g2o/trunk/g2o/config.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/g2o)
+	#configure_file(/home/edu/Libraries/g2o_ylatif/trunk/config.h.in /home/edu/Libraries/g2o_ylatif/trunk/g2o/config.h)
+	#INSTALL(FILES /home/edu/Libraries/g2o_ylatif/trunk/g2o/config.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/g2o)
 
 	# Include the subdirectories
 	#ADD_SUBDIRECTORY(g2o/trunk)

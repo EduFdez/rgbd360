@@ -1,5 +1,8 @@
 IF(BUILD_VISUALIZATION)
 
+	INCLUDE_DIRECTORIES( ${OpenCV_INCLUDE_DIRS} )
+	#INCLUDE_DIRECTORIES(${PCL_INCLUDE_DIRS})
+
 	# Declare the target (an executable)
 	ADD_EXECUTABLE(LoadSphere LoadSphere.cpp)
 
@@ -20,10 +23,22 @@ IF(BUILD_VISUALIZATION)
 	)
 
 	TARGET_LINK_LIBRARIES(LoadFrame360
+					${MRPT_LIBS}
 					${OpenCV_LIBS}
 					${PCL_LIBRARIES}
 					${Boost_SERIALIZATION_LIBRARY}
+	)
+
+	# Declare the target (an executable)
+	ADD_EXECUTABLE(LoadFrame360_stereo LoadFrame36_stereo0.cpp
+					../include/Frame360_stereo.h
+	)
+
+	TARGET_LINK_LIBRARIES(LoadFrame360_stereo
 					${MRPT_LIBS}
+					${OpenCV_LIBS}
+					${PCL_LIBRARIES}
+					${Boost_SERIALIZATION_LIBRARY}
 	)
 
 	# Declare the target (an executable)
@@ -41,7 +56,7 @@ IF(BUILD_VISUALIZATION)
 	)
 
 	# Declare the target (an executable)
-	ADD_EXECUTABLE(LoadSequence LoadRawlog.cpp
+	ADD_EXECUTABLE(LoadRawlog LoadRawlog.cpp
 					../include/Calib360.h
 					../include/Frame360.h
 					../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h

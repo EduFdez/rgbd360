@@ -256,8 +256,8 @@ cout << "Load Frame360\n" << fflush;
       for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
       {
         mrpt::utils::CImage intensityImage;
-//        cv::Mat rgb = cv::cvarrToMat( obs360.rgbd[sensor_id].intensityImage.getAs<IplImage>(), false /* dont copy buffers */ );
-        cv::Mat rgb( obs360.rgbd[sensor_id].intensityImage.getAs<IplImage>() );
+        cv::Mat rgb = cv::cvarrToMat( obs360.rgbd[sensor_id].intensityImage.getAs<IplImage>(), false /* dont copy buffers */ );
+        //cv::Mat rgb( obs360.rgbd[sensor_id].intensityImage.getAs<IplImage>() );
 
 //        cv::imshow( "test", rgb );
 //        cv::waitKey(1);

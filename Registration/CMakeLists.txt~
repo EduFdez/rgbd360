@@ -18,19 +18,19 @@ IF(BUILD_REGISTRATION)
 					${Boost_SERIALIZATION_LIBRARY}
 					   )
 
-	# Declare the target (an executable)
-	ADD_EXECUTABLE(RegisterRGBD_dataset RegisterRGBD_dataset.cpp
-					../include/Miscellaneous.h
-					../include/RegisterPhotoICP.h
-					../third_party/cvShowManyImages.cpp
-	)
-
-	TARGET_LINK_LIBRARIES(RegisterRGBD_dataset
-					${MRPT_LIBS}
-					${OpenCV_LIBS}
-					${PCL_LIBRARIES}
-					${Boost_SERIALIZATION_LIBRARY}
-					   )
+#	# Declare the target (an executable)
+#	ADD_EXECUTABLE(RegisterRGBD_dataset RegisterRGBD_dataset.cpp
+#					../include/Miscellaneous.h
+#					../include/RegisterPhotoICP.h
+#					../third_party/cvShowManyImages.h
+#	)
+#
+#	TARGET_LINK_LIBRARIES(RegisterRGBD_dataset
+#					${MRPT_LIBS}
+#					${OpenCV_LIBS}
+#					${PCL_LIBRARIES}
+#					${Boost_SERIALIZATION_LIBRARY}
+#					   )
 
 	# Declare the target (an executable)
 	ADD_EXECUTABLE(MethodsRegisterRGBD360 MethodsRegisterRGBD360.cpp
