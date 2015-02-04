@@ -146,6 +146,9 @@ class Frame360_Visualizer
         }
       }
 
+      //viz.spinOnce();
+      boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+
       #if RECORD_VIDEO
         std::string screenshotFile = mrpt::format("im_%04u.png", ++numScreenshot);
         viz.saveScreenshot (screenshotFile);

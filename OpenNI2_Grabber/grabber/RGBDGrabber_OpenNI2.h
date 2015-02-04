@@ -63,7 +63,7 @@ class RGBDGrabber_OpenNI2 : public RGBDGrabber
     openni::VideoFrameRef depth_frame, color_frame;
 
     /*! Depth stream object */
-    openni::VideoStream depth_stream,;
+    openni::VideoStream depth_stream;
 
     /*! RGB stream object */
     openni::VideoStream rgb_stream;

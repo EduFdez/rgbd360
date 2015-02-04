@@ -59,12 +59,14 @@ int main (int argc, char ** argv)
   Calib360 calib;
   calib.loadIntrinsicCalibration();
   calib.loadExtrinsicCalibration();
+//std::cout << "LoadFrame360: " << fileName << std::endl;
 
   Frame360 frame360(&calib);
   frame360.loadFrame(fileName);
   frame360.undistort();
   frame360.buildSphereCloud();
   frame360.getPlanes();
+//std::cout << "Traza 1 \n";
 
 //  frame360.stitchSphericalImage();
 //  cv::imwrite("rgb_test.png", frame360.sphereRGB);

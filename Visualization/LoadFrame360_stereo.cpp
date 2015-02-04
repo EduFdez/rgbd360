@@ -29,6 +29,7 @@
  *  Author: efernand Fernandez-Moral
  */
 
+#include <Frame360.h>
 #include <Frame360_stereo.h>
 #include <Frame360_Visualizer.h>
 #include <pcl/console/parse.h>
@@ -56,27 +57,46 @@ int main (int argc, char ** argv)
 
   string fileDepth = static_cast<string>(argv[1]);
   string fileRGB = static_cast<string>(argv[2]);
+  std::cout << "  fileDepth: " << fileDepth << "\n  fileRGB: " << fileRGB << std::endl;
 
   Frame360_stereo frame360;
   //frame360.loadFrame(fileName);
   frame360.loadDepth(fileDepth);
+
+//  //cv::namedWindow( "sphereDepth", WINDOW_AUTOSIZE );// Create a window for display.
+//  cv::Mat sphDepthVis;
+//  frame360.sphereDepth.convertTo( sphDepthVis, CV_8U, 10 ); //CV_16UC1
+//  std::cout << "  Show depthImage " << fileRGB << std::endl;
+
+//  cv::imshow( "sphereDepth", sphDepthVis );
+//  //cv::waitKey(1);
+//  cv::waitKey(0);
+
   frame360.loadRGB(fileRGB);
-  frame360.buildSphereCloud();
-  frame360.getPlanes();
-
-//  frame360.stitchSphericalImage();
-//  cv::imwrite("rgb_test.png", frame360.sphereRGB);
-//  cv::imwrite("depth_test.png", frame360.sphereDepth);
-
-//  // Visualize spherical image
-//  frame360.fastStitchImage360();
+//  //cv::namedWindow( "sphereRGB", WINDOW_AUTOSIZE );// Create a window for display.
 //  cv::imshow( "sphereRGB", frame360.sphereRGB );
-////  cv::imshow( "sphereRGB", frame360.frameRGBD_[0].getRGBImage() );
-//  while (cv::waitKey(1)!='\n')
-//    boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+//  cv::waitKey(0);
+
+  frame360.buildSphereCloud();
+  frame360.getPlanesStereo();
+
+////  frame360.stitchSphericalImage();
+////  cv::imwrite("rgb_test.png", frame360.sphereRGB);
+////  cv::imwrite("depth_test.png", frame360.sphereDepth);
+
+////  // Visualize spherical image
+////  frame360.fastStitchImage360();
+////  cv::imshow( "sphereRGB", frame360.sphereRGB );
+//////  cv::imshow( "sphereRGB", frame360.frameRGBD_[0].getRGBImage() );
+////  while (cv::waitKey(1)!='\n')
+////    boost::this_thread::sleep (boost::posix_time::milliseconds (10));
 
   // Visualize point cloud
-  Frame360_Visualizer sphereViewer(&frame360);
+  Calib360 calib;
+  Frame360 frame360_(&calib);
+  frame360_.sphereCloud = frame360.sphereCloud;
+  frame360_.planes = frame360.planes;
+  Frame360_Visualizer sphereViewer(&frame360_);
   cout << "\n  Press 'q' to close the program\n";
 
   while (!sphereViewer.viewer.wasStopped() )
