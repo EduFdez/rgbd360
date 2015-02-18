@@ -86,10 +86,35 @@ public:
         icp.setRANSACOutlierRejectionThreshold (0.1);
     }
 
-    void run(string &path_dataset, string &path_results, const int &selectSample)
+    /*! Run the odometry from the image specified by "imgRGB_1st".
+     */
+    void run(string &imgRGB_1st, string &path_results, const int &selectSample)
     {
         unsigned frame = 275;
         unsigned frameOrder = frame+1;
+
+        cv::Mat maskCar = cv::imread("/Data/Shared_Lagadic/useful_code/maskCar_.png",0);
+      //  cv::imshow( "maskCar", maskCar );
+      //  cv::waitKey(0);
+
+        string rgb1 = static_cast<string>(argv[1]);
+        string rgb2 = static_cast<string>(argv[2]);
+        std::cout << "  rgb1: " << rgb1 << "\n  rgb2: " << rgb2 << std::endl;
+
+        string fileType = ".png";
+        string depth1, depth2;
+        std::cout << "  end: " << rgb1.substr(rgb1.length()-4) << std::endl;
+
+        if( fileType.compare( rgb1.substr(rgb1.length()-4) ) == 0 && fileType.compare( rgb2.substr(rgb2.length()-4) ) == 0 ) // If the first string correspond to a pointCloud path
+        {
+          depth1 = rgb1.substr(0, rgb1.length()-14) + "depth" + rgb1.substr(rgb1.length()-11, 7) + "pT.raw";
+          depth2 = rgb2.substr(0, rgb2.length()-14) + "depth" + rgb2.substr(rgb2.length()-11, 7) + "pT.raw";
+          std::cout << "  depth1: " << depth1 << "\n  depth2: " << depth2 << std::endl;
+        }
+        else
+            assert(0);
+
+
 
         string fileName = path_dataset + mrpt::format("/sphere_images_%d.bin",frame);
         cout << "Frame " << fileName << endl;
@@ -350,10 +375,10 @@ public:
 
 void print_help(char ** argv)
 {
-    cout << "\nThis program performs PbMap-based Odometry from the data stream recorded by an omnidirectional RGB-D sensor.\n\n";
+    cout << "\nThis program performs Odometry with different kind of methods (PbMap, Direct registration, ICP) from the data stream recorded by an omnidirectional stereo .\n\n";
 
-    cout << "  usage: " << argv[0] << " <pathToRawRGBDImagesDir> <pathToResults> <sampleStream> " << endl;
-    cout << "    <pathToRawRGBDImagesDir> is the directory containing the data stream as a set of '.bin' files" << endl;
+    cout << "  usage: " << argv[0] << " <imgRGB> <pathToResults> <sampleStream> " << endl;
+    cout << "    <imgRGB> is the first reference image of the sequence, such sequence must contain the RGB and raw Depth images which must be in the same directory as imgRGB" << endl;
     cout << "    <pathToResults> is the directory where results (PbMap, Spherical PNG images, Poses files, etc.) should be saved" << endl;
     cout << "    <sampleStream> is the sampling step used in the dataset (e.g. 1: all the frames are used " << endl;
     cout << "                                                                  2: each other frame is used " << endl;
@@ -368,13 +393,13 @@ int main (int argc, char ** argv)
         return 0;
     }
 
-    string path_dataset = static_cast<string>(argv[1]);
+    string imgRGB_1st = static_cast<string>(argv[1]);
     string path_results = static_cast<string>(argv[2]);
     int selectSample = atoi(argv[3]);
 
     cout << "Create Odometry360 object\n";
     Odometry360 odometry360;
-    odometry360.run(path_dataset, path_results, selectSample);
+    odometry360.run(imgRGB_1st, path_results, selectSample);
 
     cout << " EXIT\n";
 
