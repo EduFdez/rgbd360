@@ -33,7 +33,7 @@
 #ifndef MAP360_VISUALIZER_H
 #define MAP360_VISUALIZER_H
 
-#define RECORD_VIDEO 1
+#define RECORD_VIDEO 0
 
 #include "Map360.h"
 #include <pcl/visualization/cloud_viewer.h>
@@ -54,8 +54,8 @@ public:
     /*! Freeze the viewer */
     bool bFreezeFrame;
 
-//    /*! Set some properties for the viewer in the first run */
-//    bool bFirstRun;
+    /*! Set some properties for the viewer in the first run */
+    bool bFirstRun;
 
     /*! Draw the camera's current location */
     bool bDrawCurrentLocation;
@@ -86,6 +86,7 @@ public:
 
     /*! Visualizer object */
     pcl::visualization::CloudViewer viewer;
+//    pcl::visualization::PCLVisualizer viewer;
 
 public:
 
@@ -99,7 +100,7 @@ public:
         currentSphere(-1),
         bFreezeFrame(false),
         bGraphSLAM(false),
-//        bFirstRun(true),
+        bFirstRun(true),
         numScreenshot(0)
     {
 //        viewer.setFullScreen(true); // ERROR. This only works with PCLVisualizer
@@ -116,13 +117,17 @@ public:
     /*! Visualization callback */
     void viz_cb (pcl::visualization::PCLVisualizer& viz)
     {
-//        if(bFirstRun)
-//        {
+        if(bFirstRun)
+        {
+            viz.setCameraPosition (
+                0,0,-7,		// Position
+                0,0,1,		// Viewpoint
+                0,-1,0);	// Up
 //            viz.setFullScreen(true);
-//            bFirstRun = false;
-//        }
+            bFirstRun = false;
+        }
 
-        //    std::cout << "Map360_Visualizer::viz_cb(...)\n";
+//        std::cout << "Map360_Visualizer::viz_cb(...)\n";
         if (Map.vpSpheres.size() == 0 || bFreezeFrame)
         {
             boost::this_thread::sleep (boost::posix_time::milliseconds (10));
@@ -131,8 +136,8 @@ public:
 
         //    viz.setFullscreen(true);
         viz.removeAllShapes();
-        viz.removeAllPointClouds();
-        viz.removeCoordinateSystem("camera");
+//        viz.removeAllPointClouds();
+//        viz.removeCoordinateSystem("camera");
 
         {
             boost::mutex::scoped_lock updateLockVisualizer(visualizationMutex);
@@ -144,26 +149,32 @@ public:
             viz.addText (name, 20, 20, "params");
 
             // Draw the current camera
+            //viewer.addCoordinateSystem (1.0);
             if(bDrawCurrentLocation)
                 viz.addCoordinateSystem(0.2, currentLocation, "camera");
 
             if(nVizMode == 0)
             {
+//            std::cout << "globalMap " << globalMap->size() << std::endl;
               if(globalMap->size() > 0)
               {
-                if (!viz.updatePointCloud (globalMap, "globalMap"))
-                  viz.addPointCloud (globalMap, "globalMap");
+                if (!viz.updatePointCloud (globalMap, "globalMap")){
+                  viz.addPointCloud (globalMap, "globalMap"); //std::cout << "Add globalMap \n";
+                  //viz.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "cloud_1");
+                  //viz.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0f, 0.4f, 0.0f, "cloud_1");
+                }
               }
             }
             else if(nVizMode == 1)
             {
-//            cout << "Draw pointClouds " << Map.vTrajectoryPoses.size() << endl;
+//            std::cout << "Draw pointClouds " << Map.vTrajectoryPoses.size() << std::endl;
                 // Draw the overlapping keyframe's point clouds
                 if(!bGraphSLAM)
                 {
                     //        for(unsigned i=0; i < Map.vpSpheres.size(); i++)
                     for(unsigned i=0; i < Map.vTrajectoryPoses.size(); i++)
                     {
+//                        std::cout << "Sphere " << i << " size " << Map.vpSpheres[i]->sphereCloud->points.size() << std::endl;
                         sprintf (name, "cloud%u", i);
                         if (!viz.updatePointCloud (Map.vpSpheres[i]->sphereCloud, name))
                             viz.addPointCloud (Map.vpSpheres[i]->sphereCloud, name);
@@ -209,7 +220,7 @@ public:
 //                (*vPoses) = Map.vOptimizedPoses;
 //            assert( (*vPoses).size() == (*vPoses).size() );
 
-//            //if(Map.vsAreas.size() > 1) cout << "Draw spheres " << (*vPoses).size() << endl;
+//            //if(Map.vsAreas.size() > 1) std::cout << "Draw spheres " << (*vPoses).size() << std::endl;
 //            sphere_centers.resize((*vPoses).size());
 //            //        for(unsigned i=0; i < Map.vpSpheres.size(); i++)
 //            for(unsigned i=0; i < (*vPoses).size(); i++)
@@ -227,7 +238,7 @@ public:
 //            // Draw the locations of the selected keyframes
 //            for(unsigned i=0; i< Map.vSelectedKFs.size(); i++)
 //            {
-//                //if(Map.vsAreas.size() > 1) cout << " Draw sphere " << i << " " << Map.vSelectedKFs[i] << endl;
+//                //if(Map.vsAreas.size() > 1) std::cout << " Draw sphere " << i << " " << Map.vSelectedKFs[i] << std::endl;
 //                pt_center = pcl::PointXYZ((*vPoses)[Map.vSelectedKFs[i]](0,3), (*vPoses)[Map.vSelectedKFs[i]](1,3), (*vPoses)[Map.vSelectedKFs[i]](2,3));
 //                sprintf (name, "poseKF%u", i);
 //                viz.addSphere (pt_center, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name);
@@ -235,7 +246,7 @@ public:
 
             if(!bGraphSLAM)
             {
-                //if(Map.vsAreas.size() > 1) cout << "Draw spheres " << Map.vTrajectoryPoses.size() << endl;
+                //if(Map.vsAreas.size() > 1) std::cout << "Draw spheres " << Map.vTrajectoryPoses.size() << std::endl;
                 sphere_centers.resize(Map.vTrajectoryPoses.size());
                 //        for(unsigned i=0; i < Map.vpSpheres.size(); i++)
                 for(unsigned i=0; i < Map.vTrajectoryPoses.size(); i++)
@@ -256,7 +267,7 @@ public:
                 // Draw the locations of the selected keyframes
                 for(unsigned i=0; i< Map.vSelectedKFs.size(); i++)
                 {
-                    //if(Map.vsAreas.size() > 1) cout << " Draw sphere " << i << " " << Map.vSelectedKFs[i] << endl;
+                    //if(Map.vsAreas.size() > 1) std::cout << " Draw sphere " << i << " " << Map.vSelectedKFs[i] << std::endl;
                     pt_center = pcl::PointXYZ(Map.vTrajectoryPoses[Map.vSelectedKFs[i]](0,3), Map.vTrajectoryPoses[Map.vSelectedKFs[i]](1,3), Map.vTrajectoryPoses[Map.vSelectedKFs[i]](2,3));
                     sprintf (name, "poseKF%u", i);
                     if(Map.vSelectedKFs[i] != currentSphere)
@@ -312,6 +323,8 @@ public:
 #endif
 
             updateLock.unlock();
+            viz.spinOnce ();
+//            boost::this_thread::sleep (boost::posix_time::milliseconds (1000));
         }
     }
 
@@ -320,7 +333,7 @@ public:
     {
         if ( event.keyDown () )
         {
-            //      std::cout << "Key pressed " << event.getKeySym () << endl;
+            //      std::cout << "Key pressed " << event.getKeySym () << std::endl;
             if(event.getKeySym () == "k" || event.getKeySym () == "K")
                 bFreezeFrame = !bFreezeFrame;
             else if(event.getKeySym () == "l" || event.getKeySym () == "L")
@@ -328,7 +341,7 @@ public:
             else if(event.getKeySym () == "n" || event.getKeySym () == "N")
             {
                 nVizMode = (nVizMode+1) % 4;
-                std::cout << "Visualizatio swap to mode " << nVizMode << endl;
+                std::cout << "Visualizatio swap to mode " << nVizMode << std::endl;
             }
         }
     }

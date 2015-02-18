@@ -301,7 +301,7 @@ int main (int argc, char ** argv)
 
       // ICP
       // Filter the point clouds and remove nan points
-      FilterPointCloud filter(0.1);
+      FilterPointCloud<PointT> filter(0.1);
       filter.filterVoxel(frame360_1.sphereCloud);
       filter.filterVoxel(frame360_2.sphereCloud);
 
@@ -370,7 +370,7 @@ int main (int argc, char ** argv)
 //    double time_start_icp = pcl::getTime();
 //    pcl::PointCloud<PointT>::Ptr transformedCloud(new pcl::PointCloud<PointT>);
 //    pcl::transformPointCloud(*frame360_2.getFrameRGBD_id(sensorID).getPointCloud(), *transformedCloud, sensorID_dense_relPose);
-//    FilterPointCloud filter(0.05);
+//    FilterPointCloud<PointT> filter(0.05);
 //    filter.filterVoxel(transformedCloud);
 //    double time_end_icp = pcl::getTime();
 //    std::cout << "ICP preparation " << (time_end_icp - time_start_icp) << std::endl;

@@ -32,6 +32,8 @@
 #include <Frame360.h>
 #include <Frame360_stereo.h>
 #include <Frame360_Visualizer.h>
+#include <FilterPointCloud.h>
+
 #include <pcl/console/parse.h>
 
 using namespace std;
@@ -78,26 +80,37 @@ int main (int argc, char ** argv)
 //  cv::waitKey(0);
 
   frame360.buildSphereCloud();
-  frame360.getPlanesStereo();
+  frame360.filterPointCloud();
+  frame360.segmentPlanesStereo();
+//  frame360.segmentPlanesStereoRANSAC();
+  std::cout << "Planes " << frame360.planes.vPlanes.size () << std::endl;
 
-////  frame360.stitchSphericalImage();
-////  cv::imwrite("rgb_test.png", frame360.sphereRGB);
-////  cv::imwrite("depth_test.png", frame360.sphereDepth);
+  size_t plane_inliers = 0;
+  for(size_t i=0; i < frame360.planes.vPlanes.size (); i++)
+  {
+      plane_inliers += frame360.planes.vPlanes[i].inliers.size();
+      //std::cout << plane_inliers << " Plane inliers " << frame360.planes.vPlanes[i].inliers.size() << std::endl;
+  }
+  if (frame360.planes.vPlanes.size () > 0)
+    std::cout << "Plane inliers " << plane_inliers << " average plane size " << plane_inliers/frame360.planes.vPlanes.size () << std::endl;
 
-////  // Visualize spherical image
-////  frame360.fastStitchImage360();
-////  cv::imshow( "sphereRGB", frame360.sphereRGB );
-//////  cv::imshow( "sphereRGB", frame360.frameRGBD_[0].getRGBImage() );
-////  while (cv::waitKey(1)!='\n')
-////    boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+
+//  // Visualize spherical image
+//  cv::imshow( "sphereRGB", frame360.sphereRGB );
+//  while (cv::waitKey(1)!='\n')
+//    boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+
 
   // Visualize point cloud
   Calib360 calib;
   Frame360 frame360_(&calib);
   frame360_.sphereCloud = frame360.sphereCloud;
+//  frame360_.sphereCloud = frame360.filteredCloud;
   frame360_.planes = frame360.planes;
   Frame360_Visualizer sphereViewer(&frame360_);
   cout << "\n  Press 'q' to close the program\n";
+
+//   pcl::io::savePCDFile ("/home/efernand/cloud_test.pcd", *frame360.sphereCloud);
 
   while (!sphereViewer.viewer.wasStopped() )
     boost::this_thread::sleep (boost::posix_time::milliseconds (10));

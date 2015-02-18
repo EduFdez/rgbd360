@@ -34,7 +34,7 @@
 #define FRAME360_STEREO_H
 
 #ifndef _DEBUG_MSG
-#define _DEBUG_MSG 0
+#define _DEBUG_MSG 1
 #endif
 
 //#define USE_BILATERAL_FILTER 1
@@ -54,6 +54,9 @@
 #include <pcl/segmentation/planar_region.h>
 #include <pcl/segmentation/organized_multi_plane_segmentation.h>
 #include <pcl/segmentation/organized_connected_component_segmentation.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/common/transforms.h>
@@ -69,6 +72,7 @@
 
 #include <CloudRGBD_Ext.h>
 #include <DownsampleRGBD.h>
+#include <FilterPointCloud.h>
 
 #include <Eigen/Core>
 
@@ -127,6 +131,9 @@ class Frame360_stereo
 
     /*! 3D Point cloud of the spherical frame */
     pcl::PointCloud<PointT>::Ptr sphereCloud;
+
+    /*! 3D Point cloud of the spherical frame */
+    pcl::PointCloud<PointT>::Ptr filteredCloud;
 
     /*! PbMap of the spherical frame */
     mrpt::pbmap::PbMap planes;
@@ -264,8 +271,61 @@ class Frame360_stereo
 ////      ar & boost::serialization::make_array(Frame360_stereo.ptr(), data_size);
 ////    }
 
+//    /*! Load a spherical RGB-D image from the raw data stored in a binary file */
+//    void loadDepth(const std::string &binaryDepthFile)
+//    {
+//        double time_start = pcl::getTime();
+
+//        std::ifstream file (binaryDepthFile.c_str(), std::ios::in | std::ios::binary);
+//        if (file)
+//        {
+//            char *header_property = new char[2]; // Read height_ and width_
+//            file.seekg (0, ios::beg);
+//            file.read (header_property, 2);
+//            unsigned short *height = reinterpret_cast<unsigned short*> (header_property);
+//            height_ = *height;
+
+//            //file.seekg (2, ios::beg);
+//            file.read (header_property, 2);
+//            unsigned short *width = reinterpret_cast<unsigned short*> (header_property);
+//            width_ = *width;
+////        std::cout << "height_ " << height_ << " width_ " << width_ << std::endl;
+
+//            cv::Mat sphereDepth_aux(width_, height_, CV_32FC1);
+//            char *mem_block = reinterpret_cast<char*>(sphereDepth_aux.data);
+//            std::streampos size = height_*width_*4; // file.tellg() - std::streampos(4); // Header is 4 bytes: 2 unsigned short for height and width
+//            //std::cout << "mem_block size " << size << std::endl;
+//            //file.seekg (4, ios::beg);
+//            file.read (mem_block, size);
+////            std::cout << "Pixel 100-100: " << sphereDepth.at<float>(100,100) << std::endl;
+////            for(int row=0; row < sphereDepth.rows; row++)
+////                for(int col=0; col < sphereDepth.cols; col++)
+////                    std::cout << " " << sphereDepth.at<float>(row,col) << std::endl;
+////            std::cout << "Depth pixels " << std::endl;
+
+//            //Close the binary bile
+//            file.close();
+////            sphereDepth.create(height_, width_, CV_32FC1);
+////            cv::transpose(sphereDepth_aux, sphereDepth);
+//            sphereDepth.create(640, width_, CV_32FC1);
+//            cv::Rect region_of_interest = cv::Rect(8, 0, 640, width_); // Select only a portion of the image with height = 640 to facilitate the pyramid constructions
+//            cv::transpose(sphereDepth_aux(region_of_interest), sphereDepth);
+//            std::cout << "height_ " << sphereDepth.rows << " width_ " << sphereDepth.cols << std::endl;
+//        }
+//        else
+//            std::cerr << "File: " << binaryDepthFile << " does NOT EXIST.\n";
+
+
+//        //    bSphereCloudBuilt = false; // The spherical PointCloud of the frame just loaded is not built yet
+
+//#if _DEBUG_MSG
+//        double time_end = pcl::getTime();
+//        std::cout << "loadDepth took " << double (time_end - time_start) << std::endl;
+//#endif
+//    }
+
     /*! Load a spherical RGB-D image from the raw data stored in a binary file */
-    void loadDepth(std::string &binaryDepthFile)
+    void loadDepth (const std::string &binaryDepthFile, const cv::Mat * mask = NULL)
     {
         double time_start = pcl::getTime();
 
@@ -277,18 +337,17 @@ class Frame360_stereo
             file.read (header_property, 2);
             unsigned short *height = reinterpret_cast<unsigned short*> (header_property);
             height_ = *height;
-        std::cout << "height_ " << height_ << std::endl;
 
             //file.seekg (2, ios::beg);
             file.read (header_property, 2);
             unsigned short *width = reinterpret_cast<unsigned short*> (header_property);
             width_ = *width;
-        std::cout << "width_ " << width_ << std::endl;
+//        std::cout << "height_ " << height_ << " width_ " << width_ << std::endl;
 
             cv::Mat sphereDepth_aux(width_, height_, CV_32FC1);
             char *mem_block = reinterpret_cast<char*>(sphereDepth_aux.data);
             std::streampos size = height_*width_*4; // file.tellg() - std::streampos(4); // Header is 4 bytes: 2 unsigned short for height and width
-            std::cout << "mem_block size " << size << std::endl;
+            //std::cout << "mem_block size " << size << std::endl;
             //file.seekg (4, ios::beg);
             file.read (mem_block, size);
 //            std::cout << "Pixel 100-100: " << sphereDepth.at<float>(100,100) << std::endl;
@@ -297,10 +356,29 @@ class Frame360_stereo
 //                    std::cout << " " << sphereDepth.at<float>(row,col) << std::endl;
 //            std::cout << "Depth pixels " << std::endl;
 
+//            cv::Mat sphereDepth_aux2(height_, width_, CV_32FC1);
+//            for(int i = 0; i < height_; i++)
+//                for(int j = 0; j < width_; j++)
+//                    sphereDepth_aux2.at<float>(i,j) = *(reinterpret_cast<float*>(mem_block + 4*(j*height_+i)));
+//            cv::imshow( "sphereDepth", sphereDepth_aux2 );
+//            cv::waitKey(0);
+
             //Close the binary bile
             file.close();
-            sphereDepth.create(height_, width_, CV_32FC1);
-            cv::transpose(sphereDepth_aux, sphereDepth);
+//            sphereDepth.create(height_, width_, CV_32FC1);
+//            cv::transpose(sphereDepth_aux, sphereDepth);
+            sphereDepth.create(640, width_, CV_32FC1);
+            cv::Rect region_of_interest = cv::Rect(8, 0, 640, width_); // Select only a portion of the image with height = 640 to facilitate the pyramid constructions
+            cv::transpose(sphereDepth_aux(region_of_interest), sphereDepth); // The savecd image is transposed wrt to the RGB img!
+
+            if (mask && sphereDepth_aux.rows == mask->cols && sphereDepth_aux.cols == mask->rows){
+                cv::Mat aux;
+                sphereDepth.copyTo(aux, (*mask)(cv::Rect (0, 8, width_, 640) ));
+                sphereDepth = aux;
+//                cv::imshow( "sphereDepth", aux );
+//                cv::waitKey(0);
+            }
+//            std::cout << "height_ " << sphereDepth.rows << " width_ " << sphereDepth.cols << std::endl;
         }
         else
             std::cerr << "File: " << binaryDepthFile << " does NOT EXIST.\n";
@@ -322,7 +400,12 @@ class Frame360_stereo
         std::ifstream file (fileNamePNG.c_str(), std::ios::in | std::ios::binary);
         if (file)
         {
-            sphereRGB = cv::imread (fileNamePNG.c_str(), CV_LOAD_IMAGE_COLOR);
+//            sphereRGB = cv::imread (fileNamePNG.c_str(), CV_LOAD_IMAGE_COLOR); // Full size 665x2048
+
+            cv::Mat sphereRGB_aux = cv::imread (fileNamePNG.c_str(), CV_LOAD_IMAGE_COLOR);
+            cv::Rect region_of_interest = cv::Rect(0, 8, width_, 640); // Select only a portion of the image with height = 640 to facilitate the pyramid constructions
+            sphereRGB.create(640, width_, sphereRGB_aux.type () );
+            sphereRGB = sphereRGB_aux (region_of_interest); // Size 640x2048
         }
         else
             std::cerr << "File: " << fileNamePNG << " does NOT EXIST.\n";
@@ -450,13 +533,18 @@ class Frame360_stereo
 ////        //  std::cout << "buildCloud_id3 " << sensor_id << "\n";
 ////    }
 
+    inline pcl::PointCloud<PointT>::Ptr getSphereCloud()
+    {
+        return sphereCloud;
+    }
+
     /*! Build the spherical point cloud */
     void buildSphereCloud()
     {
         //    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
         //      return;
 
-        std::cout << " Frame360_stereo::buildSphereCloud() " << std::endl;
+//        std::cout << " Frame360_stereo::buildSphereCloud() " << std::endl;
 
         double time_start = pcl::getTime();
 
@@ -473,7 +561,8 @@ class Frame360_stereo
         float step_theta = 2*PI / sphereDepth.cols;
         float step_phi = step_theta;
         int pixel_count = 0;
-        int start_phi = 166, end_phi = 166 + sphereDepth.rows;
+        //int start_phi = 166, end_phi = 166 + sphereDepth.rows; // For images of 665x2048
+        int start_phi = 174, end_phi = 174 + sphereDepth.rows; // For images of 640x2048
 
         for(int row_phi=0; row_phi < sphereDepth.rows; row_phi++)//, row_phi += width_SphereImg)
         {
@@ -558,90 +647,90 @@ class Frame360_stereo
 //        //    std::cout << "Local-Plane extraction took " << double (time_end - time_start) << std::endl;
 //    }
 
-//    /*! Merge the planar patches that correspond to the same surface in the sphere */
-//    void mergePlanes()
-//    {
-//        double time_start = pcl::getTime();
+    /*! Merge the planar patches that correspond to the same surface in the sphere */
+    void mergePlanes()
+    {
+        double time_start = pcl::getTime();
 
-//        // Merge repeated planes
-//        for(size_t j = 0; j < planes.vPlanes.size(); j++) // numPrevPlanes
-//            if(planes.vPlanes[j].curvature < max_curvature_plane)
-//                for(size_t k = j+1; k < planes.vPlanes.size(); k++) // numPrevPlanes
-//                    if(planes.vPlanes[k].curvature < max_curvature_plane)
-//                    {
-//                        bool bSamePlane = false;
-//                        //        Eigen::Vector3f center_diff = planes.vPlanes[k].v3center - planes.vPlanes[j].v3center;
-//                        Eigen::Vector3f close_points_diff;
-//                        float dist, prev_dist = 1;
-//                        if( planes.vPlanes[j].v3normal.dot(planes.vPlanes[k].v3normal) > 0.99 )
-//                            if( fabs(planes.vPlanes[j].d - planes.vPlanes[k].d) < 0.45 )
-//                                //          if( BhattacharyyaDist_(plane1.hist_H, plane2.hist_H) > configLocaliser.hue_threshold )
-//                                //          if( fabs(planes.vPlanes[j].v3normal.dot(center_diff)) < std::max(0.07, 0.03*center_diff.norm() ) )
-//                            {
-//                                // Checking distances:
-//                                // a) Between an vertex and a vertex
-//                                // b) Between an edge and a vertex
-//                                // c) Between two edges (imagine two polygons on perpendicular planes)
-//                                for(unsigned i=1; i < planes.vPlanes[j].polygonContourPtr->size() && !bSamePlane; i++)
-//                                    for(unsigned ii=1; ii < planes.vPlanes[k].polygonContourPtr->size(); ii++)
-//                                    {
-//                                        close_points_diff = mrpt::pbmap::diffPoints(planes.vPlanes[j].polygonContourPtr->points[i], planes.vPlanes[k].polygonContourPtr->points[ii]);
-//                                        dist = close_points_diff.norm();
-//                                        //                if( dist < prev_dist )
-//                                        //                  prev_dist = dist;
-//                                        if( dist < 0.3 && fabs(planes.vPlanes[j].v3normal.dot(close_points_diff)) < 0.06)
-//                                        {
-//                                            bSamePlane = true;
-//                                            break;
-//                                        }
-//                                    }
-//                                // a) & b)
-//                                if(!bSamePlane)
-//                                    for(unsigned i=1; i < planes.vPlanes[j].polygonContourPtr->size() && !bSamePlane; i++)
-//                                        for(unsigned ii=1; ii < planes.vPlanes[k].polygonContourPtr->size(); ii++)
-//                                        {
-//                                            dist = sqrt(mrpt::pbmap::dist3D_Segment_to_Segment2(mrpt::pbmap::Segment(planes.vPlanes[j].polygonContourPtr->points[i],planes.vPlanes[j].polygonContourPtr->points[i-1]), mrpt::pbmap::Segment(planes.vPlanes[k].polygonContourPtr->points[ii],planes.vPlanes[k].polygonContourPtr->points[ii-1])));
-//                                            //                if( dist < prev_dist )
-//                                            //                  prev_dist = dist;
-//                                            if( dist < 0.3)
-//                                            {
-//                                                close_points_diff = mrpt::pbmap::diffPoints(planes.vPlanes[j].polygonContourPtr->points[i], planes.vPlanes[k].polygonContourPtr->points[ii]);
-//                                                if(fabs(planes.vPlanes[j].v3normal.dot(close_points_diff)) < 0.06)
-//                                                {
-//                                                    bSamePlane = true;
-//                                                    break;
-//                                                }
-//                                            }
-//                                        }
-//                            }
+        // Merge repeated planes
+        for(size_t j = 0; j < planes.vPlanes.size(); j++) // numPrevPlanes
+            if(planes.vPlanes[j].curvature < max_curvature_plane)
+                for(size_t k = j+1; k < planes.vPlanes.size(); k++) // numPrevPlanes
+                    if(planes.vPlanes[k].curvature < max_curvature_plane)
+                    {
+                        bool bSamePlane = false;
+                        //        Eigen::Vector3f center_diff = planes.vPlanes[k].v3center - planes.vPlanes[j].v3center;
+                        Eigen::Vector3f close_points_diff;
+                        float dist, prev_dist = 1;
+                        if( planes.vPlanes[j].v3normal.dot(planes.vPlanes[k].v3normal) > 0.99 )
+                            if( fabs(planes.vPlanes[j].d - planes.vPlanes[k].d) < 0.45 )
+                                //          if( BhattacharyyaDist_(plane1.hist_H, plane2.hist_H) > configLocaliser.hue_threshold )
+                                //          if( fabs(planes.vPlanes[j].v3normal.dot(center_diff)) < std::max(0.07, 0.03*center_diff.norm() ) )
+                            {
+                                // Checking distances:
+                                // a) Between an vertex and a vertex
+                                // b) Between an edge and a vertex
+                                // c) Between two edges (imagine two polygons on perpendicular planes)
+                                for(unsigned i=1; i < planes.vPlanes[j].polygonContourPtr->size() && !bSamePlane; i++)
+                                    for(unsigned ii=1; ii < planes.vPlanes[k].polygonContourPtr->size(); ii++)
+                                    {
+                                        close_points_diff = mrpt::pbmap::diffPoints(planes.vPlanes[j].polygonContourPtr->points[i], planes.vPlanes[k].polygonContourPtr->points[ii]);
+                                        dist = close_points_diff.norm();
+                                        //                if( dist < prev_dist )
+                                        //                  prev_dist = dist;
+                                        if( dist < 0.3 && fabs(planes.vPlanes[j].v3normal.dot(close_points_diff)) < 0.06)
+                                        {
+                                            bSamePlane = true;
+                                            break;
+                                        }
+                                    }
+                                // a) & b)
+                                if(!bSamePlane)
+                                    for(unsigned i=1; i < planes.vPlanes[j].polygonContourPtr->size() && !bSamePlane; i++)
+                                        for(unsigned ii=1; ii < planes.vPlanes[k].polygonContourPtr->size(); ii++)
+                                        {
+                                            dist = sqrt(mrpt::pbmap::dist3D_Segment_to_Segment2(mrpt::pbmap::Segment(planes.vPlanes[j].polygonContourPtr->points[i],planes.vPlanes[j].polygonContourPtr->points[i-1]), mrpt::pbmap::Segment(planes.vPlanes[k].polygonContourPtr->points[ii],planes.vPlanes[k].polygonContourPtr->points[ii-1])));
+                                            //                if( dist < prev_dist )
+                                            //                  prev_dist = dist;
+                                            if( dist < 0.3)
+                                            {
+                                                close_points_diff = mrpt::pbmap::diffPoints(planes.vPlanes[j].polygonContourPtr->points[i], planes.vPlanes[k].polygonContourPtr->points[ii]);
+                                                if(fabs(planes.vPlanes[j].v3normal.dot(close_points_diff)) < 0.06)
+                                                {
+                                                    bSamePlane = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                            }
 
-//                        if( bSamePlane ) // The planes are merged if they are the same
-//                        {
-//                            // Update normal and center
-//                            assert(planes.vPlanes[j].inliers.size() > 0 &&  planes.vPlanes[k].inliers.size() > 0);
-//                            planes.vPlanes[j].mergePlane2(planes.vPlanes[k]);
+                        if( bSamePlane ) // The planes are merged if they are the same
+                        {
+                            // Update normal and center
+                            assert(planes.vPlanes[j].inliers.size() > 0 &&  planes.vPlanes[k].inliers.size() > 0);
+                            planes.vPlanes[j].mergePlane2(planes.vPlanes[k]);
 
-//                            // Update plane index
-//                            for(size_t h = k+1; h < planes.vPlanes.size(); h++)
-//                                --planes.vPlanes[h].id;
+                            // Update plane index
+                            for(size_t h = k+1; h < planes.vPlanes.size(); h++)
+                                --planes.vPlanes[h].id;
 
-//                            // Delete plane to merge
-//                            std::vector<mrpt::pbmap::Plane>::iterator itPlane = planes.vPlanes.begin();
-//                            for(size_t i = 0; i < k; i++)
-//                                itPlane++;
-//                            planes.vPlanes.erase(itPlane);
+                            // Delete plane to merge
+                            std::vector<mrpt::pbmap::Plane>::iterator itPlane = planes.vPlanes.begin();
+                            for(size_t i = 0; i < k; i++)
+                                itPlane++;
+                            planes.vPlanes.erase(itPlane);
 
-//                            // Re-evaluate possible planes to merge
-//                            j--;
-//                            k = planes.vPlanes.size();
-//                        }
-//                    }
-//#if _DEBUG_MSG
-//        double time_end = pcl::getTime();
-//        std::cout << "Merge planes took " << double (time_end - time_start) << std::endl;
-//#endif
+                            // Re-evaluate possible planes to merge
+                            j--;
+                            k = planes.vPlanes.size();
+                        }
+                    }
+#if _DEBUG_MSG
+        double time_end = pcl::getTime();
+        std::cout << "Merge planes took " << double (time_end - time_start) << std::endl;
+#endif
 
-//    }
+    }
 
 //    /*! Group the planes segmented from each single sensor into the common PbMap 'planes' */
 //    void groupPlanes()
@@ -840,11 +929,32 @@ class Frame360_stereo
 //        //      segmentation_im_[sensor_id] = true;
 //    }
 
+    /*! Perform bilateral filtering on the point cloud
+    */
+    void filterPointCloud()
+    {
+        double time_start = pcl::getTime();
 
-    /*! This function segments planes from the point cloud corresponding to the sensor 'sensor_id',
-      in the frame of reference of the omnidirectional camera
-  */
-    void getPlanesStereo()
+      // Filter pointClouds
+      pcl::FastBilateralFilter<PointT> filter;
+//      filter.setSigmaS(10.0);
+//      filter.setSigmaR(0.05);
+      filter.setSigmaS(20.0);
+      filter.setSigmaR(0.2);
+      filter.setInputCloud(sphereCloud);
+//      filter.filter(*filteredCloud);
+      filter.filter(*sphereCloud);
+
+    #if _DEBUG_MSG
+        double time_end = pcl::getTime();
+        std::cout << "filterPointCloud in " << (time_end - time_start)*1000 << " ms\n";
+    #endif
+    }
+
+
+    /*! This function segments planes from the point cloud
+    */
+    void segmentPlanesStereo()
     {
         // Segment planes
         //    std::cout << "extractPlaneFeatures, size " << sphereCloud->size() << "\n";
@@ -856,15 +966,15 @@ class Frame360_stereo
         //      ne.setNormalEstimationMethod (ne.AVERAGE_DEPTH_CHANGE);
         ne.setNormalEstimationMethod (ne.AVERAGE_3D_GRADIENT);
         //      ne.setNormalEstimationMethod (ne.COVARIANCE_MATRIX);
-        ne.setMaxDepthChangeFactor (0.05); // For VGA: 0.02f, 10.01
-        ne.setNormalSmoothingSize (8.0f);
+        ne.setMaxDepthChangeFactor (0.1); // For VGA: 0.02f, 10.01
+        ne.setNormalSmoothingSize (10.0f);
         ne.setDepthDependentSmoothing (true);
 
         pcl::OrganizedMultiPlaneSegmentation<PointT, pcl::Normal, pcl::Label> mps;
         //      mps.setMinInliers (std::max(uint32_t(40),sphereCloud->height*2));
-        mps.setMinInliers (40);
-        mps.setAngularThreshold (0.05); // (0.017453 * 2.0 = 0.039812) // 3 degrees
-        mps.setDistanceThreshold (0.05); //2cm
+        mps.setMinInliers (1000);
+        mps.setAngularThreshold (0.07); // (0.017453 * 2.0 = 0.039812) // 3 degrees
+        mps.setDistanceThreshold (0.1); //2cm
         //    cout << "PointCloud size " << sphereCloud->size() << endl;
 
         pcl::PointCloud<pcl::Normal>::Ptr normal_cloud (new pcl::PointCloud<pcl::Normal>);
@@ -985,6 +1095,155 @@ class Frame360_stereo
 
     }
 
+    /*! This function segments planes from the point cloud corresponding to the sensor 'sensor_id',
+      in the frame of reference of the omnidirectional camera
+  */
+    void segmentPlanesStereoRANSAC()
+    {
+        // Segment planes
+        //    std::cout << "extractPlaneFeatures, size " << sphereCloud->size() << "\n";
+        double extractPlanes_start = pcl::getTime();
+
+
+        pcl::PointCloud<PointT>::Ptr cloud_non_segmented (new pcl::PointCloud<PointT>);
+        pcl::copyPointCloud (*sphereCloud, *cloud_non_segmented);
+
+        // Create the segmentation object
+        pcl::SACSegmentation<PointT> seg;
+        // Optional
+        seg.setOptimizeCoefficients (true);
+        // Mandatory
+        seg.setModelType (pcl::SACMODEL_PLANE);
+        seg.setMethodType (pcl::SAC_RANSAC);
+        seg.setDistanceThreshold (0.08);
+
+//        std::cout << "cloud_non_segmented " << cloud_non_segmented->size () << "\n";
+
+        FilterPointCloud<PointT> filter(0.1);
+        filter.filterVoxel(cloud_non_segmented);
+        size_t min_cloud_segmentation = 0.2*cloud_non_segmented->size();
+
+        // Create a vector with the planes detected in this keyframe, and calculate their parameters (normal, center, pointclouds, etc.)
+        unsigned single_cloud_size = sphereCloud->size();
+        while (cloud_non_segmented->size() > min_cloud_segmentation )
+        {
+            std::cout << "cloud_non_segmented Pts " << cloud_non_segmented->size() << std::endl;
+
+            pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+            pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+
+            seg.setInputCloud (cloud_non_segmented);
+            seg.segment (*inliers, *coefficients);
+
+            std::cout << "Inliers " << inliers->indices.size () << "\n";
+
+            if (inliers->indices.size () < 1000)
+                break;
+
+            mrpt::pbmap::Plane plane;
+
+            // Extract the planar inliers from the input cloud
+            pcl::ExtractIndices<PointT> extract;
+            extract.setInputCloud ( cloud_non_segmented );
+            extract.setIndices ( inliers );
+            extract.setNegative (false);
+            extract.filter (*plane.planePointCloudPtr);    // Write the planar point cloud
+            extract.setNegative (true);
+            extract.filter (*cloud_non_segmented);    // Write the planar point cloud
+            plane.inliers = inliers->indices; // TODO: only the first pass of inliers is good, the next ones need to be re-arranged
+            double center_x=0, center_y=0, center_z=0;
+            for(size_t j=0; j<plane.inliers.size(); j++)
+            {
+                center_x += plane.planePointCloudPtr->points[plane.inliers[j] ].x;
+                center_y += plane.planePointCloudPtr->points[plane.inliers[j] ].y;
+                center_z += plane.planePointCloudPtr->points[plane.inliers[j] ].z;
+            }
+
+            plane.v3center = Eigen::Vector3f(center_x/plane.inliers.size(), center_y/plane.inliers.size(), center_z/plane.inliers.size());
+            plane.v3normal = Eigen::Vector3f(coefficients->values[0], coefficients->values[1], coefficients->values[2]);
+            if( plane.v3normal.dot(plane.v3center) > 0)
+            {
+                plane.v3normal = -plane.v3normal;
+                //          plane.d = -plane.d;
+            }
+            plane.d = -plane.v3normal .dot( plane.v3center );
+
+            //plane.curvature = regions[i].getCurvature ();
+            //    cout << i << " getCurvature\n";
+
+
+            pcl::PointCloud<pcl::PointXYZRGBA>::Ptr contourPtr(new pcl::PointCloud<pcl::PointXYZRGBA>);
+//            contourPtr->points = regions[i].getContour();
+
+//            //    cout << "Extract contour\n";
+//            if(contourPtr->size() != 0)
+//            {
+//                plane.calcConvexHull(contourPtr);
+//            }
+//            else
+            {
+                //        assert(false);
+                static pcl::VoxelGrid<PointT> plane_grid;
+                plane_grid.setLeafSize(0.05,0.05,0.05);
+                plane_grid.setInputCloud (plane.planePointCloudPtr);
+                plane_grid.filter (*contourPtr);
+                plane.calcConvexHull(contourPtr);
+                std::cout << "Inliers " << plane.planePointCloudPtr->size() << " hull " << plane.polygonContourPtr->size() << std::endl;
+            }
+
+            //        assert(contourPtr->size() > 0);
+            //        plane.calcConvexHull(contourPtr);
+            //    cout << "calcConvexHull\n";
+            plane.computeMassCenterAndArea();
+            //    cout << "Extract convexHull\n";
+            // Discard small planes
+            if(plane.areaHull < min_area_plane)
+                continue;
+
+            plane.calcElongationAndPpalDir();
+            // Discard narrow planes
+            if(plane.elongation > max_elongation_plane)
+                continue;
+
+            //      double color_start = pcl::getTime();
+            plane.calcPlaneHistH();
+            plane.calcMainColor2();
+            //      double color_end = pcl::getTime();
+            //    std::cout << "color in " << (color_end - color_start)*1000 << " ms\n";
+
+            //      color_start = pcl::getTime();
+            //plane.transform(Rt);
+            //      color_end = pcl::getTime();
+            //    std::cout << "transform in " << (color_end - color_start)*1000 << " ms\n";
+
+//            bool isSamePlane = false;
+//            if(plane.curvature < max_curvature_plane)
+//                for (size_t j = 0; j < planes.vPlanes.size(); j++)
+//                    if( planes.vPlanes[j].curvature < max_curvature_plane && planes.vPlanes[j].isSamePlane(plane, 0.99, 0.05, 0.2) ) // The planes are merged if they are the same
+//                    {
+//                        //          cout << "Merge local region\n";
+//                        isSamePlane = true;
+//                        //            double time_start = pcl::getTime();
+//                        planes.vPlanes[j].mergePlane2(plane);
+//                        //            double time_end = pcl::getTime();
+//                        //          std::cout << " mergePlane2 took " << double (time_start - time_end) << std::endl;
+
+//                        break;
+//                    }
+//            if(!isSamePlane)
+            {
+                //          plane.calcMainColor();
+                plane.id = planes.vPlanes.size();
+                planes.vPlanes.push_back(plane);
+            }
+        }
+#if _DEBUG_MSG
+        double extractPlanes_end = pcl::getTime();
+        std::cout << "getPlanesRANSAC took " << (extractPlanes_end - extractPlanes_start)*1000 << " ms\n";
+#endif
+        std::cout << "Planes " << planes.vPlanes.size() << " \n";
+
+    }
 
 //    /*! Stitch both the RGB and the depth images corresponding to the sensor 'sensor_id' */
 //    void stitchImage(int sensor_id)

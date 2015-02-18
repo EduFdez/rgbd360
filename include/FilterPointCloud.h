@@ -37,10 +37,11 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/passthrough.h>
 
-typedef pcl::PointXYZRGBA PointT;
+//typedef pcl::PointXYZRGBA PointT;
 
 /*! This class is used to filter a point cloud in place.
  */
+template<class PointT>
 class FilterPointCloud
 {
  private:
@@ -55,7 +56,7 @@ class FilterPointCloud
   pcl::PassThrough<PointT> filter_pass_z;
 
   /*! Voxel filter */
-  pcl::VoxelGrid<pcl::PointXYZRGBA> filter_voxel;
+  pcl::VoxelGrid<PointT> filter_voxel;
 
  public:
 
@@ -75,11 +76,11 @@ class FilterPointCloud
 
   /*! This function filters the input 'cloud' by setting a maximum and minimum in the x, y and z coordinates
    *  (these thresholds are defined by this class' constructor) */
-  void filterEuclidean(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &cloud)
+  void filterEuclidean(typename pcl::PointCloud<PointT>::Ptr &cloud)
   {
     // Initialize the global map with the first observation
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr filteredCloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr filteredCloud2(new pcl::PointCloud<pcl::PointXYZRGBA>);
+    typename pcl::PointCloud<PointT>::Ptr filteredCloud(new pcl::PointCloud<PointT>);
+    typename pcl::PointCloud<PointT>::Ptr filteredCloud2(new pcl::PointCloud<PointT>);
     filter_pass_y.setInputCloud (cloud);
     filter_pass_y.filter (*filteredCloud);
     filter_pass_z.setInputCloud (filteredCloud);
@@ -89,15 +90,22 @@ class FilterPointCloud
   }
 
   /*! This function filters the input 'cloud' leaving one pixel per voxel (the voxel is defined by this class' constructor) */
-  void filterVoxel(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &cloud)
+  void filterVoxel(typename pcl::PointCloud<PointT>::Ptr &cloud)
   {
     // Initialize the global map with the first observation
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr filteredCloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
+//    pcl::PointCloud<PointT>::Ptr filteredCloud(new pcl::PointCloud<PointT>);
     filter_voxel.setInputCloud (cloud);
-    filter_voxel.filter (*filteredCloud);
-    cloud = filteredCloud;
+    filter_voxel.filter (*cloud);
+//    filter_voxel.filter (*filteredCloud);
+//    cloud = filteredCloud;
   }
 
+  void filterVoxel(typename pcl::PointCloud<PointT>::Ptr &cloud_in, typename pcl::PointCloud<PointT>::Ptr &cloud_out)
+  {
+    // Initialize the global map with the first observation
+    filter_voxel.setInputCloud (cloud_in);
+    filter_voxel.filter (*cloud_out);
+  }
 };
 
 #endif

@@ -63,6 +63,10 @@ private:
 
     Frame360 *frame360_1, *frame360_2;
 
+    RegisterPhotoICP align360; // Dense RGB-D alignment
+
+    pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
+
 public:
     Odometry360() :
         registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH))
@@ -70,6 +74,16 @@ public:
         // Get the calibration matrices for the different sensors
         calib.loadExtrinsicCalibration();
         calib.loadIntrinsicCalibration();
+
+        align360.setNumPyr(6);
+        align360.useSaliency(false);
+      // align360.setVisualization(true);
+        align360.setGrayVariance(3.f/255);
+
+        icp.setMaxCorrespondenceDistance (0.4);
+        icp.setMaximumIterations (10);
+        icp.setTransformationEpsilon (1e-9);
+        icp.setRANSACOutlierRejectionThreshold (0.1);
     }
 
     void run(string &path_dataset, string &path_results, const int &selectSample)
@@ -88,19 +102,19 @@ public:
         frame360_2->getPlanes();
         //    cout << "regsitrationCloud has " << registrationClouds[1]->size() << " Pts\n";
 
-        RegisterPhotoICP align360; // Dense RGB-D alignment
-        align360.setNumPyr(5);
-        align360.useSaliency(false);
-//        align360.setVisualization(true);
-        align360.setGrayVariance(3.f/255);
+//        RegisterPhotoICP align360; // Dense RGB-D alignment
+//        align360.setNumPyr(5);
+//        align360.useSaliency(false);
+////        align360.setVisualization(true);
+//        align360.setGrayVariance(3.f/255);
 
-        // ICP alignement
-        pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
-        icp.setMaxCorrespondenceDistance (0.3);
-        icp.setMaximumIterations (10);
-        icp.setTransformationEpsilon (1e-6);
-      //  icp.setEuclideanFitnessEpsilon (1);
-        icp.setRANSACOutlierRejectionThreshold (0.1);
+//        // ICP alignement
+//        pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
+//        icp.setMaxCorrespondenceDistance (0.3);
+//        icp.setMaximumIterations (10);
+//        icp.setTransformationEpsilon (1e-6);
+//      //  icp.setEuclideanFitnessEpsilon (1);
+//        icp.setRANSACOutlierRejectionThreshold (0.1);
 
 
         bool bGoodRegistration = true;
@@ -165,6 +179,41 @@ public:
             // Align the two frames
             bGoodRegistration = registerer.RegisterPbMap(frame360_1, frame360_2, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
             //        bGoodRegistration = registerer.RegisterPbMap(frame360_1, frame360_2, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_ODOMETRY_3DoF);
+
+
+            align360.setTargetFrame(frame1.sphereRGB, frame1.sphereDepth);
+            align360.setSourceFrame(frame2.sphereRGB, frame2.sphereDepth);
+            cout << "RegisterPhotoICP \n";
+            align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+          //  Eigen::Matrix4f initTransf_dense = rotOffset * poseRegPbMap * rotOffset.inverse();
+          //  align360.alignFrames360(initTransf_dense, RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            Eigen::Matrix4f rigidTransf_dense_ref = align360.getOptimalPose();
+
+            pcl::VoxelGrid<PointT> filter_voxel;
+            filter_voxel.setLeafSize(0.1,0.1,0.1);
+            pcl::PointCloud<PointT>::Ptr sphereCloud_dense1(new pcl::PointCloud<PointT>);
+            pcl::PointCloud<PointT>::Ptr sphereCloud_dense2(new pcl::PointCloud<PointT>);
+          //  pcl::copyPointCloud()
+            filter_voxel.setInputCloud (frame360_1.sphereCloud);
+            filter_voxel.filter (*sphereCloud_dense1);
+            filter_voxel.setInputCloud (frame360_2.sphereCloud);
+            filter_voxel.filter (*sphereCloud_dense2);
+            cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphereCloud->height << " " << frame360_1.sphereCloud->is_dense << " " << endl;
+            cout << "voxel filtered frame360_1 " << sphereCloud_dense1->width << " " << sphereCloud_dense1->height << " " << sphereCloud_dense1->is_dense << " " << endl;
+
+            icp.setInputSource(sphereCloud_dense2);
+            icp.setInputTarget(sphereCloud_dense1);
+            pcl::PointCloud<PointT>::Ptr alignedICP(new pcl::PointCloud<PointT>);
+          //  Eigen::Matrix4d initRigidTransf = registerer.getPose();
+            Eigen::Matrix4f initRigidTransf = Eigen::Matrix4f::Identity();
+            icp.align(*alignedICP, initRigidTransf);
+
+            double time_end = pcl::getTime();
+            std::cout << "ICP took " << double (time_end - time_start) << std::endl;
+
+            //std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
+            Eigen::Matrix4f icpTransformation = icp.getFinalTransformation(); //.cast<double>();
+
 
             if(!bGoodRegistration)
             {

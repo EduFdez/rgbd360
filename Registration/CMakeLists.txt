@@ -20,6 +20,44 @@ IF(BUILD_REGISTRATION)
 					${Boost_SERIALIZATION_LIBRARY}
 					   )
 
+	# Declare the target (an executable)
+	ADD_EXECUTABLE(RegisterPairRGBD360_stereo RegisterPairRGBD360_stereo.cpp
+                                                ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
+                                                ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
+						../include/Miscellaneous.h
+						../include/Calib360.h
+						../include/Frame360.h
+						../include/Frame360_stereo.h
+						../include/Map360_Visualizer.h
+						../include/RegisterRGBD360.h
+	)
+
+        TARGET_LINK_LIBRARIES(RegisterPairRGBD360_stereo
+					${MRPT_LIBS}
+					${OpenCV_LIBS}
+					${PCL_LIBRARIES}
+					${Boost_SERIALIZATION_LIBRARY}
+					   )
+
+        # Declare the target (an executable)
+        ADD_EXECUTABLE(OdometryRGBD360_stereo OdometryRGBD360_stereo.cpp
+                                                ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
+                                                ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
+                                                ../include/Miscellaneous.h
+                                                ../include/Calib360.h
+                                                ../include/Frame360.h
+                                                ../include/Frame360_stereo.h
+                                                ../include/Map360_Visualizer.h
+                                                ../include/RegisterRGBD360.h
+        )
+
+        TARGET_LINK_LIBRARIES(OdometryRGBD360_stereo
+                                        ${MRPT_LIBS}
+                                        ${OpenCV_LIBS}
+                                        ${PCL_LIBRARIES}
+                                        ${Boost_SERIALIZATION_LIBRARY}
+                                           )
+
 #	# Declare the target (an executable)
 #	ADD_EXECUTABLE(RegisterRGBD_dataset RegisterRGBD_dataset.cpp
 #					../include/Miscellaneous.h

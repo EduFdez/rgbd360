@@ -337,7 +337,8 @@ public:
         return goodAlignment;
     }
 
-    /*! Dense Photo/ICP registration. Set the target frame and source frames for registration if specified.
+    /*! Dense Photo/ICP registration. It performs registration for each separated sensor, and consequently is designed for small rotations/transformations
+     * Set the target frame and source frames for registration if specified.
       The parameter 'registMode' is used constraint the plane matching as
         0(DEFAULT_6DoF): unconstrained movement between frames,
         1(PLANAR_3DoF): planar movement (the camera is fixed in height) */

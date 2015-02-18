@@ -304,6 +304,9 @@ public:
 
             //Assign the resized image to the current level of the pyramid
             pyramid[level]=imgAux;
+
+//            cv::imshow("pyramid", pyramid[level]);
+//            cv::waitKey(0);
         }
     };
 
@@ -374,7 +377,9 @@ public:
             {
                 if( (src.at<float>(r,c) > src.at<float>(r,c+1) && src.at<float>(r,c) < src.at<float>(r,c-1) ) ||
                     (src.at<float>(r,c) < src.at<float>(r,c+1) && src.at<float>(r,c) > src.at<float>(r,c-1) )   )
-                    gradX.at<float>(r,c) = 2.f / (1/(src.at<float>(r,c+1)-src.at<float>(r,c)) + 1/(src.at<float>(r,c)-src.at<float>(r,c-1)));
+                    gradX.at<float>(r,c) = 2.f * (src.at<float>(r,c+1)-src.at<float>(r,c)) * (src.at<float>(r,c)-src.at<float>(r,c-1)) / (src.at<float>(r,c+1)-src.at<float>(r,c-1));
+                    //gradX.at<float>(r,c) = 2.f / (1/ + 1/(src.at<float>(r,c)-src.at<float>(r,c-1)));
+//                    std::cout << "GradX " << gradX.at<float>(r,c) << " " << src.at<float>(r,c+1) << " " << src.at<float>(r,c+1) << " " << src.at<float>(r,c+1) << std::endl;
 
 //                std::cout << "GradX " << gradX.at<float>(r,c) << " " << gradY.at<float>(r,c) << std::endl;
 //                if(fabs(gradX.at<float>(r,c)) > 150 || std::isnan(gradX.at<float>(r,c)))
@@ -385,7 +390,8 @@ public:
 
                 if( (src.at<float>(r,c) > src.at<float>(r+1,c) && src.at<float>(r,c) < src.at<float>(r-1,c) ) ||
                     (src.at<float>(r,c) < src.at<float>(r+1,c) && src.at<float>(r,c) > src.at<float>(r-1,c) )   )
-                    gradY.at<float>(r,c) = 2.f / (1/(src.at<float>(r+1,c)-src.at<float>(r,c)) + 1/(src.at<float>(r,c)-src.at<float>(r-1,c)));
+                    gradY.at<float>(r,c) = 2.f * (src.at<float>(r+1,c)-src.at<float>(r,c)) * (src.at<float>(r,c)-src.at<float>(r-1,c)) / (src.at<float>(r+1,c)-src.at<float>(r-1,c));
+                    //gradY.at<float>(r,c) = 2.f / (1/(src.at<float>(r+1,c)-src.at<float>(r,c)) + 1/(src.at<float>(r,c)-src.at<float>(r-1,c)));
 
 //                if(fabs(gradY.at<float>(r,c)) > 150 || std::isnan(gradY.at<float>(r,c)))
 //                {
@@ -499,7 +505,8 @@ public:
     {
         //Create a float auxialiary image from the imput image
         //        cv::Mat imgGrayFloat;
-        cv::cvtColor(imgRGB, grayTrg, CV_RGB2GRAY);
+//        grayTrg.create(imgRGB.rows, imgRGB.cols, CV_32FC1);
+        cv::cvtColor(imgRGB, grayTrg, CV_RGB2GRAY);        
         grayTrg.convertTo(grayTrg, CV_32FC1, 1./255 );
 
         //Compute image pyramids for the grayscale and depth images
@@ -510,7 +517,11 @@ public:
         //Compute image pyramids for the gradients images
         buildGradientPyramids();
 
+//        cv::imwrite("/home/efernand/test.png", grayTrgGradXPyr[nPyrLevels-1]);
+//        cv::imshow("GradX_pyr ", grayTrgGradXPyr[nPyrLevels-1]);
+//        cv::imshow("GradY_pyr ", grayTrgGradYPyr[nPyrLevels-1]);
 //        cv::imshow("GradX ", grayTrgGradXPyr[0]);
+//        cv::imshow("GradY ", grayTrgGradYPyr[0]);
 //        cv::imshow("GradX_d ", depthTrgGradXPyr[0]);
 //        cv::waitKey(0);
     };
@@ -2658,7 +2669,7 @@ public:
                 {
                     //Compute the 3D coordinates of the pij of the source frame
                     //float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c);
-                    // std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << std::endl;
+//                     std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << " LUT " << LUT_xyz_sphere[i](0) << std::endl;
                     //int i = r*nCols + c;
                     if(LUT_xyz_sphere[i](0) != INVALID_POINT) //Compute the jacobian only for the valid points
                         // if(minDepth < depth1 && depth1 < maxDepth) //Compute the jacobian only for the valid points
@@ -2678,15 +2689,16 @@ public:
                         float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
                         int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
                         int transformed_c_int = round(theta_trg*angle_res_inv);
-                        // cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
+                        // cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << endl;
                         //Asign the intensity value to the warped image and compute the difference between the transformed
                         //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
                         if( (transformed_r_int>=0 && transformed_r_int < nRows) && transformed_c_int < nCols )
                         {
-                            // cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << " " << nRows << "x" << nCols << endl;
-                            assert(transformed_c_int >= 0 && transformed_c_int < nCols);
+//                             std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << " " << nRows << "x" << nCols << " numValidPts " << numValidPts << endl;
+//                            assert(transformed_c_int >= 0 && transformed_c_int < nCols);
                             if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                             {
+//                                std::cout << thresSaliencyIntensity << " Grad " << fabs(grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
                                 if(fabs(grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) < thresSaliencyIntensity &&
                                    fabs(grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) < thresSaliencyIntensity)
                                     continue;
@@ -2713,6 +2725,7 @@ public:
                                 float depth2 = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
                                 if(std::isfinite(depth2)) // Make sure this point has depth (not a NaN)
                                 {
+//                                    std::cout << thresSaliencyDepth << " Grad-Depth " << fabs(depthTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(depthTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
                                     if( fabs(depthTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) < thresSaliencyDepth &&
                                         fabs(depthTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) < thresSaliencyDepth)
                                         continue;
@@ -4534,7 +4547,7 @@ public:
             const int nCols = graySrcPyr[pyramidLevel].cols;
             const int imgSize = nRows*nCols;
 
-            // Mask the joints between the different images to avoid the high gradients that are the result of using auto-shutter for each camera
+            // HACK: Mask the joints between the different images to avoid the high gradients that are the result of using auto-shutter for each camera
             int width_sensor = nCols / 8;
             for(int sensor_id = 1; sensor_id < 8; sensor_id++)
             {
@@ -4601,6 +4614,7 @@ public:
                 error = errorPhotoICP_sphereOcc1(pyramidLevel, pose_estim, method);
             else if(occlusion == 2)
                 error = errorPhotoICP_sphereOcc2(pyramidLevel, pose_estim, method);
+            std::cout << "error  " << error << std::endl;
 
             double diff_error = error;
 #if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS

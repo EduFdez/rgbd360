@@ -65,7 +65,7 @@ class LabelizeSequence
       RegisterRGBD360 registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH));
 
       // Filter the point clouds before visualization
-      FilterPointCloud filter;
+      FilterPointCloud<PointT> filter;
 
       bool bGoodRegistration = true;
       map<unsigned, unsigned> emptyMatch;

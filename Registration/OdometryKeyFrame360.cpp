@@ -135,7 +135,7 @@ public:
 
         // Filter the spherical point cloud
         // ICP -> Filter the point clouds and remove nan points
-        FilterPointCloud filter(0.05); // Initialize filters (for visualization)
+        FilterPointCloud<PointT> filter(0.05); // Initialize filters (for visualization)
         filter.filterEuclidean(frame360_2->sphereCloud);
         filter.filterVoxel(frame360_2->sphereCloud);
 

@@ -63,6 +63,8 @@ class Frame360_Visualizer
   {
     viewer.runOnVisualizationThread (boost::bind(&Frame360_Visualizer::viz_cb, this, _1), "viz_cb");
     viewer.registerKeyboardCallback (&Frame360_Visualizer::keyboardEventOccurred, *this);
+    b_update_vis_ = true;
+    b_init_viewer_ = true;
   }
 
   /*! Mutex to syncrhronize eventual changes in frame360 */
@@ -80,6 +82,10 @@ class Frame360_Visualizer
   /*! Show the PbMap's planes filled with different colors. It is control through keyboard event. */
   bool bColoredPlanes;
 
+  bool b_update_vis_;
+
+  bool b_init_viewer_;
+
   /*! Visualization callback */
   void viz_cb(pcl::visualization::PCLVisualizer& viz)
   {
@@ -96,20 +102,38 @@ class Frame360_Visualizer
       return;
     }
 
+    if (b_init_viewer_)
+    {
+        b_init_viewer_ = false;
+      viz.setCameraPosition (
+        0,0,-7,		// Position
+        0,0,1,		// Viewpoint
+        0,-1,0);	// Up
+
+      viz.setSize(800,600); // Set the window size
+
+    }
+
+//    if (!viz.updatePointCloud (frame360->sphereCloud, "sphereCloud"))
+//      viz.addPointCloud (frame360->sphereCloud, "sphereCloud");
+//      viz.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "sphereCloud");
+//      viz.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0,0.0,0.0, "sphereCloud");
+
+    // Render the data
+    if (b_update_vis_)
     {
       boost::mutex::scoped_lock updateLock(visualizationMutex);
 
-      // Render the data
       viz.removeAllPointClouds();
       viz.removeAllShapes();
-      viz.setSize(800,600); // Set the window size
 
       if (!viz.updatePointCloud (frame360->sphereCloud, "sphereCloud"))
         viz.addPointCloud (frame360->sphereCloud, "sphereCloud");
 
       char name[1024];
 
-      sprintf (name, "Frame %u", frameIdx);
+//      sprintf (name, "Frame %u", frameIdx);
+      sprintf (name, "Frame %lu", frame360->sphereCloud->size () );
       viz.addText (name, 20, 20, "info");
 
       if(bShowPlanes)
@@ -139,22 +163,24 @@ class Frame360_Visualizer
           {
             sprintf (name, "plane_%02u", static_cast<unsigned>(i));
             pcl::visualization::PointCloudColorHandlerCustom <PointT> color (plane_i.planePointCloudPtr, red[i%10], grn[i%10], blu[i%10]);
-            viz.addPointCloud (plane_i.planePointCloudPtr, color, name);
+            if (!viz.updatePointCloud (frame360->sphereCloud, name))
+                viz.addPointCloud (plane_i.planePointCloudPtr, color, name);
             viz.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, name);
           }
 
         }
+        b_update_vis_ = false;
       }
 
-      //viz.spinOnce();
-      boost::this_thread::sleep (boost::posix_time::milliseconds (10));
-
-      #if RECORD_VIDEO
-        std::string screenshotFile = mrpt::format("im_%04u.png", ++numScreenshot);
-        viz.saveScreenshot (screenshotFile);
-      #endif
-
     }
+
+    viz.spinOnce();
+    boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+
+    #if RECORD_VIDEO
+      std::string screenshotFile = mrpt::format("im_%04u.png", ++numScreenshot);
+      viz.saveScreenshot (screenshotFile);
+    #endif
   }
 
   /*! Get events from the keyboard */
@@ -163,10 +189,12 @@ class Frame360_Visualizer
     if ( event.keyDown() )
     {
 //      cout << "Key pressed " << event.getKeySym () << endl;
-      if(event.getKeySym() == "k" || event.getKeySym() == "K")
+      if(event.getKeySym() == "k" || event.getKeySym() == "K"){cout << " Press K: Show/hide planes\n";
         bShowPlanes = !bShowPlanes;
-      else if(event.getKeySym() == "l" || event.getKeySym() == "L"){//cout << " Press L\n";
-        bColoredPlanes = !bColoredPlanes;}
+        b_update_vis_ = true;}
+      else if(event.getKeySym() == "l" || event.getKeySym() == "L"){cout << " Press L: fill/unfill plane colors\n";
+        bColoredPlanes = !bColoredPlanes;
+        b_update_vis_ = true;}
       else if(event.getKeySym () == "a" || event.getKeySym () == "A"){
         if(frameIdx <= 50)
           frameIdx = 0;

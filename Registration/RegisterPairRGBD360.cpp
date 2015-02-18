@@ -106,6 +106,25 @@ cout << "Create sphere 2\n";
   cout << "Pose \n" << registerer.getPose() << endl;
 //#endif
 
+  // Dense registration
+  float angleOffset = 157.5;
+  Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
+  RegisterPhotoICP align360; // Dense RGB-D alignment
+  align360.setNumPyr(5);
+  align360.useSaliency(false);
+// align360.setVisualization(true);
+  align360.setGrayVariance(3.f/255);
+  align360.setTargetFrame(frame360_1.sphereRGB, frame360_1.sphereDepth);
+  align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
+  align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//  Eigen::Matrix4f initTransf_dense = rotOffset * poseRegPbMap * rotOffset.inverse();
+//  align360.alignFrames360(initTransf_dense, RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  Eigen::Matrix4f rigidTransf_dense_ref = align360.getOptimalPose();
+  Eigen::Matrix4f rigidTransf_dense = rotOffset.inverse() * rigidTransf_dense_ref * rotOffset;
+  cout << "Pose Dense \n" << rigidTransf_dense_ref << endl;
+  cout << "Pose Dense2 \n" << rigidTransf_dense << endl;
+
+
   // ICP alignement
   double time_start = pcl::getTime();
 //  pcl::IterativeClosestPoint<PointT,PointT> icp;
@@ -130,7 +149,7 @@ cout << "Create sphere 2\n";
 
   // ICP
   // Filter the point clouds and remove nan points
-  FilterPointCloud filter(0.1);
+  FilterPointCloud<PointT> filter(0.1);
   filter.filterVoxel(frame360_1.sphereCloud);
   filter.filterVoxel(frame360_2.sphereCloud);
 
