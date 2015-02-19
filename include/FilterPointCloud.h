@@ -78,7 +78,6 @@ class FilterPointCloud
    *  (these thresholds are defined by this class' constructor) */
   void filterEuclidean(typename pcl::PointCloud<PointT>::Ptr &cloud)
   {
-    // Initialize the global map with the first observation
     typename pcl::PointCloud<PointT>::Ptr filteredCloud(new pcl::PointCloud<PointT>);
     typename pcl::PointCloud<PointT>::Ptr filteredCloud2(new pcl::PointCloud<PointT>);
     filter_pass_y.setInputCloud (cloud);
@@ -92,17 +91,13 @@ class FilterPointCloud
   /*! This function filters the input 'cloud' leaving one pixel per voxel (the voxel is defined by this class' constructor) */
   void filterVoxel(typename pcl::PointCloud<PointT>::Ptr &cloud)
   {
-    // Initialize the global map with the first observation
-//    pcl::PointCloud<PointT>::Ptr filteredCloud(new pcl::PointCloud<PointT>);
     filter_voxel.setInputCloud (cloud);
     filter_voxel.filter (*cloud);
-//    filter_voxel.filter (*filteredCloud);
-//    cloud = filteredCloud;
   }
 
+  /*! This function filters the input 'cloud_in' into 'cloud_out', leaving one pixel per voxel (the voxel is defined by this class' constructor) */
   void filterVoxel(typename pcl::PointCloud<PointT>::Ptr &cloud_in, typename pcl::PointCloud<PointT>::Ptr &cloud_out)
   {
-    // Initialize the global map with the first observation
     filter_voxel.setInputCloud (cloud_in);
     filter_voxel.filter (*cloud_out);
   }

@@ -137,7 +137,7 @@ private:
     //  bool bSphereCloudBuilt;
 
 public:
-    /*! Constructor */
+    /*! Constructor for the sensor RGBD360 (8 Asus XPL)*/
     Frame360(Calib360 *calib360) :
         calib(calib360),
         sphereCloud(new pcl::PointCloud<PointT>()),
@@ -153,6 +153,15 @@ public:
         double time_start = pcl::getTime();
     }
 
+    /*! Constructor for the SphericalStereo sensor (outdoor sensor) */
+    Frame360() :
+        sphereCloud(new pcl::PointCloud<PointT>()),
+        //    bSphereCloudBuilt(false),
+        node(0)
+    {
+        double time_start = pcl::getTime();
+    }
+
     /*! Return the total area of the planar patches from this frame */
     float getPlanarArea()
     {
@@ -164,27 +173,39 @@ public:
     }
 
     /*! Return the the point cloudgrabbed by the sensor 'id' */
-    pcl::PointCloud<PointT>::Ptr getCloud_id(int id)
+    inline pcl::PointCloud<PointT>::Ptr getCloud_id(const int id)
     {
         assert(id >= 0 && id < 8);
         return cloud_[id];
     }
 
     /*! Return the the point FrameRGBD by the sensor 'id' */
-    CloudRGBD_Ext getFrameRGBD_id(int id)
+    inline CloudRGBD_Ext getFrameRGBD_id(const int id)
     {
         assert(id >= 0 && id < 8);
         return frameRGBD_[id];
     }
 
     /*! Set the spherical image timestamp */
-    void setTimeStamp(uint64_t timestamp)
+    inline void setTimeStamp(const uint64_t timestamp)
     {
         timeStamp = timestamp;
     }
 
+    /*! Get the spherical image RGB */
+    inline cv::Mat getImgRGB()
+    {
+        return sphereRGB;
+    }
+
+    /*! Get the spherical image Depth */
+    inline cv::Mat getImgDepth()
+    {
+        return sphereDepth;
+    }
+
     /*! Load a spherical point cloud */
-    void loadCloud(std::string &pointCloudPath)
+    void loadCloud(const std::string &pointCloudPath)
     {
         // Load pointCloud
         sphereCloud.reset(new pcl::PointCloud<pcl::PointXYZRGBA>);
@@ -1147,6 +1168,440 @@ private:
         }
     }
 
+    // Functions for SphereStereo images (outdoors)
+    /*! Load a spherical RGB-D image from the raw data stored in a binary file */
+    void loadDepth (const std::string &binaryDepthFile, const cv::Mat * mask = NULL)
+    {
+        double time_start = pcl::getTime();
+
+        std::ifstream file (binaryDepthFile.c_str(), std::ios::in | std::ios::binary);
+        if (file)
+        {
+            char *header_property = new char[2]; // Read height_ and width_
+            file.seekg (0, ios::beg);
+            file.read (header_property, 2);
+            unsigned short *height = reinterpret_cast<unsigned short*> (header_property);
+            height_ = *height;
+
+            //file.seekg (2, ios::beg);
+            file.read (header_property, 2);
+            unsigned short *width = reinterpret_cast<unsigned short*> (header_property);
+            width_ = *width;
+            //std::cout << "height_ " << height_ << " width_ " << width_ << std::endl;
+
+            cv::Mat sphereDepth_aux(width_, height_, CV_32FC1);
+            char *mem_block = reinterpret_cast<char*>(sphereDepth_aux.data);
+            std::streampos size = height_*width_*4; // file.tellg() - std::streampos(4); // Header is 4 bytes: 2 unsigned short for height and width
+            //file.seekg (4, ios::beg);
+            file.read (mem_block, size);
+
+//            cv::Mat sphereDepth_aux2(height_, width_, CV_32FC1);
+//            for(int i = 0; i < height_; i++)
+//                for(int j = 0; j < width_; j++)
+//                    sphereDepth_aux2.at<float>(i,j) = *(reinterpret_cast<float*>(mem_block + 4*(j*height_+i)));
+//            cv::imshow( "sphereDepth", sphereDepth_aux2 );
+//            cv::waitKey(0);
+
+            //Close the binary bile
+            file.close();
+//            sphereDepth.create(height_, width_, CV_32FC1);
+//            cv::transpose(sphereDepth_aux, sphereDepth);
+            sphereDepth.create(640, width_, CV_32FC1);
+            cv::Rect region_of_interest = cv::Rect(8, 0, 640, width_); // Select only a portion of the image with height = 640 to facilitate the pyramid constructions
+            cv::transpose(sphereDepth_aux(region_of_interest), sphereDepth); // The savecd image is transposed wrt to the RGB img!
+
+            if (mask && sphereDepth_aux.rows == mask->cols && sphereDepth_aux.cols == mask->rows){
+                cv::Mat aux;
+                sphereDepth.copyTo(aux, (*mask)(cv::Rect (0, 8, width_, 640) ));
+                sphereDepth = aux;
+            }
+            // std::cout << "height_ " << sphereDepth.rows << " width_ " << sphereDepth.cols << std::endl;
+        }
+        else
+            std::cerr << "File: " << binaryDepthFile << " does NOT EXIST.\n";
+
+        //    bSphereCloudBuilt = false; // The spherical PointCloud of the frame just loaded is not built yet
+
+#if _DEBUG_MSG
+        double time_end = pcl::getTime();
+        std::cout << "loadDepth took " << double (time_end - time_start) << std::endl;
+#endif
+    }
+
+    /*! Load a spherical RGB-D image from the raw data stored in a binary file */
+    void loadRGB(std::string &fileNamePNG)
+    {
+        double time_start = pcl::getTime();
+
+        std::ifstream file (fileNamePNG.c_str(), std::ios::in | std::ios::binary);
+        if (file)
+        {
+//            sphereRGB = cv::imread (fileNamePNG.c_str(), CV_LOAD_IMAGE_COLOR); // Full size 665x2048
+
+            cv::Mat sphereRGB_aux = cv::imread (fileNamePNG.c_str(), CV_LOAD_IMAGE_COLOR);
+            cv::Rect region_of_interest = cv::Rect(0, 8, width_, 640); // Select only a portion of the image with height = 640 to facilitate the pyramid constructions
+            sphereRGB.create(640, width_, sphereRGB_aux.type () );
+            sphereRGB = sphereRGB_aux (region_of_interest); // Size 640x2048
+        }
+        else
+            std::cerr << "File: " << fileNamePNG << " does NOT EXIST.\n";
+
+#if _DEBUG_MSG
+        double time_end = pcl::getTime();
+        std::cout << "loadRGB took " << double (time_end - time_start) << std::endl;
+#endif
+    }
+
+    inline pcl::PointCloud<PointT>::Ptr getSphereCloud()
+    {
+        return sphereCloud;
+    }
+
+    /*! Build the spherical point cloud */
+    void buildSphereCloud()
+    {
+        //    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
+        //      return;
+
+//        std::cout << " Frame360_stereo::buildSphereCloud() " << std::endl;
+
+        double time_start = pcl::getTime();
+
+        size_t height_SphereImg = sphereRGB.rows;
+        size_t width_SphereImg = sphereRGB.cols;
+        float angle_pixel(width_SphereImg/(2*PI));
+        sphereCloud->resize(height_SphereImg*width_SphereImg);
+        sphereCloud->height = height_SphereImg;
+        sphereCloud->width = width_SphereImg;
+        sphereCloud->is_dense = false;
+
+        float min_depth = 0.f;
+        float max_depth = 15.f;
+        float step_theta = 2*PI / sphereDepth.cols;
+        float step_phi = step_theta;
+        int pixel_count = 0;
+        //int start_phi = 166, end_phi = 166 + sphereDepth.rows; // For images of 665x2048
+        int start_phi = 174, end_phi = 174 + sphereDepth.rows; // For images of 640x2048
+
+        for(int row_phi=0; row_phi < sphereDepth.rows; row_phi++)//, row_phi += width_SphereImg)
+        {
+            float phi = (row_phi+start_phi)*step_phi - PI/2;
+            float cos_phi = cos(phi);
+            float sin_phi = sin(phi);
+
+            for(int col_theta=0; col_theta < sphereDepth.cols; col_theta++, pixel_count++)
+            {
+                float depth = sphereDepth.at<float> (row_phi, col_theta);
+                //std::cout << pixel_count << " " << depth << std::endl;
+
+                if(depth > min_depth && depth < max_depth)
+                {
+                    float theta = col_theta*step_theta - PI;
+                    sphereCloud->points[pixel_count].x = sin(theta)*cos_phi * depth;
+                    sphereCloud->points[pixel_count].y = sin_phi * depth;
+                    sphereCloud->points[pixel_count].z = cos(theta)*cos_phi * depth;
+                    sphereCloud->points[pixel_count].r = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[2];
+                    sphereCloud->points[pixel_count].g = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[1];
+                    sphereCloud->points[pixel_count].b = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[0];
+                }
+                else
+                {
+                    sphereCloud->points[pixel_count].x = std::numeric_limits<float>::quiet_NaN ();
+                    sphereCloud->points[pixel_count].y = std::numeric_limits<float>::quiet_NaN ();
+                    sphereCloud->points[pixel_count].z = std::numeric_limits<float>::quiet_NaN ();
+                }
+            }
+        }
+
+        //    bSphereCloudBuilt = true;
+        std::cout << " Frame360_stereo::buildSphereCloud() finished" << std::endl;
+
+#if _DEBUG_MSG
+        double time_end = pcl::getTime();
+        std::cout << "PointCloud sphere construction took " << double (time_end - time_start) << std::endl;
+#endif
+    }
+
+    /*! Perform bilateral filtering on the point cloud
+    */
+    void filterCloudBilateral_stereo()
+    {
+        double time_start = pcl::getTime();
+
+      // Filter pointClouds
+      pcl::FastBilateralFilter<PointT> filter;
+//      filter.setSigmaS(10.0);
+//      filter.setSigmaR(0.05);
+      filter.setSigmaS(20.0);
+      filter.setSigmaR(0.2);
+      filter.setInputCloud(sphereCloud);
+//      filter.filter(*filteredCloud);
+      filter.filter(*sphereCloud);
+
+    #if _DEBUG_MSG
+        double time_end = pcl::getTime();
+        std::cout << "filterCloudBilateral in " << (time_end - time_start)*1000 << " ms\n";
+    #endif
+    }
+
+
+    /*! This function segments planes from the point cloud
+    */
+    void segmentPlanesStereo()
+    {
+        // Segment planes
+        //    std::cout << "extractPlaneFeatures, size " << sphereCloud->size() << "\n";
+        double extractPlanes_start = pcl::getTime();
+        assert(sphereCloud->height > 1 && sphereCloud->width > 1);
+
+        pcl::IntegralImageNormalEstimation<PointT, pcl::Normal> ne;
+        //      ne.setNormalEstimationMethod (ne.SIMPLE_3D_GRADIENT);
+        //      ne.setNormalEstimationMethod (ne.AVERAGE_DEPTH_CHANGE);
+        ne.setNormalEstimationMethod (ne.AVERAGE_3D_GRADIENT);
+        //      ne.setNormalEstimationMethod (ne.COVARIANCE_MATRIX);
+        ne.setMaxDepthChangeFactor (0.1); // For VGA: 0.02f, 10.01
+        ne.setNormalSmoothingSize (10.0f);
+        ne.setDepthDependentSmoothing (true);
+
+        pcl::OrganizedMultiPlaneSegmentation<PointT, pcl::Normal, pcl::Label> mps;
+        //      mps.setMinInliers (std::max(uint32_t(40),sphereCloud->height*2));
+        mps.setMinInliers (1000);
+        mps.setAngularThreshold (0.07); // (0.017453 * 2.0 = 0.039812) // 3 degrees
+        mps.setDistanceThreshold (0.1); //2cm
+        //    cout << "PointCloud size " << sphereCloud->size() << endl;
+
+        pcl::PointCloud<pcl::Normal>::Ptr normal_cloud (new pcl::PointCloud<pcl::Normal>);
+        ne.setInputCloud ( sphereCloud );
+        ne.compute (*normal_cloud);
+
+        mps.setInputNormals (normal_cloud);
+        mps.setInputCloud ( sphereCloud );
+        std::vector<pcl::PlanarRegion<PointT>, Eigen::aligned_allocator<pcl::PlanarRegion<PointT> > > regions;
+        std::vector<pcl::ModelCoefficients> model_coefficients;
+        std::vector<pcl::PointIndices> inlier_indices;
+        pcl::PointCloud<pcl::Label>::Ptr labels (new pcl::PointCloud<pcl::Label>);
+        std::vector<pcl::PointIndices> label_indices;
+        std::vector<pcl::PointIndices> boundary_indices;
+        mps.segmentAndRefine (regions, model_coefficients, inlier_indices, labels, label_indices, boundary_indices);
+
+        // Create a vector with the planes detected in this keyframe, and calculate their parameters (normal, center, pointclouds, etc.)
+        unsigned single_cloud_size = sphereCloud->size();
+        for (size_t i = 0; i < regions.size (); i++)
+        {
+            mrpt::pbmap::Plane plane;
+
+            plane.v3center = regions[i].getCentroid ();
+            plane.v3normal = Eigen::Vector3f(model_coefficients[i].values[0], model_coefficients[i].values[1], model_coefficients[i].values[2]);
+            if( plane.v3normal.dot(plane.v3center) > 0)
+            {
+                plane.v3normal = -plane.v3normal;
+                //          plane.d = -plane.d;
+            }
+            plane.curvature = regions[i].getCurvature ();
+            //    cout << i << " getCurvature\n";
+
+            //        if(plane.curvature > max_curvature_plane)
+            //          continue;
+
+            // Extract the planar inliers from the input cloud
+            pcl::ExtractIndices<pcl::PointXYZRGBA> extract;
+            extract.setInputCloud ( sphereCloud );
+            extract.setIndices ( boost::make_shared<const pcl::PointIndices> (inlier_indices[i]) );
+            extract.setNegative (false);
+            extract.filter (*plane.planePointCloudPtr);    // Write the planar point cloud
+            plane.inliers.resize(inlier_indices[i].indices.size());
+            for(size_t j=0; j<inlier_indices[i].indices.size(); j++)
+                plane.inliers[j] = inlier_indices[i].indices[j];
+
+            pcl::PointCloud<pcl::PointXYZRGBA>::Ptr contourPtr(new pcl::PointCloud<pcl::PointXYZRGBA>);
+            contourPtr->points = regions[i].getContour();
+
+            //    cout << "Extract contour\n";
+            if(contourPtr->size() != 0)
+            {
+                plane.calcConvexHull(contourPtr);
+            }
+            else
+            {
+                //        assert(false);
+                std::cout << "HULL 000\n" << plane.planePointCloudPtr->size() << std::endl;
+                static pcl::VoxelGrid<pcl::PointXYZRGBA> plane_grid;
+                plane_grid.setLeafSize(0.05,0.05,0.05);
+                plane_grid.setInputCloud (plane.planePointCloudPtr);
+                plane_grid.filter (*contourPtr);
+                plane.calcConvexHull(contourPtr);
+            }
+
+            //        assert(contourPtr->size() > 0);
+            //        plane.calcConvexHull(contourPtr);
+            //    cout << "calcConvexHull\n";
+            plane.computeMassCenterAndArea();
+            //    cout << "Extract convexHull\n";
+            // Discard small planes
+            if(plane.areaHull < min_area_plane)
+                continue;
+
+            plane.d = -plane.v3normal .dot( plane.v3center );
+
+            plane.calcElongationAndPpalDir();
+            // Discard narrow planes
+            if(plane.elongation > max_elongation_plane)
+                continue;
+
+            //      double color_start = pcl::getTime();
+            plane.calcPlaneHistH();
+            plane.calcMainColor2();
+            //      double color_end = pcl::getTime();
+            //    std::cout << "color in " << (color_end - color_start)*1000 << " ms\n";
+
+            //      color_start = pcl::getTime();
+            //plane.transform(Rt);
+            //      color_end = pcl::getTime();
+            //    std::cout << "transform in " << (color_end - color_start)*1000 << " ms\n";
+
+            bool isSamePlane = false;
+            if(plane.curvature < max_curvature_plane)
+                for (size_t j = 0; j < planes.vPlanes.size(); j++)
+                    if( planes.vPlanes[j].curvature < max_curvature_plane && planes.vPlanes[j].isSamePlane(plane, 0.99, 0.05, 0.2) ) // The planes are merged if they are the same
+                    {
+                        //          cout << "Merge local region\n";
+                        isSamePlane = true;
+                        //            double time_start = pcl::getTime();
+                        planes.vPlanes[j].mergePlane2(plane);
+                        //            double time_end = pcl::getTime();
+                        //          std::cout << " mergePlane2 took " << double (time_start - time_end) << std::endl;
+
+                        break;
+                    }
+            if(!isSamePlane)
+            {
+                //          plane.calcMainColor();
+                plane.id = planes.vPlanes.size();
+                planes.vPlanes.push_back(plane);
+            }
+        }
+#if _DEBUG_MSG
+        double extractPlanes_end = pcl::getTime();
+        std::cout << "getPlanesInFrame in " << (extractPlanes_end - extractPlanes_start)*1000 << " ms\n";
+#endif
+        std::cout << "Planes " << planes.vPlanes.size() << " \n";
+
+    }
+
+    /*! This function segments planes from the point cloud corresponding to the sensor 'sensor_id',
+      in the frame of reference of the omnidirectional camera
+  */
+    void segmentPlanesStereoRANSAC()
+    {
+        // Segment planes
+        //    std::cout << "extractPlaneFeatures, size " << sphereCloud->size() << "\n";
+        double extractPlanes_start = pcl::getTime();
+
+        pcl::PointCloud<PointT>::Ptr cloud_non_segmented (new pcl::PointCloud<PointT>);
+        pcl::copyPointCloud (*sphereCloud, *cloud_non_segmented);
+
+        // Create the segmentation object
+        pcl::SACSegmentation<PointT> seg;
+        seg.setOptimizeCoefficients (true); // Optional
+        // Mandatory
+        seg.setModelType (pcl::SACMODEL_PLANE);
+        seg.setMethodType (pcl::SAC_RANSAC);
+        seg.setDistanceThreshold (0.08);
+
+//        std::cout << "cloud_non_segmented " << cloud_non_segmented->size () << "\n";
+
+        FilterPointCloud<PointT> filter(0.1);
+        filter.filterVoxel(cloud_non_segmented);
+        size_t min_cloud_segmentation = 0.2*cloud_non_segmented->size();
+
+        // Create a vector with the planes detected in this keyframe, and calculate their parameters (normal, center, pointclouds, etc.)
+        unsigned single_cloud_size = sphereCloud->size();
+        while (cloud_non_segmented->size() > min_cloud_segmentation )
+        {
+            std::cout << "cloud_non_segmented Pts " << cloud_non_segmented->size() << std::endl;
+
+            pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+            pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+
+            seg.setInputCloud (cloud_non_segmented);
+            seg.segment (*inliers, *coefficients);
+
+            std::cout << "Inliers " << inliers->indices.size () << "\n";
+
+            if (inliers->indices.size () < 1000)
+                break;
+
+            mrpt::pbmap::Plane plane;
+
+            // Extract the planar inliers from the input cloud
+            pcl::ExtractIndices<PointT> extract;
+            extract.setInputCloud ( cloud_non_segmented );
+            extract.setIndices ( inliers );
+            extract.setNegative (false);
+            extract.filter (*plane.planePointCloudPtr);    // Write the planar point cloud
+            extract.setNegative (true);
+            extract.filter (*cloud_non_segmented);    // Write the planar point cloud
+            plane.inliers = inliers->indices; // TODO: only the first pass of inliers is good, the next ones need to be re-arranged
+            double center_x=0, center_y=0, center_z=0;
+            for(size_t j=0; j<plane.inliers.size(); j++)
+            {
+                center_x += plane.planePointCloudPtr->points[plane.inliers[j] ].x;
+                center_y += plane.planePointCloudPtr->points[plane.inliers[j] ].y;
+                center_z += plane.planePointCloudPtr->points[plane.inliers[j] ].z;
+            }
+
+            plane.v3center = Eigen::Vector3f(center_x/plane.inliers.size(), center_y/plane.inliers.size(), center_z/plane.inliers.size());
+            plane.v3normal = Eigen::Vector3f(coefficients->values[0], coefficients->values[1], coefficients->values[2]);
+            if( plane.v3normal.dot(plane.v3center) > 0)
+            {
+                plane.v3normal = -plane.v3normal;
+                //          plane.d = -plane.d;
+            }
+            plane.d = -plane.v3normal .dot( plane.v3center );
+
+            //plane.curvature = regions[i].getCurvature ();
+            //    cout << i << " getCurvature\n";
+
+
+            pcl::PointCloud<pcl::PointXYZRGBA>::Ptr contourPtr(new pcl::PointCloud<pcl::PointXYZRGBA>);
+//            contourPtr->points = regions[i].getContour();
+
+//            //    cout << "Extract contour\n";
+            static pcl::VoxelGrid<PointT> plane_grid;
+            plane_grid.setLeafSize(0.05,0.05,0.05);
+            plane_grid.setInputCloud (plane.planePointCloudPtr);
+            plane_grid.filter (*contourPtr);
+            plane.calcConvexHull(contourPtr);
+            std::cout << "Inliers " << plane.planePointCloudPtr->size() << " hull " << plane.polygonContourPtr->size() << std::endl;
+
+            //        assert(contourPtr->size() > 0);
+            //        plane.calcConvexHull(contourPtr);
+            //    cout << "calcConvexHull\n";
+            plane.computeMassCenterAndArea();
+            //    cout << "Extract convexHull\n";
+            // Discard small planes
+            if(plane.areaHull < min_area_plane)
+                continue;
+
+            plane.calcElongationAndPpalDir();
+            // Discard narrow planes
+            if(plane.elongation > max_elongation_plane)
+                continue;
+
+            //      double color_start = pcl::getTime();
+            plane.calcPlaneHistH();
+            plane.calcMainColor2();
+            //          plane.calcMainColor();
+            plane.id = planes.vPlanes.size();
+            planes.vPlanes.push_back(plane);
+        }
+#if _DEBUG_MSG
+        double extractPlanes_end = pcl::getTime();
+        std::cout << "getPlanesRANSAC took " << (extractPlanes_end - extractPlanes_start)*1000 << " ms\n";
+#endif
+        std::cout << "Planes " << planes.vPlanes.size() << " \n";
+
+    }
 };
 
 #endif

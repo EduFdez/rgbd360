@@ -30,14 +30,12 @@
  */
 
 #include <Frame360.h>
-#include <Frame360_stereo.h>
-#include <Frame360_stereo.h>
 #include <Frame360_Visualizer.h>
 #include <pcl/console/parse.h>
 
 #include <RegisterRGBD360.h>
 #include <Map360_Visualizer.h>
-#include <FilterPointCloud.h>
+#include <filterCloudBilateral_stereo.h>
 
 #include <pcl/registration/icp.h>
 #include <pcl/registration/icp_nl.h> //ICP LM
@@ -91,55 +89,44 @@ int main (int argc, char ** argv)
   else
       assert(0);
 
-  Frame360_stereo frame1, frame2;
-  frame1.loadDepth(depth1, &maskCar);
-//  frame1.loadDepth(depth1);
+  Frame360 frame360_1, frame360_2;
+  frame360_1.loadDepth(depth1, &maskCar);
+//  frame360_1.loadDepth(depth1);
 //  //cv::namedWindow( "sphereDepth", WINDOW_AUTOSIZE );// Create a window for display.
 //  cv::Mat sphDepthVis;
-//  frame1.sphereDepth.convertTo( sphDepthVis, CV_8U, 10 ); //CV_16UC1
+//  frame360_1.sphereDepth.convertTo( sphDepthVis, CV_8U, 10 ); //CV_16UC1
 //  std::cout << "  Show depthImage " << fileRGB << std::endl;
 
 //  cv::imshow( "sphereDepth", sphDepthVis );
 //  //cv::waitKey(1);
 //  cv::waitKey(0);
-  frame1.loadRGB(rgb1);
+  frame360_1.loadRGB(rgb1);
 //  //cv::namedWindow( "sphereRGB", WINDOW_AUTOSIZE );// Create a window for display.
-//  cv::imshow( "sphereRGB", frame1.sphereRGB );
+//  cv::imshow( "sphereRGB", frame360_1.sphereRGB );
 //  cv::waitKey(0);
 
-  frame1.buildSphereCloud();
-  frame1.filterPointCloud();
-  frame1.segmentPlanesStereo();
+  frame360_1.buildSphereCloud();
+  frame360_1.filterCloudBilateral_stereo();
+  frame360_1.segmentPlanesStereo();
 
-cout << "frame1 " << frame1.sphereCloud->width << " " << frame1.sphereCloud->height << " " << frame1.sphereCloud->is_dense << " " << endl;
-//cout << "frame1 filtered " << frame1.filteredCloud->width << " " << frame1.filteredCloud->height << " " << frame1.filteredCloud->is_dense << " " << endl;
+cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphereCloud->height << " " << frame360_1.sphereCloud->is_dense << " " << endl;
+//cout << "frame360_1 filtered " << frame360_1.filteredCloud->width << " " << frame360_1.filteredCloud->height << " " << frame360_1.filteredCloud->is_dense << " " << endl;
 
 
 //  size_t plane_inliers = 0;
-//  for(size_t i=0; i < frame1.planes.vPlanes.size (); i++)
+//  for(size_t i=0; i < frame360_1.planes.vPlanes.size (); i++)
 //  {
-//      plane_inliers += frame1.planes.vPlanes[i].inliers.size();
-//      //std::cout << plane_inliers << " Plane inliers " << frame1.planes.vPlanes[i].inliers.size() << std::endl;
+//      plane_inliers += frame360_1.planes.vPlanes[i].inliers.size();
+//      //std::cout << plane_inliers << " Plane inliers " << frame360_1.planes.vPlanes[i].inliers.size() << std::endl;
 //  }
-//  std::cout << "Plane inliers " << plane_inliers << " average plane size " << plane_inliers/frame1.planes.vPlanes.size () << std::endl;
+//  std::cout << "Plane inliers " << plane_inliers << " average plane size " << plane_inliers/frame360_1.planes.vPlanes.size () << std::endl;
 
-//  frame2.loadDepth(depth2);
-  frame2.loadDepth(depth2, &maskCar);
-  frame2.loadRGB(rgb2);
-  frame2.buildSphereCloud();
-  frame2.filterPointCloud();
-  frame2.segmentPlanesStereo();
-
-  // Transfer stereo versions of Frame360 to standard version
-  Calib360 calib;
-  Frame360 frame360_1(&calib), frame360_2(&calib);
-  frame360_1.sphereCloud = frame1.sphereCloud;
-//  frame360_1.sphereCloud = frame1.filteredCloud;
-  frame360_1.planes = frame1.planes;
-  frame360_2.sphereCloud = frame2.sphereCloud;
-//  frame360_2.sphereCloud = frame2.filteredCloud;
-  frame360_2.planes = frame2.planes;
-  //pcl::io::savePCDFile ("/home/efernand/cloud_test.pcd", *frame360_1.sphereCloud);
+//  frame360_2.loadDepth(depth2);
+  frame360_2.loadDepth(depth2, &maskCar);
+  frame360_2.loadRGB(rgb2);
+  frame360_2.buildSphereCloud();
+  frame360_2.filterCloudBilateral_stereo();
+  frame360_2.segmentPlanesStereo();
 
 
   RegisterRGBD360 registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH));
@@ -166,8 +153,8 @@ cout << "frame1 " << frame1.sphereCloud->width << " " << frame1.sphereCloud->hei
   align360.useSaliency(false);
 // align360.setVisualization(true);
   align360.setGrayVariance(3.f/255);
-  align360.setTargetFrame(frame1.sphereRGB, frame1.sphereDepth);
-  align360.setSourceFrame(frame2.sphereRGB, frame2.sphereDepth);
+  align360.setTargetFrame(frame360_1.sphereRGB, frame360_1.sphereDepth);
+  align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
   cout << "RegisterPhotoICP \n";
   align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //  Eigen::Matrix4f initTransf_dense = rotOffset * poseRegPbMap * rotOffset.inverse();
@@ -207,7 +194,7 @@ cout << "frame1 " << frame1.sphereCloud->width << " " << frame1.sphereCloud->hei
 //  icp.setTransformationEstimation (te);
 
 //  // Filter the point clouds and remove nan points (needed for ICP)
-//  FilterPointCloud<PointT> filter(0.1);
+//  filterCloudBilateral_stereo<PointT> filter(0.1);
 //  filter.filterVoxel(frame360_1.sphereCloud);
 //  filter.filterVoxel(frame360_2.sphereCloud);
 //  icp.setInputSource(frame360_2.sphereCloud);
