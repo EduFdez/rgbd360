@@ -33,7 +33,7 @@
 
 #include <Map360.h>
 #include <Map360_Visualizer.h>
-#include <filterCloudBilateral_stereo.h>
+#include <FilterPointCloud.h>
 #include <RegisterRGBD360.h>
 
 //#include <pcl/registration/icp.h>
@@ -47,6 +47,7 @@
 #define SAVE_IMAGES 0
 #define VISUALIZE_POINT_CLOUD 1
 
+typedef pcl::PointXYZRGBA PointT;
 using namespace std;
 
 /*! This class' main function 'run' performs PbMap-based odometry with the input data of a stream of
@@ -55,7 +56,6 @@ using namespace std;
 class Odometry360
 {
 private:
-    Map360 Map;
 
     RegisterRGBD360 registerer;
 
@@ -63,6 +63,8 @@ private:
 
     Frame360 *frame_trg, *frame_src;
     Frame360 *frame_trg_fused, *frame_src_fused;
+
+    Map360 map;
 
 public:
     Odometry360() :
@@ -106,7 +108,7 @@ public:
         {
           depth_raw = path_sequence + "depth" + frame_num_s + fileExtRawDepth;
           depth_fused = path_sequence + "depth" + frame_num_s + fileExtFusedDepth;
-          std::cout << "  depth1: " << depth1 << "\n  depth2: " << depth2 << std::endl;
+          std::cout << "  depth_raw: " << depth_raw << "\n  depth_fused: " << depth_fused << std::endl;
         }
         else
         {
@@ -117,26 +119,27 @@ public:
         // Open reference RGB and Depth images
         if ( fexists(depth_raw.c_str()) && fexists(depth_fused.c_str()) )
         {
-            frame_src.loadDepth(depth_raw, &maskCar);
-            frame_src.loadRGB(rgb);
-            frame_src.buildSphereCloud();
-            frame_src.filterCloudBilateral_stereo();
-            frame_src.segmentPlanesStereo();
+            frame_src->loadDepth(depth_raw, &maskCar);
+            frame_src->loadRGB(rgb);
+            frame_src->buildSphereCloud();
+            frame_src->filterCloudBilateral_stereo();
+            frame_src->segmentPlanesStereo();
             //  //cv::namedWindow( "sphereRGB", WINDOW_AUTOSIZE );// Create a window for display.
-            //  cv::imshow( "sphereRGB", frame_src.sphereRGB );
+            //  cv::imshow( "sphereRGB", frame_src->sphereRGB );
             //  cv::waitKey(0);
 
-            frame_src_fused.loadDepth(depth_fused, &maskCar);
-            frame_src_fused.loadRGB(rgb);
-            frame_src_fused.buildSphereCloud();
-            frame_src_fused.filterCloudBilateral_stereo();
-            frame_src_fused.segmentPlanesStereo();
+            frame_src_fused->loadDepth(depth_fused, &maskCar);
+            frame_src_fused->loadRGB(rgb);
+            frame_src_fused->buildSphereCloud();
+            frame_src_fused->filterCloudBilateral_stereo();
+            frame_src_fused->segmentPlanesStereo();
         }
         else
         {
             std::cerr << "\n... Some of the initial image files do not exist!!! \n";
             return;
         }
+
 
         // Initialize Dense aligner
         RegisterPhotoICP align360; // Dense RGB-D alignment
@@ -166,22 +169,56 @@ public:
 
         // Visualize
 #if VISUALIZE_POINT_CLOUD
-        Map360_Visualizer viewer(Map,1);
+        Map360_Visualizer viewer(map,1);
         viewer.bDrawCurrentLocation = true;
 
         // Add the first observation to the map
-        {boost::mutex::scoped_lock updateLock(Map.mapMutex);
+        {boost::mutex::scoped_lock updateLock(map.mapMutex);
 
-            Map.addKeyframe(frame_src_fused, currentPose);
+            map.addKeyframe(frame_src_fused, currentPose);
             *viewer.globalMap += *frame_src_fused->getSphereCloud();
         }
 
+        Map360 Map;
+        Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
+        Map.addKeyframe(&frame360_1, pose );
+      //  pose = registerer.getPose();//.cast<double>();
+        pose = align360.getOptimalPose();
+        Map.addKeyframe(&frame360_2, pose );
+        Map.vOptimizedPoses = Map.vTrajectoryPoses;
+        Map.vOptimizedPoses[1] = icpTransformation;
+
 #endif
 
+        // Results verifications (IROS 2015)
+        size_t num_frames = 1;
+        size_t num_planes = frame_src->planes.vPlanes.size ();
+        size_t plane_inliers = 0;
+        for(size_t i=0; i < frame_src->planes.vPlanes.size (); i++)
+            plane_inliers += frame_src->planes.vPlanes[i].inliers.size();
+        size_t num_planes_fused = frame_src_fused->planes.vPlanes.size ();
+        size_t plane_inliers_fused = 0;
+        for(size_t i=0; i < frame_src_fused->planes.vPlanes.size (); i++)
+            plane_inliers_fused += frame_src_fused->planes.vPlanes[i].inliers.size();
+
+        ofstream poses_dense, poses_dense_photo, poses_dense_depth, poses_icp, poses_pbmap;
+        if ( !poses_dense.open (path_results + "/poses_dense.txt") )
+            { std::cerr << "\n ...Cannot open output file\n"; return; }
+        if ( !poses_dense_photo.open (path_results + "/poses_dense_photo.txt") )
+            { std::cerr << "\n ...Cannot open output file\n"; return; }
+        if ( !poses_dense_depth.open (path_results + "/poses_dense_depth.txt") )
+            { std::cerr << "\n ...Cannot open output file\n"; return; }
+        if ( !poses_icp.open (path_results + "/poses_icp.txt") )
+            { std::cerr << "\n ...Cannot open output file\n"; return; }
+        if ( !poses_pbmap.open (path_results + "/poses_pbmap.txt") )
+            { std::cerr << "\n ...Cannot open output file\n"; return; }
+
         Eigen::Matrix4f rigidTransf = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f rigidTransf_pbmap = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f rigidTransf_dense = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f rigidTransf_dense_photo = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f rigidTransf_dense_depth = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f rigidTransf_icp = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f rigidTransf_pbmap = Eigen::Matrix4f::Identity();
 
         // The reference of the spherical image and the point Clouds are not the same! I should always use the same coordinate system (TODO)
         float angleOffset = 157.5;
@@ -199,28 +236,28 @@ public:
             frame_num += selectSample;
             cout << "Frame " << frame_num << endl;
 
-            depth_raw = mrpt::format("%sdepth%07%s", path_sequence, frame_num, fileExtRawDepth);
-            depth_fused = mrpt::format("%sdepth%07%s", path_sequence, frame_num, fileExtFusedDepth);
-            rgb = mrpt::format("%stop%07%s", path_sequence, frame_num, fileExtRGB);
+            depth_raw = mrpt::format("%sdepth%07d%s", path_sequence, frame_num, fileExtRawDepth);
+            depth_fused = mrpt::format("%sdepth%07d%s", path_sequence, frame_num, fileExtFusedDepth);
+            rgb = mrpt::format("%stop%07d%s", path_sequence, frame_num, fileExtRGB);
             std::cout << "  rgb: " << rgb << std::endl;
 
             // Open reference RGB and Depth images
             if ( fexists(rgb.c_str()) && fexists(depth_raw.c_str()) && fexists(depth_fused.c_str()) )
             {
-                frame_src.loadDepth(depth_raw, &maskCar);
-                frame_src.loadRGB(rgb);
-                frame_src.buildSphereCloud();
-                frame_src.filterCloudBilateral_stereo();
-                frame_src.segmentPlanesStereo();
+                frame_src->loadDepth(depth_raw, &maskCar);
+                frame_src->loadRGB(rgb);
+                frame_src->buildSphereCloud();
+                frame_src->filterCloudBilateral_stereo();
+                frame_src->segmentPlanesStereo();
                 //  //cv::namedWindow( "sphereRGB", WINDOW_AUTOSIZE );// Create a window for display.
-                //  cv::imshow( "sphereRGB", frame_src.sphereRGB );
+                //  cv::imshow( "sphereRGB", frame_src->sphereRGB );
                 //  cv::waitKey(0);
 
-                frame_src_fused.loadDepth(depth_fused, &maskCar);
-                frame_src_fused.loadRGB(rgb);
-                frame_src_fused.buildSphereCloud();
-                frame_src_fused.filterCloudBilateral_stereo();
-                frame_src_fused.segmentPlanesStereo();
+                frame_src_fused->loadDepth(depth_fused, &maskCar);
+                frame_src_fused->loadRGB(rgb);
+                frame_src_fused->buildSphereCloud();
+                frame_src_fused->filterCloudBilateral_stereo();
+                frame_src_fused->segmentPlanesStereo();
             }
             else
             {
@@ -231,6 +268,7 @@ public:
                 return;
             }
 
+
             // Align the two frames
             bGoodRegistration = registerer.RegisterPbMap(frame_trg_fused, frame_src_fused, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
             //        bGoodRegistration = registerer.RegisterPbMap(frame_trg_fused, frame_src_fused, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_ODOMETRY_3DoF);
@@ -239,10 +277,13 @@ public:
 
             //cout << "RegisterPhotoICP \n";
             align360.setTargetFrame(frame_trg_fused.sphereRGB, frame_trg_fused.sphereDepth);
-            align360.setSourceFrame(frame_src_fused.sphereRGB, frame_src_fused.sphereDepth);
+            align360.setSourceFrame(frame_src_fused->sphereRGB, frame_src_fused->sphereDepth);
             align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             rigidTransf_dense = align360.getOptimalPose();
-
+            align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            rigidTransf_dense_photo = align360.getOptimalPose();
+            align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            rigidTransf_dense_depth = align360.getOptimalPose();
 
             cout << "frame_trg_fused " << frame_trg_fused.sphereCloud->width << " " << frame_trg_fused.sphereCloud->height << " " << frame_trg_fused.sphereCloud->is_dense << " " << endl;
             cout << "voxel filtered frame_trg_fused " << sphereCloud_dense1->width << " " << sphereCloud_dense1->height << " " << sphereCloud_dense1->is_dense << " " << endl;
@@ -260,6 +301,31 @@ public:
 
             //std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
             rigidTransf_icp = icp.getFinalTransformation(); //.cast<double>();
+
+
+            // Update verifications (IROS 2015)
+            ++num_frames;
+            num_planes += frame_src->planes.vPlanes.size ();
+            for(size_t i=0; i < frame_src->planes.vPlanes.size (); i++)
+                plane_inliers += frame_src->planes.vPlanes[i].inliers.size();
+            num_planes_fused += frame_src_fused->planes.vPlanes.size ();
+            for(size_t i=0; i < frame_src_fused->planes.vPlanes.size (); i++)
+                plane_inliers_fused += frame_src_fused->planes.vPlanes[i].inliers.size();
+
+            for(int i=0;i<4;i++)
+              for(int j=0;j<4;j++)
+              {
+                poses_dense << rigidTransf_dense(j,i) << "\t";
+                poses_dense_photo << rigidTransf_dense_photo(j,i) << "\t";
+                poses_dense_depth << rigidTransf_dense_depth(j,i) << "\t";
+                poses_icp << rigidTransf_icp(j,i) << "\t";
+                poses_pbmap << rigidTransf_pbmap(j,i) << "\t";
+              }
+            poses_dense << std::endl;
+            poses_dense_photo << std::endl;
+            poses_dense_depth << std::endl;
+            poses_icp << std::endl;
+            poses_pbmap << std::endl;
 
 
 //            if(!bGoodRegistration)
@@ -329,6 +395,17 @@ public:
             //        boost::this_thread::sleep (boost::posix_time::milliseconds (500));
             //    mrpt::system::pause();
         }
+
+        // Show verifications (IROS 2015)
+        std::cout << "Average num of planes " << float(num_planes)/num_frames << " average inliers " << float(plane_inliers)/num_frames << std::endl;
+        std::cout << "FUSED: Average num of planes " << float(num_planes_fused)/num_frames << " average inliers " << float(plane_inliers_fused)/num_frames << std::endl;
+
+        poses_dense.close();
+        poses_dense_photo.close();
+        poses_dense_depth.close();
+        poses_icp.close();
+        poses_pbmap.close();
+
 
         delete frame_trg, frame_src;
         delete frame_trg_fused, frame_src_fused;

@@ -142,7 +142,7 @@ class LoadSequence
         else if(mode == 3 || mode == 4)
         {
 //          frame360->undistort();
-          frame360->buildSphereCloud();
+          frame360->buildSphereCloud_rgbd360();
           frame360->getPlanes();
 
           if(mode == 3)

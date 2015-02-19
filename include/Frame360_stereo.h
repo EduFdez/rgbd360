@@ -98,10 +98,10 @@ class Frame360_stereo
     /*! Frame ID*/
     unsigned id;
 
-    /*! Frame height*/
+    /*! Frame height */
     unsigned short height_;
 
-    /*! Frame width*/
+    /*! Frame width */
     unsigned short width_;
 
     /*! Topological node where this frame (keyframe) is located */

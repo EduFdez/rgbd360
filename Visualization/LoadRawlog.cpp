@@ -294,7 +294,7 @@ cout << "Get eigen depth\n";
 
 
     //  frame360->undistort();
-//      frame360->buildSphereCloud();
+//      frame360->buildSphereCloud_rgbd360();
 //      frame360->getPlanes();
 //cout << "Get eigen depth\n";
 
@@ -325,7 +325,7 @@ cout << "Get eigen depth\n";
         {
           frame360->undistort();
 cout << "frame360->buildSphereCloud\n";
-          frame360->buildSphereCloud();
+          frame360->buildSphereCloud_rgbd360();
 //          frame360->getPlanes();
 
           if(mode == 3)

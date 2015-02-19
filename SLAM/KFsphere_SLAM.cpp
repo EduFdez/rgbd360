@@ -225,7 +225,7 @@ public:
         frame360->loadFrame(fileName);
         frame360->undistort();
         frame360->stitchSphericalImage();
-        frame360->buildSphereCloud();
+        frame360->buildSphereCloud_rgbd360();
         frame360->getPlanes();
         //frame360->id = frame;
         frame360->id = frameOrder;
@@ -300,7 +300,7 @@ public:
                 frame360->loadFrame(fileName);
                 frame360->undistort();
                 frame360->stitchSphericalImage();
-                frame360->buildSphereCloud();
+                frame360->buildSphereCloud_rgbd360();
                 frame360->getPlanes();
                 frame360->id = frameOrder+1;
             }

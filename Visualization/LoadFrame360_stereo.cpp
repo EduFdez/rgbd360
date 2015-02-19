@@ -40,10 +40,11 @@ using namespace std;
 
 void print_help(char ** argv)
 {
-  cout << "\nThis program loads a Frame360.bin (an omnidirectional RGB-D image in raw binary format).";
+  cout << "\nThis program loads a SphericalStereo image, the file containing the depth image must be passed as input argument,";
+  cout << " and the RGB image is expented to be in the same directory with the name 'topXXX.png', where XXX is the image index as in the Depth file name";
   cout << " It builds the pointCloud and creates a PbMap from it. The spherical frame is shown: the";
   cout << " keys 'k' and 'l' are used to switch between visualization modes.\n\n";
-  cout << "  usage: " <<  argv[0] << " <pathToFrame360.bin> \n\n";
+  cout << "  usage: " <<  argv[0] << " <DepthImg.raw> \n\n";
 }
 
 /*! This program loads a Frame360 from an omnidirectional RGB-D image (in raw binary format), creates a PbMap from it,
@@ -51,25 +52,50 @@ void print_help(char ** argv)
  */
 int main (int argc, char ** argv)
 {
-  if(argc != 3 || pcl::console::find_switch(argc, argv, "-h") || pcl::console::find_switch(argc, argv, "--help"))
+  if(argc != 2 || pcl::console::find_switch(argc, argv, "-h") || pcl::console::find_switch(argc, argv, "--help"))
   {
     print_help(argv);
     return 0;
   }
 
   string fileDepth = static_cast<string>(argv[1]);
-  string fileRGB = static_cast<string>(argv[2]);
-  std::cout << "  fileDepth: " << fileDepth << "\n  fileRGB: " << fileRGB << std::endl;
+  //string fileRGB = static_cast<string>(argv[2]);
+  string fileRGB;
+  string fileType = ".raw";
 
-  Frame360_stereo frame360;
-  //frame360.loadFrame(fileName);
+  string extRenato = "pT";
+  string depthType;
+  if( extRenato.compare( fileDepth.substr(fileDepth.length()-6, 2) ) == 0 )
+    depthType = "pT.raw";
+  else
+    depthType = ".raw";
+
+  if( fileType.compare( fileDepth.substr(fileDepth.length()-4) ) == 0 ) // If the first string correspond to a pointCloud path
+  {
+      if(depthType == ".raw")
+        fileRGB = fileDepth.substr(0, fileDepth.length()-16) + "top" + fileDepth.substr(fileDepth.length()-11, 7) + ".png";
+      else
+        fileRGB = fileDepth.substr(0, fileDepth.length()-18) + "top" + fileDepth.substr(fileDepth.length()-13, 7) + ".png";
+    std::cout << "  fileDepth: " << fileDepth << "\n  fileRGB: " << fileRGB << std::endl;
+  }
+  else
+  {
+      std::cerr << "\n... INVALID IMAGE FILE!!! \n";
+      return 0;
+  }
+
+  if ( !fexists(fileDepth.c_str()) || !fexists(fileRGB.c_str()) )
+  {
+      std::cerr << "\n... Input images do not exist!!! \n Check that these files are correct: " << fileDepth << "\n " << fileRGB << "\n ";
+      return 0;
+  }
+
+  Frame360 frame360;
   frame360.loadDepth(fileDepth);
-
 //  //cv::namedWindow( "sphereDepth", WINDOW_AUTOSIZE );// Create a window for display.
 //  cv::Mat sphDepthVis;
 //  frame360.sphereDepth.convertTo( sphDepthVis, CV_8U, 10 ); //CV_16UC1
 //  std::cout << "  Show depthImage " << fileRGB << std::endl;
-
 //  cv::imshow( "sphereDepth", sphDepthVis );
 //  //cv::waitKey(1);
 //  cv::waitKey(0);
@@ -80,7 +106,7 @@ int main (int argc, char ** argv)
 //  cv::waitKey(0);
 
   frame360.buildSphereCloud();
-  frame360.filterPointCloud();
+  frame360.filterCloudBilateral_stereo();
   frame360.segmentPlanesStereo();
 //  frame360.segmentPlanesStereoRANSAC();
   std::cout << "Planes " << frame360.planes.vPlanes.size () << std::endl;
@@ -95,19 +121,8 @@ int main (int argc, char ** argv)
     std::cout << "Plane inliers " << plane_inliers << " average plane size " << plane_inliers/frame360.planes.vPlanes.size () << std::endl;
 
 
-//  // Visualize spherical image
-//  cv::imshow( "sphereRGB", frame360.sphereRGB );
-//  while (cv::waitKey(1)!='\n')
-//    boost::this_thread::sleep (boost::posix_time::milliseconds (10));
-
-
   // Visualize point cloud
-  Calib360 calib;
-  Frame360 frame360_(&calib);
-  frame360_.sphereCloud = frame360.sphereCloud;
-//  frame360_.sphereCloud = frame360.filteredCloud;
-  frame360_.planes = frame360.planes;
-  Frame360_Visualizer sphereViewer(&frame360_);
+  Frame360_Visualizer sphereViewer(&frame360);
   cout << "\n  Press 'q' to close the program\n";
 
 //   pcl::io::savePCDFile ("/home/efernand/cloud_test.pcd", *frame360.sphereCloud);

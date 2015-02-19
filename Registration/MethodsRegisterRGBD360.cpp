@@ -228,7 +228,7 @@ int main (int argc, char ** argv)
     Frame360 frame360_1(&calib);
     frame360_1.loadFrame(file360_1);
     frame360_1.undistort();
-    frame360_1.buildSphereCloud();
+    frame360_1.buildSphereCloud_rgbd360();
 
 //    // Save images
 //    {
@@ -265,7 +265,7 @@ int main (int argc, char ** argv)
     Frame360 frame360_2(&calib);
     frame360_2.loadFrame(file360_2);
     frame360_2.undistort();
-    frame360_2.buildSphereCloud();
+    frame360_2.buildSphereCloud_rgbd360();
 
     time_start = pcl::getTime();
     RegisterRGBD360 registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH));

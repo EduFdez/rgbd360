@@ -65,6 +65,10 @@
 #include <pcl/filters/fast_bilateral.h>
 #include <pcl/filters/fast_bilateral_omp.h>
 
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <cvmat_serialization.h>
@@ -74,6 +78,7 @@
 
 #include <CloudRGBD_Ext.h>
 #include <DownsampleRGBD.h>
+#include <FilterPointCloud.h>
 
 #include <Eigen/Core>
 
@@ -99,6 +104,18 @@ public:
 
     /*! Topological node where this frame (keyframe) is located */
     unsigned node;
+
+    /*! Frame height */
+    unsigned short height_;
+
+    /*! Frame width */
+    unsigned short width_;
+
+    /*! The angular resolution of a pixel. Normally it is the same along horizontal/vertical (theta/phi) axis. */
+    float pixel_angle_;
+
+    /*! The index referring the latitude in pixels of the first row in the image (the closest to the upper part of the sphere) */
+    int phi_start_pixel_;
 
     /*! Spherical (omnidirectional) RGB image. The term spherical means that the same solid angle is assigned to each pixel */
     cv::Mat sphereRGB;
@@ -193,13 +210,13 @@ public:
     }
 
     /*! Get the spherical image RGB */
-    inline cv::Mat getImgRGB()
+    inline cv::Mat & getImgRGB()
     {
         return sphereRGB;
     }
 
     /*! Get the spherical image Depth */
-    inline cv::Mat getImgDepth()
+    inline cv::Mat & getImgDepth()
     {
         return sphereDepth;
     }
@@ -484,8 +501,8 @@ public:
         //  std::cout << "buildCloud_id3 " << sensor_id << "\n";
     }
 
-    /*! Build the spherical point cloud */
-    void buildSphereCloud()
+    /*! Build the spherical point cloud by superimposing the 8 point clouds from the 8 Asus XPL*/
+    void buildSphereCloud_rgbd360()
     {
         //    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
         //      return;
@@ -572,64 +589,78 @@ public:
 
     }
 
-    /*! Build the point cloud from the spherical image representation */
-    void buildSphereCloud_fromImage()
+    /*! Build the spherical point cloud. The reference system is the one used by the INRIA SphericalStereo sensor. Z points forward, X points to the right and Y points downwards */
+    void buildSphereCloud()
     {
+        //    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
+        //      return;
+
+//        std::cout << " Frame360_stereo::buildSphereCloud_rgbd360() " << std::endl;
+
         double time_start = pcl::getTime();
 
-        size_t height_SphereImg = sphereRGB.rows;
-        size_t width_SphereImg = sphereRGB.cols;
-        float angle_pixel(width_SphereImg/(2*PI));
-
-        sphereCloud->resize(height_SphereImg*width_SphereImg);
-        sphereCloud->height = height_SphereImg;
-        sphereCloud->width = width_SphereImg;
+        sphereCloud->resize(sphereRGB.rows*sphereRGB.cols);
+        sphereCloud->height = sphereRGB.rows;
+        sphereCloud->width = sphereRGB.cols;
         sphereCloud->is_dense = false;
+        float min_depth = 0.f;
+        float max_depth = 15.f;
 
-        float angle_pixel_inv(1/angle_pixel);
-        int row_pixels = 0;
-        float offset_phi = PI*31.5/180; // height_SphereImg((width_SphereImg/2) * 63.0/180),
-        float PI_ = PI; // Does this spped-up the next loop?
-        for(int row_phi=0; row_phi < height_SphereImg; row_phi++, row_pixels += width_SphereImg)
+        pixel_angle_ = 2*PI / sphereDepth.cols;
+        float step_theta = pixel_angle_;
+        float step_phi = pixel_angle_;
+        //int phi_start_pixel_ = 166, end_phi = 166 + sphereDepth.rows; // For images of 665x2048
+        int phi_start_pixel_ = 174, end_phi = 174 + sphereDepth.rows; // For images of 640x2048
+        //float offset_phi = PI*31.5/180; // height_SphereImg((width_SphereImg/2) * 63.0/180), // RGBD360
+
+        int pixel_count = 0;
+        for(int row_phi=0; row_phi < sphereDepth.rows; row_phi++)//, row_phi += width_SphereImg)
         {
-            float phi_i = offset_phi - row_phi*angle_pixel_inv;// + PI/2;
-            float sin_phi = sin(phi_i);
-            float cos_phi = cos(phi_i);
+            //float phi = offset_phi - row_phi*angle_pixel_inv;// + PI/2;   // RGBD360
+            float phi = (row_phi+phi_start_pixel_)*step_phi - PI/2;
+            float cos_phi = cos(phi);
+            float sin_phi = sin(phi);
 
-            // Stitch each image from each sensor
-            //      #pragma omp parallel for
-            for(int col_theta=0; col_theta < width_SphereImg; col_theta++)
+            for(int col_theta=0; col_theta < sphereDepth.cols; col_theta++, pixel_count++)
             {
-                float theta_i = col_theta*angle_pixel_inv; // - PI;
-                float depth = 0.001f * sphereDepth.at<unsigned short>(row_phi,col_theta);
-                //      if(row_phi >50)
-                //        cout << "pos " << row_phi << " " << col_theta << " Phi/Theta " << phi_i << " " << theta_i << " depth " << depth << endl;
-                if(depth != 0)
+                float depth = sphereDepth.at<float> (row_phi, col_theta);
+                //std::cout << pixel_count << " " << depth << std::endl;
+
+//                    // RGBD360
+                //float theta_i = col_theta*angle_pixel_inv; // - PI;
+                //float depth = 0.001f * sphereDepth.at<unsigned short>(row_phi,col_theta);
+
+                if(depth > min_depth && depth < max_depth)
                 {
-                    //            cout << " Assign point in the cloud\n";
-                    sphereCloud->points[row_pixels+col_theta].x = sin_phi * depth;
-                    //            sphereCloud->points[row_pixels+col_theta].x = cos(theta_i) * cos_phi * depth;
-                    sphereCloud->points[row_pixels+col_theta].y = -cos_phi * sin(theta_i) * depth;
-                    sphereCloud->points[row_pixels+col_theta].z = -cos_phi * cos(theta_i) * depth;
-                    //            sphereCloud->points[row_pixels+col_theta].z = sin(theta_i) * cos_phi * depth;
-                    sphereCloud->points[row_pixels+col_theta].r = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[2];
-                    sphereCloud->points[row_pixels+col_theta].g = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[1];
-                    sphereCloud->points[row_pixels+col_theta].b = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[0];
+//                    // RGBD360
+//                    sphereCloud->points[row_pixels+col_theta].x = sin_phi * depth;
+//                    sphereCloud->points[row_pixels+col_theta].y = -cos_phi * sin(theta_i) * depth;
+//                    sphereCloud->points[row_pixels+col_theta].z = -cos_phi * cos(theta_i) * depth;
+
+                    float theta = col_theta*step_theta - PI;
+                    sphereCloud->points[pixel_count].x = sin(theta)*cos_phi * depth;
+                    sphereCloud->points[pixel_count].y = sin_phi * depth;
+                    sphereCloud->points[pixel_count].z = cos(theta)*cos_phi * depth;
+                    sphereCloud->points[pixel_count].r = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[2];
+                    sphereCloud->points[pixel_count].g = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[1];
+                    sphereCloud->points[pixel_count].b = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[0];
                 }
                 else
                 {
-                    sphereCloud->points[row_pixels+col_theta].x = std::numeric_limits<float>::quiet_NaN ();
-                    sphereCloud->points[row_pixels+col_theta].y = std::numeric_limits<float>::quiet_NaN ();
-                    sphereCloud->points[row_pixels+col_theta].z = std::numeric_limits<float>::quiet_NaN ();
+                    sphereCloud->points[pixel_count].x = std::numeric_limits<float>::quiet_NaN ();
+                    sphereCloud->points[pixel_count].y = std::numeric_limits<float>::quiet_NaN ();
+                    sphereCloud->points[pixel_count].z = std::numeric_limits<float>::quiet_NaN ();
                 }
             }
         }
 
+        //    bSphereCloudBuilt = true;
+        //std::cout << " Frame360::buildSphereCloud_rgbd360() finished" << std::endl;
+
 #if _DEBUG_MSG
         double time_end = pcl::getTime();
-        std::cout << "PointCloud sphere from image took " << double (time_end - time_start) << std::endl;
+        std::cout << "PointCloud sphere construction took " << double (time_end - time_start) << std::endl;
 #endif
-
     }
 
     /*! Create the PbMap of the spherical point cloud */
@@ -1169,6 +1200,7 @@ private:
     }
 
     // Functions for SphereStereo images (outdoors)
+ public:
     /*! Load a spherical RGB-D image from the raw data stored in a binary file */
     void loadDepth (const std::string &binaryDepthFile, const cv::Mat * mask = NULL)
     {
@@ -1252,74 +1284,9 @@ private:
 #endif
     }
 
-    inline pcl::PointCloud<PointT>::Ptr getSphereCloud()
+    inline pcl::PointCloud<PointT>::Ptr & getSphereCloud()
     {
         return sphereCloud;
-    }
-
-    /*! Build the spherical point cloud */
-    void buildSphereCloud()
-    {
-        //    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
-        //      return;
-
-//        std::cout << " Frame360_stereo::buildSphereCloud() " << std::endl;
-
-        double time_start = pcl::getTime();
-
-        size_t height_SphereImg = sphereRGB.rows;
-        size_t width_SphereImg = sphereRGB.cols;
-        float angle_pixel(width_SphereImg/(2*PI));
-        sphereCloud->resize(height_SphereImg*width_SphereImg);
-        sphereCloud->height = height_SphereImg;
-        sphereCloud->width = width_SphereImg;
-        sphereCloud->is_dense = false;
-
-        float min_depth = 0.f;
-        float max_depth = 15.f;
-        float step_theta = 2*PI / sphereDepth.cols;
-        float step_phi = step_theta;
-        int pixel_count = 0;
-        //int start_phi = 166, end_phi = 166 + sphereDepth.rows; // For images of 665x2048
-        int start_phi = 174, end_phi = 174 + sphereDepth.rows; // For images of 640x2048
-
-        for(int row_phi=0; row_phi < sphereDepth.rows; row_phi++)//, row_phi += width_SphereImg)
-        {
-            float phi = (row_phi+start_phi)*step_phi - PI/2;
-            float cos_phi = cos(phi);
-            float sin_phi = sin(phi);
-
-            for(int col_theta=0; col_theta < sphereDepth.cols; col_theta++, pixel_count++)
-            {
-                float depth = sphereDepth.at<float> (row_phi, col_theta);
-                //std::cout << pixel_count << " " << depth << std::endl;
-
-                if(depth > min_depth && depth < max_depth)
-                {
-                    float theta = col_theta*step_theta - PI;
-                    sphereCloud->points[pixel_count].x = sin(theta)*cos_phi * depth;
-                    sphereCloud->points[pixel_count].y = sin_phi * depth;
-                    sphereCloud->points[pixel_count].z = cos(theta)*cos_phi * depth;
-                    sphereCloud->points[pixel_count].r = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[2];
-                    sphereCloud->points[pixel_count].g = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[1];
-                    sphereCloud->points[pixel_count].b = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[0];
-                }
-                else
-                {
-                    sphereCloud->points[pixel_count].x = std::numeric_limits<float>::quiet_NaN ();
-                    sphereCloud->points[pixel_count].y = std::numeric_limits<float>::quiet_NaN ();
-                    sphereCloud->points[pixel_count].z = std::numeric_limits<float>::quiet_NaN ();
-                }
-            }
-        }
-
-        //    bSphereCloudBuilt = true;
-        std::cout << " Frame360_stereo::buildSphereCloud() finished" << std::endl;
-
-#if _DEBUG_MSG
-        double time_end = pcl::getTime();
-        std::cout << "PointCloud sphere construction took " << double (time_end - time_start) << std::endl;
-#endif
     }
 
     /*! Perform bilateral filtering on the point cloud

@@ -35,7 +35,7 @@
 
 #include <RegisterRGBD360.h>
 #include <Map360_Visualizer.h>
-#include <filterCloudBilateral_stereo.h>
+#include <FilterPointCloud.h>
 
 #include <pcl/registration/icp.h>
 #include <pcl/registration/icp_nl.h> //ICP LM
@@ -87,7 +87,10 @@ int main (int argc, char ** argv)
     std::cout << "  depth1: " << depth1 << "\n  depth2: " << depth2 << std::endl;
   }
   else
-      assert(0);
+  {
+      std::cerr << "\n... INVALID IMAGE FILE!!! \n";
+      return 0;
+  }
 
   Frame360 frame360_1, frame360_2;
   frame360_1.loadDepth(depth1, &maskCar);
