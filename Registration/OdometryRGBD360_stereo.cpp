@@ -159,6 +159,7 @@ public:
 
         bool bGoodRegistration = true;
         Eigen::Matrix4f currentPose = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f currentPose2 = Eigen::Matrix4f::Identity();
 
 
         // Filter the spherical point cloud
@@ -169,25 +170,15 @@ public:
 
         // Visualize
 #if VISUALIZE_POINT_CLOUD
-        Map360_Visualizer viewer(map,1);
+        Map360 map;
+        Map360_Visualizer viewer(map,2);
         viewer.bDrawCurrentLocation = true;
 
         // Add the first observation to the map
         {boost::mutex::scoped_lock updateLock(map.mapMutex);
-
             map.addKeyframe(frame_src_fused, currentPose);
             *viewer.globalMap += *frame_src_fused->getSphereCloud();
         }
-
-        Map360 Map;
-        Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
-        Map.addKeyframe(&frame360_1, pose );
-      //  pose = registerer.getPose();//.cast<double>();
-        pose = align360.getOptimalPose();
-        Map.addKeyframe(&frame360_2, pose );
-        Map.vOptimizedPoses = Map.vTrajectoryPoses;
-        Map.vOptimizedPoses[1] = icpTransformation;
-
 #endif
 
         // Results verifications (IROS 2015)
@@ -202,18 +193,21 @@ public:
             plane_inliers_fused += frame_src_fused->planes.vPlanes[i].inliers.size();
 
         ofstream poses_dense, poses_dense_photo, poses_dense_depth, poses_icp, poses_pbmap;
-        if ( !poses_dense.open (path_results + "/poses_dense.txt") )
-            { std::cerr << "\n ...Cannot open output file\n"; return; }
-        if ( !poses_dense_photo.open (path_results + "/poses_dense_photo.txt") )
-            { std::cerr << "\n ...Cannot open output file\n"; return; }
-        if ( !poses_dense_depth.open (path_results + "/poses_dense_depth.txt") )
-            { std::cerr << "\n ...Cannot open output file\n"; return; }
-        if ( !poses_icp.open (path_results + "/poses_icp.txt") )
-            { std::cerr << "\n ...Cannot open output file\n"; return; }
-        if ( !poses_pbmap.open (path_results + "/poses_pbmap.txt") )
-            { std::cerr << "\n ...Cannot open output file\n"; return; }
+        //string trajectoryFile = mrpt::format("%s/poses_dense.txt", path_results);
+        string trajectoryFile(path_results + "/poses_dense.txt");
+        poses_dense.open ( trajectoryFile.c_str() );
+        trajectoryFile = string(path_results + "/poses_dense_photo.txt");
+        poses_dense_photo.open ( trajectoryFile.c_str() );
+        trajectoryFile = string(path_results + "/poses_dense_depth.txt");
+        poses_dense_depth.open ( trajectoryFile.c_str() );
+        trajectoryFile = string(path_results + "/poses_icp.txt");
+        poses_icp.open ( trajectoryFile.c_str() );
+        trajectoryFile = string(path_results + "/poses_pbmap.txt");
+        poses_pbmap.open ( trajectoryFile.c_str() );
+        if(!poses_dense.is_open() || !poses_dense_photo.is_open() || !poses_dense_depth.is_open() || !poses_icp.is_open() || !poses_pbmap.is_open() )
+            { std::cerr << "\n ...Cannot open output file: " << poses_dense << "\n"; return; }
 
-        Eigen::Matrix4f rigidTransf = Eigen::Matrix4f::Identity();
+        //Eigen::Matrix4f rigidTransf = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f rigidTransf_dense = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f rigidTransf_dense_photo = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f rigidTransf_dense_depth = Eigen::Matrix4f::Identity();
@@ -224,7 +218,12 @@ public:
         float angleOffset = 157.5;
         Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
 
-        while( fexists(fileName.c_str()) )
+        frame_num += selectSample;
+        depth_raw = mrpt::format("%sdepth%07d%s", path_sequence.c_str(), frame_num, fileExtRawDepth.c_str());
+        depth_fused = mrpt::format("%sdepth%07d%s", path_sequence.c_str(), frame_num, fileExtFusedDepth.c_str());
+        rgb = mrpt::format("%stop%07d%s", path_sequence.c_str(), frame_num, fileExtRGB.c_str());
+
+        while( fexists(depth_raw.c_str()) && fexists(depth_fused.c_str()) && fexists(rgb.c_str()) )
         {
             if(bGoodRegistration)
             {
@@ -232,14 +231,6 @@ public:
                 frame_trg_fused = frame_src_fused;
                 cloud_dense_trg = cloud_dense_src;
             }
-
-            frame_num += selectSample;
-            cout << "Frame " << frame_num << endl;
-
-            depth_raw = mrpt::format("%sdepth%07d%s", path_sequence, frame_num, fileExtRawDepth);
-            depth_fused = mrpt::format("%sdepth%07d%s", path_sequence, frame_num, fileExtFusedDepth);
-            rgb = mrpt::format("%stop%07d%s", path_sequence, frame_num, fileExtRGB);
-            std::cout << "  rgb: " << rgb << std::endl;
 
             // Open reference RGB and Depth images
             if ( fexists(rgb.c_str()) && fexists(depth_raw.c_str()) && fexists(depth_fused.c_str()) )
@@ -258,6 +249,7 @@ public:
                 frame_src_fused->buildSphereCloud();
                 frame_src_fused->filterCloudBilateral_stereo();
                 frame_src_fused->segmentPlanesStereo();
+                //cout << "frame_trg_fused " << frame_trg_fused->sphereCloud->width << " " << frame_trg_fused->sphereCloud->height << " " << frame_trg_fused->sphereCloud->is_dense << " " << endl;
             }
             else
             {
@@ -276,7 +268,7 @@ public:
             //            cout << "entropy " << align360.calcEntropy() << endl;
 
             //cout << "RegisterPhotoICP \n";
-            align360.setTargetFrame(frame_trg_fused.sphereRGB, frame_trg_fused.sphereDepth);
+            align360.setTargetFrame(frame_trg_fused->sphereRGB, frame_trg_fused->sphereDepth);
             align360.setSourceFrame(frame_src_fused->sphereRGB, frame_src_fused->sphereDepth);
             align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             rigidTransf_dense = align360.getOptimalPose();
@@ -285,12 +277,12 @@ public:
             align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             rigidTransf_dense_depth = align360.getOptimalPose();
 
-            cout << "frame_trg_fused " << frame_trg_fused.sphereCloud->width << " " << frame_trg_fused.sphereCloud->height << " " << frame_trg_fused.sphereCloud->is_dense << " " << endl;
-            cout << "voxel filtered frame_trg_fused " << sphereCloud_dense1->width << " " << sphereCloud_dense1->height << " " << sphereCloud_dense1->is_dense << " " << endl;
+
+            double time_start = pcl::getTime();
 
             icp.setInputTarget(cloud_dense_trg);
             filter.filterVoxel(frame_src_fused->getSphereCloud(), cloud_dense_src);
-            icp.setInputSource(frame_src_fused);
+            icp.setInputSource(cloud_dense_src);
             pcl::PointCloud<PointT>::Ptr alignedICP(new pcl::PointCloud<PointT>);
           //  Eigen::Matrix4d initRigidTransf = registerer.getPose();
             Eigen::Matrix4f initRigidTransf = Eigen::Matrix4f::Identity();
@@ -362,30 +354,46 @@ public:
             filter.filterEuclidean(frame_src_fused->getSphereCloud());
 
             // Update currentPose
-            currentPose = currentPose * rigidTransf_dense.inverse();
+            currentPose = currentPose * rigidTransf_dense;
+            currentPose2 = currentPose2 * rigidTransf_dense_photo;
+
+//            if(select_keyframe)
+//            {
+//                cout << "Add keyframe " << endl;
+//                rigidTransf_dense = Eigen::Matrix4f::Identity();
+//                rigidTransf_icp = Eigen::Matrix4f::Identity();
+//            }
+
+            // Next frame
+            frame_num += selectSample;
+            depth_raw = mrpt::format("%sdepth%07d%s", path_sequence.c_str(), frame_num, fileExtRawDepth.c_str());
+            depth_fused = mrpt::format("%sdepth%07d%s", path_sequence.c_str(), frame_num, fileExtFusedDepth.c_str());
+            rgb = mrpt::format("%stop%07d%s", path_sequence.c_str(), frame_num, fileExtRGB.c_str());
+            std::cout << "Frame " << frame_num << std::endl;
+            std::cout << "  rgb: " << rgb << std::endl;
 
 #if VISUALIZE_POINT_CLOUD
-            {boost::mutex::scoped_lock updateLock(Map.mapMutex);
+            {boost::mutex::scoped_lock updateLock(map.mapMutex);
 
-                Map.addKeyframe(frame_src_fused, currentPose); // Add keyframe
+                // Add the first observation to the map
+                {boost::mutex::scoped_lock updateLock(map.mapMutex);
+                    map.addKeyframe(frame_src_fused, currentPose);
+                    map.vOptimizedPoses.back() = currentPose2;
 
-                // Update the global cloud
-                pcl::PointCloud<PointT>::Ptr transformedCloud(new pcl::PointCloud<PointT>);
-                pcl::transformPointCloud(*frame_src_fused->getSphereCloud(), *transformedCloud, currentPose);
-                *viewer.globalMap += *transformedCloud;
-                filter.filterVoxel(viewer.globalMap);
-                viewer.currentLocation.matrix() = currentPose;
+                    // Update the global cloud
+                    pcl::PointCloud<PointT>::Ptr transformedCloud(new pcl::PointCloud<PointT>);
+                    pcl::transformPointCloud(*frame_src_fused->getSphereCloud(), *transformedCloud, currentPose);
+                    *viewer.globalMap += *transformedCloud;
+                    filter.filterVoxel(viewer.globalMap);
+                    viewer.currentLocation.matrix() = currentPose;
+                }
 
-                rigidTransf_dense = Eigen::Matrix4f::Identity();
-                rigidTransf_icp = Eigen::Matrix4f::Identity();
-            cout << "Add keyframe " << endl;
+                map.addKeyframe(frame_src_fused, currentPose); // Add keyframe
             }
-            //        #elif
-            //          delete frame_trg_fused;
 #endif
 
 #if SAVE_TRAJECTORY
-            rigidTransf.saveToTextFile(mrpt::format("%s/Rt_%d_%d.txt", path_results.c_str(), frameOrder-1, frameOrder).c_str());
+            // rigidTransf.saveToTextFile(mrpt::format("%s/Rt_%d_%d.txt", path_results.c_str(), frameOrder-1, frameOrder).c_str());
             //          ofstream saveRt;
             //          saveRt.open(mrpt::format("%s/poses/Rt_%d_%d.txt", path_dataset.c_str(), frame-1, frame).c_str());
             //          saveRt << rigidTransf;

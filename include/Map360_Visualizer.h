@@ -262,6 +262,10 @@ public:
                     sprintf (name, "%u", i);
                     pt_center.x += 0.05;
                     viz.addText3D (name, pt_center, 0.05, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
+
+                    Eigen::Affine3f pose;
+                    pose.matrix() = Map.vTrajectoryPoses[i];
+                    viz.addCoordinateSystem(0.2, pose, "camera");
                 }
 
                 // Draw the locations of the selected keyframes

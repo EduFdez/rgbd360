@@ -136,7 +136,7 @@ float diffRotation(Eigen::Matrix4f &pose1, Eigen::Matrix4f &pose2)
     float anglePoses = _pose1.angularDistance(_pose2); // in radians
 //    std::cout << "  anglePoses " << anglePoses << std::endl;
 
-    return RAD2DEG(anglePoses);
+    return mrpt::utils::RAD2DEG(anglePoses);
 }
 
 /*! Calculate the rotation difference between the two poses */

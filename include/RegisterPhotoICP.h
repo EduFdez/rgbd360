@@ -15,8 +15,8 @@
 
 #include "Miscellaneous.h"
 
-#include <mrpt/slam/CSimplePointsMap.h>
-#include <mrpt/slam/CObservation2DRangeScan.h>
+#include <mrpt/maps/CSimplePointsMap.h>
+#include <mrpt/obs/CObservation2DRangeScan.h>
 #include <mrpt/slam/CICP.h>
 #include <mrpt/poses/CPose2D.h>
 #include <mrpt/poses/CPosePDF.h>
