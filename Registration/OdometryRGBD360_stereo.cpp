@@ -89,17 +89,17 @@ public:
       //  cv::imshow( "maskCar", maskCar );
       //  cv::waitKey(0);
 
-        assert (fexists(rgb1.c_str()) );
-        std::cout << "  rgb1: " << rgb1 << std::endl;
+        assert ( fexists(rgb1.c_str()) );
+        //std::cout << "  rgb1:\t\t" << rgb1 << std::endl;
         string rgb = rgb1;
 
-        string fileExtRGB = ".png";
+        string fileExtRGB = ".png"; // std::cout << "  end: " << rgb.substr(rgb.length()-4) << std::endl;
         string fileExtRawDepth = ".raw";
         string fileExtFusedDepth = "pT.raw";
 
         string depth_raw;
         string depth_fused;
-        std::cout << "  end: " << rgb.substr(rgb.length()-4) << std::endl;
+
         string path_sequence = rgb.substr(0, rgb.length()-14);
         string frame_num_s = rgb.substr(rgb.length()-11, 7);
         int frame_num = atoi( frame_num_s.c_str() );
@@ -107,8 +107,9 @@ public:
         if( fileExtRGB.compare( rgb.substr(rgb.length()-4) ) == 0 ) // If the first string correspond to a pointCloud path
         {
           depth_raw = path_sequence + "depth" + frame_num_s + fileExtRawDepth;
+//          depth_fused = path_sequence + "gapFillingPlusFusion/depth" + frame_num_s + fileExtRawDepth;
           depth_fused = path_sequence + "depth" + frame_num_s + fileExtFusedDepth;
-          std::cout << "  depth_raw: " << depth_raw << "\n  depth_fused: " << depth_fused << std::endl;
+          std::cout << "  rgb:\t\t" << rgb << "\n  depth_raw:\t" << depth_raw << "\n  depth_fused:\t" << depth_fused << std::endl;
         }
         else
         {
@@ -139,14 +140,16 @@ public:
             std::cerr << "\n... Some of the initial image files do not exist!!! \n";
             return;
         }
-
+        //cout << "Odometry360 1" << endl;
 
         // Initialize Dense aligner
         RegisterPhotoICP align360; // Dense RGB-D alignment
         align360.setNumPyr(6);
+        align360.setMaxDepth(12.f);
         align360.useSaliency(false);
       // align360.setVisualization(true);
         align360.setGrayVariance(3.f/255);
+
 
         // Initialize ICP
         pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
@@ -164,20 +167,22 @@ public:
 
         // Filter the spherical point cloud
         // ICP -> Filter the point clouds and remove nan points
-        FilterPointCloud<PointT> filter(0.1); // Initialize filters (for visualization)
+        FilterPointCloud<PointT> filter(0.1, 10.f); // Initialize filters (for visualization)
 //        filter.filterEuclidean(frame_src_fused->getSphereCloud());
         filter.filterVoxel(frame_src_fused->getSphereCloud(), cloud_dense_src);
 
         // Visualize
 #if VISUALIZE_POINT_CLOUD
         Map360 map;
-        Map360_Visualizer viewer(map,2);
-        viewer.bDrawCurrentLocation = true;
+        Map360_Visualizer viewer(map,0);
+        //viewer.bDrawCurrentLocation = true;
 
         // Add the first observation to the map
         {boost::mutex::scoped_lock updateLock(map.mapMutex);
             map.addKeyframe(frame_src_fused, currentPose);
-            *viewer.globalMap += *frame_src_fused->getSphereCloud();
+//            *viewer.globalMap += *frame_src_fused->getSphereCloud();
+            filter.filterEuclidean (frame_src_fused->getSphereCloud(), viewer.globalMap);
+
         }
 #endif
 
@@ -207,16 +212,19 @@ public:
         if(!poses_dense.is_open() || !poses_dense_photo.is_open() || !poses_dense_depth.is_open() || !poses_icp.is_open() || !poses_pbmap.is_open() )
             { std::cerr << "\n ...Cannot open output file: " << poses_dense << "\n"; return; }
 
-        //Eigen::Matrix4f rigidTransf = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f rigidTransf_dense = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f rigidTransf_dense_photo = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f rigidTransf_dense_depth = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f rigidTransf_icp = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f rigidTransf_pbmap = Eigen::Matrix4f::Identity();
+        //Eigen::Matrix4f Rt = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f Rt_dense = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f Rt_dense_photo = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f Rt_dense_depth = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f Rt_icp = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f Rt_pbmap = Eigen::Matrix4f::Identity();
+        // Non-fused data
+        Eigen::Matrix4f Rt_dense_NF = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f Rt_dense_photo_NF = Eigen::Matrix4f::Identity();
 
         // The reference of the spherical image and the point Clouds are not the same! I should always use the same coordinate system (TODO)
-        float angleOffset = 157.5;
-        Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
+//        float angleOffset = 157.5;
+//        Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
 
         frame_num += selectSample;
         depth_raw = mrpt::format("%sdepth%07d%s", path_sequence.c_str(), frame_num, fileExtRawDepth.c_str());
@@ -225,11 +233,21 @@ public:
 
         while( fexists(depth_raw.c_str()) && fexists(depth_fused.c_str()) && fexists(rgb.c_str()) )
         {
+//            std::cout << "  rgb:\t\t" << rgb << "\n  depth_raw:\t" << depth_raw << "\n  depth_fused:\t" << depth_fused << std::endl;
+            std::cout << "  rgb: " << rgb << std::endl;
+
             if(bGoodRegistration)
             {
+                delete frame_trg;
+                delete frame_trg_fused;
+
                 frame_trg = frame_src;
                 frame_trg_fused = frame_src_fused;
                 cloud_dense_trg = cloud_dense_src;
+
+                frame_src = new Frame360;
+                frame_src_fused = new Frame360;
+                cloud_dense_src.reset(new pcl::PointCloud<PointT>);
             }
 
             // Open reference RGB and Depth images
@@ -262,7 +280,8 @@ public:
 
 
             // Align the two frames
-            bGoodRegistration = registerer.RegisterPbMap(frame_trg_fused, frame_src_fused, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
+            //bGoodRegistration =
+            registerer.RegisterPbMap(frame_trg_fused, frame_src_fused, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
             //        bGoodRegistration = registerer.RegisterPbMap(frame_trg_fused, frame_src_fused, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_ODOMETRY_3DoF);
             //            cout << "entropy-Pbmap " << registerer.calcEntropy() << endl;
             //            cout << "entropy " << align360.calcEntropy() << endl;
@@ -271,28 +290,37 @@ public:
             align360.setTargetFrame(frame_trg_fused->sphereRGB, frame_trg_fused->sphereDepth);
             align360.setSourceFrame(frame_src_fused->sphereRGB, frame_src_fused->sphereDepth);
             align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            rigidTransf_dense = align360.getOptimalPose();
-            align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            rigidTransf_dense_photo = align360.getOptimalPose();
+            Rt_dense = align360.getOptimalPose();
+//            align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//            Rt_dense_photo = align360.getOptimalPose();
+//            align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//            Rt_dense_depth = align360.getOptimalPose();
+//            align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//            Rt_dense = align360.getOptimalPose();
+
+            align360.setTargetFrame(frame_trg->sphereRGB, frame_trg->sphereDepth);
+            align360.setSourceFrame(frame_src->sphereRGB, frame_src->sphereDepth);
             align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            rigidTransf_dense_depth = align360.getOptimalPose();
+            Rt_dense_NF = align360.getOptimalPose();
+//            align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//            Rt_dense_photo_NF = align360.getOptimalPose();
 
 
-            double time_start = pcl::getTime();
+//            double time_start = pcl::getTime();
 
-            icp.setInputTarget(cloud_dense_trg);
-            filter.filterVoxel(frame_src_fused->getSphereCloud(), cloud_dense_src);
-            icp.setInputSource(cloud_dense_src);
-            pcl::PointCloud<PointT>::Ptr alignedICP(new pcl::PointCloud<PointT>);
-          //  Eigen::Matrix4d initRigidTransf = registerer.getPose();
-            Eigen::Matrix4f initRigidTransf = Eigen::Matrix4f::Identity();
-            icp.align(*alignedICP, initRigidTransf);
+//            icp.setInputTarget(cloud_dense_trg);
+//            filter.filterVoxel(frame_src_fused->getSphereCloud(), cloud_dense_src);
+//            icp.setInputSource(cloud_dense_src);
+//            pcl::PointCloud<PointT>::Ptr alignedICP(new pcl::PointCloud<PointT>);
+//          //  Eigen::Matrix4d initRt = registerer.getPose();
+//            Eigen::Matrix4f initRt = Eigen::Matrix4f::Identity();
+//            icp.align(*alignedICP, initRt);
 
-            double time_end = pcl::getTime();
-            std::cout << "ICP took " << double (time_end - time_start) << std::endl;
+//            double time_end = pcl::getTime();
+//            std::cout << "ICP took " << double (time_end - time_start) << std::endl;
 
-            //std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
-            rigidTransf_icp = icp.getFinalTransformation(); //.cast<double>();
+//            //std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
+//            Rt_icp = icp.getFinalTransformation(); //.cast<double>();
 
 
             // Update verifications (IROS 2015)
@@ -307,11 +335,11 @@ public:
             for(int i=0;i<4;i++)
               for(int j=0;j<4;j++)
               {
-                poses_dense << rigidTransf_dense(j,i) << "\t";
-                poses_dense_photo << rigidTransf_dense_photo(j,i) << "\t";
-                poses_dense_depth << rigidTransf_dense_depth(j,i) << "\t";
-                poses_icp << rigidTransf_icp(j,i) << "\t";
-                poses_pbmap << rigidTransf_pbmap(j,i) << "\t";
+                poses_dense << Rt_dense(j,i) << "\t";
+                poses_dense_photo << Rt_dense_photo(j,i) << "\t";
+                poses_dense_depth << Rt_dense_depth(j,i) << "\t";
+                poses_icp << Rt_icp(j,i) << "\t";
+                poses_pbmap << Rt_pbmap(j,i) << "\t";
               }
             poses_dense << std::endl;
             poses_dense_photo << std::endl;
@@ -331,13 +359,13 @@ public:
 //            }
 //            else
 //            {
-//                rigidTransf_pbmap = registerer.getPose();
-//                cout << "\nPbMap regist \n" << rigidTransf_pbmap << endl;
+//                Rt_pbmap = registerer.getPose();
+//                cout << "\nPbMap regist \n" << Rt_pbmap << endl;
 //            }
 
 
 
-//            float dist = rigidTransf.block(0,3,3,1).norm();
+//            float dist = Rt.block(0,3,3,1).norm();
 //            cout << "dist " << dist << endl;
 //            if(dist < 0.4)
 //            {
@@ -354,14 +382,15 @@ public:
             filter.filterEuclidean(frame_src_fused->getSphereCloud());
 
             // Update currentPose
-            currentPose = currentPose * rigidTransf_dense;
-            currentPose2 = currentPose2 * rigidTransf_dense_photo;
+            currentPose = currentPose * Rt_dense;
+//            currentPose2 = currentPose2 * Rt_dense_photo;
+            currentPose2 = currentPose2 * Rt_dense_NF;
 
 //            if(select_keyframe)
 //            {
 //                cout << "Add keyframe " << endl;
-//                rigidTransf_dense = Eigen::Matrix4f::Identity();
-//                rigidTransf_icp = Eigen::Matrix4f::Identity();
+//                Rt_dense = Eigen::Matrix4f::Identity();
+//                Rt_icp = Eigen::Matrix4f::Identity();
 //            }
 
             // Next frame
@@ -370,33 +399,26 @@ public:
             depth_fused = mrpt::format("%sdepth%07d%s", path_sequence.c_str(), frame_num, fileExtFusedDepth.c_str());
             rgb = mrpt::format("%stop%07d%s", path_sequence.c_str(), frame_num, fileExtRGB.c_str());
             std::cout << "Frame " << frame_num << std::endl;
-            std::cout << "  rgb: " << rgb << std::endl;
 
 #if VISUALIZE_POINT_CLOUD
             {boost::mutex::scoped_lock updateLock(map.mapMutex);
+                map.addKeyframe(frame_src_fused, currentPose);// Add keyframe
+                map.vOptimizedPoses.back() = currentPose2;
 
-                // Add the first observation to the map
-                {boost::mutex::scoped_lock updateLock(map.mapMutex);
-                    map.addKeyframe(frame_src_fused, currentPose);
-                    map.vOptimizedPoses.back() = currentPose2;
-
-                    // Update the global cloud
-                    pcl::PointCloud<PointT>::Ptr transformedCloud(new pcl::PointCloud<PointT>);
-                    pcl::transformPointCloud(*frame_src_fused->getSphereCloud(), *transformedCloud, currentPose);
-                    *viewer.globalMap += *transformedCloud;
-                    filter.filterVoxel(viewer.globalMap);
-                    viewer.currentLocation.matrix() = currentPose;
-                }
-
-                map.addKeyframe(frame_src_fused, currentPose); // Add keyframe
+//                // Update the global cloud
+//                pcl::PointCloud<PointT>::Ptr transformedCloud(new pcl::PointCloud<PointT>);
+//                pcl::transformPointCloud(*frame_src_fused->getSphereCloud(), *transformedCloud, currentPose);
+//                *viewer.globalMap += *transformedCloud;
+//                filter.filterVoxel(viewer.globalMap);
+//                viewer.currentLocation.matrix() = currentPose;
             }
 #endif
 
 #if SAVE_TRAJECTORY
-            // rigidTransf.saveToTextFile(mrpt::format("%s/Rt_%d_%d.txt", path_results.c_str(), frameOrder-1, frameOrder).c_str());
+            // Rt.saveToTextFile(mrpt::format("%s/Rt_%d_%d.txt", path_results.c_str(), frameOrder-1, frameOrder).c_str());
             //          ofstream saveRt;
             //          saveRt.open(mrpt::format("%s/poses/Rt_%d_%d.txt", path_dataset.c_str(), frame-1, frame).c_str());
-            //          saveRt << rigidTransf;
+            //          saveRt << Rt;
             //          saveRt.close();
 #endif
 

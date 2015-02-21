@@ -15,8 +15,10 @@
 
 #include "Miscellaneous.h"
 
-#include <mrpt/maps/CSimplePointsMap.h>
-#include <mrpt/obs/CObservation2DRangeScan.h>
+//#include <mrpt/maps/CSimplePointsMap.h>
+//#include <mrpt/obs/CObservation2DRangeScan.h>
+#include <mrpt/slam/CSimplePointsMap.h>
+#include <mrpt/slam/CObservation2DRangeScan.h>
 #include <mrpt/slam/CICP.h>
 #include <mrpt/poses/CPose2D.h>
 #include <mrpt/poses/CPosePDF.h>
@@ -208,7 +210,7 @@ public:
         stdDevPhoto = 6./255;
         varPhoto = stdDevPhoto*stdDevPhoto;
 
-        stdDevDepth = 0.2;
+        stdDevDepth = 0.01;
         varDepth = stdDevDepth*stdDevDepth;
 
         minDepthOutliers = 2*stdDevDepth; // in meters
@@ -667,8 +669,9 @@ public:
                                 float depth1 = transformedPoint3D(2);
                                 float depthDiff = depth2 - depth1;
                                 //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                float stdDev_depth1 = stdDevDepth*depth1;
-                                weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                //float stdDev_depthDiff = stdDevDepth*depth1;
+                                float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+                                weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                 float weightedErrorDepth = weight_depth * depthDiff;
                                 //error2 += weightedErrorDepth*weightedErrorDepth;
                                 DepthResidual += weightedErrorDepth*weightedErrorDepth;
@@ -753,8 +756,9 @@ public:
                                     float depth1 = transformedPoint3D(2);
                                     float depthDiff = depth2 - depth1;
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*depth1;
-                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    //float stdDev_depthDiff = stdDevDepth*depth1;
+                                    float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+                                    weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                     float weightedErrorDepth = weight_depth * depthDiff;
                                     //error2 += weightedErrorDepth*weightedErrorDepth;
                                     DepthResidual += weightedErrorDepth*weightedErrorDepth;
@@ -924,8 +928,9 @@ public:
 //                                depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
 //                                float depthDiff = depth2 - depth1;
 //                                //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-//                                float stdDev_depth1 = stdDevDepth*depth1;
-//                                weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+//                                float stdDev_depthDiff = stdDevDepth*depth1;
+//                                float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+//                                weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
 //                                weightedErrorDepth = weight_depth * depthDiff;
 
 //                                //Depth jacobian:
@@ -1073,8 +1078,9 @@ public:
                                 {
                                     float depthDiff = depth2 - transformedPoint3D(2);
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*transformedPoint3D(2);
-                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    //float stdDev_depthDiff = stdDevDepth*transformedPoint3D(2);
+                                    float stdDev_depthDiff = std::max (stdDevDepth*(transformedPoint3D(2)*transformedPoint3D(2)+depth2*depth2), 2*stdDevDepth);
+                                    weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                     weightedErrorDepth = weight_depth * depthDiff;
 
                                     //Depth jacobian:
@@ -1218,8 +1224,9 @@ public:
 //                                float depth1 = transformedPoint3D(2);
 //                                float depthDiff = depth2 - depth1;
 //                                //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-//                                float stdDev_depth1 = stdDevDepth*depth1;
-//                                weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+//                                float stdDev_depthDiff = stdDevDepth*depth1;
+//                                float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+//                                weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
 //                                float weightedErrorDepth = weight_depth * depthDiff;
 //                                error2 += weightedErrorDepth*weightedErrorDepth;
 //                            }
@@ -1298,8 +1305,9 @@ public:
                                     float depth1 = transformedPoint3D(2);
                                     float depthDiff = depth2 - depth1;
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*depth1;
-                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+//                                    float stdDev_depthDiff = stdDevDepth*depth1;
+                                    float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+                                    weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                     float weightedErrorDepth = weight_depth * depthDiff;
                                     //error2 += weightedErrorDepth*weightedErrorDepth;
                                     residualsDepth(ii) = weightedErrorDepth*weightedErrorDepth;
@@ -1510,8 +1518,9 @@ public:
                             {
                                 float depthDiff = depth2 - transformedPoint3D(2);
                                 //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                float stdDev_depth1 = stdDevDepth*transformedPoint3D(2);
-                                weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                //float stdDev_depthDiff = stdDevDepth*transformedPoint3D(2);
+                                float stdDev_depthDiff = std::max (stdDevDepth*(transformedPoint3D(2)*transformedPoint3D(2)+depth2*depth2), 2*stdDevDepth);
+                                weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                 weightedErrorDepth = weight_depth * depthDiff;
 
                                 //Depth jacobian:
@@ -1658,8 +1667,9 @@ public:
 //                                float depth1 = transformedPoint3D(2);
 //                                float depthDiff = depth2 - depth1;
 //                                //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-//                                float stdDev_depth1 = stdDevDepth*depth1;
-//                                weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+//                                //float stdDev_depthDiff = stdDevDepth*depth1;
+//                                float stdDev_depthDiff = std::max (stdDevDepth*(transformedPoint3D(2)*transformedPoint3D(2)+depth2*depth2), 2*stdDevDepth);
+//                                weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
 //                                float weightedErrorDepth = weight_depth * depthDiff;
 //                                error2 += weightedErrorDepth*weightedErrorDepth;
 //                            }
@@ -1748,8 +1758,9 @@ public:
                                     float depth1 = transformedPoint3D(2);
                                     float depthDiff = depth2 - depth1;
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*depth1;
-                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    //float stdDev_depthDiff = stdDevDepth*depth1;
+                                    float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+                                    weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                     float weightedErrorDepth = weight_depth * depthDiff;
                                     //error2 += weightedErrorDepth*weightedErrorDepth;
                                     residualsDepth(ii) = weightedErrorDepth*weightedErrorDepth;
@@ -1976,8 +1987,9 @@ public:
                             {
                                 float depthDiff = depth2 - transformedPoint3D(2);
                                 //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                float stdDev_depth1 = stdDevDepth*transformedPoint3D(2);
-                                weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                //float stdDev_depthDiff = stdDevDepth*transformedPoint3D(2);
+                                float stdDev_depthDiff = std::max (stdDevDepth*(transformedPoint3D(2)*transformedPoint3D(2)+depth2*depth2), 2*stdDevDepth);
+                                weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                 weightedErrorDepth = weight_depth * depthDiff;
 
                                 //Depth jacobian:
@@ -2121,8 +2133,9 @@ public:
                                 float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
                                 float depthDiff = depth2 - depth1;
                                 //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                float stdDev_depth1 = stdDevDepth*depth1;
-                                weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                //float stdDev_depthDiff = stdDevDepth*depth1;
+                                float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+                                weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                 float weightedErrorDepth = weight_depth * depthDiff;
                                 error2 += weightedErrorDepth*weightedErrorDepth;
                             }
@@ -2192,8 +2205,9 @@ public:
                                     float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
                                     float depthDiff = depth2 - depth1;
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*depth1;
-                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    //float stdDev_depthDiff = stdDevDepth*depth1;
+                                    float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+                                    weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                     float weightedErrorDepth = weight_depth * depthDiff;
                                     error2 += weightedErrorDepth*weightedErrorDepth;
                                 }
@@ -2351,8 +2365,9 @@ public:
 //                                depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
 //                                float depthDiff = depth2 - depth1;
 //                                //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-//                                float stdDev_depth1 = stdDevDepth*depth1;
-//                                weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+//                                float stdDev_depthDiff = stdDevDepth*depth1;
+//                                float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+//                                weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
 //                                weightedErrorDepth = weight_depth * depthDiff;
 
 //                                //Depth jacobian:
@@ -2508,8 +2523,9 @@ public:
                                 {
                                     float depthDiff = depth2 - transformedPoint3D(2);
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*transformedPoint3D(2);
-                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    //float stdDev_depthDiff = stdDevDepth*transformedPoint3D(2);
+                                    float stdDev_depthDiff = std::max (stdDevDepth*(transformedPoint3D(2)*transformedPoint3D(2)+depth2*depth2), 2*stdDevDepth);
+                                    weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                     weightedErrorDepth = weight_depth * depthDiff;
 
                                     //Depth jacobian:
@@ -2643,8 +2659,9 @@ public:
 //                                float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
 //                                float depthDiff = depth2 - depth1;
 //                                //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-//                                float stdDev_depth1 = stdDevDepth*depth1;
-//                                weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+//                                float stdDev_depthDiff = stdDevDepth*depth1;
+//                                float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+//                                weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
 //                                float weightedErrorDepth = weight_depth * depthDiff;
 //                                error2 += weightedErrorDepth*weightedErrorDepth;
 //                            }
@@ -2734,8 +2751,9 @@ public:
                                     //float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
                                     float depthDiff = depth2 - dist;
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*depth2; // We assume that: depth1 ~ depth2 -> stdDev_depth1 ~ stdDev_depth2
-                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    //float stdDev_depthDiff = stdDevDepth*depth2; // We assume that: depth1 ~ depth2 -> stdDev_depthDiff ~ stdDev_depth2
+                                    float stdDev_depthDiff = std::max (stdDevDepth*(dist*dist+depth2*depth2), 2*stdDevDepth);
+                                    weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                     float weightedErrorDepth = weight_depth * depthDiff;
                                     error2 += weightedErrorDepth*weightedErrorDepth;
                                     //cout << "depth err " << weightedErrorDepth << endl;
@@ -2747,7 +2765,7 @@ public:
                 }
             //}
         }
-        std::cout << "error2 " << error2 << " numValidPts " << numValidPts << std::endl;
+//        std::cout << "error2 " << error2 << " numValidPts " << numValidPts << std::endl;
         return sqrt(error2 / numValidPts);
     }
 
@@ -2905,8 +2923,9 @@ public:
 //                            {
 //                                float depthDiff = depth2 - depth1;
 //                                //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-//                                float stdDev_depth1 = stdDevDepth*depth1;
-//                                weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+//                                float stdDev_depthDiff = stdDevDepth*depth1;
+//                                float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+//                                weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
 //                                weightedErrorDepth = weight_depth * depthDiff;
 
 //                                //Depth jacobian:
@@ -3087,8 +3106,9 @@ public:
 
                                     float depthDiff = depth2 - dist;
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*depth2; // We assume that: depth1 ~ depth2 -> stdDev_depth1 ~ stdDev_depth2
-                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    //float stdDev_depthDiff = stdDevDepth*depth2; // We assume that: depth1 ~ depth2 -> stdDev_depthDiff ~ stdDev_depth2
+                                    float stdDev_depthDiff = std::max (stdDevDepth*(dist*dist+depth2*depth2), 2*stdDevDepth);
+                                    weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                     weightedErrorDepth = weight_depth * depthDiff;
                                     //Depth jacobian:
                                     //Apply the chain rule to compound the depth gradients with the projective+RigidTransform jacobians
@@ -3344,8 +3364,9 @@ public:
                                     //Obtain the depth values that will be used to the compute the depth residual
                                     //float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
                                     float depthDiff = depth2 - dist;
-                                    float stdDev_depth1 = stdDevDepth*depth2;
-                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    //float stdDev_depthDiff = stdDevDepth*depth2;
+                                    float stdDev_depthDiff = std::max (stdDevDepth*(dist*dist+depth2*depth2), 2*stdDevDepth);
+                                    weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                     float weightedErrorDepth = weight_depth * depthDiff;
                                     residualsDepth(ii) = weightedErrorDepth*weightedErrorDepth;
                                     ++nValidDepthPts;
@@ -3571,8 +3592,9 @@ public:
 
                                     float depthDiff = depth2 - dist;
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*depth2; // We assume that: depth1 ~ depth2 -> stdDev_depth1 ~ stdDev_depth2
-                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    //float stdDev_depthDiff = stdDevDepth*depth2; // We assume that: depth1 ~ depth2 -> stdDev_depthDiff ~ stdDev_depth2
+                                    float stdDev_depthDiff = std::max (stdDevDepth*(dist*dist+depth2*depth2), 2*stdDevDepth);
+                                    weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                     weightedErrorDepth = weight_depth * depthDiff;
 
                                     //Depth jacobian:
@@ -3837,8 +3859,9 @@ public:
 
                                     //Obtain the depth values that will be used to the compute the depth residual
                                     //float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
-                                    float stdDev_depth1 = stdDevDepth*depth2;
-                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    //float stdDev_depthDiff = stdDevDepth*depth2;
+                                    float stdDev_depthDiff = std::max (stdDevDepth*(dist*dist+depth2*depth2), 2*stdDevDepth);
+                                    weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                     float weightedErrorDepth = weight_depth * depthDiff;
                                     residualsDepth(i) = weightedErrorDepth*weightedErrorDepth;
 //                                    ++nValidDepthPts;
@@ -4093,8 +4116,9 @@ public:
 
                                     float depthDiff = depth2 - dist;
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*depth2; // We assume that: depth1 ~ depth2 -> stdDev_depth1 ~ stdDev_depth2
-                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    //float stdDev_depthDiff = stdDevDepth*depth2; // For efficienty, we assume that: depth1 ~ depth2 -> stdDev_depthDiff ~ stdDev_depth2
+                                    float stdDev_depthDiff = std::max (stdDevDepth*(dist*dist+depth2*depth2), 2*stdDevDepth);
+                                    weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                     weightedErrorDepth = weight_depth * depthDiff;
 
                                     //Depth jacobian:
@@ -4614,7 +4638,7 @@ public:
                 error = errorPhotoICP_sphereOcc1(pyramidLevel, pose_estim, method);
             else if(occlusion == 2)
                 error = errorPhotoICP_sphereOcc2(pyramidLevel, pose_estim, method);
-            std::cout << "error  " << error << std::endl;
+//            std::cout << "error  " << error << std::endl;
 
             double diff_error = error;
 #if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
@@ -5000,8 +5024,9 @@ public:
                                 float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
                                 float depthDiff = depth2 - depth1;
                                 //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                float stdDev_depth1 = stdDevDepth*depth1;
-                                weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+//                                float stdDev_depthDiff = stdDevDepth*depth1;
+                                float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+                                weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                 float weightedErrorDepth = weight_depth * depthDiff;
                                 error2 += weightedErrorDepth*weightedErrorDepth;
                             }
@@ -5073,8 +5098,9 @@ public:
                                     float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c); // Depth value of the pixel(r,c) of the warped frame 1 (target)
                                     float depthDiff = depth2 - depth1;
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*depth1;
-                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    //float stdDev_depthDiff = stdDevDepth*depth1;
+                                    float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+                                    weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                     float weightedErrorDepth = weight_depth * depthDiff;
                                     error2 += weightedErrorDepth*weightedErrorDepth;
                                 }
@@ -5227,8 +5253,9 @@ public:
 
                                 float depthDiff = depth2 - depth1;
                                 //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                float stdDev_depth1 = stdDevDepth*depth1;
-                                weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                //float stdDev_depthDiff = stdDevDepth*depth1;
+                                float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+                                weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                 weightedErrorDepth = weight_depth * depthDiff;
 
                                 //Depth jacobian:
@@ -5377,8 +5404,9 @@ public:
 
                                     float depthDiff = depth2 - depth1;
                                     //weight_depth = weightHuber(depthDiff,stdDevDepth)*stdDevPhoto_inv;
-                                    float stdDev_depth1 = stdDevDepth*depth1;
-                                    weight_depth = weightHuber(depthDiff,stdDev_depth1)/stdDev_depth1;
+                                    //float stdDev_depthDiff = stdDevDepth*depth1;
+                                    float stdDev_depthDiff = std::max (stdDevDepth*(depth1*depth1+depth2*depth2), 2*stdDevDepth);
+                                    weight_depth = weightHuber(depthDiff,stdDev_depthDiff)/stdDev_depthDiff;
                                     weightedErrorDepth = weight_depth * depthDiff;
 
                                     //Depth jacobian:

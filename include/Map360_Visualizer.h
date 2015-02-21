@@ -136,8 +136,8 @@ public:
 
         //    viz.setFullscreen(true);
         viz.removeAllShapes();
+        viz.removeAllCoordinateSystems();
 //        viz.removeAllPointClouds();
-//        viz.removeCoordinateSystem("camera");
 
         {
             boost::mutex::scoped_lock updateLockVisualizer(visualizationMutex);
@@ -208,7 +208,7 @@ public:
                     Rt.matrix() = Map.vOptimizedPoses[Map.vSelectedKFs[i]];
                     viz.updatePointCloudPose(name, Rt);
                 }
-                boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+//                boost::this_thread::sleep (boost::posix_time::milliseconds (10));
             }
 
             // Draw sphere locations
@@ -256,8 +256,9 @@ public:
                     sprintf (name, "pose%u", i);
                     if(i != currentSphere)
                         viz.addSphere (pt_center, 0.04, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
-                    else
+                    else{
                         viz.addSphere (pt_center, 0.04, ared[(Map.vpSpheres[i]->node+5)%10], agrn[(Map.vpSpheres[i]->node+5)%10], ablu[(Map.vpSpheres[i]->node+5)%10], name);
+                    std::cout << "node " << Map.vpSpheres[i]->node << "\n";}
 
                     sprintf (name, "%u", i);
                     pt_center.x += 0.05;
@@ -265,7 +266,16 @@ public:
 
                     Eigen::Affine3f pose;
                     pose.matrix() = Map.vTrajectoryPoses[i];
-                    viz.addCoordinateSystem(0.2, pose, "camera");
+                    sprintf (name, "cam%u", i);
+                    viz.addCoordinateSystem(0.2, pose, name);
+
+//                    sprintf (name, "normal_%u", static_cast<unsigned>(i));
+//                    pcl::PointXYZ pt1, pt2; // Begin and end points of normal's arrow for visualization
+//                    pt1 = pcl::PointXYZ(plane_i.v3center[0], plane_i.v3center[1], plane_i.v3center[2]);
+//                    pt2 = pcl::PointXYZ(plane_i.v3center[0] + (0.5f * plane_i.v3normal[0]),
+//                                        plane_i.v3center[1] + (0.5f * plane_i.v3normal[1]),
+//                                        plane_i.v3center[2] + (0.5f * plane_i.v3normal[2]));
+//                    viz.addArrow (pt2, pt1, ared[i%10], agrn[i%10], ablu[i%10], false, name);
                 }
 
                 // Draw the locations of the selected keyframes
@@ -277,7 +287,8 @@ public:
                     if(Map.vSelectedKFs[i] != currentSphere)
                         viz.addSphere (pt_center, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name);
                     else
-                        viz.addSphere (pt_center, 0.1, ared[(i+5)%10], agrn[(i+5)%10], ablu[(i+5)%10], name);                    }
+                        viz.addSphere (pt_center, 0.1, ared[(i+5)%10], agrn[(i+5)%10], ablu[(i+5)%10], name);
+                }
             }
             else
             {
@@ -295,6 +306,11 @@ public:
                     sprintf (name, "%u", i);
                     pt_center.x += 0.05;
                     viz.addText3D (name, pt_center, 0.05, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
+
+                    Eigen::Affine3f pose;
+                    pose.matrix() = Map.vOptimizedPoses[i];
+                    sprintf (name, "cam%u", i);
+                    viz.addCoordinateSystem(0.2, pose, name);
                 }
 
                 // Draw the locations of the selected keyframes

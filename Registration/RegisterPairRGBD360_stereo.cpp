@@ -144,8 +144,8 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   for(std::map<unsigned, unsigned>::iterator it=bestMatch.begin(); it != bestMatch.end(); it++)
     std::cout << it->first << " " << it->second << std::endl;
 
-  std::cout << "Distance " << registerer.getPose().block(0,3,3,1).norm() << std::endl;
-  std::cout << "Pose \n" << registerer.getPose() << std::endl;
+//  std::cout << "Distance " << registerer.getPose().block(0,3,3,1).norm() << std::endl;
+//  std::cout << "Pose \n" << registerer.getPose() << std::endl;
 //#endif
 
   // Dense registration
@@ -153,6 +153,7 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
 //  Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
   RegisterPhotoICP align360; // Dense RGB-D alignment
   align360.setNumPyr(6);
+  align360.setMaxDepth(12.f);
   align360.useSaliency(false);
 // align360.setVisualization(true);
   align360.setGrayVariance(3.f/255);
@@ -266,7 +267,8 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
   Map.addKeyframe(&frame360_1, pose );
 //  pose = registerer.getPose();//.cast<double>();
-  pose = align360.getOptimalPose();
+//  pose = align360.getOptimalPose();
+  pose = rigidTransf_dense_ref;
   Map.addKeyframe(&frame360_2, pose );
   Map.vOptimizedPoses = Map.vTrajectoryPoses;
   Map.vOptimizedPoses[1] = icpTransformation;
