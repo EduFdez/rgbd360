@@ -114,6 +114,12 @@ class RegisterDense
     /*! Number of iterations in each pyramid level.*/
     std::vector<int> num_iterations;
 
+    enum sensorType
+    {
+        RGBD360_INDOOR = 0,
+        STEREO_OUTDOOR,
+    } sensor_type;
+
 public:
 
     /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
@@ -268,36 +274,75 @@ public:
     inline T weightHuber(const T &error)//, const T &scale)
     {
         //        assert(!std::isnan(error) && !std::isnan(scale))
+        T weight = (T)1;
         const T scale = 1.345;
         T error_abs = fabs(error);
-        if(error_abs < scale)
-            return 1.;
+        if(error_abs < scale){//std::cout << "weight One\n";
+            return weight;}
 
-        T weight = scale / error_abs;
+        weight = scale / error_abs;
+        //std::cout << "weight " << weight << "\n";
         return weight;
-        //MAD/0.6745,
     };
 
-    /*! Huber weight for robust estimation. */
+    /*! Tukey weight for robust estimation. */
     template<typename T>
     inline T weightTukey(const T &error)//, const T &scale)
     {
+        T weight = (T)0.;
         const T scale = 4.685;
         T error_abs = fabs(error);
         if(error_abs > scale)
-            return 0.;
+            return weight;
 
         T error_scale = error_abs/scale;
         T w_aux = 1 - error_scale*error_scale;
-        T weight = w_aux*w_aux;
+        weight = w_aux*w_aux;
         return weight;
+    };
+
+    /*! T-distribution weight for robust estimation. This is computed following the paper: "Robust Odometry Estimation for RGB-D Cameras" Kerl et al. ICRA 2013 */
+    template<typename T>
+    inline T weightTDist(const T &error, const T &stdDev, const T &nu)//, const T &scale)
+    {
+        T err_std = error / stdDev;
+        T weight = nu+1 / (nu + err_std*err_std);
+        return weight;
+    };
+
+    /*! Compute the standard deviation of the T-distribution following the paper: "Robust Odometry Estimation for RGB-D Cameras" Kerl et al. ICRA 2013 */
+    template<typename T>
+    inline T stdDev_TDist(const std::vector<T> &v_error, const T &stdDev, const T &nu)//, const T &scale)
+    {
+        std::vector<T> &v_error2( v_error.size() );
+        for(size_t i=0; i < v_error.size(); ++i)
+            v_error2[i] = v_error[i]*v_error[i];
+
+        int it = 0;
+        int max_iterations = 5;
+        T diff_convergence = 1e-3;
+        T diff_var = 100;
+        T variance_prev = 10000;
+        while (diff_var > diff_convergence && it < max_iterations)
+        {
+            T variance = 0.f;
+            for(size_t i=0; i < v_error.size(); ++i)
+                variance += v_error2[i]*weightTDist(v_error[i]);
+            variance /= v_error.size();
+            diff_var = fabs(variance_prev - variance);
+            variance_prev = variance;
+            ++it;
+        }
+        return sqrt(variance_prev);
     };
 
     template<typename T>
     inline T weightMEstimator(const T &error)
     {
-        weightHuber(error);
-//        weightTukey(error);
+        //std::cout << " error " << error << "weightHuber(error) " << weightHuber(error) << "\n";
+        return weightHuber(error);
+        //return weightTukey(error);
+        //return weightTDist(error,dev,5);
     };
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.

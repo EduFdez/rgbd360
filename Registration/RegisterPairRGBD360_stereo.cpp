@@ -68,6 +68,8 @@ int main (int argc, char ** argv)
     return 0;
   }
 
+  double time_start, time_end; // Measure timings of the different processes
+
   cv::Mat maskCar = cv::imread("/Data/Shared_Lagadic/useful_code/maskCar_.png",0);
 //  cv::imshow( "maskCar", maskCar );
 //  cv::waitKey(0);
@@ -153,20 +155,32 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
 //  Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
   RegisterDense align360; // Dense RGB-D alignment
   align360.setNumPyr(6);
-  align360.setMaxDepth(12.f);
+  align360.setMinDepth(1.f);
+  align360.setMaxDepth(15.f);
   align360.useSaliency(false);
 // align360.setVisualization(true);
-  align360.setGrayVariance(3.f/255);
+  align360.setGrayVariance(8.f/255);
   align360.setTargetFrame(frame360_1.sphereRGB, frame360_1.sphereDepth);
+//  time_start = pcl::getTime();
   align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
   cout << "RegisterDense \n";
-  align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//  time_end = pcl::getTime();
+//  std::cout << "alignFrames360 took " << double (time_end - time_start) << std::endl;
 //  Eigen::Matrix4f initTransf_dense = rotOffset * poseRegPbMap * rotOffset.inverse();
 //  align360.alignFrames360(initTransf_dense, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   Eigen::Matrix4f rigidTransf_dense_ref = align360.getOptimalPose();
 //  Eigen::Matrix4f rigidTransf_dense = rotOffset.inverse() * rigidTransf_dense_ref * rotOffset;
   cout << "Pose Dense \n" << rigidTransf_dense_ref << endl;
 //  cout << "Pose Dense2 \n" << rigidTransf_dense << endl;
+
+//  time_start = pcl::getTime();
+  align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
+  cout << "RegisterDense \n";
+  align360.alignFrames360_unity(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//  time_end = pcl::getTime();
+//  std::cout << "alignFrames360_unity took " << double (time_end - time_start) << std::endl;
+  std::cout << "Pose Dense unity \n" << align360.getOptimalPose() << std::endl;
 
   align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   std::cout << "Pose PHOTO_CONSISTENCY \n" << align360.getOptimalPose() << std::endl;
@@ -175,7 +189,7 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   std::cout << "Pose DEPTH_CONSISTENCY \n" << align360.getOptimalPose() << std::endl;
 
   // ICP alignement
-  double time_start = pcl::getTime();
+  time_start = pcl::getTime();
 //  pcl::IterativeClosestPoint<PointT,PointT> icp;
   pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
 //  pcl::IterativeClosestPointNonLinear<PointT,PointT> icp;
@@ -222,7 +236,7 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   Eigen::Matrix4f initRigidTransf = Eigen::Matrix4f::Identity();
   icp.align(*alignedICP, initRigidTransf);
 
-  double time_end = pcl::getTime();
+  time_end = pcl::getTime();
   std::cout << "ICP took " << double (time_end - time_start) << std::endl;
 
   //std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
