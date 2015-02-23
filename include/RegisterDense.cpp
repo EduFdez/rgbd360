@@ -4811,31 +4811,31 @@ void RegisterDense::alignFrames360(const Eigen::Matrix4f pose_guess, costFuncTyp
             {
                 if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                 {
-                    // Draw the segmented features: pixels moving forward and backward and occlusions
-                    cv::Mat segmentedSrcImg = colorSrcPyr[pyramidLevel].clone();
-                    //std::cout << "imgSize  " << imgSize << " nRows*nCols " << nRows << "x" << nCols << " types " << segmentedSrcImg.type() << " " << CV_8UC3 << std::endl;
-                    for(unsigned i=0; i < imgSize; i++)
-                    {
-                        if(mask_dynamic_occlusion.at<uchar>(i) == 255) // Draw in Red (BGR)
-                        {
-                            segmentedSrcImg.at<cv::Vec3b>(i)[0] = 0;
-                            segmentedSrcImg.at<cv::Vec3b>(i)[1] = 0;
-                            segmentedSrcImg.at<cv::Vec3b>(i)[2] = 255;
-                        }
-                        else if(mask_dynamic_occlusion.at<uchar>(i) == 155)
-                        {
-                            segmentedSrcImg.at<cv::Vec3b>(i)[0] = 0;
-                            segmentedSrcImg.at<cv::Vec3b>(i)[1] = 255;
-                            segmentedSrcImg.at<cv::Vec3b>(i)[2] = 0;
-                        }
-                        //                        else if(mask_dynamic_occlusion.at<uchar>(i) == 55)
-                        //                        {
-                        //                            segmentedSrcImg.at<cv::Vec3b>(i)[0] = 255;
-                        //                            segmentedSrcImg.at<cv::Vec3b>(i)[1] = 0;
-                        //                            segmentedSrcImg.at<cv::Vec3b>(i)[2] = 0;
-                        //                        }
-                    }
-                    cv::imshow("SegmentedSRC", segmentedSrcImg);
+//                    // Draw the segmented features: pixels moving forward and backward and occlusions
+//                    cv::Mat segmentedSrcImg = colorSrcPyr[pyramidLevel].clone();
+//                    //std::cout << "imgSize  " << imgSize << " nRows*nCols " << nRows << "x" << nCols << " types " << segmentedSrcImg.type() << " " << CV_8UC3 << std::endl;
+//                    for(unsigned i=0; i < imgSize; i++)
+//                    {
+//                        if(mask_dynamic_occlusion.at<uchar>(i) == 255) // Draw in Red (BGR)
+//                        {
+//                            segmentedSrcImg.at<cv::Vec3b>(i)[0] = 0;
+//                            segmentedSrcImg.at<cv::Vec3b>(i)[1] = 0;
+//                            segmentedSrcImg.at<cv::Vec3b>(i)[2] = 255;
+//                        }
+//                        else if(mask_dynamic_occlusion.at<uchar>(i) == 155)
+//                        {
+//                            segmentedSrcImg.at<cv::Vec3b>(i)[0] = 0;
+//                            segmentedSrcImg.at<cv::Vec3b>(i)[1] = 255;
+//                            segmentedSrcImg.at<cv::Vec3b>(i)[2] = 0;
+//                        }
+//                        //                        else if(mask_dynamic_occlusion.at<uchar>(i) == 55)
+//                        //                        {
+//                        //                            segmentedSrcImg.at<cv::Vec3b>(i)[0] = 255;
+//                        //                            segmentedSrcImg.at<cv::Vec3b>(i)[1] = 0;
+//                        //                            segmentedSrcImg.at<cv::Vec3b>(i)[2] = 0;
+//                        //                        }
+//                    }
+//                    cv::imshow("SegmentedSRC", segmentedSrcImg);
 
                     cv::imshow("trg", grayTrgPyr[pyramidLevel]);
                     cv::imshow("src", graySrcPyr[pyramidLevel]);

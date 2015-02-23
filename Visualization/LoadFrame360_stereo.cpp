@@ -30,7 +30,6 @@
  */
 
 #include <Frame360.h>
-#include <Frame360_stereo.h>
 #include <Frame360_Visualizer.h>
 #include <FilterPointCloud.h>
 

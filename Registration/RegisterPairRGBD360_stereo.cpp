@@ -111,8 +111,8 @@ int main (int argc, char ** argv)
 //  cv::waitKey(0);
 
   frame360_1.buildSphereCloud();
-  frame360_1.filterCloudBilateral_stereo();
-  frame360_1.segmentPlanesStereo();
+//  frame360_1.filterCloudBilateral_stereo();
+//  frame360_1.segmentPlanesStereo();
 
 cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphereCloud->height << " " << frame360_1.sphereCloud->is_dense << " " << endl;
 //cout << "frame360_1 filtered " << frame360_1.filteredCloud->width << " " << frame360_1.filteredCloud->height << " " << frame360_1.filteredCloud->is_dense << " " << endl;
@@ -130,25 +130,25 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   frame360_2.loadDepth(depth2, &maskCar);
   frame360_2.loadRGB(rgb2);
   frame360_2.buildSphereCloud();
-  frame360_2.filterCloudBilateral_stereo();
-  frame360_2.segmentPlanesStereo();
+//  frame360_2.filterCloudBilateral_stereo();
+//  frame360_2.segmentPlanesStereo();
 
 
-  RegisterRGBD360 registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH));
-  registerer.RegisterPbMap(&frame360_1, &frame360_2, 25, RegisterRGBD360::PLANAR_3DoF);
-//  registerer.RegisterPbMap(&frame360_1, &frame360_2, 20, RegisterRGBD360::DEFAULT_6DoF);
-//  registerer.RegisterPbMap(&frame360_1, &frame360_2, 20, RegisterRGBD360::ODOMETRY_6DoF);
-  Eigen::Matrix4f poseRegPbMap = registerer.getPose();
+//  RegisterRGBD360 registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH));
+//  registerer.RegisterPbMap(&frame360_1, &frame360_2, 25, RegisterRGBD360::PLANAR_3DoF);
+////  registerer.RegisterPbMap(&frame360_1, &frame360_2, 20, RegisterRGBD360::DEFAULT_6DoF);
+////  registerer.RegisterPbMap(&frame360_1, &frame360_2, 20, RegisterRGBD360::ODOMETRY_6DoF);
+//  Eigen::Matrix4f poseRegPbMap = registerer.getPose();
 
-//#if _DEBUG_MSG
-  std::map<unsigned, unsigned> bestMatch = registerer.getMatchedPlanes();
-//  std::cout << "NUMBER OF MATCHED PLANES " << bestMatch.size() << " areaMatched " << registerer.getAreaMatched() << std::endl;
-  for(std::map<unsigned, unsigned>::iterator it=bestMatch.begin(); it != bestMatch.end(); it++)
-    std::cout << it->first << " " << it->second << std::endl;
+////#if _DEBUG_MSG
+//  std::map<unsigned, unsigned> bestMatch = registerer.getMatchedPlanes();
+////  std::cout << "NUMBER OF MATCHED PLANES " << bestMatch.size() << " areaMatched " << registerer.getAreaMatched() << std::endl;
+//  for(std::map<unsigned, unsigned>::iterator it=bestMatch.begin(); it != bestMatch.end(); it++)
+//    std::cout << it->first << " " << it->second << std::endl;
 
-//  std::cout << "Distance " << registerer.getPose().block(0,3,3,1).norm() << std::endl;
-//  std::cout << "Pose \n" << registerer.getPose() << std::endl;
-//#endif
+////  std::cout << "Distance " << registerer.getPose().block(0,3,3,1).norm() << std::endl;
+////  std::cout << "Pose \n" << registerer.getPose() << std::endl;
+////#endif
 
   // Dense registration
 //  float angleOffset = 157.5;
@@ -158,13 +158,13 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   align360.setMinDepth(1.f);
   align360.setMaxDepth(15.f);
   align360.useSaliency(false);
-// align360.setVisualization(true);
+  align360.setVisualization(true);
   align360.setGrayVariance(8.f/255);
   align360.setTargetFrame(frame360_1.sphereRGB, frame360_1.sphereDepth);
 //  time_start = pcl::getTime();
   align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
   cout << "RegisterDense \n";
-  align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //  time_end = pcl::getTime();
 //  std::cout << "alignFrames360 took " << double (time_end - time_start) << std::endl;
 //  Eigen::Matrix4f initTransf_dense = rotOffset * poseRegPbMap * rotOffset.inverse();
@@ -241,7 +241,7 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
 
   //std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
   Eigen::Matrix4f icpTransformation = icp.getFinalTransformation(); //.cast<double>();
-  std::cout << "ICP transformation:\n" << icpTransformation << endl << "PbMap-Registration\n" << registerer.getPose() << std::endl;
+  std::cout << "ICP transformation:\n" << icpTransformation << endl << std::endl;
 
 
 //  // ICP point-to-plane

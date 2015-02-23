@@ -483,10 +483,10 @@ void Frame360::buildSphereCloud()
     //    bSphereCloudBuilt = true;
     //std::cout << " Frame360::buildSphereCloud_rgbd360() finished" << std::endl;
 
-#if _DEBUG_MSG
+//#if _DEBUG_MSG
     double time_end = pcl::getTime();
     std::cout << "PointCloud sphere construction took " << double (time_end - time_start) << std::endl;
-#endif
+//#endif
 }
 
 /*! Create the PbMap of the spherical point cloud */

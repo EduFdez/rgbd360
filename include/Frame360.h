@@ -158,6 +158,23 @@ private:
     //  /*! Has the spherical point cloud already been built? */
     //  bool bSphereCloudBuilt;
 
+    /*! This function segments planes from the point cloud corresponding to the sensor 'sensor_id',
+      in its local frame of reference
+    */
+    void getLocalPlanesInFrame(int sensor_id);
+
+    /*! This function segments planes from the point cloud corresponding to the sensor 'sensor_id',
+      in the frame of reference of the omnidirectional camera
+    */
+    void getPlanesSensor(int sensor_id);
+
+    /*! Undistort the depth image corresponding to the sensor 'sensor_id' */
+    void undistortDepthSensor(int sensor_id);
+
+    /*! Stitch both the RGB and the depth images corresponding to the sensor 'sensor_id' */
+    void stitchImage(int sensor_id);
+    // Functions for SphereStereo images (outdoors)
+
 public:
     /*! Constructor for the SphericalStereo sensor (outdoor sensor) */
     Frame360();
@@ -289,25 +306,6 @@ public:
     /*! Group the planes segmented from each single sensor into the common PbMap 'planes' */
     void groupPlanes();
 
-private:
-
-    /*! This function segments planes from the point cloud corresponding to the sensor 'sensor_id',
-      in its local frame of reference
-    */
-    void getLocalPlanesInFrame(int sensor_id);
-
-    /*! This function segments planes from the point cloud corresponding to the sensor 'sensor_id',
-      in the frame of reference of the omnidirectional camera
-    */
-    void getPlanesSensor(int sensor_id);
-
-    /*! Undistort the depth image corresponding to the sensor 'sensor_id' */
-    void undistortDepthSensor(int sensor_id);
-
-    /*! Stitch both the RGB and the depth images corresponding to the sensor 'sensor_id' */
-    void stitchImage(int sensor_id);
-    // Functions for SphereStereo images (outdoors)
- public:
     /*! Load a spherical RGB-D image from the raw data stored in a binary file */
     void loadDepth (const std::string &binaryDepthFile, const cv::Mat * mask = NULL);
 
