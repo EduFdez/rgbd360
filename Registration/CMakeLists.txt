@@ -9,8 +9,11 @@ IF(BUILD_REGISTRATION)
 						../include/Miscellaneous.h
 						../include/Calib360.h
 						../include/Frame360.h
-						../include/Map360_Visualizer.h
+                                                ../include/Frame360.cpp
+                                                ../include/Map360_Visualizer.h
 						../include/RegisterRGBD360.h
+                                                ../include/RegisterDense.h
+                                                ../include/RegisterDense.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(RegisterPairRGBD360
@@ -27,9 +30,12 @@ IF(BUILD_REGISTRATION)
 						../include/Miscellaneous.h
 						../include/Calib360.h
 						../include/Frame360.h
+                                                ../include/Frame360.cpp
 						../include/Frame360_stereo.h
 						../include/Map360_Visualizer.h
 						../include/RegisterRGBD360.h
+                                                ../include/RegisterDense.h
+                                                ../include/RegisterDense.cpp
 	)
 
         TARGET_LINK_LIBRARIES(RegisterPairRGBD360_stereo
@@ -46,9 +52,11 @@ IF(BUILD_REGISTRATION)
                                                 ../include/Miscellaneous.h
                                                 ../include/Calib360.h
                                                 ../include/Frame360.h
-                                                ../include/Frame360_stereo.h
+                                                ../include/Frame360.cpp
                                                 ../include/Map360_Visualizer.h
                                                 ../include/RegisterRGBD360.h
+                                                ../include/RegisterDense.h
+                                                ../include/RegisterDense.cpp
         )
 
         TARGET_LINK_LIBRARIES(OdometryRGBD360_stereo
@@ -61,7 +69,7 @@ IF(BUILD_REGISTRATION)
 #	# Declare the target (an executable)
 #	ADD_EXECUTABLE(RegisterRGBD_dataset RegisterRGBD_dataset.cpp
 #					../include/Miscellaneous.h
-#					../include/RegisterPhotoICP.h
+#					../include/RegisterDense.h
 #					../third_party/cvShowManyImages.h
 #	)
 #
@@ -79,9 +87,11 @@ IF(BUILD_REGISTRATION)
 						../include/Miscellaneous.h
 						../include/Calib360.h
 						../include/Frame360.h
+                                                ../include/Frame360.cpp
 						../include/Map360_Visualizer.h
 						../include/RegisterRGBD360.h
-						../include/RegisterPhotoICP.h
+                                                ../include/RegisterDense.h
+                                                ../include/RegisterDense.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(MethodsRegisterRGBD360
@@ -98,8 +108,11 @@ IF(BUILD_REGISTRATION)
 						../include/Miscellaneous.h
 						../include/Calib360.h
 						../include/Frame360.h
+                                                ../include/Frame360.cpp
 						../include/Map360.h
 						../include/RegisterRGBD360.h
+                                                ../include/RegisterDense.h
+                                                ../include/RegisterDense.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(OdometryRGBD360
@@ -116,8 +129,11 @@ IF(BUILD_REGISTRATION)
 						../include/Miscellaneous.h
 						../include/Calib360.h
 						../include/Frame360.h
+                                                ../include/Frame360.cpp
 						../include/Map360.h
 						../include/RegisterRGBD360.h
+                                                ../include/RegisterDense.h
+                                                ../include/RegisterDense.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(OdometryKeyFrame360
@@ -126,6 +142,7 @@ IF(BUILD_REGISTRATION)
 					${PCL_LIBRARIES}
 					${Boost_SERIALIZATION_LIBRARY}
 					   )
+
 
 #	# Declare the target (an executable)
 #	ADD_EXECUTABLE(RegisterSequenceLabel RegisterSequenceSphere_labelFast.cpp
@@ -149,6 +166,7 @@ IF(BUILD_REGISTRATION)
 #						../include/Miscellaneous.h
 #						../include/Calib360.h
 #						../include/Frame360.h
+                                                #../include/Frame360.cpp
 #						../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
 #						../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
 #	)

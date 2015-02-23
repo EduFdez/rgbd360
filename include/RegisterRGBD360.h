@@ -33,7 +33,7 @@
 #define REGISTER_RGBD360_H
 
 #include "Frame360.h"
-#include "RegisterPhotoICP.h"
+#include "RegisterDense.h"
 
 #ifndef _DEBUG_MSG
     #define _DEBUG_MSG 1
@@ -337,18 +337,18 @@ public:
         return goodAlignment;
     }
 
-    /*! Dense Photo/ICP registration. It performs registration for each separated sensor, and consequently is designed for small rotations/transformations
+    /*! Dense (direct) registration. It performs registration for each separated sensor, and consequently is designed for small rotations/transformations
      * Set the target frame and source frames for registration if specified.
       The parameter 'registMode' is used constraint the plane matching as
         0(DEFAULT_6DoF): unconstrained movement between frames,
         1(PLANAR_3DoF): planar movement (the camera is fixed in height) */
-    bool RegisterDensePhotoICP(Frame360 *frame1, Frame360 *frame2,
-                               Eigen::Matrix4f pose_estim = Eigen::Matrix4f::Identity(),
-                               RegisterPhotoICP::costFuncType method = RegisterPhotoICP::PHOTO_CONSISTENCY,
-                               registrationType registMode = DEFAULT_6DoF)
+    bool DenseRegistration(Frame360 *frame1, Frame360 *frame2,
+                           Eigen::Matrix4f pose_estim = Eigen::Matrix4f::Identity(),
+                           RegisterDense::costFuncType method = RegisterDense::PHOTO_CONSISTENCY,
+                           registrationType registMode = DEFAULT_6DoF)
     {
         assert(frame1 && frame2);
-        //    std::cout << "RegisterPhotoICP...\n";
+        //    std::cout << "RegisterDense...\n";
 //        double time_start = pcl::getTime();
 
         // Steps:
@@ -368,7 +368,7 @@ public:
         const float oy = img_height/2 - 0.5;
         Eigen::Matrix3f camIntrinsicMat; camIntrinsicMat << focal_length, 0, ox, 0, focal_length, oy, 0, 0, 1;
 
-        std::vector<RegisterPhotoICP> alignSensorID(NUM_ASUS_SENSORS);
+        std::vector<RegisterDense> alignSensorID(NUM_ASUS_SENSORS);
 
         //    #pragma omp parallel num_threads(8)
         for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
@@ -404,9 +404,9 @@ public:
             #pragma omp parallel for reduction (+:error)
             for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
             {
-                error += alignSensorID[sensor_id].calcPhotoICPError_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id], method);
+                error += alignSensorID[sensor_id].calcDenseError_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id], method);
 //                int sensor_id = omp_get_thread_num();
-//                error2_SensorID[sensor_id] = alignSensorID[sensor_id].calcPhotoICPError_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id], method);
+//                error2_SensorID[sensor_id] = alignSensorID[sensor_id].calcDenseError_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id], method);
 //            std::cout << "error2_SensorID[sensor_id] \n" << error2_SensorID[sensor_id] << std::endl;
             }
 //            for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
@@ -460,7 +460,7 @@ cv::TickMeter tm;tm.start();
                 double new_error = 0.0;
                 #pragma omp parallel for reduction (+:new_error)
                 for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
-                    new_error += alignSensorID[sensor_id].calcPhotoICPError_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id], method);
+                    new_error += alignSensorID[sensor_id].calcDenseError_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id], method);
 
                 diff_error = error - new_error;
 //            cout << "diff_error \n" << diff_error << endl;
@@ -486,7 +486,7 @@ cv::TickMeter tm;tm.start();
                         new_error = 0.0;
                         #pragma omp parallel for reduction (+:new_error)
                         for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
-                            new_error += alignSensorID[sensor_id].calcPhotoICPError_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id], method);
+                            new_error += alignSensorID[sensor_id].calcDenseError_robot(pyramidLevel, pose_estim, frame1->calib->Rt_[sensor_id], method);
                         diff_error = error - new_error;
 
 //                        cout << "diff_error LM \n" << diff_error << endl;

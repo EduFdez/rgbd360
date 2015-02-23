@@ -88,7 +88,7 @@ public:
         frame360_2->getPlanes();
         //    cout << "regsitrationCloud has " << registrationClouds[1]->size() << " Pts\n";
 
-        RegisterPhotoICP align360; // Dense RGB-D alignment
+        RegisterDense align360; // Dense RGB-D alignment
         align360.setNumPyr(5);
         align360.useSaliency(false);
 //        align360.setVisualization(true);
@@ -188,8 +188,8 @@ public:
                 double time_start_dense = pcl::getTime();
                 align360.setTargetFrame(frame360_1->sphereRGB, frame360_1->sphereDepth);
                 align360.setSourceFrame(frame360_2->sphereRGB, frame360_2->sphereDepth);
-//                align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-                align360.alignFrames360(rigidTransf_dense, RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//                align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                align360.alignFrames360(rigidTransf_dense, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
                 rigidTransf_dense = rotOffset.inverse() * align360.getOptimalPose() * rotOffset;
                 double time_end_dense = pcl::getTime();
                 std::cout << "Dense " << (time_end_dense - time_start_dense) << std::endl;
@@ -198,8 +198,8 @@ public:
 //            else
 //            {
 //                cout << "Align imgs " << endl;
-//                registerer.RegisterDensePhotoICP(Map.vpSpheres[*compareSphereId], frame360, Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_CONSISTENCY, RegisterRGBD360::DEFAULT_6DoF);
-////                        registerer.RegisterDensePhotoICP(Map.vpSpheres[*compareSphereId], frame360, rigidTransf, RegisterPhotoICP::PHOTO_CONSISTENCY, RegisterRGBD360::DEFAULT_6DoF);
+//                registerer.DenseRegistration(Map.vpSpheres[*compareSphereId], frame360, Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY, RegisterRGBD360::DEFAULT_6DoF);
+////                        registerer.DenseRegistration(Map.vpSpheres[*compareSphereId], frame360, rigidTransf, RegisterDense::PHOTO_CONSISTENCY, RegisterRGBD360::DEFAULT_6DoF);
 //                rigidTransf = registerer.getPose();
 //            }
 

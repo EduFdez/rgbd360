@@ -48,43 +48,43 @@
  */
 
 /*! Maximum number of planes to match when registering a pair of Spheres */
-float max_match_planes = 25;
+static float max_match_planes = 25;
 
 /*! Maximum curvature to consider the region as planar */
-float max_curvature_plane = 0.0013;
+static float max_curvature_plane = 0.0013;
 
 /*! Minimum area to consider the planar patch */
-float min_area_plane = 0.12;
+static float min_area_plane = 0.12;
 
 /*! Maximum elongation to consider the planar patch */
-float max_elongation_plane = 6;
+static float max_elongation_plane = 6;
 
 /*! Minimum number of matched planes to consider a good registration */
-float min_planes_registration = 4;
+static float min_planes_registration = 4;
 
 /*! Minimum distance between keyframes */
-float min_dist_keyframes = 0.2;
+static float min_dist_keyframes = 0.2;
 
 /*! Maximum distance between two consecutive frames of a RGBD360 video sequence */
-float max_translation_odometry = 1.8;
+static float max_translation_odometry = 1.8;
 
 /*! Maximum rotation between two consecutive frames of a RGBD360 video sequence */
-float max_rotation_odometry = 1.2;
+static float max_rotation_odometry = 1.2;
 
 /*! Maximum conditioning to resolve the calibration equation system. This parameter
     represent the ratio between the maximum and the minimum eigenvalue of the system */
-float threshold_conditioning = 8000.0;
+static float threshold_conditioning = 8000.0;
 
-unsigned char red [10] = {255,   0,   0, 255, 255,   0, 255, 204,   0, 255};
-unsigned char grn [10] = {  0, 255,   0, 255,   0, 255, 160,  51, 128, 222};
-unsigned char blu [10] = {  0,   0, 255,   0, 255, 255, 0  , 204,   0, 173};
+static unsigned char red [10] = {255,   0,   0, 255, 255,   0, 255, 204,   0, 255};
+static unsigned char grn [10] = {  0, 255,   0, 255,   0, 255, 160,  51, 128, 222};
+static unsigned char blu [10] = {  0,   0, 255,   0, 255, 255, 0  , 204,   0, 173};
 
-double ared [10] = {1.0,   0,   0, 1.0, 1.0,   0, 1.0, 0.8,   0, 1.0};
-double agrn [10] = {  0, 1.0,   0, 1.0,   0, 1.0, 0.6, 0.2, 0.5, 0.9};
-double ablu [10] = {  0,   0, 1.0,   0, 1.0, 1.0,   0, 0.8,   0, 0.7};
+static double ared [10] = {1.0,   0,   0, 1.0, 1.0,   0, 1.0, 0.8,   0, 1.0};
+static double agrn [10] = {  0, 1.0,   0, 1.0,   0, 1.0, 0.6, 0.2, 0.5, 0.9};
+static double ablu [10] = {  0,   0, 1.0,   0, 1.0, 1.0,   0, 0.8,   0, 0.7};
 
 /*! Generate a skew-symmetric matrix from a 3D vector */
-template<typename dataType>
+template<typename dataType> inline
 Eigen::Matrix<dataType,3,3> skew(const Eigen::Matrix<dataType,3,1> vec)
 {
   Eigen::Matrix<dataType,3,3> skew_matrix = Eigen::Matrix<dataType,3,3>::Zero();
@@ -98,7 +98,7 @@ Eigen::Matrix<dataType,3,3> skew(const Eigen::Matrix<dataType,3,1> vec)
 }
 
 /*! Return the translation vector of the input pose */
-template<typename dataType>
+template<typename dataType> inline
 Eigen::Matrix<dataType,3,1> getPoseTranslation(Eigen::Matrix<dataType,4,4> pose)
 {
   Eigen::Matrix<dataType,3,1> translation = pose.block(0,3,3,1);
@@ -106,7 +106,7 @@ Eigen::Matrix<dataType,3,1> getPoseTranslation(Eigen::Matrix<dataType,4,4> pose)
 }
 
 /*! Return the rotation vector of the input pose */
-template<typename dataType>
+template<typename dataType> inline
 Eigen::Matrix<dataType,3,1> getPoseRotation(Eigen::Matrix<dataType,4,4> pose)
 {
   mrpt::math::CMatrixDouble44 mat_mrpt(pose);
@@ -117,14 +117,14 @@ Eigen::Matrix<dataType,3,1> getPoseRotation(Eigen::Matrix<dataType,4,4> pose)
 }
 
 /*! Check if the path 'filename' corresponds to a file */
-bool fexists(const char *filename)
+inline bool fexists(const char *filename)
 {
   std::ifstream ifile(filename);
   return ifile;
 }
 
 /*! Calculate the rotation difference between the two poses */
-float diffRotation(Eigen::Matrix4f &pose1, Eigen::Matrix4f &pose2)
+inline float diffRotation(Eigen::Matrix4f &pose1, Eigen::Matrix4f &pose2)
 {
     // Eigen::Matrix3f relativeRotation = pose1.block(0,0,3,3).transpose() * pose2.block(0,0,3,3);
     //    Eigen::Isometry3d cam; // camera pose
@@ -136,12 +136,12 @@ float diffRotation(Eigen::Matrix4f &pose1, Eigen::Matrix4f &pose2)
     float anglePoses = _pose1.angularDistance(_pose2); // in radians
 //    std::cout << "  anglePoses " << anglePoses << std::endl;
 
-//    return mrpt::utils::RAD2DEG(anglePoses);
-    return RAD2DEG(anglePoses);
+    return mrpt::utils::RAD2DEG(anglePoses);
+//    return RAD2DEG(anglePoses);
 }
 
 /*! Calculate the rotation difference between the two poses */
-float difTranslation(Eigen::Matrix4f &pose1, Eigen::Matrix4f &pose2)
+inline float difTranslation(Eigen::Matrix4f &pose1, Eigen::Matrix4f &pose2)
 {
     Eigen::Matrix4f relativePose = pose1.inverse() * pose2;
     std::cout << "  distPoses " << relativePose.block(0,3,3,1).norm() << std::endl;
@@ -149,8 +149,21 @@ float difTranslation(Eigen::Matrix4f &pose1, Eigen::Matrix4f &pose2)
 //    Eigen::Vector3f diffTrans = pose1.block(0,3,3,1) -
 }
 
+// Return a diagonal matrix where the values of the diagonal are assigned from the input vector
+template<typename typedata, int nRows, int nCols> inline
+Eigen::Matrix<typedata,nRows,nCols> getDiagonalMatrix(const Eigen::Matrix<typedata,nRows,nCols> &matrix_generic)
+{
+    assert(nRows == nCols);
+
+    Eigen::Matrix<typedata,nRows,nCols> m_diag = Eigen::Matrix<typedata,nRows,nCols>::Zero();
+    for(size_t i=0; i < nRows; i++)
+        m_diag(i,i) = matrix_generic(i,i);
+
+    return m_diag;
+}
+
 /*! Compute the mean and standard deviation from a std::vector of float/double values.*/
-template<typename dataType>
+template<typename dataType> inline
 void calcMeanAndStDev(std::vector<dataType> &v, dataType &mean, dataType &stdev)
 {
     dataType sum = std::accumulate(v.begin(), v.end(), 0.0);
@@ -206,7 +219,7 @@ void calcMeanAndStDev(std::vector<dataType> &v, dataType &mean, dataType &stdev)
 //}
 
 /*! Return a vector of pairs of 2D-points (x1,y1,x2,y2) defining segments which correspond to vertical planes */
-std::vector<Eigen::Vector4f> getVerticalPlanes(mrpt::pbmap::PbMap &planes)
+inline std::vector<Eigen::Vector4f> getVerticalPlanes(mrpt::pbmap::PbMap &planes)
 {
   std::vector<Eigen::Vector4f> wall_planes2D;
   for(unsigned i=0; i<planes.vPlanes.size(); i++)
@@ -255,6 +268,14 @@ std::vector<Eigen::Vector4f> getVerticalPlanes(mrpt::pbmap::PbMap &planes)
   }
 
   return wall_planes2D;
+}
+
+template<typename T> inline
+T median(std::vector<T> &v)
+{
+    size_t n = v.size() / 2;
+    std::nth_element(v.begin(), v.begin()+n, v.end());
+    return v[n];
 }
 
 #endif

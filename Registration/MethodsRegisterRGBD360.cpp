@@ -332,7 +332,7 @@ int main (int argc, char ** argv)
     const float ox = img_width/2 - 0.5;
     const float oy = img_height/2 - 0.5;
     Eigen::Matrix3f camIntrinsicMat; camIntrinsicMat << focal_length, 0, ox, 0, focal_length, oy, 0, 0, 1;
-    RegisterPhotoICP alignSingleFrames;
+    RegisterDense alignSingleFrames;
     alignSingleFrames.setCameraMatrix(camIntrinsicMat);
 
     std::cout << "\n\n SENSOR " << sensorID << std::endl;
@@ -344,8 +344,8 @@ int main (int argc, char ** argv)
     alignSingleFrames.setSourceFrame(frame360_2.frameRGBD_[sensorID].getRGBImage(), frame360_2.frameRGBD_[sensorID].getDepthImage());
 //    alignSingleFrames.setVisualization(true);
     double time_start1 = pcl::getTime();
-//    alignSingleFrames.alignFrames(Eigen::Matrix4f::Identity(), RegisterPhotoICP::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / PHOTO_DEPTH / DEPTH_CONSISTENCY
-    alignSingleFrames.alignFrames(sensorID_relPosePbMap, RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / PHOTO_DEPTH / DEPTH_CONSISTENCY
+//    alignSingleFrames.alignFrames(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / PHOTO_DEPTH / DEPTH_CONSISTENCY
+    alignSingleFrames.alignFrames(sensorID_relPosePbMap, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / PHOTO_DEPTH / DEPTH_CONSISTENCY
 
     Eigen::Matrix4f sensorID_dense_relPose = alignSingleFrames.getOptimalPose();
     time_end = pcl::getTime();
@@ -358,7 +358,7 @@ int main (int argc, char ** argv)
 //    alignSingleFrames.useSaliency(true);
 //    alignSingleFrames.setTargetFrame(frame360_1.frameRGBD_[sensorID].getRGBImage(), frame360_1.frameRGBD_[sensorID].getDepthImage());
 //    alignSingleFrames.setSourceFrame(frame360_2.frameRGBD_[sensorID].getRGBImage(), frame360_2.frameRGBD_[sensorID].getDepthImage());
-//    alignSingleFrames.alignFrames(sensorID_relPosePbMap, RegisterPhotoICP::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY
+//    alignSingleFrames.alignFrames(sensorID_relPosePbMap, RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY
 //    time_end = pcl::getTime();
 //    std::cout << "Dense alignment Single Frame took " << double (time_end - time_start) << std::endl;
 //    std::cout << "saliency:\n" << alignSingleFrames.getOptimalPose() << "\nsensorID_dense_relPose:\n" << sensorID_dense_relPose << std::endl;
@@ -385,7 +385,7 @@ int main (int argc, char ** argv)
 //    alignSingleFrames.setTargetFrame(frame360_1.frameRGBD_[sensorID].getRGBImage(), frame360_1.frameRGBD_[sensorID].getDepthImage());
 //    alignSingleFrames.setSourceFrame(frame360_2.frameRGBD_[sensorID].getRGBImage(), frame360_2.frameRGBD_[sensorID].getDepthImage());
 ////    alignSingleFrames.setVisualization(true);
-//    alignSingleFrames.alignFrames(sensorID_relPosePbMap, RegisterPhotoICP::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / PHOTO_DEPTH / DEPTH_CONSISTENCY
+//    alignSingleFrames.alignFrames(sensorID_relPosePbMap, RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / PHOTO_DEPTH / DEPTH_CONSISTENCY
 
 //    sensorID_dense_relPose = alignSingleFrames.getOptimalPose();
 //    time_end = pcl::getTime();
@@ -399,8 +399,8 @@ int main (int argc, char ** argv)
 
 //    // Dense Photo/Depth consistency
 //    time_start = pcl::getTime();
-//    registerer.RegisterDensePhotoICP(&frame360_1, &frame360_2, relPosePbMap, RegisterPhotoICP::PHOTO_CONSISTENCY, RegisterRGBD360::DEFAULT_6DoF);
-////    registerer.RegisterDensePhotoICP_2(&frame360_1, &frame360_2, relPosePbMap, RegisterPhotoICP::PHOTO_CONSISTENCY, RegisterRGBD360::DEFAULT_6DoF);
+//    registerer.DenseRegistration(&frame360_1, &frame360_2, relPosePbMap, RegisterDense::PHOTO_CONSISTENCY, RegisterRGBD360::DEFAULT_6DoF);
+////    registerer.DenseRegistration_2(&frame360_1, &frame360_2, relPosePbMap, RegisterDense::PHOTO_CONSISTENCY, RegisterRGBD360::DEFAULT_6DoF);
 //    Matrix4f relPoseDense = registerer.getPose();
 //    time_end = pcl::getTime();
 //    std::cout << "Odometry dense alignment 360 took " << double (time_end - time_start) << std::endl;
@@ -410,7 +410,7 @@ int main (int argc, char ** argv)
 
     // Dense Photo/Depth consistency spherical
     time_start = pcl::getTime();
-    RegisterPhotoICP align360;
+    RegisterDense align360;
     align360.setNumPyr(4);
     frame360_1.stitchSphericalImage();
     frame360_2.stitchSphericalImage();
@@ -443,9 +443,9 @@ int main (int argc, char ** argv)
     time_start = pcl::getTime();
 //    align360.setVisualization(true);
 //    align360.setGrayVariance(4.f/255);
-    align360.alignFrames360(initDenseMatching, RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//    align360.alignFrames360(relPosePbMap, RegisterPhotoICP::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//    align360.alignFrames360(Matrix4f::Identity(), RegisterPhotoICP::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    align360.alignFrames360(initDenseMatching, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//    align360.alignFrames360(relPosePbMap, RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//    align360.alignFrames360(Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     Matrix4f relPoseDenseSphere = align360.getOptimalPose();
     Matrix4f relPoseDenseSphere_ref = rotOffset.inverse() * relPoseDenseSphere * rotOffset;
     time_end = pcl::getTime();
@@ -454,7 +454,7 @@ int main (int argc, char ** argv)
     //cout << "relPoseDenseSphere_ref: " << align360.avPhotoResidual << " " << align360.avDepthResidual << "\n" << relPoseDenseSphere_ref << endl;
 
     time_start = pcl::getTime();
-    align360.alignFrames360(initDenseMatching, RegisterPhotoICP::PHOTO_DEPTH, 1); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    align360.alignFrames360(initDenseMatching, RegisterDense::PHOTO_DEPTH, 1); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     relPoseDenseSphere = align360.getOptimalPose();
     relPoseDenseSphere_ref = rotOffset.inverse() * relPoseDenseSphere * rotOffset;
     time_end = pcl::getTime();
@@ -463,7 +463,7 @@ int main (int argc, char ** argv)
 
     time_start = pcl::getTime();
     align360.setVisualization(true);
-    align360.alignFrames360(initDenseMatching, RegisterPhotoICP::PHOTO_DEPTH, 2); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    align360.alignFrames360(initDenseMatching, RegisterDense::PHOTO_DEPTH, 2); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     relPoseDenseSphere = align360.getOptimalPose();
     relPoseDenseSphere_ref = rotOffset.inverse() * relPoseDenseSphere * rotOffset;
     time_end = pcl::getTime();

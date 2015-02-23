@@ -44,7 +44,7 @@
 #include <fstream>
 
 
-void getMatrixNumberRepresentationOf_uint64_t(uint64_t number,cv::Mat & matrixNumberRepresentation)
+void inline getMatrixNumberRepresentationOf_uint64_t(const uint64_t number, cv::Mat & matrixNumberRepresentation)
 {
 
     //Determine the number of digits of the number
@@ -74,7 +74,7 @@ void getMatrixNumberRepresentationOf_uint64_t(uint64_t number,cv::Mat & matrixNu
     }
 }
 
-void get_uint64_t_ofMatrixRepresentation(cv::Mat & matrixNumberRepresentation, uint64_t & number)
+void inline get_uint64_t_ofMatrixRepresentation(const cv::Mat & matrixNumberRepresentation, uint64_t & number)
 {
     int num_digits = matrixNumberRepresentation.cols;
 
