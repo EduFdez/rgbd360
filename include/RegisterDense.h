@@ -111,6 +111,16 @@ class RegisterDense
     /*! LUT of 3D points of the source image.*/
     std::vector<Eigen::Vector3f>  LUT_xyz_source;
 
+    /*! Store a copy of the residuals and the weights to speed-up the registration. (Before they were computed twice: in the error function and the Jacobian)*/
+    Eigen::VectorXf residualsPhoto;
+    Eigen::VectorXf residualsDepth;
+    Eigen::VectorXf wEstimPhoto;
+    Eigen::VectorXf wEstimDepth;
+    Eigen::VectorXf validPixels;
+    Eigen::VectorXf validPixelsPhoto;
+    Eigen::VectorXf validPixelsDepth;
+    Eigen::Matrix<float,3,Eigen::Dynamic> transformedPoints;
+
     /*! Number of iterations in each pyramid level.*/
     std::vector<int> num_iterations;
 
@@ -275,12 +285,28 @@ public:
     {
         //        assert(!std::isnan(error) && !std::isnan(scale))
         T weight = (T)1;
-        const T scale = 1.345;
+        const T scale = 1.;//345;
         T error_abs = fabs(error);
         if(error_abs < scale){//std::cout << "weight One\n";
             return weight;}
 
         weight = scale / error_abs;
+        //std::cout << "weight " << weight << "\n";
+        return weight;
+    };
+
+    /*! Huber weight for robust estimation. */
+    template<typename T>
+    inline T weightHuber_sqrt(const T &error)//, const T &scale)
+    {
+        //        assert(!std::isnan(error) && !std::isnan(scale))
+        T weight = (T)1;
+        const T scale = 1.;//345;
+        T error_abs = fabs(error);
+        if(error_abs < scale){//std::cout << "weight One\n";
+            return weight;}
+
+        weight = sqrt(scale / error_abs);
         //std::cout << "weight " << weight << "\n";
         return weight;
     };

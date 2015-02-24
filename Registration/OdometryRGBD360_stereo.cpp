@@ -106,8 +106,8 @@ public:
         if( fileExtRGB.compare( rgb.substr(rgb.length()-4) ) == 0 ) // If the first string correspond to a pointCloud path
         {
           depth_raw = path_sequence + "depth" + frame_num_s + fileExtRawDepth;
-//          depth_fused = path_sequence + "gapFillingPlusFusion/depth" + frame_num_s + fileExtRawDepth;
-          depth_fused = path_sequence + "depth" + frame_num_s + fileExtFusedDepth;
+          depth_fused = path_sequence + "gapFillingPlusFusion/depth" + frame_num_s + fileExtRawDepth;
+//          depth_fused = path_sequence + "depth" + frame_num_s + fileExtFusedDepth;
           std::cout << "  rgb:\t\t" << rgb << "\n  depth_raw:\t" << depth_raw << "\n  depth_fused:\t" << depth_fused << std::endl;
         }
         else
@@ -196,10 +196,12 @@ public:
         for(size_t i=0; i < frame_src_fused->planes.vPlanes.size (); i++)
             plane_inliers_fused += frame_src_fused->planes.vPlanes[i].inliers.size();
 
-        ofstream poses_dense, poses_dense_photo, poses_dense_depth, poses_icp, poses_pbmap;
+        ofstream poses_dense, poses_dense_fused, poses_dense_photo, poses_dense_depth, poses_icp, poses_pbmap;
         //string trajectoryFile = mrpt::format("%s/poses_dense.txt", path_results);
         string trajectoryFile(path_results + "/poses_dense.txt");
         poses_dense.open ( trajectoryFile.c_str() );
+        trajectoryFile = string(path_results + "/poses_dense_fused.txt");
+        poses_dense_fused.open ( trajectoryFile.c_str() );
         trajectoryFile = string(path_results + "/poses_dense_photo.txt");
         poses_dense_photo.open ( trajectoryFile.c_str() );
         trajectoryFile = string(path_results + "/poses_dense_depth.txt");
@@ -213,6 +215,7 @@ public:
 
         //Eigen::Matrix4f Rt = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f Rt_dense = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f Rt_dense_fused = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f Rt_dense_photo = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f Rt_dense_depth = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f Rt_icp = Eigen::Matrix4f::Identity();
@@ -227,7 +230,8 @@ public:
 
         frame_num += selectSample;
         depth_raw = mrpt::format("%sdepth%07d%s", path_sequence.c_str(), frame_num, fileExtRawDepth.c_str());
-        depth_fused = mrpt::format("%sdepth%07d%s", path_sequence.c_str(), frame_num, fileExtFusedDepth.c_str());
+        depth_fused = mrpt::format("%sgapFillingPlusFusion/depth%07d%s", path_sequence.c_str(), frame_num, fileExtRawDepth.c_str());
+//        depth_fused = mrpt::format("%sdepth%07d%s", path_sequence.c_str(), frame_num, fileExtFusedDepth.c_str());
         rgb = mrpt::format("%stop%07d%s", path_sequence.c_str(), frame_num, fileExtRGB.c_str());
 
         while( fexists(depth_raw.c_str()) && fexists(depth_fused.c_str()) && fexists(rgb.c_str()) )
@@ -278,18 +282,18 @@ public:
             }
 
 
-            // Align the two frames
-            //bGoodRegistration =
-            registerer.RegisterPbMap(frame_trg_fused, frame_src_fused, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
-            //        bGoodRegistration = registerer.RegisterPbMap(frame_trg_fused, frame_src_fused, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_ODOMETRY_3DoF);
-            //            cout << "entropy-Pbmap " << registerer.calcEntropy() << endl;
-            //            cout << "entropy " << align360.calcEntropy() << endl;
+//            // Align the two frames
+//            //bGoodRegistration =
+//            registerer.RegisterPbMap(frame_trg_fused, frame_src_fused, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_3DoF);
+//            //        bGoodRegistration = registerer.RegisterPbMap(frame_trg_fused, frame_src_fused, MAX_MATCH_PLANES, RegisterRGBD360::PLANAR_ODOMETRY_3DoF);
+//            //            cout << "entropy-Pbmap " << registerer.calcEntropy() << endl;
+//            //            cout << "entropy " << align360.calcEntropy() << endl;
 
             //cout << "RegisterDense \n";
             align360.setTargetFrame(frame_trg_fused->sphereRGB, frame_trg_fused->sphereDepth);
             align360.setSourceFrame(frame_src_fused->sphereRGB, frame_src_fused->sphereDepth);
             align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            Rt_dense = align360.getOptimalPose();
+            Rt_dense_fused = align360.getOptimalPose();
 //            align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //            Rt_dense_photo = align360.getOptimalPose();
 //            align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
@@ -300,7 +304,7 @@ public:
             align360.setTargetFrame(frame_trg->sphereRGB, frame_trg->sphereDepth);
             align360.setSourceFrame(frame_src->sphereRGB, frame_src->sphereDepth);
             align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            Rt_dense_NF = align360.getOptimalPose();
+            Rt_dense = align360.getOptimalPose();
 //            align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //            Rt_dense_photo_NF = align360.getOptimalPose();
 
@@ -334,17 +338,19 @@ public:
             for(int i=0;i<4;i++)
               for(int j=0;j<4;j++)
               {
+                poses_dense_fused << Rt_dense_fused(j,i) << "\t";
                 poses_dense << Rt_dense(j,i) << "\t";
-                poses_dense_photo << Rt_dense_photo(j,i) << "\t";
-                poses_dense_depth << Rt_dense_depth(j,i) << "\t";
-                poses_icp << Rt_icp(j,i) << "\t";
-                poses_pbmap << Rt_pbmap(j,i) << "\t";
+//                poses_dense_photo << Rt_dense_photo(j,i) << "\t";
+//                poses_dense_depth << Rt_dense_depth(j,i) << "\t";
+//                poses_icp << Rt_icp(j,i) << "\t";
+//                poses_pbmap << Rt_pbmap(j,i) << "\t";
               }
+            poses_dense_fused << std::endl;
             poses_dense << std::endl;
-            poses_dense_photo << std::endl;
-            poses_dense_depth << std::endl;
-            poses_icp << std::endl;
-            poses_pbmap << std::endl;
+//            poses_dense_photo << std::endl;
+//            poses_dense_depth << std::endl;
+//            poses_icp << std::endl;
+//            poses_pbmap << std::endl;
 
 
 //            if(!bGoodRegistration)
@@ -395,7 +401,8 @@ public:
             // Next frame
             frame_num += selectSample;
             depth_raw = mrpt::format("%sdepth%07d%s", path_sequence.c_str(), frame_num, fileExtRawDepth.c_str());
-            depth_fused = mrpt::format("%sdepth%07d%s", path_sequence.c_str(), frame_num, fileExtFusedDepth.c_str());
+            depth_fused = mrpt::format("%sgapFillingPlusFusion/depth%07d%s", path_sequence.c_str(), frame_num, fileExtRawDepth.c_str());
+//            depth_fused = mrpt::format("%sdepth%07d%s", path_sequence.c_str(), frame_num, fileExtFusedDepth.c_str());
             rgb = mrpt::format("%stop%07d%s", path_sequence.c_str(), frame_num, fileExtRGB.c_str());
             std::cout << "Frame " << frame_num << std::endl;
 
@@ -425,11 +432,22 @@ public:
             //    mrpt::system::pause();
         }
 
+        if( !fexists(depth_raw.c_str()) )
+            std::cout << "FILE DOES NOT EXIST " << depth_raw << std::endl;
+
+        if( !fexists(depth_fused.c_str()) )
+            std::cout << "FILE DOES NOT EXIST " << depth_fused << std::endl;
+
+        if( !fexists(rgb.c_str()) )
+            std::cout << "FILE DOES NOT EXIST " << rgb << std::endl;
+
+
         // Show verifications (IROS 2015)
         std::cout << "Average num of planes " << float(num_planes)/num_frames << " average inliers " << float(plane_inliers)/num_frames << std::endl;
         std::cout << "FUSED: Average num of planes " << float(num_planes_fused)/num_frames << " average inliers " << float(plane_inliers_fused)/num_frames << std::endl;
 
         poses_dense.close();
+        poses_dense_fused.close();
         poses_dense_photo.close();
         poses_dense_depth.close();
         poses_icp.close();

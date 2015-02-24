@@ -80,12 +80,17 @@ int main (int argc, char ** argv)
 
   string fileType = ".png";
   string depth1, depth2;
-  std::cout << "  end: " << rgb1.substr(rgb1.length()-4) << std::endl;
+  //std::cout << "  end: " << rgb1.substr(rgb1.length()-4) << std::endl;
 
   if( fileType.compare( rgb1.substr(rgb1.length()-4) ) == 0 && fileType.compare( rgb2.substr(rgb2.length()-4) ) == 0 ) // If the first string correspond to a pointCloud path
   {
-    depth1 = rgb1.substr(0, rgb1.length()-14) + "depth" + rgb1.substr(rgb1.length()-11, 7) + "pT.raw";
-    depth2 = rgb2.substr(0, rgb2.length()-14) + "depth" + rgb2.substr(rgb2.length()-11, 7) + "pT.raw";
+//    depth1 = rgb1.substr(0, rgb1.length()-14) + "depth" + rgb1.substr(rgb1.length()-11, 7) + ".raw";
+//    depth2 = rgb2.substr(0, rgb2.length()-14) + "depth" + rgb2.substr(rgb2.length()-11, 7) + ".raw";
+//    depth1 = rgb1.substr(0, rgb1.length()-14) + "depth" + rgb1.substr(rgb1.length()-11, 7) + "pT.raw";
+//    depth2 = rgb2.substr(0, rgb2.length()-14) + "depth" + rgb2.substr(rgb2.length()-11, 7) + "pT.raw";
+    depth1 = rgb1.substr(0, rgb1.length()-14) + "gapFillingPlusFusion/depth" + rgb1.substr(rgb1.length()-11, 7) + ".raw";
+    depth2 = rgb2.substr(0, rgb2.length()-14) + "gapFillingPlusFusion/depth" + rgb2.substr(rgb2.length()-11, 7) + ".raw";
+
     std::cout << "  depth1: " << depth1 << "\n  depth2: " << depth2 << std::endl;
   }
   else
@@ -158,15 +163,16 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   align360.setMinDepth(1.f);
   align360.setMaxDepth(15.f);
   align360.useSaliency(false);
-  align360.setVisualization(true);
+  //align360.setVisualization(true);
   align360.setGrayVariance(8.f/255);
   align360.setTargetFrame(frame360_1.sphereRGB, frame360_1.sphereDepth);
-//  time_start = pcl::getTime();
   align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
   cout << "RegisterDense \n";
+  time_start = pcl::getTime();
+//  for(size_t i=0; i < 20; i++)
   align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//  time_end = pcl::getTime();
-//  std::cout << "alignFrames360 took " << double (time_end - time_start) << std::endl;
+  time_end = pcl::getTime();
+  std::cout << "alignFrames360 took " << double (time_end - time_start) << std::endl;
 //  Eigen::Matrix4f initTransf_dense = rotOffset * poseRegPbMap * rotOffset.inverse();
 //  align360.alignFrames360(initTransf_dense, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   Eigen::Matrix4f rigidTransf_dense_ref = align360.getOptimalPose();
@@ -176,7 +182,7 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
 
 //  time_start = pcl::getTime();
   align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
-  cout << "RegisterDense \n";
+  cout << "RegisterDense UNITY \n";
   align360.alignFrames360_unity(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //  time_end = pcl::getTime();
 //  std::cout << "alignFrames360_unity took " << double (time_end - time_start) << std::endl;
