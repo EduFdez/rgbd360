@@ -17,6 +17,7 @@ IF(BUILD_VISUALIZATION)
 	ADD_EXECUTABLE(LoadFrame360 LoadFrame360.cpp
 					../include/Calib360.h
 					../include/Frame360.h
+					../include/Frame360.cpp
 					../include/Frame360_Visualizer.h
 					../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
 					../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
@@ -32,11 +33,12 @@ IF(BUILD_VISUALIZATION)
 	# Declare the target (an executable)
 	ADD_EXECUTABLE(LoadFrame360_stereo LoadFrame360_stereo.cpp
 					../include/Frame360_stereo.h
-				     ../include/Calib360.h
-				     ../include/Frame360.h
-				     ../include/Frame360_Visualizer.h
-				     ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
-				     ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
+					../include/Calib360.h
+					../include/Frame360.h
+					../include/Frame360.cpp
+					../include/Frame360_Visualizer.h
+					../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
+					../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(LoadFrame360_stereo
@@ -46,10 +48,29 @@ IF(BUILD_VISUALIZATION)
 					${Boost_SERIALIZATION_LIBRARY}
 	)
 
+        # Declare the target (an executable)
+        ADD_EXECUTABLE(Frame360_compare Frame360_compare.cpp
+                                        ../include/Frame360_stereo.h
+                                        ../include/Calib360.h
+                                        ../include/Frame360.h
+                                        ../include/Frame360.cpp
+                                        ../include/Frame360CompareVisualizer.h
+                                        ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
+                                        ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
+        )
+
+        TARGET_LINK_LIBRARIES(Frame360_compare
+                                        ${MRPT_LIBS}
+                                        ${OpenCV_LIBS}
+                                        ${PCL_LIBRARIES}
+                                        ${Boost_SERIALIZATION_LIBRARY}
+        )
+
 	# Declare the target (an executable)
 	ADD_EXECUTABLE(LoadSequence LoadSequence.cpp
 					../include/Calib360.h
 					../include/Frame360.h
+					../include/Frame360.cpp
 					../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
 					../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
 	)
@@ -64,6 +85,7 @@ IF(BUILD_VISUALIZATION)
 	ADD_EXECUTABLE(LoadRawlog LoadRawlog.cpp
 					../include/Calib360.h
 					../include/Frame360.h
+					../include/Frame360.cpp
 					../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
 					../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
 	)

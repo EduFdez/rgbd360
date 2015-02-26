@@ -30,8 +30,8 @@
  * Author: Eduardo Fernandez-Moral
  */
 
-#ifndef FRAME360_VISUALIZER_H
-#define FRAME360_VISUALIZER_H
+#ifndef FRAME360_COMPARE_VISUALIZER_H
+#define FRAME360_COMPARE_VISUALIZER_H
 
 #include "Frame360.h"
 
@@ -41,11 +41,11 @@
 /*! This class creates a visualizer to display a Frame360 object. The visualizer runs in a separate thread,
  *  and can be sychronized using the visualizationMutex.
  */
-class Frame360_Visualizer
+class Frame360CompareVisualizer
 {
  public:
   /*! Omnidirectional RGB-D image to be displayed */
-  Frame360 *frame360;
+  Frame360 *frame1, *frame2;
 
   /*! Frame Index */
   unsigned frameIdx;
@@ -53,16 +53,20 @@ class Frame360_Visualizer
   /*! Visualizer object */
   pcl::visualization::CloudViewer viewer;
 
+  int v1, v2; // Addresses of the viewports
+
   /*! Constructor. It starts the visualization in a separate thread */
-  Frame360_Visualizer(Frame360 *frame = NULL) :
-    frame360(frame),
+  Frame360CompareVisualizer(Frame360 *frame_1, Frame360 *frame_2) :
+    frame1(frame_1),
+    frame2(frame_2),
     viewer("PbMap"),
+    v1(0), v2(0),
     bShowPlanes(false),
     bColoredPlanes(false)
 //    numScreenshot(0)
   {
-    viewer.runOnVisualizationThread (boost::bind(&Frame360_Visualizer::viz_cb, this, _1), "viz_cb");
-    viewer.registerKeyboardCallback (&Frame360_Visualizer::keyboardEventOccurred, *this);
+    viewer.runOnVisualizationThread (boost::bind(&Frame360CompareVisualizer::viz_cb, this, _1), "viz_cb");
+    viewer.registerKeyboardCallback (&Frame360CompareVisualizer::keyboardEventOccurred, *this);
     b_update_vis_ = true;
     b_init_viewer_ = true;
   }
@@ -93,10 +97,10 @@ class Frame360_Visualizer
 //      boost::mutex::scoped_lock updateLock(visualizationMutex);
 //
 //      std::cout << "viz_cb\n";
-//    if (frame360 != NULL)
-//      std::cout << frame360->sphereCloud->empty() << "\n";
+//    if (frame2 != NULL)
+//      std::cout << frame2->sphereCloud->empty() << "\n";
 
-    if (frame360 == NULL || frame360->sphereCloud->empty())
+    if (frame1 == NULL || frame1->sphereCloud->empty() || frame2 == NULL || frame2->sphereCloud->empty())
     {
       boost::this_thread::sleep (boost::posix_time::milliseconds (10));
       return;
@@ -105,18 +109,30 @@ class Frame360_Visualizer
     if (b_init_viewer_)
     {
       b_init_viewer_ = false;
-      viz.setCameraPosition (
-        0,0,-9,		// Position
-        0,0,1,		// Viewpoint
-        0,-1,0);	// Up
 
-      viz.setSize(800,600); // Set the window size
+      viz.setSize(1250,600); // Set the window size
       viz.setBackgroundColor (1.0, 1.0, 1.0);
-      viz.addCoordinateSystem (0.3, "global");
+      viz.createViewPort(0.0, 0.0, 0.48, 1.0, v1);
+      viz.setBackgroundColor (1.0, 1.0, 1.0, v1);
+      //viz.setBackgroundColor (1.0, 1.0, 1.0);
+      viz.addCoordinateSystem (0.3, "global", v1);
+
+      viz.setCameraPosition (   0,0,-9,		// Position
+                                0,0,1,		// Viewpoint
+                                0,-1,v1 );	// Up
+      viz.addText("sample_cloud_1", 10, 10, "left", v1);
+
+      viz.createViewPort(0.52, 0.0, 1.0, 1.0, v2);
+      viz.addText("sample_cloud_2", 10, 10, "right", v2);
+      viz.setBackgroundColor (1.0, 1.0, 1.0, v2);
+//      viz.setCameraPosition (   0,0,-9,		// Position
+//                                0,0,1,		// Viewpoint
+//                                0,-1,v2 );	// Up
+      viz.addCoordinateSystem (0.3, "global2", v2);
     }
 
-//    if (!viz.updatePointCloud (frame360->sphereCloud, "sphereCloud"))
-//      viz.addPointCloud (frame360->sphereCloud, "sphereCloud");
+//    if (!viz.updatePointCloud (frame2->sphereCloud, "sphereCloud"))
+//      viz.addPointCloud (frame2->sphereCloud, "sphereCloud");
 //      viz.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "sphereCloud");
 //      viz.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0,0.0,0.0, "sphereCloud");
 
@@ -125,54 +141,100 @@ class Frame360_Visualizer
     {
       boost::mutex::scoped_lock updateLock(visualizationMutex);
 
-      viz.removeAllPointClouds();
-      viz.removeAllShapes();
+      viz.removeAllPointClouds(v1);
+      viz.removeAllShapes(v1);
 
-      if (!viz.updatePointCloud (frame360->sphereCloud, "sphereCloud"))
-        viz.addPointCloud (frame360->sphereCloud, "sphereCloud");
+      if (!viz.updatePointCloud (frame1->sphereCloud, "sphereCloud"))
+        viz.addPointCloud (frame1->sphereCloud, "sphereCloud", v1);
 
       char name[1024];
 
 //      sprintf (name, "Frame %u", frameIdx);
-      sprintf (name, "Frame %lu", frame360->sphereCloud->size () );
-      viz.addText (name, 20, 20, "info");
+      sprintf (name, "Frame %lu", frame1->sphereCloud->size () );
+      viz.addText (name, 20, 20, "info", v1);
 
       if(bShowPlanes)
       {
         // Draw planes
-        for(size_t i=0; i < frame360->planes.vPlanes.size(); i++)
+        for(size_t i=0; i < frame1->planes.vPlanes.size(); i++)
         {
-          mrpt::pbmap::Plane &plane_i = frame360->planes.vPlanes[i];
+          mrpt::pbmap::Plane &plane_i = frame1->planes.vPlanes[i];
           sprintf (name, "normal_%u", static_cast<unsigned>(i));
           pcl::PointXYZ pt1, pt2; // Begin and end points of normal's arrow for visualization
           pt1 = pcl::PointXYZ(plane_i.v3center[0], plane_i.v3center[1], plane_i.v3center[2]);
           pt2 = pcl::PointXYZ(plane_i.v3center[0] + (0.5f * plane_i.v3normal[0]),
                               plane_i.v3center[1] + (0.5f * plane_i.v3normal[1]),
                               plane_i.v3center[2] + (0.5f * plane_i.v3normal[2]));
-          viz.addArrow (pt2, pt1, ared[i%10], agrn[i%10], ablu[i%10], false, name);
+          viz.addArrow (pt2, pt1, ared[i%10], agrn[i%10], ablu[i%10], false, name, v1);
 
           {
             sprintf (name, "n%u %s", static_cast<unsigned>(i), plane_i.label.c_str());
 //            sprintf (name, "n%u %.1f %.2f", static_cast<unsigned>(i), plane_i.curvature*1000, plane_i.areaHull);
-            viz.addText3D (name, pt2, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name);
+            viz.addText3D (name, pt2, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name, v1);
           }
 
           sprintf (name, "approx_plane_%02d", int (i));
-          viz.addPolygon<PointT> (plane_i.polygonContourPtr, 0.5 * red[i%10], 0.5 * grn[i%10], 0.5 * blu[i%10], name);
+          viz.addPolygon<PointT> (plane_i.polygonContourPtr, 0.5 * red[i%10], 0.5 * grn[i%10], 0.5 * blu[i%10], name, v1);
 
           if(bColoredPlanes)
           {
             sprintf (name, "plane_%02u", static_cast<unsigned>(i));
             pcl::visualization::PointCloudColorHandlerCustom <PointT> color (plane_i.planePointCloudPtr, red[i%10], grn[i%10], blu[i%10]);
-            if (!viz.updatePointCloud (frame360->sphereCloud, name))
-                viz.addPointCloud (plane_i.planePointCloudPtr, color, name);
-            viz.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, name);
+            if (!viz.updatePointCloud (frame1->sphereCloud, name))
+                viz.addPointCloud (plane_i.planePointCloudPtr, color, name, v1);
+            viz.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, name, v1);
           }
 
         }
         b_update_vis_ = false;
       }
 
+      // The same for the 2nd sphere
+      viz.removeAllPointClouds(v2);
+      viz.removeAllShapes(v2);
+
+      if (!viz.updatePointCloud (frame2->sphereCloud, "_sphereCloud"))
+        viz.addPointCloud (frame2->sphereCloud, "_sphereCloud", v2);
+
+//      sprintf (name, "Frame %u", frameIdx);
+      sprintf (name, "_Frame %lu", frame2->sphereCloud->size () );
+      viz.addText (name, 20, 20, "info2", v2);
+
+      if(bShowPlanes)
+      {
+        // Draw planes
+        for(size_t i=0; i < frame2->planes.vPlanes.size(); i++)
+        {
+          mrpt::pbmap::Plane &plane_i = frame2->planes.vPlanes[i];
+          sprintf (name, "_normal_%u", static_cast<unsigned>(i));
+          pcl::PointXYZ pt1, pt2; // Begin and end points of normal's arrow for visualization
+          pt1 = pcl::PointXYZ(plane_i.v3center[0], plane_i.v3center[1], plane_i.v3center[2]);
+          pt2 = pcl::PointXYZ(plane_i.v3center[0] + (0.5f * plane_i.v3normal[0]),
+                              plane_i.v3center[1] + (0.5f * plane_i.v3normal[1]),
+                              plane_i.v3center[2] + (0.5f * plane_i.v3normal[2]));
+          viz.addArrow (pt2, pt1, ared[i%10], agrn[i%10], ablu[i%10], false, name, v2);
+
+          {
+            sprintf (name, "_n%u %s", static_cast<unsigned>(i), plane_i.label.c_str());
+//            sprintf (name, "n%u %.1f %.2f", static_cast<unsigned>(i), plane_i.curvature*1000, plane_i.areaHull);
+            viz.addText3D (name, pt2, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name, v2);
+          }
+
+          sprintf (name, "_approx_plane_%02d", int (i));
+          viz.addPolygon<PointT> (plane_i.polygonContourPtr, 0.5 * red[i%10], 0.5 * grn[i%10], 0.5 * blu[i%10], name, v2);
+
+          if(bColoredPlanes)
+          {
+            sprintf (name, "_plane_%02u", static_cast<unsigned>(i));
+            pcl::visualization::PointCloudColorHandlerCustom <PointT> color (plane_i.planePointCloudPtr, red[i%10], grn[i%10], blu[i%10]);
+            if (!viz.updatePointCloud (frame2->sphereCloud, name))
+                viz.addPointCloud (plane_i.planePointCloudPtr, color, name, v2);
+            viz.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, name, v2);
+          }
+
+        }
+        b_update_vis_ = false;
+      }
     }
 
     viz.spinOnce();

@@ -120,7 +120,7 @@ public:
         if(bFirstRun)
         {
             viz.setCameraPosition (
-                0,0,-7,		// Position
+                0,0,-9,		// Position
                 0,0,1,		// Viewpoint
                 0,-1,0);	// Up
 //            viz.setFullScreen(true);

@@ -143,6 +143,7 @@ public:
 
         // Initialize Dense aligner
         RegisterDense align360; // Dense RGB-D alignment
+        align360.setSensorType( RegisterDense::STEREO_OUTDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::alignFrames360 for more details)
         align360.setNumPyr(6);
         align360.setMaxDepth(12.f);
         align360.useSaliency(false);

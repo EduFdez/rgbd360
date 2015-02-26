@@ -411,6 +411,7 @@ int main (int argc, char ** argv)
     // Dense Photo/Depth consistency spherical
     time_start = pcl::getTime();
     RegisterDense align360;
+    align360.setSensorType( RegisterDense::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::alignFrames360 for more details)
     align360.setNumPyr(4);
     frame360_1.stitchSphericalImage();
     frame360_2.stitchSphericalImage();

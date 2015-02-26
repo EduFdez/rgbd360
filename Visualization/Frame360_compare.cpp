@@ -30,7 +30,7 @@
  */
 
 #include <Frame360.h>
-#include <Frame360_Visualizer.h>
+#include <Frame360CompareVisualizer.h>
 #include <FilterPointCloud.h>
 
 #include <pcl/console/parse.h>
@@ -58,6 +58,7 @@ int main (int argc, char ** argv)
   }
 
   string fileDepth = static_cast<string>(argv[1]);
+  string fileDepth_fused;
   string fileRGB;
   string fileType = ".raw";
   if( !fileType.compare( fileDepth.substr(fileDepth.length()-4) ) == 0 ) // Check that the depth image fileName is correct and that the file exists
@@ -91,30 +92,34 @@ int main (int argc, char ** argv)
           depthType = ".raw";
           fileRGB = fileDepth.substr(0, fileDepth.length()-16) + "top" + fileDepth.substr(fileDepth.length()-11, 7) + ".png";
       }
+      fileDepth_fused = fileDepth.substr(0, fileDepth.length()-16) + "gapFillingPlusFusion/" + fileDepth.substr(fileDepth.length()-16);
   }
 
 
   std::cout << "  fileDepth: " << fileDepth << "\n  fileRGB: " << fileRGB << std::endl;
-  if ( !fexists(fileDepth.c_str()) || !fexists(fileRGB.c_str()) )
+  if ( !fexists(fileDepth.c_str()) || !fexists(fileDepth_fused.c_str()) || !fexists(fileRGB.c_str()) )
   {
-      std::cerr << "\n... Input images do not exist!!! \n Check that these files are correct: " << fileDepth << "\n " << fileRGB << "\n ";
+      std::cerr << "\n... Input images do not exist!!! \n Check that these files are correct: " << fileDepth << "\n " << fileDepth_fused << "\n " << fileRGB << "\n ";
       return 0;
   }
 
+  std::cout << "Load frames raw and fused "<< std::endl;
+
   Frame360 frame360;
   frame360.loadDepth(fileDepth);
-//  //cv::namedWindow( "sphereDepth", WINDOW_AUTOSIZE );// Create a window for display.
-//  cv::Mat sphDepthVis;
-//  frame360.sphereDepth.convertTo( sphDepthVis, CV_8U, 10 ); //CV_16UC1
-//  std::cout << "  Show depthImage " << fileRGB << std::endl;
-//  cv::imshow( "sphereDepth", sphDepthVis );
-//  //cv::waitKey(1);
-//  cv::waitKey(0);
+  //cv::namedWindow( "sphereDepth", WINDOW_AUTOSIZE );// Create a window for display.
+  cv::Mat sphDepthVis;
+  frame360.sphereDepth.convertTo( sphDepthVis, CV_8U, 10 ); //CV_16UC1
+  std::cout << "  Show depthImage " << fileRGB << std::endl;
+  cv::imshow( "sphereDepth", sphDepthVis );
+  cv::waitKey(0);
+  cv::destroyWindow("sphereDepth");
 
   frame360.loadRGB(fileRGB);
-//  //cv::namedWindow( "sphereRGB", WINDOW_AUTOSIZE );// Create a window for display.
-//  cv::imshow( "sphereRGB", frame360.sphereRGB );
-//  cv::waitKey(0);
+  //cv::namedWindow( "sphereRGB", WINDOW_AUTOSIZE );// Create a window for display.
+  cv::imshow( "sphereRGB", frame360.sphereRGB );
+  cv::waitKey(0);
+  cv::destroyWindow("sphereRGB");
 
   frame360.buildSphereCloud();
   frame360.filterCloudBilateral_stereo();
@@ -131,15 +136,59 @@ int main (int argc, char ** argv)
   if (frame360.planes.vPlanes.size () > 0)
     std::cout << "Plane inliers " << plane_inliers << " average plane size " << plane_inliers/frame360.planes.vPlanes.size () << std::endl;
 
+  Frame360 frame360_fusion;
+  frame360_fusion.loadDepth(fileDepth_fused);
+  frame360_fusion.loadRGB(fileRGB);
+  frame360_fusion.buildSphereCloud();
+  frame360_fusion.filterCloudBilateral_stereo();
+  frame360_fusion.segmentPlanesStereo();
+//  frame360_fusion.segmentPlanesStereoRANSAC();
+  std::cout << "FUSION Planes " << frame360_fusion.planes.vPlanes.size () << std::endl;
+
+  plane_inliers = 0;
+  for(size_t i=0; i < frame360_fusion.planes.vPlanes.size (); i++)
+  {
+      plane_inliers += frame360_fusion.planes.vPlanes[i].inliers.size();
+      //std::cout << plane_inliers << " Plane inliers " << frame360_fusion.planes.vPlanes[i].inliers.size() << std::endl;
+  }
+  if (frame360_fusion.planes.vPlanes.size () > 0)
+    std::cout << "FUSION Plane inliers " << plane_inliers << " average plane size " << plane_inliers/frame360_fusion.planes.vPlanes.size () << std::endl;
+
 
   // Visualize point cloud
-  Frame360_Visualizer sphereViewer(&frame360);
+  Frame360CompareVisualizer sphereCompareViewer(&frame360, &frame360_fusion);
   cout << "\n  Press 'q' to close the program\n";
-
 //   pcl::io::savePCDFile ("/home/efernand/cloud_test.pcd", *frame360.sphereCloud);
 
-  while (!sphereViewer.viewer.wasStopped() )
+  while (!sphereCompareViewer.viewer.wasStopped() )
     boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+
+  // Simple visualizer with viewport (only point clouds)
+//  boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+//  viewer->setBackgroundColor (0, 0, 0);
+//  viewer->addCoordinateSystem (1,0);
+//  viewer->initCameraParameters ();
+
+//  int v1(0);
+//  viewer->createViewPort (0.0, 0.0, 0.5, 1.0, v1);
+//  viewer->setBackgroundColor (0, 0, 0, v1);
+//  viewer->addText ("VO_Ent", 15, 15, "v1 text", v1);
+//  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBA> rgb (frame360.sphereCloud);
+//  viewer->addPointCloud<pcl::PointXYZRGBA> (frame360.sphereCloud, rgb, "sample cloud1", v1);
+
+//  int v2(0);
+//  viewer->createViewPort (0.5, 0.0, 1.0, 1.0, v2);
+//  viewer->setBackgroundColor (0.3, 0.3, 0.3, v2);
+//  viewer->addText ("Unc_fusion", 10, 10, "v2 text", v2);
+//   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBA> rgb2 (frame360_fusion..sphereCloud);
+//  viewer->addPointCloud<pcl::PointXYZRGBA> (frame360_fusion..sphereCloud, rgb2, "sample cloud2", v2);
+
+//  while (!viewer->wasStopped ())
+//  {
+//     viewer->spinOnce (100);
+//     boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+//  }
+
 
   cout << "EXIT\n\n";
 

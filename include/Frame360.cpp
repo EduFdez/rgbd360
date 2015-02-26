@@ -1159,6 +1159,10 @@ void Frame360::segmentPlanesStereo()
     ne.setInputCloud ( sphereCloud );
     ne.compute (*normal_cloud);
 
+    // Visualize normal map in RGB
+    cv::Mat normalMap = cv::Mat::zeros(sphereCloud->height, sphereCloud->width, CV_8UC3);;
+    computeNormalMap(normal_cloud, normalMap, true);
+
     mps.setInputNormals (normal_cloud);
     mps.setInputCloud ( sphereCloud );
     std::vector<pcl::PlanarRegion<PointT>, Eigen::aligned_allocator<pcl::PlanarRegion<PointT> > > regions;

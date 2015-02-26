@@ -159,6 +159,7 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
 //  float angleOffset = 157.5;
 //  Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
   RegisterDense align360; // Dense RGB-D alignment
+  align360.setSensorType( RegisterDense::STEREO_OUTDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::alignFrames360 for more details)
   align360.setNumPyr(6);
   align360.setMinDepth(1.f);
   align360.setMaxDepth(15.f);
@@ -180,13 +181,20 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   cout << "Pose Dense \n" << rigidTransf_dense_ref << endl;
 //  cout << "Pose Dense2 \n" << rigidTransf_dense << endl;
 
-//  time_start = pcl::getTime();
-  align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
-  cout << "RegisterDense UNITY \n";
-  align360.alignFrames360_unity(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//  time_end = pcl::getTime();
-//  std::cout << "alignFrames360_unity took " << double (time_end - time_start) << std::endl;
-  std::cout << "Pose Dense unity \n" << align360.getOptimalPose() << std::endl;
+  time_start = pcl::getTime();
+//  for(size_t i=0; i < 20; i++)
+  align360.alignFrames360_inv(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  time_end = pcl::getTime();
+  std::cout << "alignFrames360 took " << double (time_end - time_start) << std::endl;
+  cout << "Pose Dense Inv \n" << align360.getOptimalPose() << endl;
+
+////  time_start = pcl::getTime();
+//  align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
+//  cout << "RegisterDense UNITY \n";
+//  align360.alignFrames360_unity(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+////  time_end = pcl::getTime();
+////  std::cout << "alignFrames360_unity took " << double (time_end - time_start) << std::endl;
+//  std::cout << "Pose Dense unity \n" << align360.getOptimalPose() << std::endl;
 
   align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   std::cout << "Pose PHOTO_CONSISTENCY \n" << align360.getOptimalPose() << std::endl;

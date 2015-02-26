@@ -72,12 +72,12 @@ int main (int argc, char ** argv)
 //  cv::imwrite("rgb_test.png", frame360.sphereRGB);
 //  cv::imwrite("depth_test.png", frame360.sphereDepth);
 
-//  // Visualize spherical image
-//  frame360.fastStitchImage360();
-//  cv::imshow( "sphereRGB", frame360.sphereRGB );
-////  cv::imshow( "sphereRGB", frame360.frameRGBD_[0].getRGBImage() );
-//  while (cv::waitKey(1)!='\n')
-//    boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+  // Visualize spherical image
+  frame360.fastStitchImage360();
+  cv::imshow( "sphereRGB", frame360.sphereRGB );
+//  cv::imshow( "sphereRGB", frame360.frameRGBD_[0].getRGBImage() );
+  while (cv::waitKey(1)!='\n')
+    boost::this_thread::sleep (boost::posix_time::milliseconds (10));
 
   // Visualize point cloud
   Frame360_Visualizer sphereViewer(&frame360);

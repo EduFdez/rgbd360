@@ -73,7 +73,7 @@ cout << "Create sphere 1\n";
   Frame360 frame360_1(&calib);
   frame360_1.loadFrame(file360_1);
   frame360_1.undistort();
-//  frame360_1.stitchSphericalImage();
+  frame360_1.stitchSphericalImage();
   frame360_1.buildSphereCloud_rgbd360();
   frame360_1.getPlanes();
 
@@ -84,7 +84,7 @@ cout << "Create sphere 2\n";
   Frame360 frame360_2(&calib);
   frame360_2.loadFrame(file360_2);
   frame360_2.undistort();
-//  frame360_2.stitchSphericalImage();
+  frame360_2.stitchSphericalImage();
   frame360_2.buildSphereCloud_rgbd360();
   frame360_2.getPlanes();
 
@@ -102,15 +102,17 @@ cout << "Create sphere 2\n";
   for(std::map<unsigned, unsigned>::iterator it=bestMatch.begin(); it != bestMatch.end(); it++)
     std::cout << it->first << " " << it->second << std::endl;
 
-  cout << "Distance " << registerer.getPose().block(0,3,3,1).norm() << endl;
-  cout << "Pose \n" << registerer.getPose() << endl;
+  Eigen::Matrix4f rigidTransf_pbmap = registerer.getPose();
+  cout << "Distance " << rigidTransf_pbmap.block(0,3,3,1).norm() << endl;
+  cout << "Pose \n" << rigidTransf_pbmap << endl;
 //#endif
 
   // Dense registration
   float angleOffset = 157.5;
   Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
   RegisterDense align360; // Dense RGB-D alignment
-  align360.setNumPyr(5);
+  align360.setSensorType( RegisterDense::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::alignFrames360 for more details)
+  align360.setNumPyr(6);
   align360.useSaliency(false);
 // align360.setVisualization(true);
   align360.setGrayVariance(3.f/255);
@@ -121,51 +123,62 @@ cout << "Create sphere 2\n";
 //  align360.alignFrames360(initTransf_dense, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   Eigen::Matrix4f rigidTransf_dense_ref = align360.getOptimalPose();
   Eigen::Matrix4f rigidTransf_dense = rotOffset.inverse() * rigidTransf_dense_ref * rotOffset;
-  cout << "Pose Dense \n" << rigidTransf_dense_ref << endl;
-  cout << "Pose Dense2 \n" << rigidTransf_dense << endl;
+//  cout << "Pose Dense \n" << rigidTransf_dense_ref << endl;
+  cout << "Pose Dense \n" << rigidTransf_dense << endl;
 
+  align360.alignFrames360_inv(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  cout << "Pose Dense Inv \n" << rotOffset.inverse() * align360.getOptimalPose() * rotOffset << endl;
 
-  // ICP alignement
-  double time_start = pcl::getTime();
-//  pcl::IterativeClosestPoint<PointT,PointT> icp;
-  pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
-//  pcl::IterativeClosestPointNonLinear<PointT,PointT> icp;
+  align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  Eigen::Matrix4f rigidTransf_dense2 = rotOffset.inverse() * align360.getOptimalPose() * rotOffset;
+  cout << "Pose Dense2 \n" << rigidTransf_dense2 << endl;
 
-  icp.setMaxCorrespondenceDistance (0.4);
-  icp.setMaximumIterations (10);
-  icp.setTransformationEpsilon (1e-9);
-//  icp.setEuclideanFitnessEpsilon (1);
-  icp.setRANSACOutlierRejectionThreshold (0.1);
+//  mrpt::system::pause();
+//  align360.alignFrames360_unity(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//  Eigen::Matrix4f rigidTransf_unity = rotOffset.inverse() * align360.getOptimalPose() * rotOffset;
+//  std::cout << "Pose Dense unity \n" << rigidTransf_unity << std::endl;
 
-//  // Transformation function
-//  boost::shared_ptr<pcl::registration::WarpPointRigid3D<PointT, PointT> > warp_fcn(new pcl::registration::WarpPointRigid3D<PointT, PointT>);
-//
-//  // Create a TransformationEstimationLM object, and set the warp to it
-//  boost::shared_ptr<pcl::registration::TransformationEstimationLM<PointT, PointT> > te(new pcl::registration::TransformationEstimationLM<PointT, PointT>);
-//  te->setWarpFunction(warp_fcn);
-//
-//  // Pass the TransformationEstimation objec to the ICP algorithm
-//  icp.setTransformationEstimation (te);
+//  // ICP alignement
+//  double time_start = pcl::getTime();
+////  pcl::IterativeClosestPoint<PointT,PointT> icp;
+//  pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
+////  pcl::IterativeClosestPointNonLinear<PointT,PointT> icp;
 
-  // ICP
-  // Filter the point clouds and remove nan points
-  FilterPointCloud<PointT> filter(0.1);
-  filter.filterVoxel(frame360_1.sphereCloud);
-  filter.filterVoxel(frame360_2.sphereCloud);
+//  icp.setMaxCorrespondenceDistance (0.4);
+//  icp.setMaximumIterations (10);
+//  icp.setTransformationEpsilon (1e-9);
+////  icp.setEuclideanFitnessEpsilon (1);
+//  icp.setRANSACOutlierRejectionThreshold (0.1);
 
-  icp.setInputSource(frame360_2.sphereCloud);
-  icp.setInputTarget(frame360_1.sphereCloud);
-  pcl::PointCloud<PointT>::Ptr alignedICP(new pcl::PointCloud<PointT>);
-//  Eigen::Matrix4d initRigidTransf = registerer.getPose();
-  Eigen::Matrix4f initRigidTransf = Eigen::Matrix4f::Identity();
-  icp.align(*alignedICP, initRigidTransf);
+////  // Transformation function
+////  boost::shared_ptr<pcl::registration::WarpPointRigid3D<PointT, PointT> > warp_fcn(new pcl::registration::WarpPointRigid3D<PointT, PointT>);
+////
+////  // Create a TransformationEstimationLM object, and set the warp to it
+////  boost::shared_ptr<pcl::registration::TransformationEstimationLM<PointT, PointT> > te(new pcl::registration::TransformationEstimationLM<PointT, PointT>);
+////  te->setWarpFunction(warp_fcn);
+////
+////  // Pass the TransformationEstimation objec to the ICP algorithm
+////  icp.setTransformationEstimation (te);
 
-  double time_end = pcl::getTime();
-  std::cout << "ICP took " << double (time_end - time_start) << std::endl;
+//  // ICP
+//  // Filter the point clouds and remove nan points
+//  FilterPointCloud<PointT> filter(0.1);
+//  filter.filterVoxel(frame360_1.sphereCloud);
+//  filter.filterVoxel(frame360_2.sphereCloud);
 
-  //std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
-  Eigen::Matrix4f icpTransformation = icp.getFinalTransformation(); //.cast<double>();
-  cout << "ICP transformation:\n" << icpTransformation << endl << "PbMap-Registration\n" << registerer.getPose() << endl;
+//  icp.setInputSource(frame360_2.sphereCloud);
+//  icp.setInputTarget(frame360_1.sphereCloud);
+//  pcl::PointCloud<PointT>::Ptr alignedICP(new pcl::PointCloud<PointT>);
+////  Eigen::Matrix4d initRigidTransf = registerer.getPose();
+//  Eigen::Matrix4f initRigidTransf = Eigen::Matrix4f::Identity();
+//  icp.align(*alignedICP, initRigidTransf);
+
+//  double time_end = pcl::getTime();
+//  std::cout << "ICP took " << double (time_end - time_start) << std::endl;
+
+//  //std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
+//  Eigen::Matrix4f icpTransformation = icp.getFinalTransformation(); //.cast<double>();
+//  cout << "ICP transformation:\n" << icpTransformation << endl << "PbMap-Registration\n" << registerer.getPose() << endl;
 
   // Visualize
   #if VISUALIZE_POINT_CLOUD
@@ -174,11 +187,12 @@ cout << "Create sphere 2\n";
   Map360 Map;
   Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
   Map.addKeyframe(&frame360_1, pose );
-  pose = registerer.getPose();//.cast<double>();
+  pose = rigidTransf_pbmap;//.cast<double>();
+  pose = rigidTransf_dense;
   Map.addKeyframe(&frame360_2, pose );
   Map.vOptimizedPoses = Map.vTrajectoryPoses;
-  Map.vOptimizedPoses[1] = icpTransformation;
-  Map360_Visualizer Viewer(Map);
+  Map.vOptimizedPoses[1] = rigidTransf_dense2;
+  Map360_Visualizer Viewer(Map,1);
 
   while (!Viewer.viewer.wasStopped() )
     boost::this_thread::sleep (boost::posix_time::milliseconds (10));

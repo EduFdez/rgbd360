@@ -325,6 +325,38 @@ public:
       in the frame of reference of the omnidirectional camera
     */
     void segmentPlanesStereoRANSAC();
+
+    /*! Compute the normalMap from an organized cloud of normal vectors. */
+    inline void computeNormalMap(const pcl::PointCloud<pcl::Normal>::Ptr &normal_cloud, cv::Mat &normalMap, const bool display = false)
+    {
+        normalMap.create(sphereCloud->height, sphereCloud->width, CV_8UC3);
+        for(size_t r=0; r < sphereCloud->height; ++r)
+            for(size_t c=0; c < sphereCloud->width; ++c)
+            {
+                int i = r*sphereCloud->width + c;
+        //            if( normal_cloud->points[i].normal_x == std::numeric_limits<float>::quiet_NaN () )
+                if( normal_cloud->points[i].normal_x < 2.f )
+                {
+                    normalMap.at<cv::Vec3b>(r,c)[2] = 255*(0.5*normal_cloud->points[i].normal_x+0.5);
+                    normalMap.at<cv::Vec3b>(r,c)[1] = 255*(0.5*normal_cloud->points[i].normal_y+0.5);
+                    normalMap.at<cv::Vec3b>(r,c)[0] = 255*(0.5*normal_cloud->points[i].normal_z+0.5);
+        //            // Create a RGB image file with the values of the normal (multiply by 1.5 to increase the saturation to 0.5 = 1.5*0.33. Notice that normal vectors can be directly interpreted as normalized rgb, which has constant saturation of 0.33).
+        //            normalMap.at<cv::Vec3b>(r,c)[2] = std::max(255., 255*(1.5f*fabs(normal_cloud->points[i].normal_x) ) );
+        //            normalMap.at<cv::Vec3b>(r,c)[1] = std::max(255., 255*(1.5f*fabs(normal_cloud->points[i].normal_y) ) );
+        //            normalMap.at<cv::Vec3b>(r,c)[0] = std::max(255., 255*(1.5f*fabs(normal_cloud->points[i].normal_z) ) );
+                }
+                //else
+                    //cout << "normal " << normal_cloud->points[i].normal_x << " " << normal_cloud->points[i].normal_y << " " << normal_cloud->points[i].normal_z << endl;
+            }
+        if(display)
+        {
+            cv::imshow("normalMap",normalMap);
+            cv::imwrite("/Data/Results_IROS15/normalMap.png",normalMap);
+            cv::waitKey();
+            cv::destroyWindow("normalMap");
+        }
+    }
+
 };
 
 #endif

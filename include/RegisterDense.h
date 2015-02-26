@@ -110,6 +110,7 @@ class RegisterDense
 
     /*! LUT of 3D points of the source image.*/
     std::vector<Eigen::Vector3f>  LUT_xyz_source;
+    std::vector<Eigen::Vector3f>  LUT_xyz_target;
 
     /*! Store a copy of the residuals and the weights to speed-up the registration. (Before they were computed twice: in the error function and the Jacobian)*/
     Eigen::VectorXf residualsPhoto;
@@ -124,13 +125,13 @@ class RegisterDense
     /*! Number of iterations in each pyramid level.*/
     std::vector<int> num_iterations;
 
+public:
+
     enum sensorType
     {
         RGBD360_INDOOR = 0,
         STEREO_OUTDOOR,
     } sensor_type;
-
-public:
 
     /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
     float SSO;
@@ -151,10 +152,18 @@ public:
     enum costFuncType {PHOTO_CONSISTENCY, DEPTH_CONSISTENCY, PHOTO_DEPTH} method;
 
     /*! Intensity (gray), depth and gradient image pyramids. Each pyramid has 'numpyramidLevels' levels.*/
-    std::vector<cv::Mat> graySrcPyr, grayTrgPyr, depthSrcPyr, depthTrgPyr, grayTrgGradXPyr, grayTrgGradYPyr, depthTrgGradXPyr, depthTrgGradYPyr;
+    std::vector<cv::Mat> graySrcPyr, grayTrgPyr, depthSrcPyr, depthTrgPyr;
+    std::vector<cv::Mat> grayTrgGradXPyr, grayTrgGradYPyr, depthTrgGradXPyr, depthTrgGradYPyr;
+    std::vector<cv::Mat> graySrcGradXPyr, graySrcGradYPyr, depthSrcGradXPyr, depthSrcGradYPyr;
     std::vector<cv::Mat> colorSrcPyr;
 
     RegisterDense();
+
+    /*! Set the the number of pyramid levels.*/
+    inline void setSensorType(const sensorType sensor)
+    {
+        sensor_type = sensor;
+    };
 
     /*! Set the the number of pyramid levels.*/
     inline void setNumPyr(const int Npyr)
@@ -225,11 +234,11 @@ public:
 
     /*! Build a pyramid of nLevels of image resolutions from the input image.
      * The resolution of each layer is 2x2 times the resolution of its image above.*/
-    void buildPyramid(cv::Mat &img, std::vector<cv::Mat> &pyramid, const int nLevels);
+    void buildPyramid( const cv::Mat & img, std::vector<cv::Mat> & pyramid, const int nLevels);
 
     /*! Build a pyramid of nLevels of image resolutions from the input image.
      * The resolution of each layer is 2x2 times the resolution of its image above.*/
-    void buildPyramidRange(cv::Mat &img, std::vector<cv::Mat> &pyramid, const int nLevels);
+    void buildPyramidRange( const cv::Mat & img, std::vector<cv::Mat> & pyramid, const int nLevels);
 
     /*! Build the pyramid levels from the intensity images.*/
     inline void buildGrayPyramids()
@@ -239,24 +248,24 @@ public:
     };
 
     /*! Calculate the image gradients in X and Y. This gradientes are calculated through weighted first order approximation (as adviced by Mariano Jaimez). */
-    void calcGradientXY(cv::Mat &src, cv::Mat &gradX, cv::Mat &gradY);
+    void calcGradientXY( const cv::Mat & src, cv::Mat & gradX, cv::Mat & gradY);
 
     /*! Calculate the image gradients in X and Y. This gradientes are calculated through weighted first order approximation (as adviced by Mariano Jaimez). */
-    void calcGradientXY_saliency(cv::Mat &src, cv::Mat &gradX, cv::Mat &gradY, std::vector<int> &vSalientPixels_);
+    void calcGradientXY_saliency( const cv::Mat & src, cv::Mat & gradX, cv::Mat & gradY, std::vector<int> & vSalientPixels_);
 
     /*! Compute the gradient images for each pyramid level. */
-    //    void buildGradientPyramids(std::vector<cv::Mat>& graySrcPyr,std::vector<cv::Mat>& grayTrgGradXPyr,std::vector<cv::Mat>& grayTrgGradYPyr)
-    void buildGradientPyramids();
+    void buildGradientPyramids( const std::vector<cv::Mat> & grayPyr, std::vector<cv::Mat> & grayGradXPyr, std::vector<cv::Mat> & grayGradYPyr,
+                                const std::vector<cv::Mat> & depthPyr, std::vector<cv::Mat> & depthGradXPyr, std::vector<cv::Mat> & depthGradYPyr);
 
     /*! Sets the source (Intensity+Depth) frame.*/
-    void setSourceFrame(cv::Mat &imgRGB,cv::Mat &imgDepth);
+    void setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
 
     /*! Sets the source (Intensity+Depth) frame. Depth image is ignored*/
-    void setTargetFrame(cv::Mat &imgRGB,cv::Mat &imgDepth);
+    void setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
 
     /*! Project pixel spherical */
-    inline void projectSphere(int &nCols, int &nRows, float &phi_FoV, int &c, int &r, float &depth, Eigen::Matrix4f &poseGuess,
-                              int &transformed_r_int, int &transformed_c_int) // output parameters
+    inline void projectSphere(const int & nCols, const int & nRows, const float & phi_FoV, const int & c, const int & r, const float & depth, const Eigen::Matrix4f & poseGuess,
+                              int & transformed_r_int, int & transformed_c_int) // output parameters
     {
         float phi = r*(2*phi_FoV/nRows);
         float theta = c*(2*PI/nCols);
@@ -281,7 +290,7 @@ public:
 
     /*! Huber weight for robust estimation. */
     template<typename T>
-    inline T weightHuber(const T &error)//, const T &scale)
+    inline T weightHuber(const T & error)//, const T &scale)
     {
         //        assert(!std::isnan(error) && !std::isnan(scale))
         T weight = (T)1;
@@ -297,7 +306,7 @@ public:
 
     /*! Huber weight for robust estimation. */
     template<typename T>
-    inline T weightHuber_sqrt(const T &error)//, const T &scale)
+    inline T weightHuber_sqrt(const T & error)//, const T &scale)
     {
         //        assert(!std::isnan(error) && !std::isnan(scale))
         T weight = (T)1;
@@ -313,7 +322,7 @@ public:
 
     /*! Tukey weight for robust estimation. */
     template<typename T>
-    inline T weightTukey(const T &error)//, const T &scale)
+    inline T weightTukey(const T & error)//, const T &scale)
     {
         T weight = (T)0.;
         const T scale = 4.685;
@@ -329,7 +338,7 @@ public:
 
     /*! T-distribution weight for robust estimation. This is computed following the paper: "Robust Odometry Estimation for RGB-D Cameras" Kerl et al. ICRA 2013 */
     template<typename T>
-    inline T weightTDist(const T &error, const T &stdDev, const T &nu)//, const T &scale)
+    inline T weightTDist(const T & error, const T & stdDev, const T & nu)//, const T &scale)
     {
         T err_std = error / stdDev;
         T weight = nu+1 / (nu + err_std*err_std);
@@ -338,7 +347,7 @@ public:
 
     /*! Compute the standard deviation of the T-distribution following the paper: "Robust Odometry Estimation for RGB-D Cameras" Kerl et al. ICRA 2013 */
     template<typename T>
-    inline T stdDev_TDist(const std::vector<T> &v_error, const T &stdDev, const T &nu)//, const T &scale)
+    inline T stdDev_TDist(const std::vector<T> & v_error, const T & stdDev, const T & nu)//, const T &scale)
     {
         std::vector<T> &v_error2( v_error.size() );
         for(size_t i=0; i < v_error.size(); ++i)
@@ -363,7 +372,7 @@ public:
     };
 
     template<typename T>
-    inline T weightMEstimator(const T &error)
+    inline T weightMEstimator(const T & error)
     {
         //std::cout << " error " << error << "weightHuber(error) " << weightHuber(error) << "\n";
         return weightHuber(error);
@@ -375,14 +384,14 @@ public:
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-    double errorDense(const int &pyramidLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
+    double errorDense(const int & pyramidLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-    void calcHessGrad(const int &pyramidLevel,
-                               const Eigen::Matrix4f poseGuess,
-                               costFuncType method = PHOTO_CONSISTENCY );
+    void calcHessGrad( const int & pyramidLevel,
+                       const Eigen::Matrix4f poseGuess,
+                       costFuncType method = PHOTO_CONSISTENCY );
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method. */
     double errorDense_Occ1(const int &pyramidLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);
@@ -427,11 +436,21 @@ public:
                                 costFuncType method = PHOTO_CONSISTENCY,
                                 const bool use_bilinear = false );
 
+    double errorDenseInv_sphere (  const int &pyramidLevel,
+                                const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
+                                costFuncType method = PHOTO_CONSISTENCY,
+                                const bool use_bilinear = false );
+
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
     void calcHessGrad_sphere(   const int &pyramidLevel,
+                                const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
+                                costFuncType method = PHOTO_CONSISTENCY,
+                                const bool use_bilinear = false );
+
+    void calcHessGradInv_sphere(   const int &pyramidLevel,
                                 const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                 costFuncType method = PHOTO_CONSISTENCY,
                                 const bool use_bilinear = false );
@@ -473,6 +492,14 @@ public:
     void alignFrames360(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                         costFuncType method = PHOTO_CONSISTENCY,
                         const int occlusion = 0);
+
+    void alignFrames360_inv(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+                            costFuncType method = PHOTO_CONSISTENCY,
+                            const int occlusion = 0);
+
+    void alignFrames360_bidirectional ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+                                        costFuncType method = PHOTO_CONSISTENCY,
+                                        const int occlusion = 0);
 
     void computeUnitSphere();
 

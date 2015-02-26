@@ -132,7 +132,7 @@ public:
         double time_start = pcl::getTime();
 
         RegisterPhotoICP align360; // Dense RGB-D alignment
-        align360.setNumPyr(5);
+        align360.setNumPyr(6);
         align360.useSaliency(false);
         align360.setVisualization(true);
         align360.setGrayVariance(3.f/255);
@@ -277,7 +277,7 @@ public:
 
         // Dense RGB-D alignment
         RegisterPhotoICP align360;
-        align360.setNumPyr(5);
+        align360.setNumPyr(6);
         align360.useSaliency(false);
         //        align360.setVisualization(true);
         align360.setGrayVariance(3.f/255);
