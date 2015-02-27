@@ -347,6 +347,9 @@ public:
                 }
                 //else
                     //cout << "normal " << normal_cloud->points[i].normal_x << " " << normal_cloud->points[i].normal_y << " " << normal_cloud->points[i].normal_z << endl;
+//                cv::Vec3b white(255,255,255);
+//                for(i=0; i < 20; i++)
+//                    normalMap.at<cv::Vec3b>(i) = white;
             }
         if(display)
         {

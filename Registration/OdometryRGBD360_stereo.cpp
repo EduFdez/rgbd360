@@ -121,9 +121,9 @@ public:
         {
             frame_src->loadDepth(depth_raw, &maskCar);
             frame_src->loadRGB(rgb);
-            frame_src->buildSphereCloud();
-            frame_src->filterCloudBilateral_stereo();
-            frame_src->segmentPlanesStereo();
+//            frame_src->buildSphereCloud();
+//            frame_src->filterCloudBilateral_stereo();
+//            frame_src->segmentPlanesStereo();
             //  //cv::namedWindow( "sphereRGB", WINDOW_AUTOSIZE );// Create a window for display.
             //  cv::imshow( "sphereRGB", frame_src->sphereRGB );
             //  cv::waitKey(0);
@@ -131,8 +131,8 @@ public:
             frame_src_fused->loadDepth(depth_fused, &maskCar);
             frame_src_fused->loadRGB(rgb);
             frame_src_fused->buildSphereCloud();
-            frame_src_fused->filterCloudBilateral_stereo();
-            frame_src_fused->segmentPlanesStereo();
+//            frame_src_fused->filterCloudBilateral_stereo();
+//            frame_src_fused->segmentPlanesStereo();
         }
         else
         {
@@ -141,61 +141,77 @@ public:
         }
         //cout << "Odometry360 1" << endl;
 
+
+        bool bGoodRegistration = true;
+        Eigen::Matrix4f currentPose = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f currentPose_fused = Eigen::Matrix4f::Identity();
+        //Eigen::Matrix4f Rt = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f Rt_dense = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f Rt_dense_fused = Eigen::Matrix4f::Identity();
+//        Eigen::Matrix4f Rt_dense_photo = Eigen::Matrix4f::Identity();
+//        Eigen::Matrix4f Rt_dense_depth = Eigen::Matrix4f::Identity();
+//        Eigen::Matrix4f Rt_icp = Eigen::Matrix4f::Identity();
+//        Eigen::Matrix4f Rt_pbmap = Eigen::Matrix4f::Identity();
+//        // Non-fused data
+//        Eigen::Matrix4f Rt_dense_NF = Eigen::Matrix4f::Identity();
+//        Eigen::Matrix4f Rt_dense_photo_NF = Eigen::Matrix4f::Identity();
+
+
         // Initialize Dense aligner
         RegisterDense align360; // Dense RGB-D alignment
         align360.setSensorType( RegisterDense::STEREO_OUTDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::alignFrames360 for more details)
         align360.setNumPyr(6);
-        align360.setMaxDepth(12.f);
+        align360.setMaxDepth(15.f);
         align360.useSaliency(false);
+//        align360.thresSaliencyIntensity(0.f);
+//        align360.thresSaliencyIntensity(0.f);
       // align360.setVisualization(true);
-        align360.setGrayVariance(3.f/255);
+        align360.setGrayVariance(8.f/255);
+
+//        // Initialize ICP
+//        pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
+//        icp.setMaxCorrespondenceDistance (0.4);
+//        icp.setMaximumIterations (10);
+//        icp.setTransformationEpsilon (1e-9);
+//        icp.setRANSACOutlierRejectionThreshold (0.1);
+//        pcl::PointCloud<PointT>::Ptr cloud_dense_trg(new pcl::PointCloud<PointT>);
+//        pcl::PointCloud<PointT>::Ptr cloud_dense_src(new pcl::PointCloud<PointT>);
 
 
-        // Initialize ICP
-        pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
-        icp.setMaxCorrespondenceDistance (0.4);
-        icp.setMaximumIterations (10);
-        icp.setTransformationEpsilon (1e-9);
-        icp.setRANSACOutlierRejectionThreshold (0.1);
-        pcl::PointCloud<PointT>::Ptr cloud_dense_trg(new pcl::PointCloud<PointT>);
-        pcl::PointCloud<PointT>::Ptr cloud_dense_src(new pcl::PointCloud<PointT>);
-
-        bool bGoodRegistration = true;
-        Eigen::Matrix4f currentPose = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f currentPose2 = Eigen::Matrix4f::Identity();
-
-
-        // Filter the spherical point cloud
-        // ICP -> Filter the point clouds and remove nan points
-        FilterPointCloud<PointT> filter(0.1, 10.f); // Initialize filters (for visualization)
-//        filter.filterEuclidean(frame_src_fused->getSphereCloud());
-        filter.filterVoxel(frame_src_fused->getSphereCloud(), cloud_dense_src);
+//        // Filter the spherical point cloud
+//        // ICP -> Filter the point clouds and remove nan points
+//        FilterPointCloud<PointT> filter(0.1, 10.f); // Initialize filters (for visualization)
+////        filter.filterEuclidean(frame_src_fused->getSphereCloud());
+//        filter.filterVoxel(frame_src_fused->getSphereCloud(), cloud_dense_src);
 
         // Visualize
 #if VISUALIZE_POINT_CLOUD
         Map360 map;
-        Map360_Visualizer viewer(map,0);
+        Map360_Visualizer viewer(map,2);
         //viewer.bDrawCurrentLocation = true;
 
         // Add the first observation to the map
         {boost::mutex::scoped_lock updateLock(map.mapMutex);
             map.addKeyframe(frame_src_fused, currentPose);
 //            *viewer.globalMap += *frame_src_fused->getSphereCloud();
-            filter.filterEuclidean (frame_src_fused->getSphereCloud(), viewer.globalMap);
-
+//            filter.filterEuclidean (frame_src_fused->getSphereCloud(), viewer.globalMap);
+            map.vSelectedKFs.push_back(0);
         }
+        std::cout << "VISUALIZE_POINT_CLOUD " << std::endl;
 #endif
 
         // Results verifications (IROS 2015)
-        size_t num_frames = 1;
-        size_t num_planes = frame_src->planes.vPlanes.size ();
-        size_t plane_inliers = 0;
-        for(size_t i=0; i < frame_src->planes.vPlanes.size (); i++)
-            plane_inliers += frame_src->planes.vPlanes[i].inliers.size();
-        size_t num_planes_fused = frame_src_fused->planes.vPlanes.size ();
-        size_t plane_inliers_fused = 0;
-        for(size_t i=0; i < frame_src_fused->planes.vPlanes.size (); i++)
-            plane_inliers_fused += frame_src_fused->planes.vPlanes[i].inliers.size();
+        //Eigen::Matrix<float,2,12> convergence_005 = Eigen::Matrix<float,2,12>::Zeros();
+
+//        size_t num_frames = 1;
+//        size_t num_planes = frame_src->planes.vPlanes.size ();
+//        size_t plane_inliers = 0;
+//        for(size_t i=0; i < frame_src->planes.vPlanes.size (); i++)
+//            plane_inliers += frame_src->planes.vPlanes[i].inliers.size();
+//        size_t num_planes_fused = frame_src_fused->planes.vPlanes.size ();
+//        size_t plane_inliers_fused = 0;
+//        for(size_t i=0; i < frame_src_fused->planes.vPlanes.size (); i++)
+//            plane_inliers_fused += frame_src_fused->planes.vPlanes[i].inliers.size();
 
         ofstream poses_dense, poses_dense_fused, poses_dense_photo, poses_dense_depth, poses_icp, poses_pbmap;
         //string trajectoryFile = mrpt::format("%s/poses_dense.txt", path_results);
@@ -203,27 +219,23 @@ public:
         poses_dense.open ( trajectoryFile.c_str() );
         trajectoryFile = string(path_results + "/poses_dense_fused.txt");
         poses_dense_fused.open ( trajectoryFile.c_str() );
-        trajectoryFile = string(path_results + "/poses_dense_photo.txt");
-        poses_dense_photo.open ( trajectoryFile.c_str() );
-        trajectoryFile = string(path_results + "/poses_dense_depth.txt");
-        poses_dense_depth.open ( trajectoryFile.c_str() );
-        trajectoryFile = string(path_results + "/poses_icp.txt");
-        poses_icp.open ( trajectoryFile.c_str() );
-        trajectoryFile = string(path_results + "/poses_pbmap.txt");
-        poses_pbmap.open ( trajectoryFile.c_str() );
-        if(!poses_dense.is_open() || !poses_dense_photo.is_open() || !poses_dense_depth.is_open() || !poses_icp.is_open() || !poses_pbmap.is_open() )
-            { std::cerr << "\n ...Cannot open output file: " << poses_dense << "\n"; return; }
+//        trajectoryFile = string(path_results + "/poses_dense_photo.txt");
+//        poses_dense_photo.open ( trajectoryFile.c_str() );
+//        trajectoryFile = string(path_results + "/poses_dense_depth.txt");
+//        poses_dense_depth.open ( trajectoryFile.c_str() );
+//        trajectoryFile = string(path_results + "/poses_icp.txt");
+//        poses_icp.open ( trajectoryFile.c_str() );
+//        trajectoryFile = string(path_results + "/poses_pbmap.txt");
+//        poses_pbmap.open ( trajectoryFile.c_str() );
+//        if(!poses_dense.is_open() || !poses_dense_photo.is_open() || !poses_dense_depth.is_open() || !poses_icp.is_open() || !poses_pbmap.is_open() )
+//            { std::cerr << "\n ...Cannot open output file: " << poses_dense << "\n"; return; }
 
-        //Eigen::Matrix4f Rt = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f Rt_dense = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f Rt_dense_fused = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f Rt_dense_photo = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f Rt_dense_depth = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f Rt_icp = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f Rt_pbmap = Eigen::Matrix4f::Identity();
-        // Non-fused data
-        Eigen::Matrix4f Rt_dense_NF = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f Rt_dense_photo_NF = Eigen::Matrix4f::Identity();
+        ofstream trajectory_raw, trajectory_fused_GT;
+        trajectoryFile = string(path_results + "/trajectory_fused_GT.txt");
+        trajectory_fused_GT.open ( trajectoryFile.c_str() );
+        trajectoryFile = string(path_results + "/trajectory_raw.txt");
+        trajectory_raw.open ( trajectoryFile.c_str() );
+
 
         // The reference of the spherical image and the point Clouds are not the same! I should always use the same coordinate system (TODO)
 //        float angleOffset = 157.5;
@@ -242,16 +254,19 @@ public:
 
             if(bGoodRegistration)
             {
-                delete frame_trg;
-                delete frame_trg_fused;
+//                if( map.vpSpheres.size() % 50 != 0 )
+//                {
+//                delete frame_trg;
+//                delete frame_trg_fused;
+//                }
 
                 frame_trg = frame_src;
                 frame_trg_fused = frame_src_fused;
-                cloud_dense_trg = cloud_dense_src;
+//                cloud_dense_trg = cloud_dense_src;
 
                 frame_src = new Frame360;
                 frame_src_fused = new Frame360;
-                cloud_dense_src.reset(new pcl::PointCloud<PointT>);
+//                cloud_dense_src.reset(new pcl::PointCloud<PointT>);
             }
 
             // Open reference RGB and Depth images
@@ -259,9 +274,9 @@ public:
             {
                 frame_src->loadDepth(depth_raw, &maskCar);
                 frame_src->loadRGB(rgb);
-                frame_src->buildSphereCloud();
-                frame_src->filterCloudBilateral_stereo();
-                frame_src->segmentPlanesStereo();
+//                frame_src->buildSphereCloud();
+//                frame_src->filterCloudBilateral_stereo();
+//                frame_src->segmentPlanesStereo();
                 //  //cv::namedWindow( "sphereRGB", WINDOW_AUTOSIZE );// Create a window for display.
                 //  cv::imshow( "sphereRGB", frame_src->sphereRGB );
                 //  cv::waitKey(0);
@@ -269,8 +284,8 @@ public:
                 frame_src_fused->loadDepth(depth_fused, &maskCar);
                 frame_src_fused->loadRGB(rgb);
                 frame_src_fused->buildSphereCloud();
-                frame_src_fused->filterCloudBilateral_stereo();
-                frame_src_fused->segmentPlanesStereo();
+//                frame_src_fused->filterCloudBilateral_stereo();
+//                frame_src_fused->segmentPlanesStereo();
                 //cout << "frame_trg_fused " << frame_trg_fused->sphereCloud->width << " " << frame_trg_fused->sphereCloud->height << " " << frame_trg_fused->sphereCloud->is_dense << " " << endl;
             }
             else
@@ -327,14 +342,21 @@ public:
 //            Rt_icp = icp.getFinalTransformation(); //.cast<double>();
 
 
+            // Update currentPose
+            currentPose = currentPose * Rt_dense;
+//            currentPose2 = currentPose2 * Rt_dense_photo;
+            currentPose_fused = currentPose_fused * Rt_dense_fused;
+
+
+
             // Update verifications (IROS 2015)
-            ++num_frames;
-            num_planes += frame_src->planes.vPlanes.size ();
-            for(size_t i=0; i < frame_src->planes.vPlanes.size (); i++)
-                plane_inliers += frame_src->planes.vPlanes[i].inliers.size();
-            num_planes_fused += frame_src_fused->planes.vPlanes.size ();
-            for(size_t i=0; i < frame_src_fused->planes.vPlanes.size (); i++)
-                plane_inliers_fused += frame_src_fused->planes.vPlanes[i].inliers.size();
+//            ++num_frames;
+//            num_planes += frame_src->planes.vPlanes.size ();
+//            for(size_t i=0; i < frame_src->planes.vPlanes.size (); i++)
+//                plane_inliers += frame_src->planes.vPlanes[i].inliers.size();
+//            num_planes_fused += frame_src_fused->planes.vPlanes.size ();
+//            for(size_t i=0; i < frame_src_fused->planes.vPlanes.size (); i++)
+//                plane_inliers_fused += frame_src_fused->planes.vPlanes[i].inliers.size();
 
             for(int i=0;i<4;i++)
               for(int j=0;j<4;j++)
@@ -345,6 +367,9 @@ public:
 //                poses_dense_depth << Rt_dense_depth(j,i) << "\t";
 //                poses_icp << Rt_icp(j,i) << "\t";
 //                poses_pbmap << Rt_pbmap(j,i) << "\t";
+
+                trajectory_raw << currentPose(j,i) << "\t";
+                trajectory_fused_GT << currentPose_fused(j,i) << "\t";
               }
             poses_dense_fused << std::endl;
             poses_dense << std::endl;
@@ -353,6 +378,8 @@ public:
 //            poses_icp << std::endl;
 //            poses_pbmap << std::endl;
 
+            trajectory_raw << std::endl;
+            trajectory_fused_GT << std::endl;
 
 //            if(!bGoodRegistration)
 //            {
@@ -384,14 +411,6 @@ public:
 //            }
 
 
-            // Filter the spherical point cloud
-            filter.filterEuclidean(frame_src_fused->getSphereCloud());
-
-            // Update currentPose
-            currentPose = currentPose * Rt_dense;
-//            currentPose2 = currentPose2 * Rt_dense_photo;
-            currentPose2 = currentPose2 * Rt_dense_NF;
-
 //            if(select_keyframe)
 //            {
 //                cout << "Add keyframe " << endl;
@@ -408,9 +427,16 @@ public:
             std::cout << "Frame " << frame_num << std::endl;
 
 #if VISUALIZE_POINT_CLOUD
+            // Filter the spherical point cloud
+//            filter.filterEuclidean(frame_src_fused->getSphereCloud());
+
             {boost::mutex::scoped_lock updateLock(map.mapMutex);
                 map.addKeyframe(frame_src_fused, currentPose);// Add keyframe
-                map.vOptimizedPoses.back() = currentPose2;
+                map.vOptimizedPoses.back() = currentPose_fused;
+
+                if( map.vpSpheres.size() % 50 == 0 )
+                    map.vSelectedKFs.push_back(map.vpSpheres.size());
+
 
 //                // Update the global cloud
 //                pcl::PointCloud<PointT>::Ptr transformedCloud(new pcl::PointCloud<PointT>);
@@ -443,17 +469,19 @@ public:
             std::cout << "FILE DOES NOT EXIST " << rgb << std::endl;
 
 
-        // Show verifications (IROS 2015)
-        std::cout << "Average num of planes " << float(num_planes)/num_frames << " average inliers " << float(plane_inliers)/num_frames << std::endl;
-        std::cout << "FUSED: Average num of planes " << float(num_planes_fused)/num_frames << " average inliers " << float(plane_inliers_fused)/num_frames << std::endl;
+//        // Show verifications (IROS 2015)
+//        std::cout << "Average num of planes " << float(num_planes)/num_frames << " average inliers " << float(plane_inliers)/num_frames << std::endl;
+//        std::cout << "FUSED: Average num of planes " << float(num_planes_fused)/num_frames << " average inliers " << float(plane_inliers_fused)/num_frames << std::endl;
 
         poses_dense.close();
         poses_dense_fused.close();
-        poses_dense_photo.close();
-        poses_dense_depth.close();
-        poses_icp.close();
-        poses_pbmap.close();
+//        poses_dense_photo.close();
+//        poses_dense_depth.close();
+//        poses_icp.close();
+//        poses_pbmap.close();
 
+        trajectory_raw.close();
+        trajectory_fused_GT.close();
 
         delete frame_trg, frame_src;
         delete frame_trg_fused, frame_src_fused;

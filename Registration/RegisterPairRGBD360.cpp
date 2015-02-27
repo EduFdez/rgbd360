@@ -129,6 +129,9 @@ cout << "Create sphere 2\n";
   align360.alignFrames360_inv(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   cout << "Pose Dense Inv \n" << rotOffset.inverse() * align360.getOptimalPose() * rotOffset << endl;
 
+  align360.alignFrames360_bidirectional(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  cout << "Pose Dense Bidirectional \n" << rotOffset.inverse() * align360.getOptimalPose() * rotOffset << endl;
+
   align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   Eigen::Matrix4f rigidTransf_dense2 = rotOffset.inverse() * align360.getOptimalPose() * rotOffset;
   cout << "Pose Dense2 \n" << rigidTransf_dense2 << endl;

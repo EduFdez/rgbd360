@@ -122,7 +122,7 @@ public:
             viz.setCameraPosition (
                 0,0,-9,		// Position
                 0,0,1,		// Viewpoint
-                0,-1,0);	// Up
+                0,-1,0 );	// Up
 //            viz.setFullScreen(true);
             bFirstRun = false;
         }
@@ -251,44 +251,45 @@ public:
                 //        for(unsigned i=0; i < Map.vpSpheres.size(); i++)
                 for(unsigned i=0; i < Map.vTrajectoryPoses.size(); i++)
                 {
-                    pt_center = pcl::PointXYZ(Map.vTrajectoryPoses[i](0,3), Map.vTrajectoryPoses[i](1,3), Map.vTrajectoryPoses[i](2,3));
-                    sphere_centers[i] = pt_center;
-                    sprintf (name, "pose%u", i);
-                    if(i != currentSphere)
-                        viz.addSphere (pt_center, 0.04, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
-                    else{
-                        viz.addSphere (pt_center, 0.04, ared[(Map.vpSpheres[i]->node+5)%10], agrn[(Map.vpSpheres[i]->node+5)%10], ablu[(Map.vpSpheres[i]->node+5)%10], name);
-                    std::cout << "node " << Map.vpSpheres[i]->node << "\n";}
+//                    pt_center = pcl::PointXYZ(Map.vTrajectoryPoses[i](0,3), Map.vTrajectoryPoses[i](1,3), Map.vTrajectoryPoses[i](2,3));
+//                    sphere_centers[i] = pt_center;
+//                    sprintf (name, "pose%u", i);
+//                    if(i != currentSphere)
+//                        viz.addSphere (pt_center, 0.04, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
+//                    else{
+//                        viz.addSphere (pt_center, 0.04, ared[(Map.vpSpheres[i]->node+5)%10], agrn[(Map.vpSpheres[i]->node+5)%10], ablu[(Map.vpSpheres[i]->node+5)%10], name);
+//                    std::cout << "node " << Map.vpSpheres[i]->node << "\n";
+//                    }
 
-                    sprintf (name, "%u", i);
-                    pt_center.x += 0.05;
-                    viz.addText3D (name, pt_center, 0.05, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
+//                    sprintf (name, "%u", i);
+//                    pt_center.x += 0.05;
+//                    viz.addText3D (name, pt_center, 0.05, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
 
                     Eigen::Affine3f pose;
                     pose.matrix() = Map.vTrajectoryPoses[i];
                     sprintf (name, "cam%u", i);
                     viz.addCoordinateSystem(0.2, pose, name);
 
-//                    sprintf (name, "normal_%u", static_cast<unsigned>(i));
-//                    pcl::PointXYZ pt1, pt2; // Begin and end points of normal's arrow for visualization
-//                    pt1 = pcl::PointXYZ(plane_i.v3center[0], plane_i.v3center[1], plane_i.v3center[2]);
-//                    pt2 = pcl::PointXYZ(plane_i.v3center[0] + (0.5f * plane_i.v3normal[0]),
-//                                        plane_i.v3center[1] + (0.5f * plane_i.v3normal[1]),
-//                                        plane_i.v3center[2] + (0.5f * plane_i.v3normal[2]));
-//                    viz.addArrow (pt2, pt1, ared[i%10], agrn[i%10], ablu[i%10], false, name);
+                    // Draw edges Odometry
+                    if(i>0)
+                    {
+                        sprintf (name, "link%u", i);
+                        viz.addLine (sphere_centers[i-1], sphere_centers[i], name);
+                    }
+
                 }
 
-                // Draw the locations of the selected keyframes
-                for(unsigned i=0; i< Map.vSelectedKFs.size(); i++)
-                {
-                    //if(Map.vsAreas.size() > 1) std::cout << " Draw sphere " << i << " " << Map.vSelectedKFs[i] << std::endl;
-                    pt_center = pcl::PointXYZ(Map.vTrajectoryPoses[Map.vSelectedKFs[i]](0,3), Map.vTrajectoryPoses[Map.vSelectedKFs[i]](1,3), Map.vTrajectoryPoses[Map.vSelectedKFs[i]](2,3));
-                    sprintf (name, "poseKF%u", i);
-                    if(Map.vSelectedKFs[i] != currentSphere)
-                        viz.addSphere (pt_center, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name);
-                    else
-                        viz.addSphere (pt_center, 0.1, ared[(i+5)%10], agrn[(i+5)%10], ablu[(i+5)%10], name);
-                }
+//                // Draw the locations of the selected keyframes
+//                for(unsigned i=0; i< Map.vSelectedKFs.size(); i++)
+//                {
+//                    //if(Map.vsAreas.size() > 1) std::cout << " Draw sphere " << i << " " << Map.vSelectedKFs[i] << std::endl;
+//                    pt_center = pcl::PointXYZ(Map.vTrajectoryPoses[Map.vSelectedKFs[i]](0,3), Map.vTrajectoryPoses[Map.vSelectedKFs[i]](1,3), Map.vTrajectoryPoses[Map.vSelectedKFs[i]](2,3));
+//                    sprintf (name, "poseKF%u", i);
+//                    if(Map.vSelectedKFs[i] != currentSphere)
+//                        viz.addSphere (pt_center, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name);
+//                    else
+//                        viz.addSphere (pt_center, 0.1, ared[(i+5)%10], agrn[(i+5)%10], ablu[(i+5)%10], name);
+//                }
             }
             else
             {
@@ -297,32 +298,40 @@ public:
                 {
                     pt_center = pcl::PointXYZ(Map.vOptimizedPoses[i](0,3), Map.vOptimizedPoses[i](1,3), Map.vOptimizedPoses[i](2,3));
                     sphere_centers[i] = pt_center;
-                    sprintf (name, "pose%u", i);
-                    if(i != currentSphere)
-                        viz.addSphere (pt_center, 0.04, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
-                    else
-                        viz.addSphere (pt_center, 0.04, ared[(Map.vpSpheres[i]->node+5)%10], agrn[(Map.vpSpheres[i]->node+5)%10], ablu[(Map.vpSpheres[i]->node+5)%10], name);
+//                    sprintf (name, "pose%u", i);
+//                    if(i != currentSphere)
+//                        viz.addSphere (pt_center, 0.04, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
+//                    else
+//                        viz.addSphere (pt_center, 0.04, ared[(Map.vpSpheres[i]->node+5)%10], agrn[(Map.vpSpheres[i]->node+5)%10], ablu[(Map.vpSpheres[i]->node+5)%10], name);
 
-                    sprintf (name, "%u", i);
-                    pt_center.x += 0.05;
-                    viz.addText3D (name, pt_center, 0.05, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
+//                    sprintf (name, "%u", i);
+//                    pt_center.x += 0.05;
+//                    viz.addText3D (name, pt_center, 0.05, ared[Map.vpSpheres[i]->node%10], agrn[Map.vpSpheres[i]->node%10], ablu[Map.vpSpheres[i]->node%10], name);
 
                     Eigen::Affine3f pose;
                     pose.matrix() = Map.vOptimizedPoses[i];
                     sprintf (name, "cam%u", i);
                     viz.addCoordinateSystem(0.2, pose, name);
+
+                    // Draw edges Odometry
+                    if(i>0)
+                    {
+                        sprintf (name, "link%u", i);
+                        viz.addLine (sphere_centers[i-1], sphere_centers[i], name);
+                    }
+
                 }
 
-                // Draw the locations of the selected keyframes
-                for(unsigned i=0; i< Map.vSelectedKFs.size(); i++)
-                {
-                    pt_center = pcl::PointXYZ(Map.vOptimizedPoses[Map.vSelectedKFs[i]](0,3), Map.vOptimizedPoses[Map.vSelectedKFs[i]](1,3), Map.vOptimizedPoses[Map.vSelectedKFs[i]](2,3));
-                    sprintf (name, "poseKF%u", i);
-                    if(Map.vSelectedKFs[i] != currentSphere)
-                        viz.addSphere (pt_center, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name);
-                    else
-                        viz.addSphere (pt_center, 0.1, ared[(i+5)%10], agrn[(i+5)%10], ablu[(i+5)%10], name);
-                }
+//                // Draw the locations of the selected keyframes
+//                for(unsigned i=0; i< Map.vSelectedKFs.size(); i++)
+//                {
+//                    pt_center = pcl::PointXYZ(Map.vOptimizedPoses[Map.vSelectedKFs[i]](0,3), Map.vOptimizedPoses[Map.vSelectedKFs[i]](1,3), Map.vOptimizedPoses[Map.vSelectedKFs[i]](2,3));
+//                    sprintf (name, "poseKF%u", i);
+//                    if(Map.vSelectedKFs[i] != currentSphere)
+//                        viz.addSphere (pt_center, 0.1, ared[i%10], agrn[i%10], ablu[i%10], name);
+//                    else
+//                        viz.addSphere (pt_center, 0.1, ared[(i+5)%10], agrn[(i+5)%10], ablu[(i+5)%10], name);
+//                }
             }
 
             // Draw edges

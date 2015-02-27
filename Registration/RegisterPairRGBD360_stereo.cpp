@@ -188,6 +188,14 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   std::cout << "alignFrames360 took " << double (time_end - time_start) << std::endl;
   cout << "Pose Dense Inv \n" << align360.getOptimalPose() << endl;
 
+  time_start = pcl::getTime();
+//  for(size_t i=0; i < 20; i++)
+  align360.alignFrames360_bidirectional(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  time_end = pcl::getTime();
+  std::cout << "alignFrames360 took " << double (time_end - time_start) << std::endl;
+  cout << "Pose Dense Bidirectional \n" <<  align360.getOptimalPose() << endl;
+
+
 ////  time_start = pcl::getTime();
 //  align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
 //  cout << "RegisterDense UNITY \n";
