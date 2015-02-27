@@ -174,6 +174,19 @@ void RegisterDense::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat
     gradX = cv::Mat::zeros(cv::Size(src.cols, src.rows), src.type() );
     gradY = cv::Mat::zeros(cv::Size(src.cols, src.rows), src.type() );
 
+    Eigen::Matrix<float,4,4>
+
+    cv::Mat M1, M0, M_1; // These matrices are M0 the center block matrix (the full image without the first and last row/column), M1 the center block matrix pointing one index (row/column) ahead, and the center block pointing one index back
+
+    // Compute the gradient in Y (rows)
+    unsigned end_block = src.size().area();
+    for(unsigned i1=2*src.cols, i0=src.cols, i_1=0; i1 < end_block; ++i1, i0++, i_1++)
+    {
+        M1.at<float>(i0) = gradY.at<float>(i1) - gradY.at<float>(i0);
+    }
+
+    // Compute the gradient in X (columns) *In this case the matrix needs to be rearranged as they are stored as COLUMN_MAJOR
+
     for(unsigned r=1; r < src.rows-1; r++)
         for(unsigned c=1; c < src.cols-1; c++)
         {
