@@ -293,6 +293,7 @@ public:
 
     /*! Build the spherical point cloud. The reference system is the one used by the INRIA SphericalStereo sensor. Z points forward, X points to the right and Y points downwards */
     void buildSphereCloud();
+    void buildSphereCloud_old();
 
     /*! Create the PbMap of the spherical point cloud */
     void getPlanes();

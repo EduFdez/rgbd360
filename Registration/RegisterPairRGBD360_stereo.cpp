@@ -164,7 +164,7 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   align360.setMinDepth(1.f);
   align360.setMaxDepth(15.f);
   align360.useSaliency(false);
-  //align360.setVisualization(true);
+  align360.setVisualization(true);
   align360.setGrayVariance(8.f/255);
   align360.setTargetFrame(frame360_1.sphereRGB, frame360_1.sphereDepth);
   align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);

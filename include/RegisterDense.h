@@ -112,6 +112,9 @@ class RegisterDense
     std::vector<Eigen::Vector3f>  LUT_xyz_source;
     std::vector<Eigen::Vector3f>  LUT_xyz_target;
 
+    Eigen::MatrixXf LUT_xyz_source_;
+    Eigen::MatrixXf LUT_xyz_target_;
+
     /*! Store a copy of the residuals and the weights to speed-up the registration. (Before they were computed twice: in the error function and the Jacobian)*/
     Eigen::VectorXf residualsPhoto;
     Eigen::VectorXf residualsDepth;

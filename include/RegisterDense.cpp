@@ -2383,15 +2383,17 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
 
     const int nRows = graySrcPyr[pyramidLevel].rows;
     const int nCols = graySrcPyr[pyramidLevel].cols;
-    const int imgSize = nRows*nCols;
-    const float angle_res = 2*PI/nCols;
-    const float angle_res_inv = 1/angle_res;
-    const float phi_FoV = angle_res*nRows; // The vertical FOV in radians
-    const float half_nRows = 0.5*nRows-0.5;
+    const int imgSize = graySrcPyr[pyramidLevel].size().area();
+    const float pixel_angle = 2*PI/nCols;
+    const float pixel_angle_inv = 1/pixel_angle;
+//    const float half_height = 0.5*nRows-0.5;
+    const int half_height = nRows/2;
+    const int half_width =nCols/2;
+    //const float phi_FoV = pixel_angle*nRows; // The vertical FOV in radians
 
     // depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
-    double stdDevPhoto_inv = 1./stdDevPhoto;
-    double stdDevDepth_inv = 1./stdDevDepth;
+    const float stdDevPhoto_inv = 1./stdDevPhoto;
+    const float stdDevDepth_inv = 1./stdDevDepth;
 
     const Eigen::Matrix3f rotation = poseGuess.block(0,0,3,3);
     const Eigen::Vector3f translation = poseGuess.block(0,3,3,1);
@@ -2416,8 +2418,8 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
     //                int c = vSalientPixels[pyramidLevel][i] % nCols;
     ////            cout << "vSalientPixels[pyramidLevel][i] " << vSalientPixels[pyramidLevel][i] << " " << r << " " << c << endl;
 
-    //                float phi = (half_nRows-r)*angle_res;
-    //                float theta = c*angle_res;
+    //                float phi = (half_height-r)*pixel_angle;
+    //                float theta = c*pixel_angle;
 
     //                //Compute the 3D coordinates of the pij of the source frame
     //                Eigen::Vector3f point3D;
@@ -2439,8 +2441,8 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
     //                    float dist_inv = 1.f / transformedPoint3D.norm();
     //                    float phi_trg = asin(transformedPoint3D(0)*dist_inv);
     //                    float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-    //                    int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-    //                    int transformed_c_int = round(theta_trg*angle_res_inv);
+    //                    int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
+    //                    int transformed_c_int = round(theta_trg*pixel_angle_inv);
     ////                cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
     //                    //Asign the intensity value to the warped image and compute the difference between the transformed
     //                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
@@ -2493,10 +2495,10 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
 #endif
         //            for(int r=0;r<nRows;r++)
         //            {
-        //                // float phi = (half_nRows-r)*angle_res;
+        //                // float phi = (half_height-r)*pixel_angle;
         //                for(int c=0;c<nCols;c++)
         //                    // {
-        //                    // float theta = c*angle_res;
+        //                    // float theta = c*pixel_angle;
         //                    // int size_img = nRows*nCols;
         for(int i=0; i < LUT_xyz_source.size(); i++)
         {
@@ -2519,10 +2521,10 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
                 //Project the 3D point to the S2 sphere
                 float dist = transformedPoint3D.norm();
                 float dist_inv = 1.f / dist;
-                float phi_trg = asin(transformedPoint3D(0)*dist_inv);
-                float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-                int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-                int transformed_c_int = round(theta_trg*angle_res_inv);
+                float phi_trg = asin(-transformedPoint3D(1)*dist_inv);
+                float theta_trg = atan2(transformedPoint3D(0),transformedPoint3D(2));
+                int transformed_r_int = half_height + int(round(-phi_trg*pixel_angle_inv));
+                int transformed_c_int = half_width + int(round(theta_trg*pixel_angle_inv));
                 // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
@@ -2601,10 +2603,10 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
 //#endif
 //        //            for(int r=0;r<nRows;r++)
 //        //            {
-//        //                // float phi = (half_nRows-r)*angle_res;
+//        //                // float phi = (half_height-r)*pixel_angle;
 //        //                for(int c=0;c<nCols;c++)
 //        //                    // {
-//        //                    // float theta = c*angle_res;
+//        //                    // float theta = c*pixel_angle;
 //        //                    // int size_img = nRows*nCols;
 //        for(int i=0; i < LUT_xyz_source.size(); i++)
 //        {
@@ -2628,8 +2630,8 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
 //                float dist_inv = 1.f / dist;
 //                float phi_trg = asin(transformedPoint3D(0)*dist_inv);
 //                float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-//                int transformed_r = half_nRows-phi_trg*angle_res_inv;
-//                int transformed_c = theta_trg*angle_res_inv;
+//                int transformed_r = half_height-phi_trg*pixel_angle_inv;
+//                int transformed_c = theta_trg*pixel_angle_inv;
 //                int transformed_r_int = round(transformed_r);
 //                int transformed_c_int = round(transformed_c);
 //                // cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << endl;
@@ -2721,10 +2723,12 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
     const int nCols = graySrcPyr[pyramidLevel].cols;
     const int imgSize = nRows*nCols;
 
-    const float angle_res = 2*PI/nCols;
-    const float angle_res_inv = 1/angle_res;
-    const float phi_FoV = angle_res*nRows; // The vertical FOV in radians
-    const float half_nRows = 0.5*nRows-0.5;
+    const float pixel_angle = 2*PI/nCols;
+    const float pixel_angle_inv = 1/pixel_angle;
+    const float phi_FoV = pixel_angle*nRows; // The vertical FOV in radians
+    //const float half_height = 0.5*nRows-0.5;
+    const int half_height = nRows/2;
+    const int half_width =nCols/2;
 
     hessian = Eigen::Matrix<float,6,6>::Zero();
     gradient = Eigen::Matrix<float,6,1>::Zero();
@@ -2766,8 +2770,8 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
     //                int c = vSalientPixels[pyramidLevel][i] % nCols;
     ////            cout << "vSalientPixels[pyramidLevel][i] " << vSalientPixels[pyramidLevel][i] << " " << r << " " << c << endl;
 
-    //                float phi = (half_nRows-r)*angle_res;
-    //                float theta = c*angle_res;
+    //                float phi = (half_height-r)*pixel_angle;
+    //                float theta = c*pixel_angle;
 
     //                //Compute the 3D coordinates of the pij of the source frame
     //                Eigen::Vector3f point3D;
@@ -2788,8 +2792,8 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
     //                    float dist_inv = 1.f / transformedPoint3D.norm();
     //                    float phi_trg = asin(transformedPoint3D(0)*dist_inv);
     //                    float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-    //                    int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-    //                    int transformed_c_int = round(theta_trg*angle_res_inv);
+    //                    int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
+    //                    int transformed_c_int = round(theta_trg*pixel_angle_inv);
     ////                cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
     //                    //Asign the intensity value to the warped image and compute the difference between the transformed
     //                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
@@ -2807,14 +2811,14 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
     //                        // Jacobian of theta with respect to x,y,z
     //                        float z_inv = 1.f / transformedPoint3D(2);
     //                        float z_inv2 = z_inv*z_inv;
-    //                        float D_atan_theta = 1.f / (1 + transformedPoint3D(1)*transformedPoint3D(1)*z_inv2) *angle_res_inv;
+    //                        float D_atan_theta = 1.f / (1 + transformedPoint3D(1)*transformedPoint3D(1)*z_inv2) *pixel_angle_inv;
     //                        jacobianProj23(0,0) = 0;
     //                        jacobianProj23(0,1) = D_atan_theta * z_inv;
     //                        jacobianProj23(0,2) = -transformedPoint3D(1) * z_inv2 * D_atan_theta;
     //                        // Jacobian of theta with respect to x,y,z
     //                        float dist_inv2 = dist_inv*dist_inv;
     //                        float x_dist_inv2 = transformedPoint3D(0)*dist_inv2;
-    //                        float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) *angle_res_inv;
+    //                        float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) *pixel_angle_inv;
     //                        jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*x_dist_inv2);
     //                        jacobianProj23(1,1) = D_asin * (x_dist_inv2*transformedPoint3D(1)*dist_inv);
     //                        jacobianProj23(1,2) = D_asin * (x_dist_inv2*transformedPoint3D(2)*dist_inv);
@@ -2915,12 +2919,12 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
 #endif
         //            for(int r=0;r<nRows;r++)
         //            {
-        //                // float phi = (half_nRows-r)*angle_res;
+        //                // float phi = (half_height-r)*pixel_angle;
         //                // float sin_phi = sin(phi);
         //                // float cos_phi = cos(phi);
         //                for(int c=0;c<nCols;c++)
         //                {
-        // float theta = c*angle_res;
+        // float theta = c*pixel_angle;
         // {
         // int size_img = nRows*nCols;
         for(int i=0; i < LUT_xyz_source.size(); i++)
@@ -2960,14 +2964,18 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
                 //Project the 3D point to the S2 sphere
                 float dist = transformedPoint3D.norm();
                 float dist_inv = 1.f / dist;
-                float phi_trg = asin(transformedPoint3D(0)*dist_inv);
-                float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-                int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-                int transformed_c_int = round(theta_trg*angle_res_inv);
+//                float phi_trg = asin(transformedPoint3D(0)*dist_inv);
+//                float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
+//                int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
+//                int transformed_c_int = round(theta_trg*pixel_angle_inv);
+                float phi_trg = asin(-transformedPoint3D(1)*dist_inv);
+                float theta_trg = atan2(transformedPoint3D(0),transformedPoint3D(2));
+                int transformed_r_int = half_height + int(round(-phi_trg*pixel_angle_inv));
+                int transformed_c_int = half_width + int(round(theta_trg*pixel_angle_inv));
                 // float phi_trg = asin(transformedPoint3D(1)*dist_inv);
                 // float theta_trg = atan2(transformedPoint3D(1),-transformedPoint3D(2))+PI;
-                // int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-                // int transformed_c_int = round(theta_trg*angle_res_inv);
+                // int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
+                // int transformed_c_int = round(theta_trg*pixel_angle_inv);
                 // cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
@@ -2986,28 +2994,31 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
                     // Jacobian of theta with respect to x,y,z
                     float z_inv = 1.f / transformedPoint3D(2);
                     float z_inv2 = z_inv*z_inv;
-//                    float D_atan_theta = 1.f / (1 + transformedPoint3D(1)*transformedPoint3D(1)*z_inv2) *angle_res_inv;
+//                    float D_atan_theta = 1.f / (1 + transformedPoint3D(1)*transformedPoint3D(1)*z_inv2) *pixel_angle_inv;
 //                    jacobianProj23(0,0) = 0;
 //                    jacobianProj23(0,1) = D_atan_theta * z_inv;
 //                    jacobianProj23(0,2) = -transformedPoint3D(1) * z_inv2 * D_atan_theta;
-                    float D_atan_theta_z_inv2 = angle_res_inv / (transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
-                    jacobianProj23(0,0) = 0;
-                    jacobianProj23(0,1) = transformedPoint3D(2) * D_atan_theta_z_inv2;
-                    jacobianProj23(0,2) = -transformedPoint3D(1) * D_atan_theta_z_inv2;
+                    float D_atan_theta_z_inv2 = pixel_angle_inv / (transformedPoint3D(0)*transformedPoint3D(0) + transformedPoint3D(2)*transformedPoint3D(2));
+                    jacobianProj23(0,0) = transformedPoint3D(2) * D_atan_theta_z_inv2;
+                    jacobianProj23(0,1) = 0;
+                    jacobianProj23(0,2) = -transformedPoint3D(0) * D_atan_theta_z_inv2;
                     // Jacobian of phi with respect to x,y,z
 //                    float dist_inv2 = dist_inv*dist_inv;
 //                    float x_dist_inv2 = transformedPoint3D(0)*dist_inv2;
-//                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) * angle_res_inv;
+//                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) * pixel_angle_inv;
 //                    jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*x_dist_inv2);
 //                    jacobianProj23(1,1) = D_asin * (x_dist_inv2*transformedPoint3D(1)*dist_inv);
 //                    jacobianProj23(1,2) = D_asin * (x_dist_inv2*transformedPoint3D(2)*dist_inv);
+                    float commonDer_r = -pixel_angle_inv / ( dist * dist * sqrt(transformedPoint3D(0)*transformedPoint3D(0) + transformedPoint3D(2)*transformedPoint3D(2)) );
+                    jacobianProj23(1,0) = transformedPoint3D(0) * transformedPoint3D(1) * commonDer_r;
+                    jacobianProj23(1,1) = (transformedPoint3D(1)*transformedPoint3D(1)-1) * commonDer_r;
+                    jacobianProj23(1,2) = transformedPoint3D(2) * transformedPoint3D(1) * commonDer_r;
 
-                    float commonDer_r = angle_res_inv / ( dist * dist * sqrt(transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2)) );
-                    Eigen::Matrix<float,2,3> jacobianProj23_;
-                    jacobianProj23_(1,0) = (transformedPoint3D(0)*transformedPoint3D(0)-1) * commonDer_r;
-                    jacobianProj23_(1,1) = transformedPoint3D(1) * commonDer_r;
-                    jacobianProj23_(1,2) = transformedPoint3D(2) * commonDer_r;
-                    // std::cout << "jacobianProj23 \n " << jacobianProj23 << " \n jacobianProj23_ \n " << jacobianProj23_ << std::endl;
+//                    Eigen::Matrix<float,2,3> jacobianProj23_;
+//                    jacobianProj23_(1,0) = transformedPoint3D(0) * transformedPoint3D(1) * commonDer_r;
+//                    jacobianProj23_(1,1) = (transformedPoint3D(1)*transformedPoint3D(1)-1) * commonDer_r;
+//                    jacobianProj23_(1,2) = transformedPoint3D(2) * transformedPoint3D(1) * commonDer_r;
+//                    // std::cout << "jacobianProj23 \n " << jacobianProj23 << " \n jacobianProj23_ \n " << jacobianProj23_ << std::endl;
 
                     Eigen::Matrix<float,2,6> jacobianWarpRt = jacobianProj23 * jacobianT36;
                     float pixel1, pixel2, depth2;
@@ -3227,12 +3238,12 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
 //#endif
 //        //            for(int r=0;r<nRows;r++)
 //        //            {
-//        //                // float phi = (half_nRows-r)*angle_res;
+//        //                // float phi = (half_height-r)*pixel_angle;
 //        //                // float sin_phi = sin(phi);
 //        //                // float cos_phi = cos(phi);
 //        //                for(int c=0;c<nCols;c++)
 //        //                {
-//        // float theta = c*angle_res;
+//        // float theta = c*pixel_angle;
 //        // {
 //        // int size_img = nRows*nCols;
 //        for(int i=0; i < LUT_xyz_source.size(); i++)
@@ -3262,12 +3273,12 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
 //                float dist_inv = 1.f / dist;
 //                float phi_trg = asin(transformedPoint3D(0)*dist_inv);
 //                float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-//                int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-//                int transformed_c_int = round(theta_trg*angle_res_inv);
+//                int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
+//                int transformed_c_int = round(theta_trg*pixel_angle_inv);
 //                // float phi_trg = asin(transformedPoint3D(1)*dist_inv);
 //                // float theta_trg = atan2(transformedPoint3D(1),-transformedPoint3D(2))+PI;
-//                // int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-//                // int transformed_c_int = round(theta_trg*angle_res_inv);
+//                // int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
+//                // int transformed_c_int = round(theta_trg*pixel_angle_inv);
 //                // cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
 //                //Asign the intensity value to the warped image and compute the difference between the transformed
 //                //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
@@ -3286,7 +3297,7 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
 //                    // Jacobian of theta with respect to x,y,z
 //                    float z_inv = 1.f / transformedPoint3D(2);
 //                    float z_inv2 = z_inv*z_inv;
-//                    float D_atan_theta = 1.f / (1 + transformedPoint3D(1)*transformedPoint3D(1)*z_inv2) *angle_res_inv;
+//                    float D_atan_theta = 1.f / (1 + transformedPoint3D(1)*transformedPoint3D(1)*z_inv2) *pixel_angle_inv;
 //                    jacobianProj23(0,0) = 0;
 //                    jacobianProj23(0,1) = D_atan_theta * z_inv;
 //                    jacobianProj23(0,2) = -transformedPoint3D(1) * z_inv2 * D_atan_theta;
@@ -3295,13 +3306,13 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
 //                    // Jacobian of phi with respect to x,y,z
 //                    float dist_inv2 = dist_inv*dist_inv;
 //                    float x_dist_inv2 = transformedPoint3D(0)*dist_inv2;
-//                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) *angle_res_inv;
+//                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) *pixel_angle_inv;
 //                    jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*x_dist_inv2);
 //                    jacobianProj23(1,1) = D_asin * (x_dist_inv2*transformedPoint3D(1)*dist_inv);
 //                    jacobianProj23(1,2) = D_asin * (x_dist_inv2*transformedPoint3D(2)*dist_inv);
 //                    // float y2_z2_inv = 1.f / (transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
 //                    // float sq_y2_z2 = sqrt(y2_z2_inv);
-//                    // float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*y2_z2_inv) *angle_res_inv;;
+//                    // float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*y2_z2_inv) *pixel_angle_inv;;
 //                    // Eigen::Matrix<float,2,3> jacobianProj23_;
 //                    // jacobianProj23_(1,0) = - D_atan * sq_y2_z2;
 //                    // jacobianProj23_(1,1) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(1);
@@ -3532,14 +3543,16 @@ double RegisterDense::errorDenseInv_sphere ( const int &pyramidLevel,
     const int nRows = graySrcPyr[pyramidLevel].rows;
     const int nCols = graySrcPyr[pyramidLevel].cols;
     const int imgSize = nRows*nCols;
-    const float angle_res = 2*PI/nCols;
-    const float angle_res_inv = 1/angle_res;
-    const float phi_FoV = angle_res*nRows; // The vertical FOV in radians
-    const float half_nRows = 0.5*nRows-0.5;
+    const float pixel_angle = 2*PI/nCols;
+    const float pixel_angle_inv = 1/pixel_angle;
+    const float phi_FoV = pixel_angle*nRows; // The vertical FOV in radians
+    //const float half_height = 0.5*nRows-0.5;
+    const int half_height = nRows/2;
+    const int half_width =nCols/2;
 
     // depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
-    double stdDevPhoto_inv = 1./stdDevPhoto;
-    double stdDevDepth_inv = 1./stdDevDepth;
+    const float stdDevPhoto_inv = 1./stdDevPhoto;
+    const float stdDevDepth_inv = 1./stdDevDepth;
 
     const Eigen::Matrix4f poseGuess_inv = poseGuess.inverse();
     const Eigen::Matrix3f rotation_inv = poseGuess_inv.block(0,0,3,3);
@@ -3553,10 +3566,10 @@ double RegisterDense::errorDenseInv_sphere ( const int &pyramidLevel,
 #endif
         //            for(int r=0;r<nRows;r++)
         //            {
-        //                // float phi = (half_nRows-r)*angle_res;
+        //                // float phi = (half_height-r)*pixel_angle;
         //                for(int c=0;c<nCols;c++)
         //                    // {
-        //                    // float theta = c*angle_res;
+        //                    // float theta = c*pixel_angle;
         //                    // int size_img = nRows*nCols;
         for(int i=0; i < LUT_xyz_target.size(); i++)
         {
@@ -3579,10 +3592,14 @@ double RegisterDense::errorDenseInv_sphere ( const int &pyramidLevel,
                 //Project the 3D point to the S2 sphere
                 float dist = transformedPoint3D.norm();
                 float dist_inv = 1.f / dist;
-                float phi_Src = asin(transformedPoint3D(0)*dist_inv);
-                float theta_Src = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-                int transformed_r_int = round(half_nRows-phi_Src*angle_res_inv);
-                int transformed_c_int = round(theta_Src*angle_res_inv);
+//                float phi_Src = asin(transformedPoint3D(0)*dist_inv);
+//                float theta_Src = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
+//                int transformed_r_int = round(half_height-phi_Src*pixel_angle_inv);
+//                int transformed_c_int = round(theta_Src*pixel_angle_inv);
+                float phi_trg = asin(-transformedPoint3D(1)*dist_inv);
+                float theta_trg = atan2(transformedPoint3D(0),transformedPoint3D(2));
+                int transformed_r_int = half_height + int(round(-phi_trg*pixel_angle_inv));
+                int transformed_c_int = half_width + int(round(theta_trg*pixel_angle_inv));
                 // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
@@ -3678,10 +3695,10 @@ void RegisterDense::calcHessGradInv_sphere(const int &pyramidLevel,
     const int nCols = graySrcPyr[pyramidLevel].cols;
     const int imgSize = nRows*nCols;
 
-    const float angle_res = 2*PI/nCols;
-    const float angle_res_inv = 1/angle_res;
-    const float phi_FoV = angle_res*nRows; // The vertical FOV in radians
-    const float half_nRows = 0.5*nRows-0.5;
+    const float pixel_angle = 2*PI/nCols;
+    const float pixel_angle_inv = 1/pixel_angle;
+    const float phi_FoV = pixel_angle*nRows; // The vertical FOV in radians
+    const float half_height = 0.5*nRows-0.5;
 
     hessian = Eigen::Matrix<float,6,6>::Zero();
     gradient = Eigen::Matrix<float,6,1>::Zero();
@@ -3723,12 +3740,12 @@ void RegisterDense::calcHessGradInv_sphere(const int &pyramidLevel,
 #endif
         //            for(int r=0;r<nRows;r++)
         //            {
-        //                // float phi = (half_nRows-r)*angle_res;
+        //                // float phi = (half_height-r)*pixel_angle;
         //                // float sin_phi = sin(phi);
         //                // float cos_phi = cos(phi);
         //                for(int c=0;c<nCols;c++)
         //                {
-        // float theta = c*angle_res;
+        // float theta = c*pixel_angle;
         // {
         // int size_img = nRows*nCols;
         for(int i=0; i < LUT_xyz_target.size(); i++)
@@ -3759,12 +3776,12 @@ void RegisterDense::calcHessGradInv_sphere(const int &pyramidLevel,
                 float dist_inv = 1.f / dist;
                 float phi_trg = asin(transformedPoint3D(0)*dist_inv);
                 float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-                int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-                int transformed_c_int = round(theta_trg*angle_res_inv);
+                int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
+                int transformed_c_int = round(theta_trg*pixel_angle_inv);
                 // float phi_trg = asin(transformedPoint3D(1)*dist_inv);
                 // float theta_trg = atan2(transformedPoint3D(1),-transformedPoint3D(2))+PI;
-                // int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-                // int transformed_c_int = round(theta_trg*angle_res_inv);
+                // int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
+                // int transformed_c_int = round(theta_trg*pixel_angle_inv);
                 // cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
@@ -3788,27 +3805,32 @@ void RegisterDense::calcHessGradInv_sphere(const int &pyramidLevel,
                     // Jacobian of theta with respect to x,y,z
                     float z_inv = 1.f / transformedPoint3D(2);
                     float z_inv2 = z_inv*z_inv;
-                    float D_atan_theta = 1.f / (1 + transformedPoint3D(1)*transformedPoint3D(1)*z_inv2) *angle_res_inv;
-                    jacobianProj23(0,0) = 0;
-                    jacobianProj23(0,1) = D_atan_theta * z_inv;
-                    jacobianProj23(0,2) = -transformedPoint3D(1) * z_inv2 * D_atan_theta;
-                    // jacobianProj23(0,2) = -D_atan_theta * z_inv;
-                    // jacobianProj23(0,1) = transformedPoint3D(1) * z_inv2 * D_atan_theta;
+//                    float D_atan_theta = 1.f / (1 + transformedPoint3D(1)*transformedPoint3D(1)*z_inv2) *pixel_angle_inv;
+//                    jacobianProj23(0,0) = 0;
+//                    jacobianProj23(0,1) = D_atan_theta * z_inv;
+//                    jacobianProj23(0,2) = -transformedPoint3D(1) * z_inv2 * D_atan_theta;
+                    float D_atan_theta_z_inv2 = pixel_angle_inv / (transformedPoint3D(0)*transformedPoint3D(0) + transformedPoint3D(2)*transformedPoint3D(2));
+                    jacobianProj23(0,0) = transformedPoint3D(2) * D_atan_theta_z_inv2;
+                    jacobianProj23(0,1) = 0;
+                    jacobianProj23(0,2) = -transformedPoint3D(0) * D_atan_theta_z_inv2;
                     // Jacobian of phi with respect to x,y,z
-                    float dist_inv2 = dist_inv*dist_inv;
-                    float x_dist_inv2 = transformedPoint3D(0)*dist_inv2;
-                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) *angle_res_inv;
-                    jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*x_dist_inv2);
-                    jacobianProj23(1,1) = D_asin * (x_dist_inv2*transformedPoint3D(1)*dist_inv);
-                    jacobianProj23(1,2) = D_asin * (x_dist_inv2*transformedPoint3D(2)*dist_inv);
-                    // float y2_z2_inv = 1.f / (transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
-                    // float sq_y2_z2 = sqrt(y2_z2_inv);
-                    // float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*y2_z2_inv) *angle_res_inv;;
-                    // Eigen::Matrix<float,2,3> jacobianProj23_;
-                    // jacobianProj23_(1,0) = - D_atan * sq_y2_z2;
-                    // jacobianProj23_(1,1) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(1);
-                    // jacobianProj23_(1,2) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(2);
-                    // std::cout << "jacobianProj23 \n " << jacobianProj23 << " \n jacobianProj23_ \n " << jacobianProj23_ << std::endl;
+//                    float dist_inv2 = dist_inv*dist_inv;
+//                    float x_dist_inv2 = transformedPoint3D(0)*dist_inv2;
+//                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) * pixel_angle_inv;
+//                    jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*x_dist_inv2);
+//                    jacobianProj23(1,1) = D_asin * (x_dist_inv2*transformedPoint3D(1)*dist_inv);
+//                    jacobianProj23(1,2) = D_asin * (x_dist_inv2*transformedPoint3D(2)*dist_inv);
+                    float commonDer_r = -pixel_angle_inv / ( dist * dist * sqrt(transformedPoint3D(0)*transformedPoint3D(0) + transformedPoint3D(2)*transformedPoint3D(2)) );
+                    jacobianProj23(1,0) = transformedPoint3D(0) * transformedPoint3D(1) * commonDer_r;
+                    jacobianProj23(1,1) = (transformedPoint3D(1)*transformedPoint3D(1)-1) * commonDer_r;
+                    jacobianProj23(1,2) = transformedPoint3D(2) * transformedPoint3D(1) * commonDer_r;
+
+//                    float commonDer_r = -pixel_angle_inv / ( dist * dist * sqrt(transformedPoint3D(0)*transformedPoint3D(0) + transformedPoint3D(2)*transformedPoint3D(2)) );
+//                    Eigen::Matrix<float,2,3> jacobianProj23_;
+//                    jacobianProj23_(1,0) = transformedPoint3D(0) * transformedPoint3D(1) * commonDer_r;
+//                    jacobianProj23_(1,1) = (transformedPoint3D(1)*transformedPoint3D(1)-1) * commonDer_r;
+//                    jacobianProj23_(1,2) = transformedPoint3D(2) * transformedPoint3D(1) * commonDer_r;
+//                    // std::cout << "jacobianProj23 \n " << jacobianProj23 << " \n jacobianProj23_ \n " << jacobianProj23_ << std::endl;
 
                     Eigen::Matrix<float,2,6> jacobianWarpRt = jacobianProj23 * jacobianT36_inv;
                     float pixel1, pixel2, depth2;
@@ -4049,15 +4071,15 @@ double RegisterDense::errorDense_sphereOcc1(const int &pyramidLevel,
     Eigen::VectorXf residualsDepth = Eigen::VectorXf::Zero(imgSize);
     Eigen::VectorXf invDepthBuffer = Eigen::VectorXf::Zero(imgSize);
 
-    const float angle_res = 2*PI/nCols;
-    const float angle_res_inv = 1/angle_res;
-    const float phi_FoV = angle_res*nRows; // The vertical FOV in radians
-    const float half_nRows = 0.5*nRows-0.5;
+    const float pixel_angle = 2*PI/nCols;
+    const float pixel_angle_inv = 1/pixel_angle;
+    const float phi_FoV = pixel_angle*nRows; // The vertical FOV in radians
+    const float half_height = 0.5*nRows-0.5;
 
     double weight_estim; // The weight computed by an M-estimator
     //        depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
-    double stdDevPhoto_inv = 1./stdDevPhoto;
-    double stdDevDepth_inv = 1./stdDevDepth;
+    const float stdDevPhoto_inv = 1./stdDevPhoto;
+    const float stdDevDepth_inv = 1./stdDevDepth;
 
     const Eigen::Matrix3f rotation = poseGuess.block(0,0,3,3);
     const Eigen::Vector3f translation = poseGuess.block(0,3,3,1);
@@ -4087,8 +4109,8 @@ double RegisterDense::errorDense_sphereOcc1(const int &pyramidLevel,
                 float dist_inv = 1.f / dist;
                 float phi_trg = asin(transformedPoint3D(0)*dist_inv);
                 float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-                int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-                int transformed_c_int = round(theta_trg*angle_res_inv);
+                int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
+                int transformed_c_int = round(theta_trg*pixel_angle_inv);
                 //                cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
@@ -4180,10 +4202,10 @@ void RegisterDense::calcHessGrad_sphereOcc1( const int &pyramidLevel,
     const int nCols = graySrcPyr[pyramidLevel].cols;
     const int imgSize = nRows*nCols;
 
-    const float angle_res = 2*PI/nCols;
-    const float angle_res_inv = 1/angle_res;
-    const float phi_FoV = angle_res*nRows; // The vertical FOV in radians
-    const float half_nRows = 0.5*nRows-0.5;
+    const float pixel_angle = 2*PI/nCols;
+    const float pixel_angle_inv = 1/pixel_angle;
+    const float phi_FoV = pixel_angle*nRows; // The vertical FOV in radians
+    const float half_height = 0.5*nRows-0.5;
 
     hessian = Eigen::Matrix<float,6,6>::Zero();
     gradient = Eigen::Matrix<float,6,1>::Zero();
@@ -4223,12 +4245,12 @@ void RegisterDense::calcHessGrad_sphereOcc1( const int &pyramidLevel,
 #endif
         //            for(int r=0;r<nRows;r++)
         //            {
-        //                // float phi = (half_nRows-r)*angle_res;
+        //                // float phi = (half_height-r)*pixel_angle;
         //                // float sin_phi = sin(phi);
         //                // float cos_phi = cos(phi);
         //                for(int c=0;c<nCols;c++)
         //                {
-        // float theta = c*angle_res;
+        // float theta = c*pixel_angle;
         // {
         // int size_img = nRows*nCols;
         for(int i=0; i < LUT_xyz_source.size(); i++)
@@ -4259,12 +4281,12 @@ void RegisterDense::calcHessGrad_sphereOcc1( const int &pyramidLevel,
                 float dist_inv = 1.f / dist;
                 float phi_trg = asin(transformedPoint3D(0)*dist_inv);
                 float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-                int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-                int transformed_c_int = round(theta_trg*angle_res_inv);
+                int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
+                int transformed_c_int = round(theta_trg*pixel_angle_inv);
                 //                        float phi_trg = asin(transformedPoint3D(1)*dist_inv);
                 //                        float theta_trg = atan2(transformedPoint3D(1),-transformedPoint3D(2))+PI;
-                //                        int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-                //                        int transformed_c_int = round(theta_trg*angle_res_inv);
+                //                        int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
+                //                        int transformed_c_int = round(theta_trg*pixel_angle_inv);
                 //                    cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
@@ -4288,7 +4310,7 @@ void RegisterDense::calcHessGrad_sphereOcc1( const int &pyramidLevel,
                     // Jacobian of theta with respect to x,y,z
                     float z_inv = 1.f / transformedPoint3D(2);
                     float z_inv2 = z_inv*z_inv;
-                    float D_atan_theta = 1.f / (1 + transformedPoint3D(1)*transformedPoint3D(1)*z_inv2) *angle_res_inv;
+                    float D_atan_theta = 1.f / (1 + transformedPoint3D(1)*transformedPoint3D(1)*z_inv2) *pixel_angle_inv;
                     jacobianProj23(0,0) = 0;
                     jacobianProj23(0,1) = D_atan_theta * z_inv;
                     jacobianProj23(0,2) = -transformedPoint3D(1) * z_inv2 * D_atan_theta;
@@ -4297,13 +4319,13 @@ void RegisterDense::calcHessGrad_sphereOcc1( const int &pyramidLevel,
                     // Jacobian of phi with respect to x,y,z
                     float dist_inv2 = dist_inv*dist_inv;
                     float x_dist_inv2 = transformedPoint3D(0)*dist_inv2;
-                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) *angle_res_inv;
+                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) *pixel_angle_inv;
                     jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*x_dist_inv2);
                     jacobianProj23(1,1) = D_asin * (x_dist_inv2*transformedPoint3D(1)*dist_inv);
                     jacobianProj23(1,2) = D_asin * (x_dist_inv2*transformedPoint3D(2)*dist_inv);
                     //                            float y2_z2_inv = 1.f / (transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
                     //                            float sq_y2_z2 = sqrt(y2_z2_inv);
-                    //                            float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*y2_z2_inv) *angle_res_inv;;
+                    //                            float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*y2_z2_inv) *pixel_angle_inv;;
                     //                            Eigen::Matrix<float,2,3> jacobianProj23_;
                     //                            jacobianProj23_(1,0) = - D_atan * sq_y2_z2;
                     //                            jacobianProj23_(1,1) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(1);
@@ -4537,15 +4559,15 @@ double RegisterDense::errorDense_sphereOcc2(const int &pyramidLevel,
     Eigen::VectorXf residualsDepth = Eigen::VectorXf::Zero(imgSize);
     Eigen::VectorXf invDepthBuffer = Eigen::VectorXf::Zero(imgSize);
 
-    const float angle_res = 2*PI/nCols;
-    const float angle_res_inv = 1/angle_res;
-    const float phi_FoV = angle_res*nRows; // The vertical FOV in radians
-    const float half_nRows = 0.5*nRows-0.5;
+    const float pixel_angle = 2*PI/nCols;
+    const float pixel_angle_inv = 1/pixel_angle;
+    const float phi_FoV = pixel_angle*nRows; // The vertical FOV in radians
+    const float half_height = 0.5*nRows-0.5;
 
     double weight_estim; // The weight computed by an M-estimator
     //        depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
-    double stdDevPhoto_inv = 1./stdDevPhoto;
-    double stdDevDepth_inv = 1./stdDevDepth;
+    const float stdDevPhoto_inv = 1./stdDevPhoto;
+    const float stdDevDepth_inv = 1./stdDevDepth;
 
     const Eigen::Matrix3f rotation = poseGuess.block(0,0,3,3);
     const Eigen::Vector3f translation = poseGuess.block(0,3,3,1);
@@ -4575,8 +4597,8 @@ double RegisterDense::errorDense_sphereOcc2(const int &pyramidLevel,
                 float dist_inv = 1.f / dist;
                 float phi_trg = asin(transformedPoint3D(0)*dist_inv);
                 float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-                int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-                int transformed_c_int = round(theta_trg*angle_res_inv);
+                int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
+                int transformed_c_int = round(theta_trg*pixel_angle_inv);
                 //                cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
@@ -4669,10 +4691,10 @@ void RegisterDense::calcHessGrad_sphereOcc2( const int &pyramidLevel,
     const int nCols = graySrcPyr[pyramidLevel].cols;
     const int imgSize = nRows*nCols;
 
-    const float angle_res = 2*PI/nCols;
-    const float angle_res_inv = 1/angle_res;
-    const float phi_FoV = angle_res*nRows; // The vertical FOV in radians
-    const float half_nRows = 0.5*nRows-0.5;
+    const float pixel_angle = 2*PI/nCols;
+    const float pixel_angle_inv = 1/pixel_angle;
+    const float phi_FoV = pixel_angle*nRows; // The vertical FOV in radians
+    const float half_height = 0.5*nRows-0.5;
 
     hessian = Eigen::Matrix<float,6,6>::Zero();
     gradient = Eigen::Matrix<float,6,1>::Zero();
@@ -4718,12 +4740,12 @@ void RegisterDense::calcHessGrad_sphereOcc2( const int &pyramidLevel,
 #endif
         //            for(int r=0;r<nRows;r++)
         //            {
-        //                // float phi = (half_nRows-r)*angle_res;
+        //                // float phi = (half_height-r)*pixel_angle;
         //                // float sin_phi = sin(phi);
         //                // float cos_phi = cos(phi);
         //                for(int c=0;c<nCols;c++)
         //                {
-        // float theta = c*angle_res;
+        // float theta = c*pixel_angle;
         // {
         // int size_img = nRows*nCols;
         for(int i=0; i < LUT_xyz_source.size(); i++)
@@ -4754,12 +4776,12 @@ void RegisterDense::calcHessGrad_sphereOcc2( const int &pyramidLevel,
                 float dist_inv = 1.f / dist;
                 float phi_trg = asin(transformedPoint3D(0)*dist_inv);
                 float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
-                int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-                int transformed_c_int = round(theta_trg*angle_res_inv);
+                int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
+                int transformed_c_int = round(theta_trg*pixel_angle_inv);
                 //                        float phi_trg = asin(transformedPoint3D(1)*dist_inv);
                 //                        float theta_trg = atan2(transformedPoint3D(1),-transformedPoint3D(2))+PI;
-                //                        int transformed_r_int = round(half_nRows-phi_trg*angle_res_inv);
-                //                        int transformed_c_int = round(theta_trg*angle_res_inv);
+                //                        int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
+                //                        int transformed_c_int = round(theta_trg*pixel_angle_inv);
                 //                    cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
@@ -4813,7 +4835,7 @@ void RegisterDense::calcHessGrad_sphereOcc2( const int &pyramidLevel,
                     // Jacobian of theta with respect to x,y,z
                     float z_inv = 1.f / transformedPoint3D(2);
                     float z_inv2 = z_inv*z_inv;
-                    float D_atan_theta = 1.f / (1 + transformedPoint3D(1)*transformedPoint3D(1)*z_inv2) *angle_res_inv;
+                    float D_atan_theta = 1.f / (1 + transformedPoint3D(1)*transformedPoint3D(1)*z_inv2) *pixel_angle_inv;
                     jacobianProj23(0,0) = 0;
                     jacobianProj23(0,1) = D_atan_theta * z_inv;
                     jacobianProj23(0,2) = -transformedPoint3D(1) * z_inv2 * D_atan_theta;
@@ -4822,13 +4844,13 @@ void RegisterDense::calcHessGrad_sphereOcc2( const int &pyramidLevel,
                     // Jacobian of phi with respect to x,y,z
                     float dist_inv2 = dist_inv*dist_inv;
                     float x_dist_inv2 = transformedPoint3D(0)*dist_inv2;
-                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) *angle_res_inv;
+                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) *pixel_angle_inv;
                     jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*x_dist_inv2);
                     jacobianProj23(1,1) = D_asin * (x_dist_inv2*transformedPoint3D(1)*dist_inv);
                     jacobianProj23(1,2) = D_asin * (x_dist_inv2*transformedPoint3D(2)*dist_inv);
                     //                            float y2_z2_inv = 1.f / (transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
                     //                            float sq_y2_z2 = sqrt(y2_z2_inv);
-                    //                            float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*y2_z2_inv) *angle_res_inv;;
+                    //                            float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*y2_z2_inv) *pixel_angle_inv;;
                     //                            Eigen::Matrix<float,2,3> jacobianProj23_;
                     //                            jacobianProj23_(1,0) = - D_atan * sq_y2_z2;
                     //                            jacobianProj23_(1,1) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(1);
@@ -5362,25 +5384,34 @@ void RegisterDense::alignFrames360(const Eigen::Matrix4f pose_guess, costFuncTyp
         // Make LUT to store the values of the 3D points of the source sphere
         double time_start = pcl::getTime();
         LUT_xyz_source.resize(imgSize);
-        const float angle_res = 2*PI/nCols;
-        std::vector<float> v_sinTheta(nCols);
-        std::vector<float> v_cosTheta(nCols);
-#if ENABLE_OPENMP
-#pragma omp parallel for
-#endif
-        for(int c=0;c<nCols;c++)
+        const float pixel_angle = 2*PI/nCols;
+        //const float half_height = 0.5*nRows-0.5;
+        const float half_height = nRows/2;
+        const float half_width = nCols/2;
+
+        //  Efficiency: store the values of the trigonometric functions
+        Eigen::VectorXf v_sinTheta(depthTrgPyr[pyramidLevel].cols);
+        Eigen::VectorXf v_cosTheta(depthTrgPyr[pyramidLevel].cols);
+        float *sinTheta = &v_sinTheta[0];
+        float *cosTheta = &v_cosTheta[0];
+        for(int col_theta=-half_width; col_theta < half_width; ++col_theta)
         {
-            float theta = c*angle_res;
-            v_sinTheta[c] = sin(theta);
-            v_cosTheta[c] = cos(theta);
+            float theta = col_theta*pixel_angle;
+            *(sinTheta++) = sin(theta);
+            *(cosTheta++) = cos(theta);
         }
-        const float half_nRows = 0.5*nRows-0.5;
+
+//        // Make LUT to store the values of the 3D points of the source sphere
+//        time_start = pcl::getTime();
+//        LUT_xyz_source_ = Eigen::MatrixXf::Zeros(4,imgSize);
+
+
 #if ENABLE_OPENMP
 #pragma omp parallel for
 #endif
         for(int r=0;r<nRows;r++)
         {
-            float phi = (half_nRows-r)*angle_res;
+            float phi = (half_height-r)*pixel_angle;
             float sin_phi = sin(phi);
             float cos_phi = cos(phi);
 
@@ -5393,9 +5424,9 @@ void RegisterDense::alignFrames360(const Eigen::Matrix4f pose_guess, costFuncTyp
                 //                std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << std::endl;
                 if(minDepth < depth1 && depth1 < maxDepth) //Compute the jacobian only for the valid points
                 {
-                    LUT_xyz_source[i](0) = depth1*sin_phi;
-                    LUT_xyz_source[i](1) = depth1*cos_phi*v_sinTheta[c];
-                    LUT_xyz_source[i](2) = -depth1*cos_phi*v_cosTheta[c];
+                    LUT_xyz_source[i](0) = depth1 * cos_phi * v_sinTheta[c];
+                    LUT_xyz_source[i](1) = -depth1 * sin_phi;
+                    LUT_xyz_source[i](2) = depth1 * cos_phi * v_cosTheta[c];
                 }
                 else
                     LUT_xyz_source[i](0) = INVALID_POINT;
@@ -5651,29 +5682,30 @@ void RegisterDense::alignFrames360_inv(const Eigen::Matrix4f pose_guess, costFun
             //        cv::waitKey(0);
         }
 
-
         // Make LUT to store the values of the 3D points of the source sphere
         double time_start = pcl::getTime();
         LUT_xyz_target.resize(imgSize);
-        const float angle_res = 2*PI/nCols;
-        std::vector<float> v_sinTheta(nCols);
-        std::vector<float> v_cosTheta(nCols);
-#if ENABLE_OPENMP
-#pragma omp parallel for
-#endif
-        for(int c=0;c<nCols;c++)
+        const float pixel_angle = 2*PI/nCols;
+        //const float half_height = 0.5*nRows-0.5;      // TODO: Adapt the method to the Asus XPL (+0.5 pixels)
+        const float half_height = nRows/2;
+        const float half_width = nCols/2;
+
+        //  Efficiency: store the values of the trigonometric functions
+        Eigen::VectorXf v_sinTheta(depthTrgPyr[pyramidLevel].cols);
+        Eigen::VectorXf v_cosTheta(depthTrgPyr[pyramidLevel].cols);
+        float *sinTheta = &v_sinTheta[0];
+        float *cosTheta = &v_cosTheta[0];
+        for(int col_theta=-half_width; col_theta < half_width; ++col_theta)
         {
-            float theta = c*angle_res;
-            v_sinTheta[c] = sin(theta);
-            v_cosTheta[c] = cos(theta);
+            float theta = col_theta*pixel_angle;
+            *(sinTheta++) = sin(theta);
+            *(cosTheta++) = cos(theta);
         }
-        const float half_nRows = 0.5*nRows-0.5;
 #if ENABLE_OPENMP
-#pragma omp parallel for
-#endif
+    #pragma omp parallel for
         for(int r=0;r<nRows;r++)
         {
-            float phi = (half_nRows-r)*angle_res;
+            float phi = (half_height-r)*pixel_angle;
             float sin_phi = sin(phi);
             float cos_phi = cos(phi);
 
@@ -5686,17 +5718,64 @@ void RegisterDense::alignFrames360_inv(const Eigen::Matrix4f pose_guess, costFun
                 //                std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << std::endl;
                 if(minDepth < depth1 && depth1 < maxDepth) //Compute the jacobian only for the valid points
                 {
-                    LUT_xyz_target[i](0) = depth1*sin_phi;
-                    LUT_xyz_target[i](1) = depth1*cos_phi*v_sinTheta[c];
-                    LUT_xyz_target[i](2) = -depth1*cos_phi*v_cosTheta[c];
+                    LUT_xyz_target[i](0) = depth1 * cos_phi * v_sinTheta[c];
+                    LUT_xyz_target[i](1) = -depth1* sin_phi;
+                    LUT_xyz_target[i](2) = depth1 * cos_phi * v_cosTheta[c];
                 }
                 else
                     LUT_xyz_target[i](0) = INVALID_POINT;
-//                std::cout << LUT_xyz_target[i].transpose() << std::endl;
+//                std::cout << LUT_xyz_source[i].transpose() << std::endl;
 //                if(r == 10 && c == 20)
 //                    mrpt::system::pause();
             }
         }
+#else
+        std::vector<float> v_sinTheta(nCols);
+        std::vector<float> v_cosTheta(nCols);
+        for(int c=0;c<nCols;c++)
+        {
+            float theta = (c-half_width)*pixel_angle;
+            //float theta = c*pixel_angle-PI;
+            v_sinTheta[c] = sin(theta);
+            v_cosTheta[c] = cos(theta);
+        }
+
+//        float *sinTheta = &v_sinTheta[0];
+//        float *cosTheta = &v_cosTheta[0];
+//        for(int col_theta=-half_width; col_theta < half_width; ++col_theta)
+//        {
+//            float theta = col_theta*pixel_angle;
+//            *(sinTheta++) = sin(theta);
+//            *(cosTheta++) = cos(theta);
+//        }
+
+        for(int r=0;r<nRows;r++)
+        {
+            float phi = (half_height-r)*pixel_angle;
+            float sin_phi = sin(phi);
+            float cos_phi = cos(phi);
+
+            for(int c=0;c<nCols;c++)
+            {
+                int i = r*nCols + c;
+
+                //Compute the 3D coordinates of the pij of the source frame
+                float depth1 = depthTrgPyr[pyramidLevel].at<float>(r,c);
+                //                std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << std::endl;
+                if(minDepth < depth1 && depth1 < maxDepth) //Compute the jacobian only for the valid points
+                {
+                    LUT_xyz_target[i](0) = depth1 * cos_phi * v_sinTheta[c];
+                    LUT_xyz_target[i](1) = -depth1* sin_phi;
+                    LUT_xyz_target[i](2) = depth1 * cos_phi * v_cosTheta[c];
+                }
+                else
+                    LUT_xyz_target[i](0) = INVALID_POINT;
+//                std::cout << LUT_xyz_source[i].transpose() << std::endl;
+//                if(r == 10 && c == 20)
+//                    mrpt::system::pause();
+            }
+        }
+#endif
 
 #if PRINT_PROFILING
         double time_end = pcl::getTime();
@@ -5912,25 +5991,28 @@ void RegisterDense::alignFrames360_bidirectional(const Eigen::Matrix4f pose_gues
         // Make LUT to store the values of the 3D points of the source sphere
         double time_start = pcl::getTime();
         LUT_xyz_source.resize(imgSize);
-        const float angle_res = 2*PI/nCols;
-        std::vector<float> v_sinTheta(nCols);
-        std::vector<float> v_cosTheta(nCols);
-#if ENABLE_OPENMP
-#pragma omp parallel for
-#endif
-        for(int c=0;c<nCols;c++)
+        const float pixel_angle = 2*PI/nCols;
+        //const float half_height = 0.5*nRows-0.5;
+        const float half_height = nRows/2;
+        const float half_width = nCols/2;
+
+        //  Efficiency: store the values of the trigonometric functions
+        Eigen::VectorXf v_sinTheta(depthTrgPyr[pyramidLevel].cols);
+        Eigen::VectorXf v_cosTheta(depthTrgPyr[pyramidLevel].cols);
+        float *sinTheta = &v_sinTheta[0];
+        float *cosTheta = &v_cosTheta[0];
+        for(int col_theta=-half_width; col_theta < half_width; ++col_theta)
         {
-            float theta = c*angle_res;
-            v_sinTheta[c] = sin(theta);
-            v_cosTheta[c] = cos(theta);
+            float theta = col_theta*pixel_angle;
+            *(sinTheta++) = sin(theta);
+            *(cosTheta++) = cos(theta);
         }
-        const float half_nRows = 0.5*nRows-0.5;
+
 #if ENABLE_OPENMP
-#pragma omp parallel for
-#endif
+    #pragma omp parallel for
         for(int r=0;r<nRows;r++)
         {
-            float phi = (half_nRows-r)*angle_res;
+            float phi = (half_height-r)*pixel_angle;
             float sin_phi = sin(phi);
             float cos_phi = cos(phi);
 
@@ -5943,9 +6025,10 @@ void RegisterDense::alignFrames360_bidirectional(const Eigen::Matrix4f pose_gues
                 //                std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << std::endl;
                 if(minDepth < depth1 && depth1 < maxDepth) //Compute the jacobian only for the valid points
                 {
-                    LUT_xyz_source[i](0) = depth1*sin_phi;
-                    LUT_xyz_source[i](1) = depth1*cos_phi*v_sinTheta[c];
-                    LUT_xyz_source[i](2) = -depth1*cos_phi*v_cosTheta[c];
+                    float theta = c*pixel_angle - PI;
+                    LUT_xyz_source[i](0) = depth1 * cos_phi * sin(theta);
+                    LUT_xyz_source[i](1) = -depth1 * sin_phi;
+                    LUT_xyz_source[i](2) = depth1 * cos_phi * cos(theta);
                 }
                 else
                     LUT_xyz_source[i](0) = INVALID_POINT;
@@ -5954,20 +6037,47 @@ void RegisterDense::alignFrames360_bidirectional(const Eigen::Matrix4f pose_gues
 //                    mrpt::system::pause();
             }
         }
+#else
+        for(int r=0;r<nRows;r++)
+        {
+            float phi = (half_height-r)*pixel_angle;
+            float sin_phi = sin(phi);
+            float cos_phi = cos(phi);
+
+            for(int c=0;c<nCols;c++)
+            {
+                int i = r*nCols + c;
+
+                //Compute the 3D coordinates of the pij of the source frame
+                float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c);
+                //                std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << std::endl;
+                if(minDepth < depth1 && depth1 < maxDepth) //Compute the jacobian only for the valid points
+                {
+                    LUT_xyz_source[i](0) = depth1 * cos_phi * v_sinTheta[c];
+                    LUT_xyz_source[i](1) = -depth1* sin_phi;
+                    LUT_xyz_source[i](2) = depth1 * cos_phi * v_cosTheta[c];
+                }
+                else
+                    LUT_xyz_source[i](0) = INVALID_POINT;
+//                std::cout << LUT_xyz_source[i].transpose() << std::endl;
+//                if(r == 10 && c == 20)
+//                    mrpt::system::pause();
+            }
+        }
+#endif
 
 #if PRINT_PROFILING
         double time_end = pcl::getTime();
-        std::cout << pyramidLevel << "LUT_xyz_source " << LUT_xyz_source.size() << " took " << (time_end - time_start) << std::endl;
+        std::cout << pyramidLevel << " LUT_xyz_source " << LUT_xyz_source.size() << " took " << (time_end - time_start) << std::endl;
 #endif
 
         // Make LUT to store the values of the 3D points of the source sphere
         LUT_xyz_target.resize(imgSize);
 #if ENABLE_OPENMP
-#pragma omp parallel for
-#endif
+    #pragma omp parallel for
         for(int r=0;r<nRows;r++)
         {
-            float phi = (half_nRows-r)*angle_res;
+            float phi = (half_height-r)*pixel_angle;
             float sin_phi = sin(phi);
             float cos_phi = cos(phi);
 
@@ -5980,17 +6090,45 @@ void RegisterDense::alignFrames360_bidirectional(const Eigen::Matrix4f pose_gues
                 //                std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << std::endl;
                 if(minDepth < depth1 && depth1 < maxDepth) //Compute the jacobian only for the valid points
                 {
-                    LUT_xyz_target[i](0) = depth1*sin_phi;
-                    LUT_xyz_target[i](1) = depth1*cos_phi*v_sinTheta[c];
-                    LUT_xyz_target[i](2) = -depth1*cos_phi*v_cosTheta[c];
+                    LUT_xyz_target[i](0) = depth1 * cos_phi * v_sinTheta[c];
+                    LUT_xyz_target[i](1) = -depth1* sin_phi;
+                    LUT_xyz_target[i](2) = depth1 * cos_phi * v_cosTheta[c];
                 }
                 else
                     LUT_xyz_target[i](0) = INVALID_POINT;
-//                std::cout << LUT_xyz_target[i].transpose() << std::endl;
+//                std::cout << LUT_xyz_source[i].transpose() << std::endl;
 //                if(r == 10 && c == 20)
 //                    mrpt::system::pause();
             }
         }
+#else
+        for(int r=0;r<nRows;r++)
+        {
+            float phi = (half_height-r)*pixel_angle;
+            float sin_phi = sin(phi);
+            float cos_phi = cos(phi);
+
+            for(int c=0;c<nCols;c++)
+            {
+                int i = r*nCols + c;
+
+                //Compute the 3D coordinates of the pij of the source frame
+                float depth1 = depthTrgPyr[pyramidLevel].at<float>(r,c);
+                //                std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << std::endl;
+                if(minDepth < depth1 && depth1 < maxDepth) //Compute the jacobian only for the valid points
+                {
+                    LUT_xyz_target[i](0) = depth1 * cos_phi * v_sinTheta[c];
+                    LUT_xyz_target[i](1) = -depth1* sin_phi;
+                    LUT_xyz_target[i](2) = depth1 * cos_phi * v_cosTheta[c];
+                }
+                else
+                    LUT_xyz_target[i](0) = INVALID_POINT;
+//                std::cout << LUT_xyz_source[i].transpose() << std::endl;
+//                if(r == 10 && c == 20)
+//                    mrpt::system::pause();
+            }
+        }
+#endif
 
 
         double lambda = 1e0; // Levenberg-Marquardt (LM) lambda
@@ -6169,19 +6307,19 @@ void RegisterDense::computeUnitSphere()
 
     // Make LUT to store the values of the 3D points of the source sphere
     unit_sphere_.resize(nRows*nCols);
-    const float angle_res = 2*PI/nCols;
+    const float pixel_angle = 2*PI/nCols;
     std::vector<float> v_sinTheta(nCols);
     std::vector<float> v_cosTheta(nCols);
     for(int c=0;c<nCols;c++)
     {
-        float theta = c*angle_res;
+        float theta = c*pixel_angle;
         v_sinTheta[c] = sin(theta);
         v_cosTheta[c] = cos(theta);
     }
-    const float half_nRows = 0.5*nRows-0.5;
+    const float half_height = 0.5*nRows-0.5;
     for(int r=0;r<nRows;r++)
     {
-        float phi = (half_nRows-r)*angle_res;
+        float phi = (half_height-r)*pixel_angle;
         float sin_phi = sin(phi);
         float cos_phi = cos(phi);
 
@@ -6581,8 +6719,8 @@ double RegisterDense::calcDenseError_robot(const int &pyramidLevel,
     const Eigen::Matrix4f relPoseCam = poseCamRobot_inv*poseGuess*poseCamRobot;
 
     double weight_estim; // The weight computed by an M-estimator
-    double stdDevPhoto_inv = 1./stdDevPhoto;
-    double stdDevDepth_inv = 1./stdDevDepth;
+    const float stdDevPhoto_inv = 1./stdDevPhoto;
+    const float stdDevDepth_inv = 1./stdDevDepth;
 
     if(bUseSalientPixels)
     {
@@ -6760,8 +6898,8 @@ void RegisterDense::calcHessianGradient_robot( const int &pyramidLevel,
 
     double weight_estim; // The weight computed by an M-estimator
     //        depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
-    double stdDevPhoto_inv = 1./stdDevPhoto;
-    double stdDevDepth_inv = 1./stdDevDepth;
+    const float stdDevPhoto_inv = 1./stdDevPhoto;
+    const float stdDevDepth_inv = 1./stdDevDepth;
 
     const Eigen::Matrix4f poseCamRobot_inv = poseCamRobot.inverse();
     const Eigen::Matrix4f relPoseCam2 = poseGuess*poseCamRobot;
