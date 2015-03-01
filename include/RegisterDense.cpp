@@ -34,7 +34,7 @@
 #include <mrpt/system/os.h>
 
 
-#define ENABLE_OPENMP 1
+//#define ENABLE_OPENMP 1
 //#define PRINT_PROFILING 1
 #define ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS 1
 #define INVALID_POINT -10000
@@ -89,12 +89,12 @@ RegisterDense::RegisterDense() :
     maxDepthOutliers = 1; // in meters
 
     thresSaliency = 0.01f;
-//    thresSaliencyIntensity = 0.01f;
-//    thresSaliencyDepth = 0.01f;
+    thresSaliencyIntensity = 0.01f;
+    thresSaliencyDepth = 0.01f;
 //    thresSaliencyIntensity = 0.001f;
 //    thresSaliencyDepth = 0.001f;
-    thresSaliencyIntensity = 0.f;
-    thresSaliencyDepth = 0.f;
+//    thresSaliencyIntensity = 0.f;
+//    thresSaliencyDepth = 0.f;
     vSalientPixels.resize(nPyrLevels);
 };
 
@@ -2521,9 +2521,9 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
                 //Project the 3D point to the S2 sphere
                 float dist = transformedPoint3D.norm();
                 float dist_inv = 1.f / dist;
-                float phi_trg = asin(-transformedPoint3D(1)*dist_inv);
+                float phi_trg = asin(transformedPoint3D(1)*dist_inv);
                 float theta_trg = atan2(transformedPoint3D(0),transformedPoint3D(2));
-                int transformed_r_int = half_height + int(round(-phi_trg*pixel_angle_inv));
+                int transformed_r_int = half_height + int(round(phi_trg*pixel_angle_inv));
                 int transformed_c_int = half_width + int(round(theta_trg*pixel_angle_inv));
                 // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
@@ -2703,7 +2703,7 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
     std::cout << pyramidLevel << " errorDense_sphere took " << double (time_end - time_start) << std::endl;
 #endif
 
-    // std::cout << "error2 " << error2 << " numValidPts " << numValidPts << " stdDevPhoto " << stdDevPhoto << std::endl;
+     std::cout << "error2 " << error2 << " numValidPts " << numValidPts << " stdDevPhoto " << stdDevPhoto << std::endl;
     return sqrt(error2 / numValidPts);
 }
 
@@ -2817,17 +2817,17 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
     //                        jacobianProj23(0,2) = -transformedPoint3D(1) * z_inv2 * D_atan_theta;
     //                        // Jacobian of theta with respect to x,y,z
     //                        float dist_inv2 = dist_inv*dist_inv;
-    //                        float x_dist_inv2 = transformedPoint3D(0)*dist_inv2;
-    //                        float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) *pixel_angle_inv;
-    //                        jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*x_dist_inv2);
-    //                        jacobianProj23(1,1) = D_asin * (x_dist_inv2*transformedPoint3D(1)*dist_inv);
-    //                        jacobianProj23(1,2) = D_asin * (x_dist_inv2*transformedPoint3D(2)*dist_inv);
-    ////                        float y2_z2_inv = 1.f / (transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
-    ////                        float sq_y2_z2 = sqrt(y2_z2_inv);
-    ////                        float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*y2_z2_inv);
-    ////                        jacobianProj23(1,0) = - D_atan * sq_y2_z2;
-    ////                        jacobianProj23(1,1) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(1);
-    ////                        jacobianProj23(1,2) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(2);
+    //                        float y_dist_inv2 = transformedPoint3D(0)*dist_inv2;
+    //                        float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*y_dist_inv2) *pixel_angle_inv;
+    //                        jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*y_dist_inv2);
+    //                        jacobianProj23(1,1) = D_asin * (y_dist_inv2*transformedPoint3D(1)*dist_inv);
+    //                        jacobianProj23(1,2) = D_asin * (y_dist_inv2*transformedPoint3D(2)*dist_inv);
+    ////                        float x2_z2_inv = 1.f / (transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
+    ////                        float sq_x2_z2 = sqrt(x2_z2_inv);
+    ////                        float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*x2_z2_inv);
+    ////                        jacobianProj23(1,0) = - D_atan * sq_x2_z2;
+    ////                        jacobianProj23(1,1) = D_atan * sq_x2_z2*x2_z2_inv*transformedPoint3D(0)*transformedPoint3D(1);
+    ////                        jacobianProj23(1,2) = D_atan * sq_x2_z2*x2_z2_inv*transformedPoint3D(0)*transformedPoint3D(2);
     ////                    std::cout << "jacobianProj23 \n " << jacobianProj23 << " \n D_phi_x " << D_phi_x << " " << D_phi_y << " " << D_phi_z << " " << std::endl;
 
     //                        Eigen::Matrix<float,2,6> jacobianWarpRt = jacobianProj23 * jacobianT36;
@@ -2968,15 +2968,15 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
 //                float theta_trg = atan2(transformedPoint3D(1),transformedPoint3D(2))+PI;
 //                int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
 //                int transformed_c_int = round(theta_trg*pixel_angle_inv);
-                float phi_trg = asin(-transformedPoint3D(1)*dist_inv);
+                float phi_trg = asin(transformedPoint3D(1)*dist_inv);
                 float theta_trg = atan2(transformedPoint3D(0),transformedPoint3D(2));
-                int transformed_r_int = half_height + int(round(-phi_trg*pixel_angle_inv));
+                int transformed_r_int = half_height + int(round(phi_trg*pixel_angle_inv));
                 int transformed_c_int = half_width + int(round(theta_trg*pixel_angle_inv));
                 // float phi_trg = asin(transformedPoint3D(1)*dist_inv);
                 // float theta_trg = atan2(transformedPoint3D(1),-transformedPoint3D(2))+PI;
                 // int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
                 // int transformed_c_int = round(theta_trg*pixel_angle_inv);
-                // cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
+                // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
                 if( transformed_r_int>=0 && transformed_r_int < nRows )// && transformed_c_int < nCols )
@@ -2991,34 +2991,42 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
 
                     // The Jacobian of the spherical projection
                     Eigen::Matrix<float,2,3> jacobianProj23;
-                    // Jacobian of theta with respect to x,y,z
-                    float z_inv = 1.f / transformedPoint3D(2);
-                    float z_inv2 = z_inv*z_inv;
-//                    float D_atan_theta = 1.f / (1 + transformedPoint3D(1)*transformedPoint3D(1)*z_inv2) *pixel_angle_inv;
-//                    jacobianProj23(0,0) = 0;
-//                    jacobianProj23(0,1) = D_atan_theta * z_inv;
-//                    jacobianProj23(0,2) = -transformedPoint3D(1) * z_inv2 * D_atan_theta;
-                    float D_atan_theta_z_inv2 = pixel_angle_inv / (transformedPoint3D(0)*transformedPoint3D(0) + transformedPoint3D(2)*transformedPoint3D(2));
-                    jacobianProj23(0,0) = transformedPoint3D(2) * D_atan_theta_z_inv2;
-                    jacobianProj23(0,1) = 0;
-                    jacobianProj23(0,2) = -transformedPoint3D(0) * D_atan_theta_z_inv2;
-                    // Jacobian of phi with respect to x,y,z
+//                    // Jacobian of theta with respect to x,y,z
+//                    float z_inv = 1.f / transformedPoint3D(2);
+//                    float z_inv2 = z_inv*z_inv;
+//                    float D_atan_theta = pixel_angle_inv / (1 + transformedPoint3D(0)*transformedPoint3D(0)*z_inv2);
+//                    jacobianProj23(0,0) = D_atan_theta * z_inv;
+//                    jacobianProj23(0,1) = 0;
+//                    jacobianProj23(0,2) = -transformedPoint3D(0) * z_inv2 * D_atan_theta;
+//                    // Jacobian of phi with respect to x,y,z
 //                    float dist_inv2 = dist_inv*dist_inv;
-//                    float x_dist_inv2 = transformedPoint3D(0)*dist_inv2;
-//                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) * pixel_angle_inv;
-//                    jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*x_dist_inv2);
-//                    jacobianProj23(1,1) = D_asin * (x_dist_inv2*transformedPoint3D(1)*dist_inv);
-//                    jacobianProj23(1,2) = D_asin * (x_dist_inv2*transformedPoint3D(2)*dist_inv);
-                    float commonDer_r = -pixel_angle_inv / ( dist * dist * sqrt(transformedPoint3D(0)*transformedPoint3D(0) + transformedPoint3D(2)*transformedPoint3D(2)) );
-                    jacobianProj23(1,0) = transformedPoint3D(0) * transformedPoint3D(1) * commonDer_r;
-                    jacobianProj23(1,1) = (transformedPoint3D(1)*transformedPoint3D(1)-1) * commonDer_r;
-                    jacobianProj23(1,2) = transformedPoint3D(2) * transformedPoint3D(1) * commonDer_r;
+//                    float y_dist_inv2 = transformedPoint3D(1)*dist_inv2;
+//                    float D_asin = 1.f / sqrt(1-transformedPoint3D(1)*y_dist_inv2) * pixel_angle_inv;
+//                    jacobianProj23(1,0) = -D_asin * (y_dist_inv2*transformedPoint3D(0)*dist_inv);
+//                    jacobianProj23(1,1) = D_asin * dist_inv * (1 - transformedPoint3D(1)*y_dist_inv2);
+//                    jacobianProj23(1,2) = -D_asin * (y_dist_inv2*transformedPoint3D(2)*dist_inv);
+
+                    float dist2 = dist * dist;
+                    float x2_z2 = dist2 - transformedPoint3D(1)*transformedPoint3D(1);
+                    float x2_z2_sqrt = sqrt(x2_z2);
+                    float commonDer_c = pixel_angle_inv / x2_z2;
+                    float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
 
 //                    Eigen::Matrix<float,2,3> jacobianProj23_;
-//                    jacobianProj23_(1,0) = transformedPoint3D(0) * transformedPoint3D(1) * commonDer_r;
-//                    jacobianProj23_(1,1) = (transformedPoint3D(1)*transformedPoint3D(1)-1) * commonDer_r;
-//                    jacobianProj23_(1,2) = transformedPoint3D(2) * transformedPoint3D(1) * commonDer_r;
-//                    // std::cout << "jacobianProj23 \n " << jacobianProj23 << " \n jacobianProj23_ \n " << jacobianProj23_ << std::endl;
+                    jacobianProj23(0,0) = commonDer_c * transformedPoint3D(2);
+                    jacobianProj23(0,1) = 0;
+                    jacobianProj23(0,2) = -commonDer_c * transformedPoint3D(0);
+                    jacobianProj23(1,0) = commonDer_r * transformedPoint3D(0) * transformedPoint3D(1);
+                    jacobianProj23(1,1) =-commonDer_r * x2_z2;
+                    jacobianProj23(1,2) = commonDer_r * transformedPoint3D(2) * transformedPoint3D(1);
+
+//                    cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << endl;
+//                    std::cout << "Point source " << LUT_xyz_source[i].transpose() << std::endl;
+//                    std::cout << "transformedPoint3D " << transformedPoint3D.transpose() << std::endl;
+//                    std::cout << "jacobianProj23 \n " << jacobianProj23 << std::endl;
+//                    std::cout << " jacobianProj23_ \n " << jacobianProj23_ << std::endl;
+//                    mrpt::system::pause();
+
 
                     Eigen::Matrix<float,2,6> jacobianWarpRt = jacobianProj23 * jacobianT36;
                     float pixel1, pixel2, depth2;
@@ -3052,6 +3060,14 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
                         jacobiansPhoto.block(i,0,1,6) = jacobianPhoto;
                         residualsPhoto(i) = weightedErrorPhoto;
                         validPixelsPhoto(i) = 1;
+
+                        cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << endl;
+                        std::cout << "Point source " << LUT_xyz_source[i].transpose() << std::endl;
+                        std::cout << "transformedPoint3D " << transformedPoint3D.transpose() << std::endl;
+                        std::cout << "weight_estim " << weightedErrorPhoto << " target_imgGradient " << target_imgGradient << "\njacobianWarpRt\n" << jacobianWarpRt << std::endl;
+                        std::cout << "jacobianProj23 \n " << jacobianProj23 << std::endl;
+                        std::cout << " jacobianPhoto \n " << jacobianPhoto << std::endl;
+                        mrpt::system::pause();
 
 //                        if( validPixelsPhoto(i) == 1 )
 //                            jacobiansPhoto.block(i,0,1,6) = wEstimPhoto[i] * target_imgGradient*jacobianWarpRt;
@@ -3305,18 +3321,18 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
 //                    // jacobianProj23(0,1) = transformedPoint3D(1) * z_inv2 * D_atan_theta;
 //                    // Jacobian of phi with respect to x,y,z
 //                    float dist_inv2 = dist_inv*dist_inv;
-//                    float x_dist_inv2 = transformedPoint3D(0)*dist_inv2;
-//                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) *pixel_angle_inv;
-//                    jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*x_dist_inv2);
-//                    jacobianProj23(1,1) = D_asin * (x_dist_inv2*transformedPoint3D(1)*dist_inv);
-//                    jacobianProj23(1,2) = D_asin * (x_dist_inv2*transformedPoint3D(2)*dist_inv);
-//                    // float y2_z2_inv = 1.f / (transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
-//                    // float sq_y2_z2 = sqrt(y2_z2_inv);
-//                    // float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*y2_z2_inv) *pixel_angle_inv;;
+//                    float y_dist_inv2 = transformedPoint3D(0)*dist_inv2;
+//                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*y_dist_inv2) *pixel_angle_inv;
+//                    jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*y_dist_inv2);
+//                    jacobianProj23(1,1) = D_asin * (y_dist_inv2*transformedPoint3D(1)*dist_inv);
+//                    jacobianProj23(1,2) = D_asin * (y_dist_inv2*transformedPoint3D(2)*dist_inv);
+//                    // float x2_z2_inv = 1.f / (transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
+//                    // float sq_x2_z2 = sqrt(x2_z2_inv);
+//                    // float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*x2_z2_inv) *pixel_angle_inv;;
 //                    // Eigen::Matrix<float,2,3> jacobianProj23_;
-//                    // jacobianProj23_(1,0) = - D_atan * sq_y2_z2;
-//                    // jacobianProj23_(1,1) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(1);
-//                    // jacobianProj23_(1,2) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(2);
+//                    // jacobianProj23_(1,0) = - D_atan * sq_x2_z2;
+//                    // jacobianProj23_(1,1) = D_atan * sq_x2_z2*x2_z2_inv*transformedPoint3D(0)*transformedPoint3D(1);
+//                    // jacobianProj23_(1,2) = D_atan * sq_x2_z2*x2_z2_inv*transformedPoint3D(0)*transformedPoint3D(2);
 //                    // std::cout << "jacobianProj23 \n " << jacobianProj23 << " \n jacobianProj23_ \n " << jacobianProj23_ << std::endl;
 
 //                    Eigen::Matrix<float,2,6> jacobianWarpRt = jacobianProj23 * jacobianT36;
@@ -3815,11 +3831,11 @@ void RegisterDense::calcHessGradInv_sphere(const int &pyramidLevel,
                     jacobianProj23(0,2) = -transformedPoint3D(0) * D_atan_theta_z_inv2;
                     // Jacobian of phi with respect to x,y,z
 //                    float dist_inv2 = dist_inv*dist_inv;
-//                    float x_dist_inv2 = transformedPoint3D(0)*dist_inv2;
-//                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) * pixel_angle_inv;
-//                    jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*x_dist_inv2);
-//                    jacobianProj23(1,1) = D_asin * (x_dist_inv2*transformedPoint3D(1)*dist_inv);
-//                    jacobianProj23(1,2) = D_asin * (x_dist_inv2*transformedPoint3D(2)*dist_inv);
+//                    float y_dist_inv2 = transformedPoint3D(0)*dist_inv2;
+//                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*y_dist_inv2) * pixel_angle_inv;
+//                    jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*y_dist_inv2);
+//                    jacobianProj23(1,1) = D_asin * (y_dist_inv2*transformedPoint3D(1)*dist_inv);
+//                    jacobianProj23(1,2) = D_asin * (y_dist_inv2*transformedPoint3D(2)*dist_inv);
                     float commonDer_r = -pixel_angle_inv / ( dist * dist * sqrt(transformedPoint3D(0)*transformedPoint3D(0) + transformedPoint3D(2)*transformedPoint3D(2)) );
                     jacobianProj23(1,0) = transformedPoint3D(0) * transformedPoint3D(1) * commonDer_r;
                     jacobianProj23(1,1) = (transformedPoint3D(1)*transformedPoint3D(1)-1) * commonDer_r;
@@ -4318,18 +4334,18 @@ void RegisterDense::calcHessGrad_sphereOcc1( const int &pyramidLevel,
                     //                        jacobianProj23(0,1) = transformedPoint3D(1) * z_inv2 * D_atan_theta;
                     // Jacobian of phi with respect to x,y,z
                     float dist_inv2 = dist_inv*dist_inv;
-                    float x_dist_inv2 = transformedPoint3D(0)*dist_inv2;
-                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) *pixel_angle_inv;
-                    jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*x_dist_inv2);
-                    jacobianProj23(1,1) = D_asin * (x_dist_inv2*transformedPoint3D(1)*dist_inv);
-                    jacobianProj23(1,2) = D_asin * (x_dist_inv2*transformedPoint3D(2)*dist_inv);
-                    //                            float y2_z2_inv = 1.f / (transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
-                    //                            float sq_y2_z2 = sqrt(y2_z2_inv);
-                    //                            float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*y2_z2_inv) *pixel_angle_inv;;
+                    float y_dist_inv2 = transformedPoint3D(0)*dist_inv2;
+                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*y_dist_inv2) *pixel_angle_inv;
+                    jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*y_dist_inv2);
+                    jacobianProj23(1,1) = D_asin * (y_dist_inv2*transformedPoint3D(1)*dist_inv);
+                    jacobianProj23(1,2) = D_asin * (y_dist_inv2*transformedPoint3D(2)*dist_inv);
+                    //                            float x2_z2_inv = 1.f / (transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
+                    //                            float sq_x2_z2 = sqrt(x2_z2_inv);
+                    //                            float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*x2_z2_inv) *pixel_angle_inv;;
                     //                            Eigen::Matrix<float,2,3> jacobianProj23_;
-                    //                            jacobianProj23_(1,0) = - D_atan * sq_y2_z2;
-                    //                            jacobianProj23_(1,1) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(1);
-                    //                            jacobianProj23_(1,2) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(2);
+                    //                            jacobianProj23_(1,0) = - D_atan * sq_x2_z2;
+                    //                            jacobianProj23_(1,1) = D_atan * sq_x2_z2*x2_z2_inv*transformedPoint3D(0)*transformedPoint3D(1);
+                    //                            jacobianProj23_(1,2) = D_atan * sq_x2_z2*x2_z2_inv*transformedPoint3D(0)*transformedPoint3D(2);
                     //                        std::cout << "jacobianProj23 \n " << jacobianProj23 << " \n jacobianProj23_ \n " << jacobianProj23_ << std::endl;
 
                     Eigen::Matrix<float,2,6> jacobianWarpRt = jacobianProj23 * jacobianT36;
@@ -4843,18 +4859,18 @@ void RegisterDense::calcHessGrad_sphereOcc2( const int &pyramidLevel,
                     //                        jacobianProj23(0,1) = transformedPoint3D(1) * z_inv2 * D_atan_theta;
                     // Jacobian of phi with respect to x,y,z
                     float dist_inv2 = dist_inv*dist_inv;
-                    float x_dist_inv2 = transformedPoint3D(0)*dist_inv2;
-                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*x_dist_inv2) *pixel_angle_inv;
-                    jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*x_dist_inv2);
-                    jacobianProj23(1,1) = D_asin * (x_dist_inv2*transformedPoint3D(1)*dist_inv);
-                    jacobianProj23(1,2) = D_asin * (x_dist_inv2*transformedPoint3D(2)*dist_inv);
-                    //                            float y2_z2_inv = 1.f / (transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
-                    //                            float sq_y2_z2 = sqrt(y2_z2_inv);
-                    //                            float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*y2_z2_inv) *pixel_angle_inv;;
+                    float y_dist_inv2 = transformedPoint3D(0)*dist_inv2;
+                    float D_asin = 1.f / sqrt(1-transformedPoint3D(0)*y_dist_inv2) *pixel_angle_inv;
+                    jacobianProj23(1,0) = -D_asin * dist_inv * (1 - transformedPoint3D(0)*y_dist_inv2);
+                    jacobianProj23(1,1) = D_asin * (y_dist_inv2*transformedPoint3D(1)*dist_inv);
+                    jacobianProj23(1,2) = D_asin * (y_dist_inv2*transformedPoint3D(2)*dist_inv);
+                    //                            float x2_z2_inv = 1.f / (transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
+                    //                            float sq_x2_z2 = sqrt(x2_z2_inv);
+                    //                            float D_atan = 1 / (1 + transformedPoint3D(0)*transformedPoint3D(0)*x2_z2_inv) *pixel_angle_inv;;
                     //                            Eigen::Matrix<float,2,3> jacobianProj23_;
-                    //                            jacobianProj23_(1,0) = - D_atan * sq_y2_z2;
-                    //                            jacobianProj23_(1,1) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(1);
-                    //                            jacobianProj23_(1,2) = D_atan * sq_y2_z2*y2_z2_inv*transformedPoint3D(0)*transformedPoint3D(2);
+                    //                            jacobianProj23_(1,0) = - D_atan * sq_x2_z2;
+                    //                            jacobianProj23_(1,1) = D_atan * sq_x2_z2*x2_z2_inv*transformedPoint3D(0)*transformedPoint3D(1);
+                    //                            jacobianProj23_(1,2) = D_atan * sq_x2_z2*x2_z2_inv*transformedPoint3D(0)*transformedPoint3D(2);
                     //                        std::cout << "jacobianProj23 \n " << jacobianProj23 << " \n jacobianProj23_ \n " << jacobianProj23_ << std::endl;
 
                     Eigen::Matrix<float,2,6> jacobianWarpRt = jacobianProj23 * jacobianT36;
@@ -5411,7 +5427,9 @@ void RegisterDense::alignFrames360(const Eigen::Matrix4f pose_guess, costFuncTyp
 #endif
         for(int r=0;r<nRows;r++)
         {
-            float phi = (half_height-r)*pixel_angle;
+//            float phi = (r-half_height+0.5)*pixel_angle;
+            float phi = (r-half_height)*pixel_angle;
+            //float phi = (half_height-r)*pixel_angle;
             float sin_phi = sin(phi);
             float cos_phi = cos(phi);
 
@@ -5425,7 +5443,7 @@ void RegisterDense::alignFrames360(const Eigen::Matrix4f pose_guess, costFuncTyp
                 if(minDepth < depth1 && depth1 < maxDepth) //Compute the jacobian only for the valid points
                 {
                     LUT_xyz_source[i](0) = depth1 * cos_phi * v_sinTheta[c];
-                    LUT_xyz_source[i](1) = -depth1 * sin_phi;
+                    LUT_xyz_source[i](1) = depth1 * sin_phi;
                     LUT_xyz_source[i](2) = depth1 * cos_phi * v_cosTheta[c];
                 }
                 else
@@ -5691,8 +5709,8 @@ void RegisterDense::alignFrames360_inv(const Eigen::Matrix4f pose_guess, costFun
         const float half_width = nCols/2;
 
         //  Efficiency: store the values of the trigonometric functions
-        Eigen::VectorXf v_sinTheta(depthTrgPyr[pyramidLevel].cols);
-        Eigen::VectorXf v_cosTheta(depthTrgPyr[pyramidLevel].cols);
+        Eigen::VectorXf v_sinTheta(nCols);
+        Eigen::VectorXf v_cosTheta(nCols);
         float *sinTheta = &v_sinTheta[0];
         float *cosTheta = &v_cosTheta[0];
         for(int col_theta=-half_width; col_theta < half_width; ++col_theta)
@@ -5730,25 +5748,6 @@ void RegisterDense::alignFrames360_inv(const Eigen::Matrix4f pose_guess, costFun
             }
         }
 #else
-        std::vector<float> v_sinTheta(nCols);
-        std::vector<float> v_cosTheta(nCols);
-        for(int c=0;c<nCols;c++)
-        {
-            float theta = (c-half_width)*pixel_angle;
-            //float theta = c*pixel_angle-PI;
-            v_sinTheta[c] = sin(theta);
-            v_cosTheta[c] = cos(theta);
-        }
-
-//        float *sinTheta = &v_sinTheta[0];
-//        float *cosTheta = &v_cosTheta[0];
-//        for(int col_theta=-half_width; col_theta < half_width; ++col_theta)
-//        {
-//            float theta = col_theta*pixel_angle;
-//            *(sinTheta++) = sin(theta);
-//            *(cosTheta++) = cos(theta);
-//        }
-
         for(int r=0;r<nRows;r++)
         {
             float phi = (half_height-r)*pixel_angle;

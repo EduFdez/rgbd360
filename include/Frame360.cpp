@@ -466,7 +466,8 @@ void Frame360::buildSphereCloud()
     for(int row_phi=0; row_phi < sphereDepth.rows; row_phi++)
     {
         //float phi = offset_phi - row_phi*angle_pixel_inv;// + PI/2;   // RGBD360
-        const float phi = (half_height-row_phi)*step_phi;
+        const float phi = (row_phi-half_height)*step_phi;
+        //const float phi = row_phi*step_phi - PI/2;
         const float sin_phi = sin(phi);
         const float cos_phi = cos(phi);
 
@@ -481,7 +482,7 @@ void Frame360::buildSphereCloud()
 //                sphereCloud->points[pixel_index].y = -depth* sin_phi;
 //                sphereCloud->points[pixel_index].z = depth * cos_phi * cos(theta);
                 sphereCloud->points[pixel_index].x = depth * cos_phi * v_sinTheta[col_theta];
-                sphereCloud->points[pixel_index].y = -depth* sin_phi;
+                sphereCloud->points[pixel_index].y = depth* sin_phi;
                 sphereCloud->points[pixel_index].z = depth * cos_phi * v_cosTheta[col_theta];
                 cv::Vec3b intensity = sphereRGB.at<cv::Vec3b>(row_phi, col_theta);
                 sphereCloud->points[pixel_index].r = intensity[2];
@@ -587,7 +588,7 @@ void Frame360::buildSphereCloud()
     for(int row_phi=half_height, pixel_index=0; row_phi > minus_half_height; --row_phi)//, row_phi += width_SphereImg)
     {
         //float phi = offset_phi - row_phi*angle_pixel_inv;// + PI/2;   // RGBD360
-        float phi = row_phi*step_phi;
+        float phi = (row_phi-half_height)*step_phi;
         float sin_phi = sin(phi);
         float cos_phi = cos(phi);
 
@@ -598,7 +599,7 @@ void Frame360::buildSphereCloud()
             {
                 //std::cout << min_depth << " depth " << *depth << " max_depth " << max_depth << std::endl;
                 sphereCloud->points[pixel_index].x = (*depth) * cos_phi * v_sinTheta[col_count];
-                sphereCloud->points[pixel_index].y = -(*depth)* sin_phi;
+                sphereCloud->points[pixel_index].y = (*depth)* sin_phi;
                 sphereCloud->points[pixel_index].z = (*depth) * cos_phi * v_cosTheta[col_count];
                 sphereCloud->points[pixel_index].r = (*intensity)[2];
                 sphereCloud->points[pixel_index].g = (*intensity)[1];
@@ -659,7 +660,7 @@ void Frame360::buildSphereCloud_old()
     for(int row_phi=0; row_phi < sphereDepth.rows; row_phi++)//, row_phi += width_SphereImg)
     {
         //float phi = offset_phi - row_phi*angle_pixel_inv;// + PI/2;   // RGBD360
-        float phi = (half_height-row_phi)*step_phi;
+        float phi = (row_phi-half_height)*step_phi;
         float cos_phi = cos(phi);
         float sin_phi = sin(phi);
 
@@ -682,7 +683,7 @@ void Frame360::buildSphereCloud_old()
 
                 float theta = col_theta*step_theta - PI;
                 sphereCloud->points[pixel_index].x = depth * cos_phi * sin(theta);
-                sphereCloud->points[pixel_index].y = -depth* sin_phi;
+                sphereCloud->points[pixel_index].y = depth* sin_phi;
                 sphereCloud->points[pixel_index].z = depth * cos_phi * cos(theta);
                 sphereCloud->points[pixel_index].r = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[2];
                 sphereCloud->points[pixel_index].g = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[1];
