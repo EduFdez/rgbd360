@@ -2526,11 +2526,11 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
                 float theta_trg = atan2(transformedPoint3D(0),transformedPoint3D(2));
                 //int transformed_r_int = half_height + int(round(phi_trg*pixel_angle_inv));
                 int transformed_r_int = int(round((phi_trg-phi_start)*pixel_angle_inv));
-                int transformed_c_int = half_width + int(round(theta_trg*pixel_angle_inv));
+                int transformed_c_int = half_width + int(round(theta_trg*pixel_angle_inv)) % half_width;
                 // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
-                if( (transformed_r_int>=0 && transformed_r_int < nRows) && transformed_c_int < nCols )
+                if( transformed_r_int>=0 && transformed_r_int < nRows) // && transformed_c_int < nCols )
                 {
                     // std::cout << "Pixel transform_ " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << " " << nRows << "x" << nCols << " numValidPts " << numValidPts << endl;
                     // assert(transformed_c_int >= 0 && transformed_c_int < nCols);
@@ -2975,18 +2975,21 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
                 float theta_trg = atan2(transformedPoint3D(0),transformedPoint3D(2));
                 //int transformed_r_int = half_height + int(round(phi_trg*pixel_angle_inv));
                 int transformed_r_int = int(round((phi_trg-phi_start)*pixel_angle_inv));
-                int transformed_c_int = half_width + int(round(theta_trg*pixel_angle_inv));
+                int transformed_c_int = half_width + int(round(theta_trg*pixel_angle_inv)) % half_width;
                 // float phi_trg = asin(transformedPoint3D(1)*dist_inv);
                 // float theta_trg = atan2(transformedPoint3D(1),-transformedPoint3D(2))+PI;
                 // int transformed_r_int = round(half_height-phi_trg*pixel_angle_inv);
                 // int transformed_c_int = round(theta_trg*pixel_angle_inv);
                 // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
+                // mrpt::system::pause();
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
                 if( transformed_r_int>=0 && transformed_r_int < nRows )// && transformed_c_int < nCols )
                 {
                     ++numVisiblePixels;
 
+//                    if(!(transformed_c_int >= 0 && transformed_c_int < nCols))
+//                        std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
                     assert(transformed_c_int >= 0 && transformed_c_int < nCols);
                     //Compute the pixel jacobian
                     Eigen::Matrix<float,3,6> jacobianT36;
@@ -3621,7 +3624,7 @@ double RegisterDense::errorDenseInv_sphere ( const int &pyramidLevel,
                 float theta_trg = atan2(transformedPoint3D(0),transformedPoint3D(2));
                 int transformed_r_int = int(round((phi_trg-phi_start)*pixel_angle_inv));
                 //int transformed_r_int = half_height + int(round(-phi_trg*pixel_angle_inv));
-                int transformed_c_int = half_width + int(round(theta_trg*pixel_angle_inv));
+                int transformed_c_int = half_width + int(round(theta_trg*pixel_angle_inv)) % half_width;
                 // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
@@ -3802,11 +3805,11 @@ void RegisterDense::calcHessGradInv_sphere(const int &pyramidLevel,
                 float theta_trg = atan2(transformedPoint3D(0),transformedPoint3D(2));
                 //int transformed_r_int = half_height + int(round(phi_trg*pixel_angle_inv));
                 int transformed_r_int = int(round((phi_trg-phi_start)*pixel_angle_inv));
-                int transformed_c_int = half_width + int(round(theta_trg*pixel_angle_inv));
+                int transformed_c_int = half_width + int(round(theta_trg*pixel_angle_inv)) % half_width;
                 // cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
-                if( (transformed_r_int>=0 && transformed_r_int < nRows) && transformed_c_int < nCols )
+                if( transformed_r_int>=0 && transformed_r_int < nRows) //&& transformed_c_int < nCols )
                 {
                     ++numVisiblePixels;
 
@@ -4117,7 +4120,7 @@ double RegisterDense::errorDense_sphereOcc1(const int &pyramidLevel,
                 //                cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
-                if( (transformed_r_int>=0 && transformed_r_int < nRows) && transformed_c_int < nCols )
+                if( transformed_r_int>=0 && transformed_r_int < nRows) //&& transformed_c_int < nCols )
                 {
                     //                        cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << " " << nRows << "x" << nCols << endl;
                     assert(transformed_c_int >= 0 && transformed_c_int < nCols);
@@ -4293,7 +4296,7 @@ void RegisterDense::calcHessGrad_sphereOcc1( const int &pyramidLevel,
                 //                    cout << "Pixel transform " << r << " " << c << " " << transformed_r_int << " " << transformed_c_int << endl;
                 //Asign the intensity value to the warped image and compute the difference between the transformed
                 //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
-                if( (transformed_r_int>=0 && transformed_r_int < nRows) && transformed_c_int < nCols )
+                if( transformed_r_int>=0 && transformed_r_int < nRows)// && transformed_c_int < nCols )
                 {
                     //                            assert(transformed_c_int >= 0 && transformed_c_int < nCols);
                     // Discard occluded points
