@@ -105,8 +105,10 @@ int main (int argc, char ** argv)
 
   std::cout << "Load frames raw and fused "<< std::endl;
 
+  cv::Mat maskCar = cv::imread("/Data/Shared_Lagadic/useful_code/maskCar_.png",0);
+
   Frame360 frame360;
-  frame360.loadDepth(fileDepth);
+  frame360.loadDepth(fileDepth, &maskCar);
   //cv::namedWindow( "sphereDepth", WINDOW_AUTOSIZE );// Create a window for display.
   cv::Mat sphDepthVis;
   frame360.sphereDepth.convertTo( sphDepthVis, CV_8U, 10 ); //CV_16UC1
@@ -137,7 +139,7 @@ int main (int argc, char ** argv)
     std::cout << "Plane inliers " << plane_inliers << " average plane size " << plane_inliers/frame360.planes.vPlanes.size () << std::endl;
 
   Frame360 frame360_fusion;
-  frame360_fusion.loadDepth(fileDepth_fused);
+  frame360_fusion.loadDepth(fileDepth_fused, &maskCar);
   frame360_fusion.loadRGB(fileRGB);
   frame360_fusion.buildSphereCloud();
   frame360_fusion.filterCloudBilateral_stereo();
@@ -153,6 +155,17 @@ int main (int argc, char ** argv)
   }
   if (frame360_fusion.planes.vPlanes.size () > 0)
     std::cout << "FUSION Plane inliers " << plane_inliers << " average plane size " << plane_inliers/frame360_fusion.planes.vPlanes.size () << std::endl;
+
+
+  /*! Filter points in the direction x */
+  pcl::PassThrough<PointT> filter_pass_x;
+  filter_pass_x.setFilterFieldName ("x"); // Vertical axis of the spherical point clouds in RGBD360 (it points towards the ceiling)
+  filter_pass_x.setFilterLimits (-0.0, 20.0);
+  //typename pcl::PointCloud<PointT>::Ptr filteredCloud(new pcl::PointCloud<PointT>);
+  filter_pass_x.setInputCloud ( frame360.getSphereCloud() );
+  filter_pass_x.filter ( *frame360.getSphereCloud() );
+  filter_pass_x.setInputCloud ( frame360_fusion.getSphereCloud() );
+  filter_pass_x.filter ( *frame360_fusion.getSphereCloud() );
 
 
   // Visualize point cloud

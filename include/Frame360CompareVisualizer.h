@@ -33,6 +33,8 @@
 #ifndef FRAME360_COMPARE_VISUALIZER_H
 #define FRAME360_COMPARE_VISUALIZER_H
 
+#define RECORD_VIDEO 0
+
 #include "Frame360.h"
 
 #include <pcl/visualization/cloud_viewer.h>
@@ -237,13 +239,13 @@ class Frame360CompareVisualizer
       }
     }
 
-    viz.spinOnce();
-    boost::this_thread::sleep (boost::posix_time::milliseconds (10));
-
     #if RECORD_VIDEO
       std::string screenshotFile = mrpt::format("im_%04u.png", ++numScreenshot);
       viz.saveScreenshot (screenshotFile);
     #endif
+
+      viz.spinOnce();
+      //boost::this_thread::sleep (boost::posix_time::milliseconds (10));
   }
 
   /*! Get events from the keyboard */

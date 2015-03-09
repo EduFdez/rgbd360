@@ -437,7 +437,7 @@ void Frame360::buildSphereCloud()
     const float step_theta = pixel_angle_;
     const float step_phi = pixel_angle_;
     //int phi_start_pixel_ = 166, end_phi = 166 + sphereDepth.rows; // For images of 665x2048
-    //const int phi_start_pixel_ = 174, end_phi = 174 + sphereDepth.rows; // For images of 640x2048
+    const int phi_start_pixel_ = 174, end_phi = 174 + sphereDepth.rows; // For images of 640x2048
     //const float offset_phi = PI*31.5/180; // height_SphereImg((width_SphereImg/2) * 63.0/180), // RGBD360
     const int half_height = sphereDepth.rows/2;
     const int half_width = sphereDepth.cols/2;
@@ -466,8 +466,8 @@ void Frame360::buildSphereCloud()
     for(int row_phi=0; row_phi < sphereDepth.rows; row_phi++)
     {
         //float phi = offset_phi - row_phi*angle_pixel_inv;// + PI/2;   // RGBD360
-        const float phi = (row_phi-half_height)*step_phi;
-        //const float phi = row_phi*step_phi - PI/2;
+        //const float phi = (row_phi-half_height)*step_phi;
+        const float phi = (row_phi+phi_start_pixel_)*step_phi - PI/2;
         const float sin_phi = sin(phi);
         const float cos_phi = cos(phi);
 
