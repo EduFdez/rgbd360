@@ -48,6 +48,8 @@
 
 using namespace std;
 
+#define VISUALIZE_POINT_CLOUD 1
+
 void print_help(char ** argv)
 {
   cout << "\nThis program loads two raw omnidireactional RGB-D images and aligns them using PbMap-based registration.\n";
@@ -296,7 +298,7 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
 
 
   // Visualize
-//  #if VISUALIZE_POINT_CLOUD
+  #if VISUALIZE_POINT_CLOUD
   // It runs PCL viewer in a different thread.
 //    cout << "Superimpose cloud\n";
   Map360 Map;
@@ -318,71 +320,10 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
 //    Viewer.viewer.spinOnce (100);
     boost::this_thread::sleep (boost::posix_time::milliseconds (100) );
   }
-//  #endif
+  #endif
 
 
   cout << "EXIT\n";
 
   return (0);
 }
-
-
-//#include <iostream>
-
-//#include <pcl/point_types.h>
-//#include <pcl/visualization/pcl_visualizer.h>
-
-//typedef pcl::PointXYZRGBA PointT;
-//typedef pcl::PointCloud<PointT> PointCloudT;
-
-//int
-//main (int argc, char* argv[])
-//{
-//        PointCloudT::Ptr cloud_1 (new PointCloudT),
-//                                                cloud_2	(new PointCloudT);
-
-//        cloud_1->points.resize (300);
-//        cloud_2->points.resize (300);
-
-//        // First random point cloud
-//        for (size_t i = 0; i < cloud_1->points.size (); ++i) {
-//                cloud_1->points[i].x = 1024 * rand () / (RAND_MAX + 1.0f);
-//                cloud_1->points[i].y = 1024 * rand () / (RAND_MAX + 1.0f);
-//                cloud_1->points[i].z = 1024 * rand () / (RAND_MAX + 1.0f);
-
-//                cloud_1->points[i].r = 0.0;
-//                cloud_1->points[i].g = 255 *(1024 * rand () / (RAND_MAX + 1.0f));
-//                cloud_1->points[i].b = 255 *(1024 * rand () / (RAND_MAX + 1.0f));
-//        }
-
-//        // Second random point cloud
-//        for (size_t i = 0; i < cloud_2->points.size (); ++i) {
-//                cloud_2->points[i].x = 1024 * rand () / (RAND_MAX + 1.0f);
-//                cloud_2->points[i].y = 1024 * rand () / (RAND_MAX + 1.0f);
-//                cloud_2->points[i].z = 1024 * rand () / (RAND_MAX + 1.0f);
-
-//                cloud_2->points[i].r = 255 *(1024 * rand () / (RAND_MAX + 1.0f));
-//                cloud_2->points[i].g = 0.0;
-//                cloud_2->points[i].b = 255 *(1024 * rand () / (RAND_MAX + 1.0f));
-//        }
-
-//        // Viewer with 2 vertical viewports
-//        pcl::visualization::PCLVisualizer viewer ("Visualizer");
-////        int v1(0); int v2(1);
-////        viewer.createViewPort (0.0, 0.0, 0.5, 1.0, v1);
-////        viewer.createViewPort (0.5, 0.0, 1.0, 1.0, v2);
-
-//        // Add point clouds
-//        viewer.addPointCloud (cloud_1, "cloud_1");
-////        viewer.addPointCloud (cloud_1, "cloud_1", v1);
-////        viewer.addPointCloud (cloud_2, "cloud_2", v2);
-
-////        viewer.resetCamera ();
-
-//        // Display the visualiser
-//        while (!viewer.wasStopped ()) {
-//                viewer.spinOnce ();
-//        }
-
-//        return (0);
-//}

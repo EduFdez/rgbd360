@@ -110,7 +110,7 @@ void RegisterDense::buildPyramid( const cv::Mat & img, std::vector<cv::Mat> & py
 
     for(int level=1; level < nLevels; level++)
     {
-        assert(pyramid[0].rows % 2 && pyramid[0].cols % 2 == 0 );
+        assert(pyramid[0].rows % 2 == 0 && pyramid[0].cols % 2 == 0 );
 
         //Create an auxiliar image of factor times the size of the original image
         cv::Mat imgAux;
@@ -365,8 +365,8 @@ void RegisterDense::setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
 
     //Create a float auxialiary image from the imput image
     // grayTrg.create(imgRGB.rows, imgRGB.cols, CV_32FC1);
-    cv::cvtColor(imgRGB, grayTrg, CV_RGB2GRAY);
-//    cv::cvtColor(imgRGB, grayTrg, cv::COLOR_RGB2GRAY);
+//    cv::cvtColor(imgRGB, grayTrg, CV_RGB2GRAY);
+    cv::cvtColor(imgRGB, grayTrg, cv::COLOR_RGB2GRAY);
     grayTrg.convertTo(grayTrg, CV_32FC1, 1./255 );
 
     //Compute image pyramids for the grayscale and depth images
