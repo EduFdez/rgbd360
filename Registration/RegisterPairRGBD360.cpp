@@ -108,8 +108,8 @@ cout << "Create sphere 2\n";
 //#endif
 
   // Dense registration
-  float angleOffset = 157.5;
-  Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
+  float angle_offset = 90;
+  Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(0,0) = rot_offset(1,1) = cos(angle_offset*PI/180); rot_offset(0,1) = -sin(angle_offset*PI/180); rot_offset(1,0) = -rot_offset(0,1);
   RegisterDense align360; // Dense RGB-D alignment
   align360.setSensorType( RegisterDense::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::alignFrames360 for more details)
   align360.setNumPyr(6);
@@ -119,26 +119,30 @@ cout << "Create sphere 2\n";
   align360.setTargetFrame(frame360_1.sphereRGB, frame360_1.sphereDepth);
   align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
   align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//  Eigen::Matrix4f initTransf_dense = rotOffset * poseRegPbMap * rotOffset.inverse();
+//  Eigen::Matrix4f initTransf_dense = rot_offset * poseRegPbMap * rot_offset.inverse();
 //  align360.alignFrames360(initTransf_dense, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   Eigen::Matrix4f rigidTransf_dense_ref = align360.getOptimalPose();
-  Eigen::Matrix4f rigidTransf_dense = rotOffset.inverse() * rigidTransf_dense_ref * rotOffset;
-//  cout << "Pose Dense \n" << rigidTransf_dense_ref << endl;
+  Eigen::Matrix4f rigidTransf_dense = rot_offset.inverse() * rigidTransf_dense_ref * rot_offset;
+  cout << "Pose Dense X Upwards \n" << rigidTransf_dense_ref << endl;
   cout << "Pose Dense \n" << rigidTransf_dense << endl;
 
   align360.alignFrames360_inv(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-  cout << "Pose Dense Inv \n" << rotOffset.inverse() * align360.getOptimalPose() * rotOffset << endl;
+  cout << "Pose Dense Inv \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
 
   align360.alignFrames360_bidirectional(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-  cout << "Pose Dense Bidirectional \n" << rotOffset.inverse() * align360.getOptimalPose() * rotOffset << endl;
+  cout << "Pose Dense Bidirectional \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
+
+  align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  Eigen::Matrix4f rigidTransf_dense2 = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
+  cout << "Pose Dense PHOTO_CONSISTENCY \n" << rigidTransf_dense2 << endl;
 
   align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-  Eigen::Matrix4f rigidTransf_dense2 = rotOffset.inverse() * align360.getOptimalPose() * rotOffset;
-  cout << "Pose Dense2 \n" << rigidTransf_dense2 << endl;
+  Eigen::Matrix4f rigidTransf_dense3 = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
+  cout << "Pose Dense DEPTH_CONSISTENCY \n" << rigidTransf_dense3 << endl;
 
 //  mrpt::system::pause();
 //  align360.alignFrames360_unity(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//  Eigen::Matrix4f rigidTransf_unity = rotOffset.inverse() * align360.getOptimalPose() * rotOffset;
+//  Eigen::Matrix4f rigidTransf_unity = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
 //  std::cout << "Pose Dense unity \n" << rigidTransf_unity << std::endl;
 
 //  // ICP alignement
@@ -191,10 +195,10 @@ cout << "Create sphere 2\n";
   Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
   Map.addKeyframe(&frame360_1, pose );
   pose = rigidTransf_pbmap;//.cast<double>();
-  pose = rigidTransf_dense;
+  //pose = rigidTransf_dense;
   Map.addKeyframe(&frame360_2, pose );
   Map.vOptimizedPoses = Map.vTrajectoryPoses;
-  Map.vOptimizedPoses[1] = rigidTransf_dense2;
+  Map.vOptimizedPoses[1] = rigidTransf_dense;
   Map360_Visualizer Viewer(Map,1);
 
   while (!Viewer.viewer.wasStopped() )

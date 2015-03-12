@@ -544,14 +544,12 @@ public:
                                     const Eigen::Matrix4f &poseCamRobot, // The pose of the camera wrt to the Robot (fixed beforehand through calibration) // Maybe calibration can be computed at the same time
                                     costFuncType method = PHOTO_CONSISTENCY);
 
-    ///*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y' */
-    //inline float
-    //bilinearInterp(const cv::Mat & img, cv::Point2f pt)
-
     /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y' */
 //    inline cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)
-    inline float getColorSubpix(const cv::Mat& img, cv::Point2f pt)
+    //template <typename T>
+    inline float bilinearInterp(const cv::Mat & img, cv::Point2f pt)
     {
+        assert( img.type() == CV_32FC1 && !img.empty() );
         cv::Mat patch;
         cv::getRectSubPix(img, cv::Size(1,1), pt, patch);
         return patch.at<float>(0,0);
@@ -560,13 +558,9 @@ public:
     /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y'.
      * It takes into account NaN pixels and (<= 0 && > maxDepth) values to rule them out of the interpolation
      */
-    inline float getDepthSubpix(const cv::Mat& img, cv::Point2f pt)
+    inline float bilinearInterp_depth(const cv::Mat& img, cv::Point2f pt)
     {
-        assert(!img.empty());
-
-    //    cv::Mat patch;
-    //    cv::getRectSubPix(img, cv::Size(1,1), pt, patch);
-    //    return patch.at<float>(0,0);
+        assert( img.type() == CV_32FC1 && !img.empty() );
 
         int x = (int)pt.x;
         int y = (int)pt.y;

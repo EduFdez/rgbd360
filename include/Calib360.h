@@ -121,11 +121,16 @@ class Calib360
   /*! Load the extrinsic calibration matrices (relative poses) corresponding to each Asus XPL */
   void loadExtrinsicCalibration(std::string pathToExtrinsicModel = "")
   {
+    // Apply offset so that the sensor 4 looks forward
+    //float angleOffset = 135;
+    //Eigen::Matrix4f rotOffset = Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = -sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
+
     if(pathToExtrinsicModel == "")
       pathToExtrinsicModel = mrpt::format("%s/Calibration/Extrinsics", PROJECT_SOURCE_PATH);
     for(unsigned sensor_id=0; sensor_id < NUM_ASUS_SENSORS; ++sensor_id)
     {
       Rt_[sensor_id].loadFromTextFile(mrpt::format("%s/Rt_0%u.txt", pathToExtrinsicModel.c_str(), sensor_id+1));
+      //Rt_[sensor_id] = rotOffset * Rt_[sensor_id];
       Rt_inv[sensor_id] = Rt_[sensor_id].inverse();
     }
   }

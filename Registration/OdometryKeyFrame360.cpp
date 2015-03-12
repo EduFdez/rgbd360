@@ -168,8 +168,9 @@ public:
         Eigen::Matrix4f prevPrevPose = currentPose;
 
         // The reference of the spherical image and the point Clouds are not the same! I should always use the same coordinate system (TODO)
-        float angleOffset = 157.5;
-        Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
+//        float pixels_offset = 157.5;
+        float pixels_offset = 0;
+        Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(pixels_offset*PI/180); rotOffset(1,2) = sin(pixels_offset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
 
         while( fexists(fileName.c_str()) )
         {

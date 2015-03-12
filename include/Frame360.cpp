@@ -248,7 +248,7 @@ void Frame360::fastStitchImage360() // Parallelized with OpenMP
 
 }
 
-/*! Stitch RGB-D image using a spherical representation */
+/*! Stitch RGB-D image using a spherical representation. The sensor 4 is looking forward in our robot platform, thus it is set in the center of the image */
 void Frame360::stitchSphericalImage() // Parallelized with OpenMP
 {
     //        cout << "stitchSphericalImage\n";
@@ -329,7 +329,9 @@ void Frame360::buildCloud_id(int sensor_id)
     //  std::cout << "buildCloud_id3 " << sensor_id << "\n";
 }
 
-/*! Build the spherical point cloud by superimposing the 8 point clouds from the 8 Asus XPL*/
+/*! Build the spherical point cloud by superimposing the 8 point clouds from the 8 Asus XPL
+ * Z -> Forward, X -> Upwards, X -> Rightwards
+ */
 void Frame360::buildSphereCloud_rgbd360()
 {
     //    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
@@ -364,7 +366,17 @@ void Frame360::buildSphereCloud_rgbd360()
         filter.filter(*frameRGBD_[sensor_id].getPointCloud());
 #endif
 
-        pcl::transformPointCloud(*frameRGBD_[sensor_id].getPointCloud(),*cloud_[sensor_id],calib->getRt_id(sensor_id));
+        //pcl::transformPointCloud(*frameRGBD_[sensor_id].getPointCloud(),*cloud_[sensor_id],calib->getRt_id(sensor_id));
+        float angle_offset = 45;
+        Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(1,1) = rot_offset(2,2) = cos(angle_offset*PI/180); rot_offset(1,2) = -sin(angle_offset*PI/180); rot_offset(2,1) = -rot_offset(1,2);
+        Eigen::Matrix4f Rt = rot_offset * calib->getRt_id(sensor_id);
+//        std::cout << "Transforms \n" << calib->getRt_id(sensor_id) << "\n\n"
+//                                    << rot_offset * calib->getRt_id(sensor_id) << "\n\n"
+//                                    << calib->getRt_id(sensor_id) * rot_offset << "\n\n"
+//                                    << rot_offset.inverse() * calib->getRt_id(sensor_id) << "\n\n"
+//                                    << rot_offset * calib->getRt_id(sensor_id) * rot_offset.inverse() << "\n\n"
+//                                    << rot_offset.inverse() * calib->getRt_id(sensor_id) * rot_offset << "\n\n";
+        pcl::transformPointCloud( *frameRGBD_[sensor_id].getPointCloud(), *cloud_[sensor_id], Rt );
     }
 
     *sphereCloud = *cloud_[0];
@@ -437,7 +449,7 @@ void Frame360::buildSphereCloud()
     const float step_theta = pixel_angle_;
     const float step_phi = pixel_angle_;
     //int phi_start_pixel_ = 166, end_phi = 166 + sphereDepth.rows; // For images of 665x2048
-    const int phi_start_pixel_ = 174, end_phi = 174 + sphereDepth.rows; // For images of 640x2048
+    const int phi_start_pixel_ = 174; // end_phi = 174 + sphereDepth.rows; // For images of 640x2048
     //const float offset_phi = PI*31.5/180; // height_SphereImg((width_SphereImg/2) * 63.0/180), // RGBD360
     const int half_height = sphereDepth.rows/2;
     const int half_width = sphereDepth.cols/2;
@@ -497,78 +509,6 @@ void Frame360::buildSphereCloud()
             }
         }
     }
-
-//        int index_row = row_phi*sphereDepth.cols;
-//        float *depth = sphereDepth.ptr<float>(index_row*sizeof(float));
-//        cv::Vec3b *intensity = sphereRGB.ptr<cv::Vec3b>(index_row);
-//        std::cout << " sphereCloud->points " << sphereCloud->points.size() << std::endl;
-//        std::cout << " sphereDepth " << sphereDepth.rows << std::endl;
-//        for(int col_theta=0, pixel_index=index_row; col_theta < sphereDepth.cols; ++col_theta, ++pixel_index)
-//        {
-//            std::cout << sphereDepth.size().area() << " pixel_index " << pixel_index << " row_phi " << row_phi << " col_theta " << col_theta << std::endl;
-//            std::cout << " depth " << sphereDepth.at<float> (row_phi, col_theta) << std::endl;
-//            std::cout << " depth " << (*depth) << std::endl;
-//            if((*depth) > min_depth && (*depth) < max_depth)
-//            {
-//                std::cout << " depth " << sphereDepth.at<float> (row_phi, col_theta) << " max_depth " << max_depth << std::endl;
-//                std::cout << min_depth << " depth " << *depth << " max_depth " << max_depth << std::endl;
-//                sphereCloud->points[pixel_index].x = v_sinTheta[col_theta] *cos_phi * (*depth);
-//                sphereCloud->points[pixel_index].y = -sin_phi * (*depth);
-//                sphereCloud->points[pixel_index].z = v_cosTheta[col_theta] *cos_phi * (*depth);
-//                sphereCloud->points[pixel_index].r = (*intensity)[2];
-//                sphereCloud->points[pixel_index].g = (*intensity)[1];
-//                sphereCloud->points[pixel_index].b = (*intensity)[0];
-//            }
-//            else
-//            {
-//                sphereCloud->points[pixel_index].x = std::numeric_limits<float>::quiet_NaN ();
-//                sphereCloud->points[pixel_index].y = std::numeric_limits<float>::quiet_NaN ();
-//                sphereCloud->points[pixel_index].z = std::numeric_limits<float>::quiet_NaN ();
-//            }
-//            ++depth;
-//            ++intensity;
-//        }
-
-//    for(int row_phi=0; row_phi < sphereDepth.rows; row_phi++)//, row_phi += width_SphereImg)
-//    {
-//        //float phi = offset_phi - row_phi*angle_pixel_inv;// + PI/2;   // RGBD360
-//        float phi = (half_height-row_phi)*step_phi;
-//        float cos_phi = cos(phi);
-//        float sin_phi = sin(phi);
-
-//        int index_row = row_phi*sphereDepth.cols;
-//        for(int col_theta=0, pixel_index=index_row; col_theta < sphereDepth.cols; ++col_theta, ++pixel_index)
-//        {
-//            float depth = sphereDepth.at<float> (row_phi, col_theta);
-//            //std::cout << pixel_index << " " << depth << std::endl;
-
-//            //                    // RGBD360
-//            //float theta_i = col_theta*angle_pixel_inv; // - PI;
-//            //float depth = 0.001f * sphereDepth.at<unsigned short>(row_phi,col_theta);
-
-//            if(depth > min_depth && depth < max_depth)
-//            {
-//                //                    // RGBD360
-//                //                    sphereCloud->points[row_pixels+col_theta].x = sin_phi * depth;
-//                //                    sphereCloud->points[row_pixels+col_theta].y = -cos_phi * sin(theta_i) * depth;
-//                //                    sphereCloud->points[row_pixels+col_theta].z = -cos_phi * cos(theta_i) * depth;
-
-//                float theta = col_theta*step_theta - PI;
-//                sphereCloud->points[pixel_index].x = sin(theta)*cos_phi * depth;
-//                sphereCloud->points[pixel_index].y = -sin_phi * depth;
-//                sphereCloud->points[pixel_index].z = cos(theta)*cos_phi * depth;
-//                sphereCloud->points[pixel_index].r = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[2];
-//                sphereCloud->points[pixel_index].g = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[1];
-//                sphereCloud->points[pixel_index].b = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[0];
-//            }
-//            else
-//            {
-//                sphereCloud->points[pixel_index].x = std::numeric_limits<float>::quiet_NaN ();
-//                sphereCloud->points[pixel_index].y = std::numeric_limits<float>::quiet_NaN ();
-//                sphereCloud->points[pixel_index].z = std::numeric_limits<float>::quiet_NaN ();
-//            }
-//        }
-//    }
 #else
 //    //  Efficiency: store the values of the trigonometric functions
 //    Eigen::VectorXf v_sinTheta(sphereDepth.cols);
@@ -1072,7 +1012,10 @@ void Frame360::getPlanesSensor(int sensor_id)
 
     // Create a vector with the planes detected in this keyframe, and calculate their parameters (normal, center, pointclouds, etc.)
     unsigned single_cloud_size = frameRGBD_[sensor_id].getPointCloud()->size();
-    Eigen::Matrix4f Rt = calib->getRt_id(sensor_id).cast<float>();
+    //Eigen::Matrix4f Rt = calib->getRt_id(sensor_id);//.cast<float>();
+    float angle_offset = 45;
+    Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(1,1) = rot_offset(2,2) = cos(angle_offset*PI/180); rot_offset(1,2) = -sin(angle_offset*PI/180); rot_offset(2,1) = -rot_offset(1,2);
+    Eigen::Matrix4f Rt = rot_offset * calib->getRt_id(sensor_id);
     for (size_t i = 0; i < regions.size (); i++)
     {
         mrpt::pbmap::Plane plane;
@@ -1192,6 +1135,7 @@ void Frame360::undistortDepthSensor(int sensor_id)
 /*! Stitch both the RGB and the depth images corresponding to the sensor 'sensor_id' */
 void Frame360::stitchImage(int sensor_id)
 {
+    //The sensor 4 is looking forward in our robot platform, thus it is set in the center of the image
     Eigen::Vector3f virtualPoint, pointFromCamera;
     const int size_w = frameRGBD_[sensor_id].getRGBImage().cols;
     const int size_h = frameRGBD_[sensor_id].getRGBImage().rows;
@@ -1199,6 +1143,9 @@ void Frame360::stitchImage(int sensor_id)
     const float offsetTheta = -frameRGBD_[sensor_id].getRGBImage().rows*15/2 + 0.5;
     const float angle_pixel = 2*PI/sphereRGB.cols;
     const int marginStitching = 0;
+
+    // Change reference system so that it coincides with the Spherical stereo system
+    const int pixels_offset = 4.5 * frameRGBD_[sensor_id].getRGBImage().rows;
 
     for(int row_phi=0; row_phi < sphereRGB.rows; row_phi++)
     {
@@ -1230,10 +1177,13 @@ void Frame360::stitchImage(int sensor_id)
             //          #pragma omp critical
             if(u >= 0 && u < size_w && v >= 0 && v < size_h)
             {
-                sphereRGB.at<cv::Vec3b>(row_phi,col_theta) = frameRGBD_[sensor_id].getRGBImage().at<cv::Vec3b>(v,u);
+                int col_theta_ref4 = col_theta - pixels_offset;
+                if(col_theta_ref4 < 0) col_theta_ref4 += sphereRGB.cols;
+                //sphereRGB.at<cv::Vec3b>(row_phi,col_theta) = frameRGBD_[sensor_id].getRGBImage().at<cv::Vec3b>(v,u);
+                sphereRGB.at<cv::Vec3b>(row_phi,col_theta_ref4) = frameRGBD_[sensor_id].getRGBImage().at<cv::Vec3b>(v,u);
                 //                    std::cout << " d " << frameRGBD_[sensor_id].getDepthImage().at<unsigned short>(v,u);
                 if( pcl_isfinite(frameRGBD_[sensor_id].getDepthImage().at<unsigned short>(v,u)) ){
-                    sphereDepth.at<unsigned short>(row_phi,col_theta) = frameRGBD_[sensor_id].getDepthImage().at<unsigned short>(v,u) * sqrt(1 + pow((u-calib->cameraMatrix(0,2))/calib->cameraMatrix(0,0),2) + pow((v-calib->cameraMatrix(1,2))/calib->cameraMatrix(1,1),2));
+                    sphereDepth.at<unsigned short>(row_phi,col_theta_ref4) = frameRGBD_[sensor_id].getDepthImage().at<unsigned short>(v,u) * sqrt(1 + pow((u-calib->cameraMatrix(0,2))/calib->cameraMatrix(0,0),2) + pow((v-calib->cameraMatrix(1,2))/calib->cameraMatrix(1,1),2));
                     //                        std::cout << " dm " << sphereDepth.at<unsigned short>(row_phi,col_theta);
                 }
             }
