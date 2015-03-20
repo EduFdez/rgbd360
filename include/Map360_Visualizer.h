@@ -119,10 +119,13 @@ public:
     {
         if(bFirstRun)
         {
+            viz.setBackgroundColor (0.3, 0.3, 0.3);
+            //viz.setBackgroundColor (1.0, 1.0, 1.0);
             viz.setCameraPosition (
-                0,0,-9,		// Position
+                5,0,-9,		// Position
                 0,0,1,		// Viewpoint
-                0,-1,0 );	// Up
+                1,0,0 );	// Up
+                //0,1,0 );	// Up
 //            viz.setFullScreen(true);
             bFirstRun = false;
         }

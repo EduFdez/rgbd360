@@ -275,7 +275,7 @@ public:
         3(PLANAR_ODOMETRY_3DoF): odometry + planar movement (small displacementes + the camera is fixed in height) */
     bool RegisterPbMap(Frame360 *frame1 = NULL, Frame360 *frame2 = NULL, const size_t max_match_planes = 0, registrationType registMode = DEFAULT_6DoF)
     {
-        //    std::cout << "Register...\n";
+        std::cout << "RegisterPbMap..." << _DEBUG_MSG << "\n";
 //        double time_start = pcl::getTime();
 
         if(frame1) // Create the subgraphs corresponding to input frames for plane matching
@@ -286,6 +286,7 @@ public:
 
 #if _DEBUG_MSG
         double time_start = pcl::getTime();
+        std::cout << "set source and target subgraphs \n";
         std::cout << "Number of planes in Ref " << refGraph.subgraphPlanesIdx.size() << " Trg " << trgGraph.subgraphPlanesIdx.size() << " limit " << max_match_planes << endl;
 #endif
 

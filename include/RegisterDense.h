@@ -42,7 +42,7 @@ class RegisterDense
     cv::Mat depthTrg;
 
     /*! The relative pose between source and target RGB-D images */
-    Eigen::Matrix4f relPose;
+    Eigen::Matrix4f registered_pose_;
 
     /*! The Hessian matrix of the optimization problem. At the solution it represents the inverse of the covariance matrix of the relative pose */
     Eigen::Matrix<float,6,6> hessian;
@@ -54,19 +54,19 @@ class RegisterDense
     //    int iter;
 
     /*! Minimum allowed depth to consider a depth pixel valid.*/
-    float minDepth;
+    float min_depth_;
 
     /*! Maximum allowed depth to consider a depth pixel valid.*/
-    float maxDepth;
+    float max_depth_;
 
     /*! Minimum depth difference to filter the outliers.*/
-    float minDepthOutliers;
+    float min_depth_Outliers;
 
     /*! Threshold depth difference to filter the outliers.*/
     float thresDepthOutliers;
 
     /*! Maximum depth difference to filter the outliers.*/
-    float maxDepthOutliers;
+    float max_depth_Outliers;
 
     /*! Variance of intensity measurements. */
     float varPhoto;
@@ -80,7 +80,10 @@ class RegisterDense
     float depthComponentGain;
 
     /*! If set to true, only the pixels with high gradient in the gray image are used (for both photo and depth minimization) */
-    bool bUseSalientPixels;
+    bool use_salient_pixels_;
+
+    /*! Optimize using bilinear interpolation in the last pyramid.*/
+    bool use_bilinear_;
 
     /*! A threshold to select salient pixels on the intensity and depth images.*/
     float thresSaliency;
@@ -112,8 +115,8 @@ class RegisterDense
     std::vector<Eigen::Vector3f>  LUT_xyz_source;
     std::vector<Eigen::Vector3f>  LUT_xyz_target;
 
-    Eigen::MatrixXf LUT_xyz_source_;
-    Eigen::MatrixXf LUT_xyz_target_;
+    Eigen::MatrixXf LUT_xyz_source_eigen;
+    Eigen::MatrixXf LUT_xyz_target_eigen;
 
     /*! Store a copy of the residuals and the weights to speed-up the registration. (Before they were computed twice: in the error function and the Jacobian)*/
     Eigen::VectorXf residualsPhoto;
@@ -162,28 +165,34 @@ public:
 
     RegisterDense();
 
-    /*! Set the the number of pyramid levels.*/
+    /*! Set the number of pyramid levels.*/
     inline void setSensorType(const sensorType sensor)
     {
         sensor_type = sensor;
     };
 
-    /*! Set the the number of pyramid levels.*/
+    /*! Set the number of pyramid levels.*/
     inline void setNumPyr(const int Npyr)
     {
         nPyrLevels = Npyr;
     };
 
-    /*! Set the minimum depth distance (m) to consider a certain pixel valid.*/
-    inline void setMinDepth(const float minD)
+    /*! Set the bilinear interpolation for the last pyramid.*/
+    inline void setBilinearInterp(const bool use_bilinear)
     {
-        minDepth = minD;
+        use_bilinear_ = use_bilinear;
+    };
+
+    /*! Set the minimum depth distance (m) to consider a certain pixel valid.*/
+    inline void setmin_depth_(const float minD)
+    {
+        min_depth_ = minD;
     };
 
     /*! Set the maximum depth distance (m) to consider a certain pixel valid.*/
-    inline void setMaxDepth(const float maxD)
+    inline void setmax_depth_(const float maxD)
     {
-        maxDepth = maxD;
+        max_depth_ = maxD;
     };
 
     /*! Set the variance of the intensity.*/
@@ -211,16 +220,16 @@ public:
     };
 
     /*! Set the a variable to indicate whether pixel saliency is used.*/
-    void useSaliency(const bool bUseSalientPixels_)
+    void useSaliency(const bool use_salient_pixels__)
     {
-        bUseSalientPixels = bUseSalientPixels_;
+        use_salient_pixels_ = use_salient_pixels__;
     };
 
     /*! Returns the optimal SE(3) rigid transformation matrix between the source and target frame.
      * This method has to be called after calling the alignFrames() method.*/
     inline Eigen::Matrix4f getOptimalPose()
     {
-        return relPose;
+        return registered_pose_;
     }
 
     /*! Returns the Hessian (the information matrix).*/
@@ -436,13 +445,15 @@ public:
     in Computer Vision Workshops (ICCV Workshops), 2011. */
     double errorDense_sphere (  const int &pyramidLevel,
                                 const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
-                                costFuncType method = PHOTO_CONSISTENCY,
-                                const bool use_bilinear = false );
+                                costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
-    double errorDenseInv_sphere (  const int &pyramidLevel,
+    double errorDenseInv_sphere(const int &pyramidLevel,
                                 const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
-                                costFuncType method = PHOTO_CONSISTENCY,
-                                const bool use_bilinear = false );
+                                costFuncType method = PHOTO_CONSISTENCY); //,const bool use_bilinear = false );
+
+    double errorDense_sphere_bidirectional (const int &pyramidLevel,
+                                            const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
+                                            costFuncType method = PHOTO_CONSISTENCY); //,const bool use_bilinear = false );
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
     This is done following the work in:
@@ -450,13 +461,15 @@ public:
     in Computer Vision Workshops (ICCV Workshops), 2011. */
     void calcHessGrad_sphere(   const int &pyramidLevel,
                                 const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                costFuncType method = PHOTO_CONSISTENCY,
-                                const bool use_bilinear = false );
+                                costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
     void calcHessGradInv_sphere(   const int &pyramidLevel,
                                 const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                costFuncType method = PHOTO_CONSISTENCY,
-                                const bool use_bilinear = false );
+                                costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+
+    void calcHessGrad_sphere_bidirectional (const int &pyramidLevel,
+                                            const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
+                                            costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
         Occlusions are taken into account by a Z-buffer. */
@@ -556,7 +569,7 @@ public:
     }
 
     /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y'.
-     * It takes into account NaN pixels and (<= 0 && > maxDepth) values to rule them out of the interpolation
+     * It takes into account NaN pixels and (<= 0 && > max_depth_) values to rule them out of the interpolation
      */
     inline float bilinearInterp_depth(const cv::Mat& img, cv::Point2f pt)
     {
@@ -576,26 +589,26 @@ public:
         float d = 1.f - c;
 
         float pt_y0;
-        if( img.at<float>(y0, x0) < maxDepth && img.at<float>(y0, x1) < maxDepth && img.at<float>(y0, x0) >= 0 && img.at<float>(y0, x1) >= 0 )
+        if( img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x1) < max_depth_ && img.at<float>(y0, x0) >= 0 && img.at<float>(y0, x1) >= 0 )
             pt_y0 = img.at<float>(y0, x0) * b + img.at<float>(y0, x1) * a;
-        else if (img.at<float>(y0, x0) < maxDepth && img.at<float>(y0, x0) >= 0 )
+        else if (img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x0) >= 0 )
             pt_y0 = img.at<float>(y0, x0);
-        else //if(img.at<float>(y0, x0) < maxDepth)
+        else //if(img.at<float>(y0, x0) < max_depth_)
             pt_y0 = img.at<float>(y0, x1);
-        // The NaN/OutOfDepth case (img.at<float>(y0, x0) > maxDepth && img.at<float>(y0, x1) > maxDepth) is automatically assumed
+        // The NaN/OutOfDepth case (img.at<float>(y0, x0) > max_depth_ && img.at<float>(y0, x1) > max_depth_) is automatically assumed
 
         float pt_y1;
-        if( img.at<float>(y1, x0) < maxDepth && img.at<float>(y1, x1) < maxDepth && img.at<float>(y1, x0) >= 0 && img.at<float>(y1, x1) >= 0 )
+        if( img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x1) < max_depth_ && img.at<float>(y1, x0) >= 0 && img.at<float>(y1, x1) >= 0 )
             pt_y1 = img.at<float>(y1, x0) * b + img.at<float>(y1, x1) * a;
-        else if (img.at<float>(y1, x0) < maxDepth && img.at<float>(y1, x0) >= 0)
+        else if (img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x0) >= 0)
             pt_y1 = img.at<float>(y1, x0);
-        else //if(img.at<float>(y1, x0) < maxDepth)
+        else //if(img.at<float>(y1, x0) < max_depth_)
             pt_y1 = img.at<float>(y1, x1);
 
         float interpDepth;
-        if( pt_y0 < maxDepth && img.at<float>(y1, x1) < maxDepth )
+        if( pt_y0 < max_depth_ && img.at<float>(y1, x1) < max_depth_ )
             interpDepth = pt_y0 * d + pt_y1 * c;
-        else if (img.at<float>(y1, x0) < maxDepth)
+        else if (img.at<float>(y1, x0) < max_depth_)
             interpDepth = pt_y0;
         else
             interpDepth = pt_y1;

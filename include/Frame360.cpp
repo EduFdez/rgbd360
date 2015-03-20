@@ -32,7 +32,9 @@
 
 #include <Frame360.h>
 
-#define ENABLE_OPENMP 1
+#include <mrpt/system/os.h>
+
+#define ENABLE_OPENMP 0
 
 //typedef pcl::PointXYZRGBA PointT;
 
@@ -141,9 +143,14 @@ void Frame360::loadFrame(std::string &binaryFile)
     //Close the binary bile
     ifs.close();
 
-#pragma omp parallel num_threads(8)
+#if ENABLE_OPENMP
+    #pragma omp parallel num_threads(8)
     {
         int sensor_id = omp_get_thread_num();
+#else
+    for(int sensor_id = 0; sensor_id < 8; sensor_id++)
+    {
+#endif
         frameRGBD_[sensor_id].loadDepthEigen();
     }
 
@@ -653,9 +660,14 @@ void Frame360::getPlanes()
     std::cout << "Frame360.getPlanes()\n";
     double extractPlanes_start = pcl::getTime();
 
-#pragma omp parallel num_threads(8)
+#if ENABLE_OPENMP
+    #pragma omp parallel num_threads(8)
     {
         int sensor_id = omp_get_thread_num();
+#else
+    for(int sensor_id = 0; sensor_id < 8; sensor_id++)
+    {
+#endif
         getPlanesSensor(sensor_id);
     }
 
@@ -938,10 +950,12 @@ void Frame360::getLocalPlanesInFrame(int sensor_id)
         pcl::PointCloud<pcl::PointXYZRGBA>::Ptr contourPtr(new pcl::PointCloud<pcl::PointXYZRGBA>);
         contourPtr->points = regions[i].getContour();
 
-        plane.calcConvexHull(contourPtr);
-        plane.computeMassCenterAndArea();
+        plane.computeInvariantParams( plane.planePointCloudPtr );
+        plane.calcConvexHullandParams(contourPtr);
 
-        plane.calcElongationAndPpalDir();
+//        plane.calcConvexHull(contourPtr);
+//        plane.computeMassCenterAndArea();
+//        plane.calcElongationAndPpalDir();
 
         plane.calcPlaneHistH();
 
@@ -1046,10 +1060,13 @@ void Frame360::getPlanesSensor(int sensor_id)
         pcl::PointCloud<pcl::PointXYZRGBA>::Ptr contourPtr(new pcl::PointCloud<pcl::PointXYZRGBA>);
         contourPtr->points = regions[i].getContour();
 
+        plane.computeInvariantParams(plane.planePointCloudPtr);
+
         //    cout << "Extract contour\n";
         if(contourPtr->size() != 0)
         {
-            plane.calcConvexHull(contourPtr);
+            //plane.calcConvexHull(contourPtr);
+            plane.calcConvexHullandParams(contourPtr);
         }
         else
         {
@@ -1059,21 +1076,28 @@ void Frame360::getPlanesSensor(int sensor_id)
             plane_grid.setLeafSize(0.05,0.05,0.05);
             plane_grid.setInputCloud (plane.planePointCloudPtr);
             plane_grid.filter (*contourPtr);
-            plane.calcConvexHull(contourPtr);
+            //plane.calcConvexHull(contourPtr);
+            plane.calcConvexHullandParams(contourPtr);
         }
 
-        //        assert(contourPtr->size() > 0);
-        //        plane.calcConvexHull(contourPtr);
-        //    cout << "calcConvexHull\n";
-        plane.computeMassCenterAndArea();
-        //    cout << "Extract convexHull\n";
-        // Discard small planes
+////        //        assert(contourPtr->size() > 0);
+//        plane.computeMassCenterAndArea();
+////        //    cout << "Extract convexHull\n";
+///
+//        // Discard small planes
         if(plane.areaHull < min_area_plane)
             continue;
 
-        plane.d = -plane.v3normal .dot( plane.v3center );
+//        plane.d = -plane.v3normal .dot( plane.v3center );
 
-        plane.calcElongationAndPpalDir();
+//        plane.calcElongationAndPpalDir();
+//        cout << "elongation " << plane.elongation << endl;
+//        cout << "v3PpalDir " << plane.v3PpalDir.transpose() << endl;
+//        plane.calcConvexHullandParams(contourPtr);
+//        cout << "calcConvexHullandParams elongation " << plane.elongation << endl;
+//        cout << "v3PpalDir " << plane.v3PpalDir.transpose() << endl;
+//        mrpt::system::pause();
+
         // Discard narrow planes
         if(plane.elongation > max_elongation_plane)
             continue;

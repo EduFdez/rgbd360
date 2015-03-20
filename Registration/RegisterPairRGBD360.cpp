@@ -29,6 +29,8 @@
  *  Author: Eduardo Fernandez-Moral
  */
 
+#define _DEBUG_MSG 1
+
 #include <RegisterRGBD360.h>
 #include <Map360_Visualizer.h>
 #include <FilterPointCloud.h>
@@ -39,9 +41,6 @@
 #include <pcl/registration/warp_point_rigid.h>
 
 #define VISUALIZE_POINT_CLOUD 1
-#ifndef _DEBUG_MSG
-    #define _DEBUG_MSG 1
-#endif
 
 using namespace std;
 
@@ -76,6 +75,7 @@ cout << "Create sphere 1\n";
   frame360_1.stitchSphericalImage();
   frame360_1.buildSphereCloud_rgbd360();
   frame360_1.getPlanes();
+  cout << "frame360_1.getPlanes()\n";
 
 //  frame360_1.load_PbMap_Cloud(path, id_frame1);
 
@@ -87,6 +87,7 @@ cout << "Create sphere 2\n";
   frame360_2.stitchSphericalImage();
   frame360_2.buildSphereCloud_rgbd360();
   frame360_2.getPlanes();
+  cout << "frame360_2.getPlanes()\n";
 
 //  frame360_2.load_PbMap_Cloud(path, id_frame2);
 
@@ -139,6 +140,15 @@ cout << "Create sphere 2\n";
   align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   Eigen::Matrix4f rigidTransf_dense3 = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
   cout << "Pose Dense DEPTH_CONSISTENCY \n" << rigidTransf_dense3 << endl;
+
+  align360.alignFrames360(align360.getOptimalPose(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  Eigen::Matrix4f rigidTransf_dense4 = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
+  cout << "Pose Dense PHOTO_CONSISTENCY INIT \n" << rigidTransf_dense4 << endl;
+
+  align360.setBilinearInterp(true);
+  align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  Eigen::Matrix4f rigidTransf_dense_BI = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
+  cout << "Pose Dense BILINEAR \n" << rigidTransf_dense_BI << endl;
 
 //  mrpt::system::pause();
 //  align360.alignFrames360_unity(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();

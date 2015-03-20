@@ -96,7 +96,7 @@ typedef pcl::PointXYZRGBA PointT;
  */
 class Frame360
 {
-public:
+  public:
 
     /*! Frame ID*/
     unsigned id;
@@ -147,7 +147,7 @@ public:
         STEREO_OUTDOOR,
     } sensor_type;
 
-private:
+  private:
 
     /*! Time-stamp of the spherical frame (it corresponds to the last capture of the 8 sensors, as they are not syncronized) */
     uint64_t timeStamp;

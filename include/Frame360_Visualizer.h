@@ -113,6 +113,8 @@ class Frame360_Visualizer
       viz.setSize(800,600); // Set the window size
       viz.setBackgroundColor (1.0, 1.0, 1.0);
       viz.addCoordinateSystem (0.3, "global");
+
+      std::cout << "b_init_viewer_ \n";
     }
 
 //    if (!viz.updatePointCloud (frame360->sphereCloud, "sphereCloud"))
