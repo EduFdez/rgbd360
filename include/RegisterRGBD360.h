@@ -119,7 +119,7 @@ public:
             //      // Add all the planes that have been labelized
             //      for(unsigned i=0; i < pRef360->planes.vPlanes.size(); i++)
             //       if(pRef360->planes.vPlanes[i].curvature < max_curvature_plane && pRef360->planes.vPlanes[i].label != "")
-            //        refGraph.subgraphPlanesIdx.insert(pRef360->planes.vPlanes[i].id);
+            //        refGraph.subgraphPlanesIdx.push_back(pRef360->planes.vPlanes[i].id);
 
             std::vector<float> planeAreas(pRef360->planes.vPlanes.size(), 0);
             for(unsigned i=0; i < pRef360->planes.vPlanes.size(); i++)
@@ -141,13 +141,13 @@ public:
             for(unsigned i=0; i < pRef360->planes.vPlanes.size(); i++)
                 //            std::cout << i << " " << planeAreas[i] << std::endl;
                 if(planeAreas[i] > areaThreshold)
-                    refGraph.subgraphPlanesIdx.insert(pRef360->planes.vPlanes[i].id);
+                    refGraph.subgraphPlanesIdx.push_back(pRef360->planes.vPlanes[i].id);
         }
         else
         {
             for(unsigned i=0; i < pRef360->planes.vPlanes.size(); i++){//std::cout << "id " << pRef360->planes.vPlanes[i].id << endl;
                 if(pRef360->planes.vPlanes[i].curvature < max_curvature_plane)
-                    refGraph.subgraphPlanesIdx.insert(pRef360->planes.vPlanes[i].id);}
+                    refGraph.subgraphPlanesIdx.push_back(pRef360->planes.vPlanes[i].id);}
         }
         //    std::cout << "Subgraph planes in Ref " << refGraph.subgraphPlanesIdx.size() << max_match_planes << endl;
 
@@ -182,13 +182,13 @@ public:
             for(unsigned i=0; i < pTrg360->planes.vPlanes.size(); i++)
                 //            std::cout << i << " " << planeAreas[i] << std::endl;
                 if(planeAreas[i] > areaThreshold)
-                    trgGraph.subgraphPlanesIdx.insert(pTrg360->planes.vPlanes[i].id);
+                    trgGraph.subgraphPlanesIdx.push_back(pTrg360->planes.vPlanes[i].id);
         }
         else
         {
             for(unsigned i=0; i < pTrg360->planes.vPlanes.size(); i++)
                 if(pTrg360->planes.vPlanes[i].curvature < max_curvature_plane)
-                    trgGraph.subgraphPlanesIdx.insert(pTrg360->planes.vPlanes[i].id);
+                    trgGraph.subgraphPlanesIdx.push_back(pTrg360->planes.vPlanes[i].id);
         }
         //    std::cout << "Subgraph planes in Trg " << trgGraph.subgraphPlanesIdx.size() << max_match_planes << endl;
 
@@ -299,7 +299,7 @@ public:
         double time_end = pcl::getTime();
         std::cout << "compareSubgraphs took " << double (time_end - time_start)*1000 << " ms\n";
 
-        std::cout << "NUMBER OF MATCHED PLANES " << bestMatch.size() << " areaMatched " << areaMatched << std::endl;
+        std::cout << "NUMBER OF MATCHED PLANES " << bestMatch.size() << " areaMatched " << areaMatched << " score " << matcher.score_best_match << std::endl;
         //    for(std::map<unsigned, unsigned>::iterator it=bestMatch.begin(); it != bestMatch.end(); it++)
         //      std::cout << it->first << " " << it->second << std::endl;
 #endif
@@ -326,11 +326,11 @@ public:
         if(goodAlignment) // Get the maximum matchable areas
         {
             areaSource = 0;
-            for(std::set<unsigned>::iterator it=refGraph.subgraphPlanesIdx.begin(); it != refGraph.subgraphPlanesIdx.end(); it++)
+            for(std::vector<unsigned>::iterator it=refGraph.subgraphPlanesIdx.begin(); it != refGraph.subgraphPlanesIdx.end(); it++)
                 areaSource += pRef360->planes.vPlanes[*it].areaHull;
 
             areaTarget = 0;
-            for(std::set<unsigned>::iterator it=trgGraph.subgraphPlanesIdx.begin(); it != trgGraph.subgraphPlanesIdx.end(); it++)
+            for(std::vector<unsigned>::iterator it=trgGraph.subgraphPlanesIdx.begin(); it != trgGraph.subgraphPlanesIdx.end(); it++)
                 areaTarget += pTrg360->planes.vPlanes[*it].areaHull;
         }
 

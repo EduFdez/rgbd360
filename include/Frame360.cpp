@@ -34,7 +34,7 @@
 
 #include <mrpt/system/os.h>
 
-#define ENABLE_OPENMP 0
+#define ENABLE_OPENMP 1
 
 //typedef pcl::PointXYZRGBA PointT;
 

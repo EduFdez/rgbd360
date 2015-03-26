@@ -117,6 +117,7 @@ class RegisterDense
 
     Eigen::MatrixXf LUT_xyz_source_eigen;
     Eigen::MatrixXf LUT_xyz_target_eigen;
+    Eigen::MatrixXf transformedPoints;
 
     /*! Store a copy of the residuals and the weights to speed-up the registration. (Before they were computed twice: in the error function and the Jacobian)*/
     Eigen::VectorXf residualsPhoto;
@@ -126,7 +127,6 @@ class RegisterDense
     Eigen::VectorXf validPixels;
     Eigen::VectorXf validPixelsPhoto;
     Eigen::VectorXf validPixelsDepth;
-    Eigen::Matrix<float,3,Eigen::Dynamic> transformedPoints;
 
     /*! Number of iterations in each pyramid level.*/
     std::vector<int> num_iterations;
@@ -274,6 +274,12 @@ public:
 
     /*! Sets the source (Intensity+Depth) frame. Depth image is ignored*/
     void setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
+
+    /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
+    void computeSphereXYZ_sse(const size_t &nRows, const size_t &nCols, const size_t &phi_start, Eigen::MatrixXf & sphere_xyz);
+
+    /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
+    void transformPts3D_sse(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);
 
     /*! Project pixel spherical */
     inline void projectSphere(const int & nCols, const int & nRows, const float & phi_FoV, const int & c, const int & r, const float & depth, const Eigen::Matrix4f & poseGuess,
@@ -575,13 +581,15 @@ public:
     {
         assert( img.type() == CV_32FC1 && !img.empty() );
 
+        float *_img = reinterpret_cast<float*>(img.data);
+
         int x = (int)pt.x;
         int y = (int)pt.y;
 
-        int x0 = cv::borderInterpolate(x,   img.cols, cv::BORDER_REFLECT_101);
-        int x1 = cv::borderInterpolate(x+1, img.cols, cv::BORDER_REFLECT_101);
-        int y0 = cv::borderInterpolate(y,   img.rows, cv::BORDER_REFLECT_101);
-        int y1 = cv::borderInterpolate(y+1, img.rows, cv::BORDER_REFLECT_101);
+        size_t x0_y0 = y * img.cols + x;
+        size_t x1_y0 = x0_y0 + 1;
+        size_t x0_y1 = x0_y0 + img.cols;
+        size_t x1_y1 = x0_y1 + 1;
 
         float a = pt.x - (float)x;
         float b = 1.f - a;
@@ -589,29 +597,59 @@ public:
         float d = 1.f - c;
 
         float pt_y0;
-        if( img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x1) < max_depth_ && img.at<float>(y0, x0) >= 0 && img.at<float>(y0, x1) >= 0 )
-            pt_y0 = img.at<float>(y0, x0) * b + img.at<float>(y0, x1) * a;
-        else if (img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x0) >= 0 )
-            pt_y0 = img.at<float>(y0, x0);
-        else //if(img.at<float>(y0, x0) < max_depth_)
-            pt_y0 = img.at<float>(y0, x1);
-        // The NaN/OutOfDepth case (img.at<float>(y0, x0) > max_depth_ && img.at<float>(y0, x1) > max_depth_) is automatically assumed
+        if( _img[x0_y0] < max_depth_ && _img[x1_y0] < max_depth_ && _img[x0_y0] >= 0 && _img[x1_y0] >= 0 )
+            pt_y0 = _img[x0_y0] * b + _img[x1_y0] * a;
+        else if (_img[x0_y0] < max_depth_ && _img[x0_y0] >= 0 )
+            pt_y0 = _img[x0_y0];
+        else //if(_img[x0_y0] < max_depth_)
+            pt_y0 = _img[x1_y0];
+        // The NaN/OutOfDepth case (_img[x0_y0] > max_depth_ && _img[x1_y0] > max_depth_) is automatically assumed
 
         float pt_y1;
-        if( img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x1) < max_depth_ && img.at<float>(y1, x0) >= 0 && img.at<float>(y1, x1) >= 0 )
-            pt_y1 = img.at<float>(y1, x0) * b + img.at<float>(y1, x1) * a;
-        else if (img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x0) >= 0)
-            pt_y1 = img.at<float>(y1, x0);
-        else //if(img.at<float>(y1, x0) < max_depth_)
-            pt_y1 = img.at<float>(y1, x1);
+        if( _img[x0_y1] < max_depth_ && _img[x1_y1] < max_depth_ && _img[x0_y1] >= 0 && _img[x1_y1] >= 0 )
+            pt_y1 = _img[x0_y1] * b + _img[x1_y1] * a;
+        else if (_img[x0_y1] < max_depth_ && _img[x0_y1] >= 0)
+            pt_y1 = _img[x0_y1];
+        else //if(_img[x0_y1] < max_depth_)
+            pt_y1 = _img[x1_y1];
 
         float interpDepth;
-        if( pt_y0 < max_depth_ && img.at<float>(y1, x1) < max_depth_ )
+        if( pt_y0 < max_depth_ && _img[x1_y1] < max_depth_ )
             interpDepth = pt_y0 * d + pt_y1 * c;
-        else if (img.at<float>(y1, x0) < max_depth_)
+        else if (_img[x0_y1] < max_depth_)
             interpDepth = pt_y0;
         else
             interpDepth = pt_y1;
+
+//        int x0 = cv::borderInterpolate(x,   img.cols, cv::BORDER_REFLECT_101);
+//        int x1 = cv::borderInterpolate(x+1, img.cols, cv::BORDER_REFLECT_101);
+//        int y0 = cv::borderInterpolate(y,   img.rows, cv::BORDER_REFLECT_101);
+//        int y1 = cv::borderInterpolate(y+1, img.rows, cv::BORDER_REFLECT_101);
+
+//        float pt_y0;
+//        if( img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x1) < max_depth_ && img.at<float>(y0, x0) >= 0 && img.at<float>(y0, x1) >= 0 )
+//            pt_y0 = img.at<float>(y0, x0) * b + img.at<float>(y0, x1) * a;
+//        else if (img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x0) >= 0 )
+//            pt_y0 = img.at<float>(y0, x0);
+//        else //if(img.at<float>(y0, x0) < max_depth_)
+//            pt_y0 = img.at<float>(y0, x1);
+//        // The NaN/OutOfDepth case (img.at<float>(y0, x0) > max_depth_ && img.at<float>(y0, x1) > max_depth_) is automatically assumed
+
+//        float pt_y1;
+//        if( img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x1) < max_depth_ && img.at<float>(y1, x0) >= 0 && img.at<float>(y1, x1) >= 0 )
+//            pt_y1 = img.at<float>(y1, x0) * b + img.at<float>(y1, x1) * a;
+//        else if (img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x0) >= 0)
+//            pt_y1 = img.at<float>(y1, x0);
+//        else //if(img.at<float>(y1, x0) < max_depth_)
+//            pt_y1 = img.at<float>(y1, x1);
+
+//        float interpDepth;
+//        if( pt_y0 < max_depth_ && img.at<float>(y1, x1) < max_depth_ )
+//            interpDepth = pt_y0 * d + pt_y1 * c;
+//        else if (img.at<float>(y1, x0) < max_depth_)
+//            interpDepth = pt_y0;
+//        else
+//            interpDepth = pt_y1;
 
         return interpDepth;
     }

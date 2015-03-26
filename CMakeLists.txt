@@ -8,6 +8,20 @@ endif(COMMAND cmake_policy)
 # Set the same build directory for all executables
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR} CACHE PATH "Build directory" FORCE)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse -msse2 -msse3")
+#if (SSE3_FOUND)
+#  set (CMAKE_C_FLAGS_ALL "${CMAKE_C_FLAGS_ALL} -msse3")
+#endif()
+#if (SSSE3_FOUND)
+#  set (CMAKE_C_FLAGS_ALL "${CMAKE_C_FLAGS_ALL} -mssse3")
+#endif()
+#if (SSE4_1_FOUND)
+#  set (CMAKE_C_FLAGS_ALL "${CMAKE_C_FLAGS_ALL} -msse4.1")
+#endif()
+#if (SSE4_2_FOUND)
+#  set (CMAKE_C_FLAGS_ALL "${CMAKE_C_FLAGS_ALL} -msse4.2")
+#endif()
+
 FIND_PACKAGE( Boost 1.46.0 REQUIRED serialization )
 
 # Set the RGBD360_SOURCE_DIR variable to the current source directory

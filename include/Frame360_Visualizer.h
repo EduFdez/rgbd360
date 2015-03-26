@@ -111,7 +111,8 @@ class Frame360_Visualizer
         0,-1,0);	// Up
 
       viz.setSize(800,600); // Set the window size
-      viz.setBackgroundColor (1.0, 1.0, 1.0);
+      //viz.setBackgroundColor (1.0, 1.0, 1.0);
+      viz.setBackgroundColor (0.5, 0.5, 0.5);
       viz.addCoordinateSystem (0.3, "global");
 
       std::cout << "b_init_viewer_ \n";
