@@ -276,7 +276,7 @@ public:
     void setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
 
     /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
-    void computeSphereXYZ_sse(const size_t &nRows, const size_t &nCols, const size_t &phi_start, Eigen::MatrixXf & sphere_xyz);
+    void computeSphereXYZ_sse(const cv::Mat & depth_img, const size_t &phi_start, Eigen::MatrixXf & sphere_xyz);
 
     /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
     void transformPts3D_sse(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);

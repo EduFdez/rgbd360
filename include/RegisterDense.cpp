@@ -5391,7 +5391,7 @@ void RegisterDense::alignFrames360(const Eigen::Matrix4f pose_guess, costFuncTyp
             phi_start = float(174-512)/512 *PI/2 + 0.5*pixel_angle; // The images must be 640 pixels height to compute the pyramids efficiently (we substract 8 pixels from the top and 7 from the lower part)
 
         // Make LUT to store the values of the 3D points of the source sphere
-        computePointsXYZ(nRows, nCols, phi_start, LUT_xyz_source);
+        computePointsXYZ(depthSrcPyr[pyramidLevel], phi_start, LUT_xyz_source);
 
 //        #if PRINT_PROFILING
 //            time_start = pcl::getTime();\
@@ -7817,7 +7817,7 @@ void RegisterDense::calcHessianGradient_robot( const int &pyramidLevel,
 //}
 
 /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
-void RegisterDense::computeSphereXYZ_sse(const size_t &nRows, const size_t &nCols, const size_t &phi_start, Eigen::MatrixXf & sphere_xyz)
+void RegisterDense::computeSphereXYZ_sse(const cv::Mat & depth_img, const size_t &phi_start, Eigen::MatrixXf & sphere_xyz)
 {
 #if PRINT_PROFILING
     time_start = pcl::getTime();
@@ -7825,10 +7825,13 @@ void RegisterDense::computeSphereXYZ_sse(const size_t &nRows, const size_t &nCol
     {
 #endif
 
+    const size_t nRows = depth_img.rows;
+    const size_t nCols = depth_img.cols;
+    assert(nCols % 4 == 0); // Make sure that the image columns are aligned
     const size_t imgSize = nRows*nCols;
     const float half_width = nCols/2;
 
-    sphere_xyz.resize(imgSize);
+    sphere_xyz.resize(imgSize,3);
 
     // Compute the Unit Sphere: store the values of the trigonometric functions
     Eigen::VectorXf v_sinTheta(nCols);
@@ -7847,58 +7850,84 @@ void RegisterDense::computeSphereXYZ_sse(const size_t &nRows, const size_t &nCol
     Eigen::VectorXf v_sinPhi( v_sinTheta.block(start_row,0,nRows,1) );
     Eigen::VectorXf v_cosPhi( v_cosTheta.block(start_row,0,nRows,1) );
 
-    size_t block_end = imgSize - imgSize % 4;
-    size_t block_row_end = nRows - nRows % 4;
-    size_t block_col_end = nCols - nCols % 4;
+//    size_t block_end = imgSize - imgSize % 4;
+//    size_t block_row_end = nRows - nRows % 4;
+//    size_t block_col_end = nCols - nCols % 4;
 
     //Compute the 3D coordinates of the pij of the source frame
-    float *_depth_src = reinterpret_cast<float*>(depthSrcPyr[pyramidLevel].data);
+    float *_depth = reinterpret_cast<float*>(depth_img.data);
+    float *_x = &sphere_xyz(0,0);
+    float *_y = &sphere_xyz(0,1);
+    float *_z = &sphere_xyz(0,2);
+//    __m128 _min_depth_ = _mm_set1_ps(min_depth_);
+//    __m128 _max_depth_ = _mm_set1_ps(max_depth_);
+    if(imgSize > 1e5)
+    {
     #if ENABLE_OPENMP
     #pragma omp parallel for
     #endif
-    for(size_t i=0; i < block_end; i++)
-    {
-        for(size_t c=0;c<nCols;c++)
+        //for(size_t i=0; i < block_end; i++)
+        for(size_t r=0; r < nRows; r++)
         {
-            ******
-            __m128 block_x_in = _mm_load_ps(input_x+b);
-            __m128 block_y_in = _mm_load_ps(input_y+b);
-            __m128 block_z_in = _mm_load_ps(input_z+b);
+            __m128 sin_phi = _mm_set1_ps(v_sinPhi[r]);
+            __m128 cos_phi = _mm_set1_ps(v_cosPhi[r]);
 
-            const __m128 r11 = _mm_set1_ps( Rt(0,0) );
-            const __m128 r12 = _mm_set1_ps( Rt(0,1) );
-
-            float &depth1 = _depth_src[i];
-            //float depth1 = depthSrcPyr[pyramidLevel].at<float>(r,c);
-            if(min_depth_ < depth1 && depth1 < max_depth_) //Compute the jacobian only for the valid points
+            size_t row_depth = r*nCols;
+            float *_row_depth = _depth + r*nCols;
+            for(size_t c=0; c < nCols; c+=4, i+=4)
             {
-                //std::cout << " depth1 " << depth1 << " phi " << phi << " v_sinTheta[c] " << v_sinTheta[c] << std::endl;
+                __m128 block_depth = _mm_load_ps(row_depth+c);
+                __m128 sin_theta = _mm_load_ps(&v_sinTheta[c]);
+                __m128 cos_theta = _mm_load_ps(&v_cosTheta[c]);
 
-                sphere_xyz[i][0] = depth1 * v_cosPhi[r] * v_sinTheta[c];
-                sphere_xyz[i][1] = depth1 * v_sinPhi[r];
-                sphere_xyz[i][2] = depth1 * v_cosPhi[r] * v_cosTheta[c];
-                //std::cout << " sphere_xyz " << sphere_xyz [i].transpose() << " sphere_xyz_eigen " << sphere_xyz_eigen.block(c*nRows+r,0,1,3) << std::endl;
-                //mrpt::system::pause();
+                __m128 block_x = _mm_mul_ps( block_depth, _mm_mul_ps(cos_phi, sin_theta) );
+                __m128 block_y = _mm_mul_ps( block_depth, sin_phi );
+                __m128 block_z = _mm_mul_ps( block_depth, _mm_mul_ps(cos_phi, cos_theta) );
+
+                //__m128 mask = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
+
+                _mm_store_ps(_x+i, block_x);
+                _mm_store_ps(_y+i, block_y);
+                _mm_store_ps(_z+i, block_z);
             }
-            else
-                sphere_xyz[i][0] = INVALID_POINT;
-    //                    sphere_xyz_eigen(i,0) = INVALID_POINT;
-    //                std::cout << sphere_xyz[i].transpose() << std::endl;
-    //                if(r == 10 && c == 20)
-    //                    mrpt::system::pause();
-    //                std::cout << " row_phi " << r << " col_theta " << c << " xyz " << sphere_xyz[i].transpose() << std::endl;
-    //                mrpt::system::pause();
         }
     }
-
-    // Compute the transformation of those points which do not enter in a block
-    const Eigen::Matrix3f rotation_transposed = Rt.block(0,0,3,3).transpose();
-    const Eigen::Matrix<float,1,3> translation_transposed = Rt.block(0,3,3,1).transpose();
-    for(int i=block_end; i < imgSize; i++)
+    else
     {
-        ***********
-        output_pts.block(i,0,1,3) = input_pts.block(i,0,1,3) * rotation_transposed + translation_transposed;
+        //for(size_t i=0; i < block_end; i++)
+        for(size_t r=0; r < nRows; r++)
+        {
+            __m128 sin_phi = _mm_set1_ps(v_sinPhi[r]);
+            __m128 cos_phi = _mm_set1_ps(v_cosPhi[r]);
+
+            size_t row_depth = r*nCols;
+            float *_row_depth = _depth + r*nCols;
+            for(size_t c=0; c < nCols; c+=4, i+=4)
+            {
+                __m128 block_depth = _mm_load_ps(row_depth+c);
+                __m128 sin_theta = _mm_load_ps(&v_sinTheta[c]);
+                __m128 cos_theta = _mm_load_ps(&v_cosTheta[c]);
+
+                __m128 block_x = _mm_mul_ps( block_depth, _mm_mul_ps(cos_phi, sin_theta) );
+                __m128 block_y = _mm_mul_ps( block_depth, sin_phi );
+                __m128 block_z = _mm_mul_ps( block_depth, _mm_mul_ps(cos_phi, cos_theta) );
+
+                //__m128 mask = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
+
+                _mm_store_ps(_x+i, block_x);
+                _mm_store_ps(_y+i, block_y);
+                _mm_store_ps(_z+i, block_z);
+            }
+        }
     }
+//    // Compute the transformation of those points which do not enter in a block
+//    const Eigen::Matrix3f rotation_transposed = Rt.block(0,0,3,3).transpose();
+//    const Eigen::Matrix<float,1,3> translation_transposed = Rt.block(0,3,3,1).transpose();
+//    for(int i=block_end; i < imgSize; i++)
+//    {
+//        ***********
+//        output_pts.block(i,0,1,3) = input_pts.block(i,0,1,3) * rotation_transposed + translation_transposed;
+//    }
 
     #if PRINT_PROFILING
     }
