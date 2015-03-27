@@ -1251,18 +1251,28 @@ void Frame360::loadDepth (const std::string &binaryDepthFile, const cv::Mat * ma
 
         //Close the binary bile
         file.close();
-        //            sphereDepth.create(height_, width_, CV_32FC1);
-        //            cv::transpose(sphereDepth_aux, sphereDepth);
-        sphereDepth.create(640, width_, CV_32FC1);
-        cv::Rect region_of_interest = cv::Rect(8, 0, 640, width_); // Select only a portion of the image with height = 640 to facilitate the pyramid constructions
-        cv::transpose(sphereDepth_aux(region_of_interest), sphereDepth); // The savecd image is transposed wrt to the RGB img!
+        // sphereDepth.create(height_, width_, sphereDepth_aux.type());
+        // cv::transpose(sphereDepth_aux, sphereDepth);
+        //sphereDepth.create(640, width_, sphereDepth_aux.type());
+        //cv::Rect region_of_interest = cv::Rect(8, 0, 640, width_); // Select only a portion of the image with height = 640 to facilitate the pyramid constructions
+        sphereDepth.create(512, width_, sphereDepth_aux.type() );
+        cv::Rect region_of_interest_transp = cv::Rect(90, 0, 512, width_); // Select only a portion of the image with height = width/4 (90 deg) with the FOV centered at the equator. This increases the performance of dense registration at the cost of losing some details from the upper/lower part of the images, which generally capture the sky and the floor.
+        cv::transpose(sphereDepth_aux(region_of_interest_transp), sphereDepth); // The savecd image is transposed wrt to the RGB img!
+
+        cv::imshow( "sphereDepth", sphereDepth );
+        cv::waitKey(0);
 
         if (mask && sphereDepth_aux.rows == mask->cols && sphereDepth_aux.cols == mask->rows){
             cv::Mat aux;
-            sphereDepth.copyTo(aux, (*mask)(cv::Rect (0, 8, width_, 640) ));
+            cv::Rect region_of_interest = cv::Rect(0, 90, width_, 512); // This region of interest is the transposed of the above one (depth images are saved in disk as ColMajor)
+            //cv::Rect region_of_interest = cv::Rect(0, 8, width_, 640);
+            sphereDepth.copyTo(aux, (*mask)(region_of_interest) );
             sphereDepth = aux;
         }
         // std::cout << "height_ " << sphereDepth.rows << " width_ " << sphereDepth.cols << std::endl;
+
+        cv::imshow( "sphereDepth", sphereDepth );
+        cv::waitKey(0);
     }
     else
         std::cerr << "File: " << binaryDepthFile << " does NOT EXIST.\n";
@@ -1286,8 +1296,10 @@ void Frame360::loadRGB(std::string &fileNamePNG)
         //            sphereRGB = cv::imread (fileNamePNG.c_str(), CV_LOAD_IMAGE_COLOR); // Full size 665x2048
 
         cv::Mat sphereRGB_aux = cv::imread (fileNamePNG.c_str(), CV_LOAD_IMAGE_COLOR);
-        cv::Rect region_of_interest = cv::Rect(0, 8, width_, 640); // Select only a portion of the image with height = 640 to facilitate the pyramid constructions
-        sphereRGB.create(640, width_, sphereRGB_aux.type () );
+        sphereRGB.create(512, width_, sphereRGB_aux.type ());
+        //sphereRGB.create(640, width_, sphereRGB_aux.type () );
+        cv::Rect region_of_interest = cv::Rect(0,90, width_, 512); // Select only a portion of the image with height = width/4 (90 deg) with the FOV centered at the equator. This increases the performance of dense registration at the cost of losing some details from the upper/lower part of the images, which generally capture the sky and the floor.
+        //cv::Rect region_of_interest = cv::Rect(0, 8, width_, 640); // Select only a portion of the image with height = 640 to facilitate the pyramid constructions
         sphereRGB = sphereRGB_aux (region_of_interest); // Size 640x2048
     }
     else

@@ -85,7 +85,7 @@ static double ablu [10] = {  0,   0, 1.0,   0, 1.0, 1.0,   0, 0.8,   0, 0.7};
 
 /*! Generate a skew-symmetric matrix from a 3D vector */
 template<typename dataType> inline
-Eigen::Matrix<dataType,3,3> skew(const Eigen::Matrix<dataType,3,1> vec)
+Eigen::Matrix<dataType,3,3> skew(const Eigen::Matrix<dataType,3,1> &vec)
 {
   Eigen::Matrix<dataType,3,3> skew_matrix = Eigen::Matrix<dataType,3,3>::Zero();
   skew_matrix(0,1) = -vec(2);

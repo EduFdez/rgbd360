@@ -118,13 +118,16 @@ class RegisterDense
     Eigen::MatrixXf LUT_xyz_source_eigen;
     Eigen::MatrixXf LUT_xyz_target_eigen;
     Eigen::MatrixXf transformedPoints;
+    //Eigen::MatrixXf warp_img;
+    Eigen::MatrixXi warp_img;
+    Eigen::VectorXi warp_pixels;
 
     /*! Store a copy of the residuals and the weights to speed-up the registration. (Before they were computed twice: in the error function and the Jacobian)*/
     Eigen::VectorXf residualsPhoto;
     Eigen::VectorXf residualsDepth;
     Eigen::VectorXf wEstimPhoto;
     Eigen::VectorXf wEstimDepth;
-    Eigen::VectorXf validPixels;
+    Eigen::VectorXi validPixels;
     Eigen::VectorXf validPixelsPhoto;
     Eigen::VectorXf validPixelsDepth;
 
@@ -276,7 +279,13 @@ public:
     void setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
 
     /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
-    void computeSphereXYZ_sse(const cv::Mat & depth_img, const size_t &phi_start, Eigen::MatrixXf & sphere_xyz);
+    void computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz);
+
+    /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
+    void computeSphereXYZ_sse(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz);
+
+    /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
+    void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);
 
     /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
     void transformPts3D_sse(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);
@@ -654,6 +663,48 @@ public:
         return interpDepth;
     }
 
+    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
+    inline void
+    //Eigen::Matrix<float,2,6>
+    computeJacobian26_wT(const Eigen::Vector3f & transformedPoint3D, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    {
+        //Eigen::Matrix<float,2,6> jacobianWarpRt;
+
+        float dist2 = dist * dist;
+        float x2_z2 = dist2 - transformedPoint3D(1)*transformedPoint3D(1);
+        float x2_z2_sqrt = sqrt(x2_z2);
+        float commonDer_c = pixel_angle_inv / x2_z2;
+        float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
+
+        jacobianWarpRt(0,0) = commonDer_c * transformedPoint3D(2);
+        jacobianWarpRt(0,1) = 0.f;
+        jacobianWarpRt(0,2) = -commonDer_c * transformedPoint3D(0);
+        jacobianWarpRt(1,0) = commonDer_r * transformedPoint3D(0) * transformedPoint3D(1);
+        jacobianWarpRt(1,1) =-commonDer_r * x2_z2;
+        jacobianWarpRt(1,2) = commonDer_r * transformedPoint3D(2) * transformedPoint3D(1);
+        //float commonDer_r_y = commonDer_r * transformedPoint3D(1);
+        //jacobianWarpRt(1,0) = commonDer_r_y * transformedPoint3D(0);
+        //jacobianWarpRt(1,2) = commonDer_r_y * transformedPoint3D(2);
+
+        jacobianWarpRt(0,3) = jacobianWarpRt(0,2) * transformedPoint3D(1);
+        jacobianWarpRt(0,4) = jacobianWarpRt(0,0) * transformedPoint3D(2) - jacobianWarpRt(0,2) * transformedPoint3D(0);
+        jacobianWarpRt(0,5) =-jacobianWarpRt(0,0) * transformedPoint3D(1);
+        jacobianWarpRt(1,3) =-jacobianWarpRt(1,1) * transformedPoint3D(2) + jacobianWarpRt(1,2) * transformedPoint3D(1);
+        jacobianWarpRt(1,4) = jacobianWarpRt(1,0) * transformedPoint3D(2) - jacobianWarpRt(1,2) * transformedPoint3D(0);
+        jacobianWarpRt(1,5) =-jacobianWarpRt(1,0) * transformedPoint3D(1) + jacobianWarpRt(1,1) * transformedPoint3D(0);
+
+        //return jacobianWarpRt;
+    }
+
+//    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
+//    inline void
+//    computeJacobian16_depth(const Eigen::Vector3f & transformedPoint3D, const float & dist_inv, Eigen::Matrix<float,1,6> &jacobian_depthT)
+//    {
+//        //Eigen::Matrix<float,2,6> jacobianWarpRt;
+//        jacobian_depthT.block(0,0,1,3) = dist_inv * transformedPoint3D.transpose();
+
+//        //return jacobian_depthT;
+//    }
 };
 
 #endif
