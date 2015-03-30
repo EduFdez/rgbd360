@@ -118,18 +118,19 @@ class RegisterDense
     Eigen::MatrixXf LUT_xyz_source_eigen;
     Eigen::MatrixXf LUT_xyz_target_eigen;
     Eigen::MatrixXf transformedPoints;
-    //Eigen::MatrixXf warp_img;
+    // Eigen::MatrixXf warp_img;
     Eigen::MatrixXi warp_img;
     Eigen::VectorXi warp_pixels;
 
     /*! Store a copy of the residuals and the weights to speed-up the registration. (Before they were computed twice: in the error function and the Jacobian)*/
     Eigen::VectorXf residualsPhoto;
     Eigen::VectorXf residualsDepth;
+    Eigen::VectorXf stdDevError_inv;
     Eigen::VectorXf wEstimPhoto;
     Eigen::VectorXf wEstimDepth;
     Eigen::VectorXi validPixels;
-    Eigen::VectorXf validPixelsPhoto;
-    Eigen::VectorXf validPixelsDepth;
+    Eigen::VectorXi validPixelsPhoto;
+    Eigen::VectorXi validPixelsDepth;
 
     /*! Number of iterations in each pyramid level.*/
     std::vector<int> num_iterations;
@@ -321,7 +322,7 @@ public:
     {
         //        assert(!std::isnan(error) && !std::isnan(scale))
         T weight = (T)1;
-        const T scale = 1.;//345;
+        const T scale = 1.345;
         T error_abs = fabs(error);
         if(error_abs < scale){//std::cout << "weight One\n";
             return weight;}
@@ -337,7 +338,7 @@ public:
     {
         //        assert(!std::isnan(error) && !std::isnan(scale))
         T weight = (T)1;
-        const T scale = 1.;//345;
+        const T scale = 1.345;
         T error_abs = fabs(error);
         if(error_abs < scale){//std::cout << "weight One\n";
             return weight;}
@@ -399,12 +400,12 @@ public:
     };
 
     template<typename T>
-    inline T weightMEstimator(const T & error)
+    inline T weightMEstimator(const T & error_scaled)
     {
-        //std::cout << " error " << error << "weightHuber(error) " << weightHuber(error) << "\n";
-        return weightHuber(error);
-        //return weightTukey(error);
-        //return weightTDist(error,dev,5);
+        //std::cout << " error_scaled " << error_scaled << "weightHuber(error_scaled) " << weightHuber(error_scaled) << "\n";
+        return weightHuber(error_scaled);
+        //return weightTukey(error_scaled);
+        //return weightTDist(error_scaled,dev,5);
     };
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
@@ -679,12 +680,12 @@ public:
         jacobianWarpRt(0,0) = commonDer_c * transformedPoint3D(2);
         jacobianWarpRt(0,1) = 0.f;
         jacobianWarpRt(0,2) = -commonDer_c * transformedPoint3D(0);
-        jacobianWarpRt(1,0) = commonDer_r * transformedPoint3D(0) * transformedPoint3D(1);
+//        jacobianWarpRt(1,0) = commonDer_r * transformedPoint3D(0) * transformedPoint3D(1);
         jacobianWarpRt(1,1) =-commonDer_r * x2_z2;
-        jacobianWarpRt(1,2) = commonDer_r * transformedPoint3D(2) * transformedPoint3D(1);
-        //float commonDer_r_y = commonDer_r * transformedPoint3D(1);
-        //jacobianWarpRt(1,0) = commonDer_r_y * transformedPoint3D(0);
-        //jacobianWarpRt(1,2) = commonDer_r_y * transformedPoint3D(2);
+//        jacobianWarpRt(1,2) = commonDer_r * transformedPoint3D(2) * transformedPoint3D(1);
+        float commonDer_r_y = commonDer_r * transformedPoint3D(1);
+        jacobianWarpRt(1,0) = commonDer_r_y * transformedPoint3D(0);
+        jacobianWarpRt(1,2) = commonDer_r_y * transformedPoint3D(2);
 
         jacobianWarpRt(0,3) = jacobianWarpRt(0,2) * transformedPoint3D(1);
         jacobianWarpRt(0,4) = jacobianWarpRt(0,0) * transformedPoint3D(2) - jacobianWarpRt(0,2) * transformedPoint3D(0);
