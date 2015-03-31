@@ -568,6 +568,9 @@ public:
                                     const Eigen::Matrix4f &poseCamRobot, // The pose of the camera wrt to the Robot (fixed beforehand through calibration) // Maybe calibration can be computed at the same time
                                     costFuncType method = PHOTO_CONSISTENCY);
 
+    /*! Update the Hessian and the Gradient from a list of jacobians and residuals. */
+    void updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels);
+
     /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y' */
 //    inline cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)
     //template <typename T>
@@ -716,8 +719,9 @@ public:
         jacobianWarpRt(1,0) = commonDer_r_y * xyz(0);
         jacobianWarpRt(1,2) = commonDer_r_y * xyz(2);
 
+        // !!! NOTICE that the 3D points involved are those from the target frame, which are projected throught the inverse transformation into the reference frame!!!
         Eigen::Matrix<float,3,6> jacobianT36_inv;
-        jacobianT36_inv.block(0,0,3,3) = -rotation_inv;
+        jacobianT36_inv.block(0,0,3,3) = -rotation.transpose();
         jacobianT36_inv.block(0,3,3,1) = xyz_orig(2)*rotation.block(0,1,3,1) - xyz_orig(1)*rotation.block(0,2,3,1);
         jacobianT36_inv.block(0,4,3,1) = xyz_orig(0)*rotation.block(0,2,3,1) - xyz_orig(2)*rotation.block(0,0,3,1);
         jacobianT36_inv.block(0,5,3,1) = xyz_orig(1)*rotation.block(0,0,3,1) - xyz_orig(0)*rotation.block(0,1,3,1);
