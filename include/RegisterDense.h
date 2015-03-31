@@ -108,16 +108,14 @@ class RegisterDense
     /*! Vector containing the indices of the pixels that move (forward-backward) or are occluded in the target image to the source image.*/
     cv::Mat mask_dynamic_occlusion;
 
-    /*! LUT of 3D points of the spherical image.*/
-    std::vector<Eigen::Vector3f> unit_sphere_;
+//    /*! LUT of 3D points of the spherical image.*/
+//    std::vector<Eigen::Vector3f> unit_sphere_;
 
     /*! LUT of 3D points of the source image.*/
-    std::vector<Eigen::Vector3f>  LUT_xyz_source;
-    std::vector<Eigen::Vector3f>  LUT_xyz_target;
-
-    Eigen::MatrixXf LUT_xyz_source_eigen;
-    Eigen::MatrixXf LUT_xyz_target_eigen;
-    Eigen::MatrixXf transformedPoints;
+    Eigen::MatrixXf LUT_xyz_source;
+    Eigen::MatrixXf LUT_xyz_target;
+    Eigen::MatrixXf pts_src_transformed;
+    Eigen::MatrixXf pts_trg_transformed;
     // Eigen::MatrixXf warp_img;
     Eigen::MatrixXi warp_img;
     Eigen::VectorXi warp_pixels;
@@ -131,6 +129,15 @@ class RegisterDense
     Eigen::VectorXi validPixels;
     Eigen::VectorXi validPixelsPhoto;
     Eigen::VectorXi validPixelsDepth;
+
+    Eigen::VectorXf _residualsPhoto;
+    Eigen::VectorXf _residualsDepth;
+    Eigen::VectorXf _stdDevError_inv;
+    Eigen::VectorXf _wEstimPhoto;
+    Eigen::VectorXf _wEstimDepth;
+    Eigen::VectorXi _validPixels;
+    Eigen::VectorXi _validPixelsPhoto;
+    Eigen::VectorXi _validPixelsDepth;
 
     /*! Number of iterations in each pyramid level.*/
     std::vector<int> num_iterations;
@@ -306,12 +313,12 @@ public:
         point3D(3) = 1;
 
         //Transform the 3D point using the transformation matrix Rt
-        Eigen::Vector4f transformedPoint3D = poseGuess*point3D;
-        float depth_trg = sqrt(transformedPoint3D(0)*transformedPoint3D(0) + transformedPoint3D(1)*transformedPoint3D(1) + transformedPoint3D(2)*transformedPoint3D(2));
+        Eigen::Vector4f xyz = poseGuess*point3D;
+        float depth_trg = sqrt(xyz(0)*xyz(0) + xyz(1)*xyz(1) + xyz(2)*xyz(2));
 
         //Project the 3D point to the S2 sphere
-        float phi_trg = asin(transformedPoint3D(2)/depth_trg);
-        float theta_trg = atan2(-transformedPoint3D(1),-transformedPoint3D(2));
+        float phi_trg = asin(xyz(2)/depth_trg);
+        float theta_trg = atan2(-xyz(1),-xyz(2));
         transformed_r_int = round(phi_trg*nRows/phi_FoV + nRows/2);
         transformed_c_int = round(theta_trg*nCols/(2*PI));
     };
@@ -413,6 +420,7 @@ public:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
     double errorDense(const int & pyramidLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
+
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
@@ -421,39 +429,29 @@ public:
                        const Eigen::Matrix4f poseGuess,
                        costFuncType method = PHOTO_CONSISTENCY );
 
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method. */
-    double errorDense_Occ1(const int &pyramidLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient. */
-    void calcHessGrad_Occ1(const int &pyramidLevel,
-                           const Eigen::Matrix4f poseGuess,
-                           costFuncType method = PHOTO_CONSISTENCY);
+//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method. */
+//    double errorDense_Occ1(const int &pyramidLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);
+//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient. */
+//    void calcHessGrad_Occ1(const int &pyramidLevel,
+//                           const Eigen::Matrix4f poseGuess,
+//                           costFuncType method = PHOTO_CONSISTENCY);
 
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method. */
-    double errorDense_Occ2(const int &pyramidLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);
+//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method. */
+//    double errorDense_Occ2(const int &pyramidLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);
 
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient. */
-    void calcHessGrad_Occ2(const int &pyramidLevel,
-                           const Eigen::Matrix4f poseGuess,
-                           costFuncType method = PHOTO_CONSISTENCY);
+//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient. */
+//    void calcHessGrad_Occ2(const int &pyramidLevel,
+//                           const Eigen::Matrix4f poseGuess,
+//                           costFuncType method = PHOTO_CONSISTENCY);
 
 
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
-        This is done following the work in:
-        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
-        in Computer Vision Workshops (ICCV Workshops), 2011. */
-    double calcDense_SqError (  const int &pyramidLevel,
-                                const Eigen::Matrix4f poseGuess,
-                                double varPhoto = pow(3./255,2),
-                                double varDepth = 0.0001,
-                                costFuncType method = PHOTO_CONSISTENCY);
-
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-        This is done following the work in:
-        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
-        in Computer Vision Workshops (ICCV Workshops), 2011. */
-    void calcHessianAndGradient(const int &pyramidLevel,
-                               const Eigen::Matrix4f poseGuess,
-                               costFuncType method = PHOTO_CONSISTENCY);
+//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
+//        This is done following the work in:
+//        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
+//        in Computer Vision Workshops (ICCV Workshops), 2011. */
+//    void calcHessianAndGradient(const int &pyramidLevel,
+//                               const Eigen::Matrix4f poseGuess,
+//                               costFuncType method = PHOTO_CONSISTENCY);
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
     This is done following the work in:
@@ -487,27 +485,27 @@ public:
                                             const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                             costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-        Occlusions are taken into account by a Z-buffer. */
-    double errorDense_sphereOcc1(const int &pyramidLevel,
-                                    const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
-                                    costFuncType method = PHOTO_CONSISTENCY );
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-        This function takes into account the occlusions by storing a Z-buffer */
-    void calcHessGrad_sphereOcc1( const int &pyramidLevel,
-                                    const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                    costFuncType method = PHOTO_CONSISTENCY );
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-        Occlusions are taken into account by a Z-buffer. */
-    double errorDense_sphereOcc2(const int &pyramidLevel,
-                                    const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
-                                    costFuncType method = PHOTO_CONSISTENCY );
+//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
+//        Occlusions are taken into account by a Z-buffer. */
+//    double errorDense_sphereOcc1(const int &pyramidLevel,
+//                                    const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
+//                                    costFuncType method = PHOTO_CONSISTENCY );
+//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
+//        This function takes into account the occlusions by storing a Z-buffer */
+//    void calcHessGrad_sphereOcc1( const int &pyramidLevel,
+//                                    const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
+//                                    costFuncType method = PHOTO_CONSISTENCY );
+//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
+//        Occlusions are taken into account by a Z-buffer. */
+//    double errorDense_sphereOcc2(const int &pyramidLevel,
+//                                    const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
+//                                    costFuncType method = PHOTO_CONSISTENCY );
 
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-        This function takes into account the occlusions and the moving pixels by applying a filter on the maximum depth error */
-    void calcHessGrad_sphereOcc2( const int &pyramidLevel,
-                                    const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                    costFuncType method = PHOTO_CONSISTENCY );
+//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
+//        This function takes into account the occlusions and the moving pixels by applying a filter on the maximum depth error */
+//    void calcHessGrad_sphereOcc2( const int &pyramidLevel,
+//                                    const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
+//                                    costFuncType method = PHOTO_CONSISTENCY );
 
     /*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
       * This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
@@ -533,11 +531,8 @@ public:
                                         costFuncType method = PHOTO_CONSISTENCY,
                                         const int occlusion = 0);
 
+    /*! Compute the unit sphere for the given spherical image dimmensions. This serves as a LUT to speed-up calculations. */
     void computeUnitSphere();
-
-    void alignFrames360_unity (  const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                                 costFuncType method = PHOTO_CONSISTENCY,
-                                 const int occlusion = 0);
 
     /*! Calculate entropy of the planar matching. This is the differential entropy of a multivariate normal distribution given
       by the matched planes. This is calculated with the formula used in the paper ["Dense Visual SLAM for RGB-D Cameras",
@@ -559,7 +554,7 @@ public:
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-    double calcDenseError_robot(const int &pyramidLevel,
+    double calcDenseError_rgbd360_singlesensor(const int &pyramidLevel,
                                    const Eigen::Matrix4f poseGuess,
                                    const Eigen::Matrix4f &poseCamRobot,
                                    costFuncType method = PHOTO_CONSISTENCY);
@@ -568,7 +563,7 @@ public:
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-    void calcHessianGradient_robot( const int &pyramidLevel,
+    void calcHessGrad_rgbd360_singlesensor( const int &pyramidLevel,
                                     const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                     const Eigen::Matrix4f &poseCamRobot, // The pose of the camera wrt to the Robot (fixed beforehand through calibration) // Maybe calibration can be computed at the same time
                                     costFuncType method = PHOTO_CONSISTENCY);
@@ -667,42 +662,77 @@ public:
     /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
     inline void
     //Eigen::Matrix<float,2,6>
-    computeJacobian26_wT(const Eigen::Vector3f & transformedPoint3D, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    computeJacobian26_wT(const Eigen::Vector3f & xyz, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
     {
         //Eigen::Matrix<float,2,6> jacobianWarpRt;
 
         float dist2 = dist * dist;
-        float x2_z2 = dist2 - transformedPoint3D(1)*transformedPoint3D(1);
+        float x2_z2 = dist2 - xyz(1)*xyz(1);
         float x2_z2_sqrt = sqrt(x2_z2);
         float commonDer_c = pixel_angle_inv / x2_z2;
         float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
 
-        jacobianWarpRt(0,0) = commonDer_c * transformedPoint3D(2);
+        jacobianWarpRt(0,0) = commonDer_c * xyz(2);
         jacobianWarpRt(0,1) = 0.f;
-        jacobianWarpRt(0,2) = -commonDer_c * transformedPoint3D(0);
-//        jacobianWarpRt(1,0) = commonDer_r * transformedPoint3D(0) * transformedPoint3D(1);
+        jacobianWarpRt(0,2) = -commonDer_c * xyz(0);
+//        jacobianWarpRt(1,0) = commonDer_r * xyz(0) * xyz(1);
         jacobianWarpRt(1,1) =-commonDer_r * x2_z2;
-//        jacobianWarpRt(1,2) = commonDer_r * transformedPoint3D(2) * transformedPoint3D(1);
-        float commonDer_r_y = commonDer_r * transformedPoint3D(1);
-        jacobianWarpRt(1,0) = commonDer_r_y * transformedPoint3D(0);
-        jacobianWarpRt(1,2) = commonDer_r_y * transformedPoint3D(2);
+//        jacobianWarpRt(1,2) = commonDer_r * xyz(2) * xyz(1);
+        float commonDer_r_y = commonDer_r * xyz(1);
+        jacobianWarpRt(1,0) = commonDer_r_y * xyz(0);
+        jacobianWarpRt(1,2) = commonDer_r_y * xyz(2);
 
-        jacobianWarpRt(0,3) = jacobianWarpRt(0,2) * transformedPoint3D(1);
-        jacobianWarpRt(0,4) = jacobianWarpRt(0,0) * transformedPoint3D(2) - jacobianWarpRt(0,2) * transformedPoint3D(0);
-        jacobianWarpRt(0,5) =-jacobianWarpRt(0,0) * transformedPoint3D(1);
-        jacobianWarpRt(1,3) =-jacobianWarpRt(1,1) * transformedPoint3D(2) + jacobianWarpRt(1,2) * transformedPoint3D(1);
-        jacobianWarpRt(1,4) = jacobianWarpRt(1,0) * transformedPoint3D(2) - jacobianWarpRt(1,2) * transformedPoint3D(0);
-        jacobianWarpRt(1,5) =-jacobianWarpRt(1,0) * transformedPoint3D(1) + jacobianWarpRt(1,1) * transformedPoint3D(0);
+        jacobianWarpRt(0,3) = jacobianWarpRt(0,2) * xyz(1);
+        jacobianWarpRt(0,4) = jacobianWarpRt(0,0) * xyz(2) - jacobianWarpRt(0,2) * xyz(0);
+        jacobianWarpRt(0,5) =-jacobianWarpRt(0,0) * xyz(1);
+        jacobianWarpRt(1,3) =-jacobianWarpRt(1,1) * xyz(2) + jacobianWarpRt(1,2) * xyz(1);
+        jacobianWarpRt(1,4) = jacobianWarpRt(1,0) * xyz(2) - jacobianWarpRt(1,2) * xyz(0);
+        jacobianWarpRt(1,5) =-jacobianWarpRt(1,0) * xyz(1) + jacobianWarpRt(1,1) * xyz(0);
+
+        //return jacobianWarpRt;
+    }
+
+    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF of the inverse transformation */
+    inline void
+    //Eigen::Matrix<float,2,6>
+    computeJacobian26_wT_inv(const Eigen::Vector3f & xyz, const Eigen::Vector3f & xyz_orig, const Eigen::Matrix3f & rotation, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    {
+        //Eigen::Matrix<float,2,6> jacobianWarpRt;
+
+        // The Jacobian of the spherical projection
+        Eigen::Matrix<float,2,3> jacobianProj23;
+        float dist2 = dist * dist;
+        float x2_z2 = dist2 - xyz(1)*xyz(1);
+        float x2_z2_sqrt = sqrt(x2_z2);
+        float commonDer_c = pixel_angle_inv / x2_z2;
+        float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
+        jacobianProj23(0,0) = commonDer_c * xyz(2);
+        jacobianProj23(0,1) = 0;
+        jacobianProj23(0,2) =-commonDer_c * xyz(0);
+//        jacobianProj23(1,0) = commonDer_r * xyz(0) * xyz(1);
+        jacobianProj23(1,1) =-commonDer_r * x2_z2;
+//        jacobianProj23(1,2) = commonDer_r * xyz(2) * xyz(1);
+        float commonDer_r_y = commonDer_r * xyz(1);
+        jacobianWarpRt(1,0) = commonDer_r_y * xyz(0);
+        jacobianWarpRt(1,2) = commonDer_r_y * xyz(2);
+
+        Eigen::Matrix<float,3,6> jacobianT36_inv;
+        jacobianT36_inv.block(0,0,3,3) = -rotation_inv;
+        jacobianT36_inv.block(0,3,3,1) = xyz_orig(2)*rotation.block(0,1,3,1) - xyz_orig(1)*rotation.block(0,2,3,1);
+        jacobianT36_inv.block(0,4,3,1) = xyz_orig(0)*rotation.block(0,2,3,1) - xyz_orig(2)*rotation.block(0,0,3,1);
+        jacobianT36_inv.block(0,5,3,1) = xyz_orig(1)*rotation.block(0,0,3,1) - xyz_orig(0)*rotation.block(0,1,3,1);
+
+        jacobianWarpRt = jacobianProj23 * jacobianT36_inv;
 
         //return jacobianWarpRt;
     }
 
 //    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
 //    inline void
-//    computeJacobian16_depth(const Eigen::Vector3f & transformedPoint3D, const float & dist_inv, Eigen::Matrix<float,1,6> &jacobian_depthT)
+//    computeJacobian16_depth(const Eigen::Vector3f & xyz, const float & dist_inv, Eigen::Matrix<float,1,6> &jacobian_depthT)
 //    {
 //        //Eigen::Matrix<float,2,6> jacobianWarpRt;
-//        jacobian_depthT.block(0,0,1,3) = dist_inv * transformedPoint3D.transpose();
+//        jacobian_depthT.block(0,0,1,3) = dist_inv * xyz.transpose();
 
 //        //return jacobian_depthT;
 //    }
