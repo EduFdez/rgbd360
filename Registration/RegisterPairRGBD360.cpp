@@ -116,7 +116,7 @@ cout << "Create sphere 2\n";
   align360.setNumPyr(6);
   align360.useSaliency(false);
 // align360.setVisualization(true);
-  align360.setGrayVariance(3.f/255);
+  align360.setGrayVariance(9.f/255);
   align360.setTargetFrame(frame360_1.sphereRGB, frame360_1.sphereDepth);
   align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
   align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
@@ -141,14 +141,14 @@ cout << "Create sphere 2\n";
   Eigen::Matrix4f rigidTransf_dense3 = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
   cout << "Pose Dense DEPTH_CONSISTENCY \n" << rigidTransf_dense3 << endl;
 
-  align360.alignFrames360(align360.getOptimalPose(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-  Eigen::Matrix4f rigidTransf_dense4 = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
-  cout << "Pose Dense PHOTO_CONSISTENCY INIT \n" << rigidTransf_dense4 << endl;
+//  align360.alignFrames360(align360.getOptimalPose(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//  Eigen::Matrix4f rigidTransf_dense4 = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
+//  cout << "Pose Dense PHOTO_CONSISTENCY INIT \n" << rigidTransf_dense4 << endl;
 
-  align360.setBilinearInterp(true);
-  align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-  Eigen::Matrix4f rigidTransf_dense_BI = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
-  cout << "Pose Dense BILINEAR \n" << rigidTransf_dense_BI << endl;
+//  align360.setBilinearInterp(true);
+//  align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//  Eigen::Matrix4f rigidTransf_dense_BI = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
+//  cout << "Pose Dense BILINEAR \n" << rigidTransf_dense_BI << endl;
 
 //  mrpt::system::pause();
 //  align360.alignFrames360_unity(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();

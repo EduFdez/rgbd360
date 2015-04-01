@@ -82,6 +82,9 @@ class RegisterDense
     /*! If set to true, only the pixels with high gradient in the gray image are used (for both photo and depth minimization) */
     bool use_salient_pixels_;
 
+    /*! If set to true, only the pixels with high gradient in the gray image are used (for both photo and depth minimization) */
+    bool compute_MAD_stdDev_;
+
     /*! Optimize using bilinear interpolation in the last pyramid.*/
     bool use_bilinear_;
 
@@ -116,19 +119,29 @@ class RegisterDense
     Eigen::MatrixXf LUT_xyz_target;
     Eigen::MatrixXf pts_src_transformed;
     Eigen::MatrixXf pts_trg_transformed;
-    // Eigen::MatrixXf warp_img;
-    Eigen::MatrixXi warp_img;
-    Eigen::VectorXi warp_pixels;
 
     /*! Store a copy of the residuals and the weights to speed-up the registration. (Before they were computed twice: in the error function and the Jacobian)*/
-    Eigen::VectorXf residualsPhoto;
-    Eigen::VectorXf residualsDepth;
-    Eigen::VectorXf stdDevError_inv;
-    Eigen::VectorXf wEstimPhoto;
-    Eigen::VectorXf wEstimDepth;
-    Eigen::VectorXi validPixels;
-    Eigen::VectorXi validPixelsPhoto;
-    Eigen::VectorXi validPixelsDepth;
+    Eigen::MatrixXi warp_img_src;
+    Eigen::VectorXi warp_pixels_src;
+    Eigen::VectorXf residualsPhoto_src;
+    Eigen::VectorXf residualsDepth_src;
+    Eigen::VectorXf stdDevError_inv_src;
+    Eigen::VectorXf wEstimPhoto_src;
+    Eigen::VectorXf wEstimDepth_src;
+    Eigen::VectorXi validPixels_src;
+    Eigen::VectorXi validPixelsPhoto_src;
+    Eigen::VectorXi validPixelsDepth_src;
+
+    Eigen::MatrixXi warp_img_trg;
+    Eigen::VectorXi warp_pixels_trg;
+    Eigen::VectorXf residualsPhoto_trg;
+    Eigen::VectorXf residualsDepth_trg;
+    Eigen::VectorXf stdDevError_inv_trg;
+    Eigen::VectorXf wEstimPhoto_trg;
+    Eigen::VectorXf wEstimDepth_trg;
+    Eigen::VectorXi validPixels_trg;
+    Eigen::VectorXi validPixelsPhoto_trg;
+    Eigen::VectorXi validPixelsDepth_trg;
 
     Eigen::VectorXf _residualsPhoto;
     Eigen::VectorXf _residualsDepth;
@@ -287,10 +300,10 @@ public:
     void setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
 
     /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
-    void computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz);
+    void computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels);
 
     /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
-    void computeSphereXYZ_sse(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz);
+    void computeSphereXYZ_sse(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels);
 
     /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
     void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);
@@ -585,7 +598,7 @@ public:
     /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y'.
      * It takes into account NaN pixels and (<= 0 && > max_depth_) values to rule them out of the interpolation
      */
-    inline float bilinearInterp_depth(const cv::Mat& img, cv::Point2f pt)
+    inline float bilinearInterp_depth(const cv::Mat& img, const cv::Point2f &pt)
     {
         assert( img.type() == CV_32FC1 && !img.empty() );
 
@@ -716,8 +729,8 @@ public:
         jacobianProj23(1,1) =-commonDer_r * x2_z2;
 //        jacobianProj23(1,2) = commonDer_r * xyz(2) * xyz(1);
         float commonDer_r_y = commonDer_r * xyz(1);
-        jacobianWarpRt(1,0) = commonDer_r_y * xyz(0);
-        jacobianWarpRt(1,2) = commonDer_r_y * xyz(2);
+        jacobianProj23(1,0) = commonDer_r_y * xyz(0);
+        jacobianProj23(1,2) = commonDer_r_y * xyz(2);
 
         // !!! NOTICE that the 3D points involved are those from the target frame, which are projected throught the inverse transformation into the reference frame!!!
         Eigen::Matrix<float,3,6> jacobianT36_inv;
@@ -725,6 +738,8 @@ public:
         jacobianT36_inv.block(0,3,3,1) = xyz_orig(2)*rotation.block(0,1,3,1) - xyz_orig(1)*rotation.block(0,2,3,1);
         jacobianT36_inv.block(0,4,3,1) = xyz_orig(0)*rotation.block(0,2,3,1) - xyz_orig(2)*rotation.block(0,0,3,1);
         jacobianT36_inv.block(0,5,3,1) = xyz_orig(1)*rotation.block(0,0,3,1) - xyz_orig(0)*rotation.block(0,1,3,1);
+
+        std::cout << "jacobianProj23 \n" << jacobianProj23 << "\n jacobianT36_inv \n" << jacobianT36_inv << std::endl;
 
         jacobianWarpRt = jacobianProj23 * jacobianT36_inv;
 
