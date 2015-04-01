@@ -130,9 +130,6 @@ cout << "Create sphere 2\n";
   align360.alignFrames360_inv(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   cout << "Pose Dense Inv \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
 
-  align360.alignFrames360_bidirectional(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-  cout << "Pose Dense Bidirectional \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
-
   align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   Eigen::Matrix4f rigidTransf_dense2 = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
   cout << "Pose Dense PHOTO_CONSISTENCY \n" << rigidTransf_dense2 << endl;
@@ -140,6 +137,11 @@ cout << "Create sphere 2\n";
   align360.alignFrames360(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   Eigen::Matrix4f rigidTransf_dense3 = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
   cout << "Pose Dense DEPTH_CONSISTENCY \n" << rigidTransf_dense3 << endl;
+
+  align360.setSaliencyThreshodIntensity(0.06f);
+  align360.setSaliencyThreshodDepth(0.06f);
+  align360.alignFrames360_bidirectional(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  cout << "Pose Dense Bidirectional \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
 
 //  align360.alignFrames360(align360.getOptimalPose(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //  Eigen::Matrix4f rigidTransf_dense4 = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;

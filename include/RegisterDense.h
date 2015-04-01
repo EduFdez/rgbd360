@@ -231,6 +231,18 @@ public:
         stdDevDepth = stdDev;
     };
 
+    /*! Set the saliency threshold of the intensity. */
+    void setSaliencyThreshodIntensity(const float thres)
+    {
+        thresSaliencyIntensity = thres;
+    };
+
+    /*! Set the saliency threshold of the depth. */
+    void setSaliencyThreshodDepth(const float thres)
+    {
+        thresSaliencyDepth = thres;
+    };
+
     /*! Set the 3x3 matrix of (pinhole) camera intrinsic parameters used to obtain the 3D colored point cloud from the RGB and depth images.*/
     inline void setCameraMatrix(const Eigen::Matrix3f & camMat)
     {
@@ -535,6 +547,10 @@ public:
     void alignFrames360(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                         costFuncType method = PHOTO_CONSISTENCY,
                         const int occlusion = 0);
+
+    void alignFrames360_depthPyr(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+                                costFuncType method = PHOTO_CONSISTENCY,
+                                const int occlusion = 0);
 
     void alignFrames360_inv(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                             costFuncType method = PHOTO_CONSISTENCY,
