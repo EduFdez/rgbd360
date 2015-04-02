@@ -566,6 +566,10 @@ public:
                             costFuncType method = PHOTO_CONSISTENCY,
                             const int occlusion = 0);
 
+    void registerRGBD_bidirectional ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+                            costFuncType method = PHOTO_CONSISTENCY,
+                            const int occlusion = 0);
+
     /*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
       * This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
       * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.

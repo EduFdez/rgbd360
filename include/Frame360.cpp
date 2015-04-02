@@ -1259,8 +1259,8 @@ void Frame360::loadDepth (const std::string &binaryDepthFile, const cv::Mat * ma
         cv::Rect region_of_interest_transp = cv::Rect(90, 0, 512, width_); // Select only a portion of the image with height = width/4 (90 deg) with the FOV centered at the equator. This increases the performance of dense registration at the cost of losing some details from the upper/lower part of the images, which generally capture the sky and the floor.
         cv::transpose(sphereDepth_aux(region_of_interest_transp), sphereDepth); // The savecd image is transposed wrt to the RGB img!
 
-        cv::imshow( "sphereDepth", sphereDepth );
-        cv::waitKey(0);
+        //cv::imshow( "sphereDepth", sphereDepth );
+        //cv::waitKey(0);
 
         if (mask && sphereDepth_aux.rows == mask->cols && sphereDepth_aux.cols == mask->rows){
             cv::Mat aux;
@@ -1270,9 +1270,8 @@ void Frame360::loadDepth (const std::string &binaryDepthFile, const cv::Mat * ma
             sphereDepth = aux;
         }
         // std::cout << "height_ " << sphereDepth.rows << " width_ " << sphereDepth.cols << std::endl;
-
-        cv::imshow( "sphereDepth", sphereDepth );
-        cv::waitKey(0);
+        //cv::imshow( "sphereDepth", sphereDepth );
+        //cv::waitKey(0);
     }
     else
         std::cerr << "File: " << binaryDepthFile << " does NOT EXIST.\n";

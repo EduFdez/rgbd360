@@ -103,19 +103,19 @@ int main (int argc, char ** argv)
 
   Frame360 frame360_1, frame360_2;
   frame360_1.loadDepth(depth1, &maskCar);
-//  frame360_1.loadDepth(depth1);
+////  frame360_1.loadDepth(depth1);
 //  //cv::namedWindow( "sphereDepth", WINDOW_AUTOSIZE );// Create a window for display.
 //  cv::Mat sphDepthVis;
 //  frame360_1.sphereDepth.convertTo( sphDepthVis, CV_8U, 10 ); //CV_16UC1
-//  std::cout << "  Show depthImage " << fileRGB << std::endl;
-
+//  // std::cout << "  Show depthImage " << fileRGB << std::endl;
 //  cv::imshow( "sphereDepth", sphDepthVis );
-//  //cv::waitKey(1);
 //  cv::waitKey(0);
+
   frame360_1.loadRGB(rgb1);
-//  //cv::namedWindow( "sphereRGB", WINDOW_AUTOSIZE );// Create a window for display.
+////  //cv::namedWindow( "sphereRGB", WINDOW_AUTOSIZE );// Create a window for display.
 //  cv::imshow( "sphereRGB", frame360_1.sphereRGB );
 //  cv::waitKey(0);
+//  cout << "frame360_1.sphereDepth " << frame360_1.sphereRGB.rows << "x" << frame360_1.sphereRGB.cols << " " << frame360_1.sphereDepth.rows << "x" << frame360_1.sphereDepth.cols << endl;
 
   frame360_1.buildSphereCloud();
 //  frame360_1.filterCloudBilateral_stereo();
@@ -183,34 +183,34 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   cout << "Pose Dense \n" << rigidTransf_dense_ref << endl;
 //  cout << "Pose Dense2 \n" << rigidTransf_dense << endl;
 
-  time_start = pcl::getTime();
-//  for(size_t i=0; i < 20; i++)
-  align360.register360_inv(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-  time_end = pcl::getTime();
-  std::cout << "register360 took " << double (time_end - time_start) << std::endl;
-  cout << "Pose Dense Inv \n" << align360.getOptimalPose() << endl;
+//  time_start = pcl::getTime();
+////  for(size_t i=0; i < 20; i++)
+//  align360.register360_inv(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//  time_end = pcl::getTime();
+//  std::cout << "register360 took " << double (time_end - time_start) << std::endl;
+//  cout << "Pose Dense Inv \n" << align360.getOptimalPose() << endl;
 
-  time_start = pcl::getTime();
-//  for(size_t i=0; i < 20; i++)
-  align360.register360_bidirectional(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-  time_end = pcl::getTime();
-  std::cout << "register360 took " << double (time_end - time_start) << std::endl;
-  cout << "Pose Dense Bidirectional \n" <<  align360.getOptimalPose() << endl;
+//  time_start = pcl::getTime();
+////  for(size_t i=0; i < 20; i++)
+//  align360.register360_bidirectional(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//  time_end = pcl::getTime();
+//  std::cout << "register360 took " << double (time_end - time_start) << std::endl;
+//  cout << "Pose Dense Bidirectional \n" <<  align360.getOptimalPose() << endl;
 
 
-////  time_start = pcl::getTime();
-//  align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
-//  cout << "RegisterDense UNITY \n";
-//  align360.register360_unity(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-////  time_end = pcl::getTime();
-////  std::cout << "register360_unity took " << double (time_end - time_start) << std::endl;
-//  std::cout << "Pose Dense unity \n" << align360.getOptimalPose() << std::endl;
+//////  time_start = pcl::getTime();
+////  align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
+////  cout << "RegisterDense UNITY \n";
+////  align360.register360_unity(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//////  time_end = pcl::getTime();
+//////  std::cout << "register360_unity took " << double (time_end - time_start) << std::endl;
+////  std::cout << "Pose Dense unity \n" << align360.getOptimalPose() << std::endl;
 
-  align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-  std::cout << "Pose PHOTO_CONSISTENCY \n" << align360.getOptimalPose() << std::endl;
+//  align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//  std::cout << "Pose PHOTO_CONSISTENCY \n" << align360.getOptimalPose() << std::endl;
 
-  align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-  std::cout << "Pose DEPTH_CONSISTENCY \n" << align360.getOptimalPose() << std::endl;
+//  align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//  std::cout << "Pose DEPTH_CONSISTENCY \n" << align360.getOptimalPose() << std::endl;
 
   // ICP alignement
   time_start = pcl::getTime();
