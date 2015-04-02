@@ -22,8 +22,11 @@
 class RegisterDense
 {
 //public:
-    /*! Camera matrix (intrinsic parameters). This is only required for the sesor RGBD360*/
+    /*! Camera matrix (intrinsic parameters). This is only required for pinhole perspective sensors */
     Eigen::Matrix3f cameraMatrix;
+
+    /*! Camera intrinsic parameters */
+    float fx, fy, ox, oy;
 
 //    /* Vertical field of view in the sphere (in) .*/
 //    float phi_FoV;
@@ -166,14 +169,14 @@ public:
     /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
     float SSO;
 
-    /*! The average residual per pixel of photo/depth consistency.*/
-    float avResidual;
+//    /*! The average residual per pixel of photo/depth consistency.*/
+//    float avResidual;
 
-    /*! The average residual per pixel of photo consistency.*/
-    double avPhotoResidual;
+//    /*! The average residual per pixel of photo consistency.*/
+//    double avPhotoResidual;
 
-    /*! The average residual per pixel of depth consistency.*/
-    double avDepthResidual;
+//    /*! The average residual per pixel of depth consistency.*/
+//    double avDepthResidual;
 
     /*! Number of pyramid levels.*/
     int nPyrLevels;
@@ -208,13 +211,13 @@ public:
     };
 
     /*! Set the minimum depth distance (m) to consider a certain pixel valid.*/
-    inline void setmin_depth_(const float minD)
+    inline void setMinDepth(const float minD)
     {
         min_depth_ = minD;
     };
 
     /*! Set the maximum depth distance (m) to consider a certain pixel valid.*/
-    inline void setmax_depth_(const float maxD)
+    inline void setMaxDepth(const float maxD)
     {
         max_depth_ = maxD;
     };
@@ -262,7 +265,7 @@ public:
     };
 
     /*! Returns the optimal SE(3) rigid transformation matrix between the source and target frame.
-     * This method has to be called after calling the alignFrames() method.*/
+     * This method has to be called after calling the register() method.*/
     inline Eigen::Matrix4f getOptimalPose()
     {
         return registered_pose_;
@@ -310,6 +313,12 @@ public:
 
     /*! Sets the source (Intensity+Depth) frame. Depth image is ignored*/
     void setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
+
+    /*! Compute the 3D points XYZ according to the pinhole camera model. */
+    void computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels);
+
+    /*! Compute the 3D points XYZ according to the pinhole camera model. */
+    void computePinholeXYZ_sse(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels);
 
     /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
     void computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels);
@@ -446,6 +455,12 @@ public:
         in Computer Vision Workshops (ICCV Workshops), 2011. */
     double errorDense(const int & pyramidLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
 
+    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
+        This is done following the work in:
+        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
+        in Computer Vision Workshops (ICCV Workshops), 2011. */
+    double errorDense_inv(const int & pyramidLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
+
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
@@ -453,6 +468,14 @@ public:
     void calcHessGrad( const int & pyramidLevel,
                        const Eigen::Matrix4f poseGuess,
                        costFuncType method = PHOTO_CONSISTENCY );
+
+    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
+        This is done following the work in:
+        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
+        in Computer Vision Workshops (ICCV Workshops), 2011. */
+    void calcHessGrad_inv( const int & pyramidLevel,
+                           const Eigen::Matrix4f poseGuess,
+                           costFuncType method = PHOTO_CONSISTENCY );
 
 //    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method. */
 //    double errorDense_Occ1(const int &pyramidLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);
@@ -535,28 +558,32 @@ public:
     /*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
       * This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
       * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution. */
-    void alignFrames(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                     costFuncType method = PHOTO_CONSISTENCY,
-                     const int occlusion = 0);
+    void registerRGBD ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+                         costFuncType method = PHOTO_CONSISTENCY,
+                         const int occlusion = 0);
+
+    void registerRGBD_inv ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+                            costFuncType method = PHOTO_CONSISTENCY,
+                            const int occlusion = 0);
 
     /*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
       * This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
       * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
       * The input parameter occlusion stands for: (0->Regular dense registration, 1->Occlusion1, 2->Occlusion2)
     */
-    void alignFrames360(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+    void register360 ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                         costFuncType method = PHOTO_CONSISTENCY,
                         const int occlusion = 0);
 
-    void alignFrames360_depthPyr(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+    void register360_depthPyr(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                                 costFuncType method = PHOTO_CONSISTENCY,
                                 const int occlusion = 0);
 
-    void alignFrames360_inv(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+    void register360_inv(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                             costFuncType method = PHOTO_CONSISTENCY,
                             const int occlusion = 0);
 
-    void alignFrames360_bidirectional ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+    void register360_bidirectional ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                                         costFuncType method = PHOTO_CONSISTENCY,
                                         const int occlusion = 0);
 
@@ -694,7 +721,7 @@ public:
     /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
     inline void
     //Eigen::Matrix<float,2,6>
-    computeJacobian26_wT(const Eigen::Vector3f & xyz, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    computeJacobian26_wT_sphere(const Eigen::Vector3f & xyz, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
     {
         //Eigen::Matrix<float,2,6> jacobianWarpRt;
 
@@ -727,7 +754,7 @@ public:
     /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF of the inverse transformation */
     inline void
     //Eigen::Matrix<float,2,6>
-    computeJacobian26_wT_inv(const Eigen::Vector3f & xyz, const Eigen::Vector3f & xyz_orig, const Eigen::Matrix3f & rotation, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    computeJacobian26_wT_sphere_inv(const Eigen::Vector3f & xyz, const Eigen::Vector3f & xyz_orig, const Eigen::Matrix3f & rotation, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
     {
         //Eigen::Matrix<float,2,6> jacobianWarpRt;
 
@@ -758,6 +785,43 @@ public:
         std::cout << "jacobianProj23 \n" << jacobianProj23 << "\n jacobianT36_inv \n" << jacobianT36_inv << std::endl;
 
         jacobianWarpRt = jacobianProj23 * jacobianT36_inv;
+
+        //return jacobianWarpRt;
+    }
+
+    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
+    inline void
+    //Eigen::Matrix<float,2,6>
+    computeJacobian26_wT_pinhole(const Eigen::Vector3f & xyz, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    {
+        //Eigen::Matrix<float,2,6> jacobianWarpRt;
+
+        float inv_transf_z = 1.0/xyz(2);
+
+        //Derivative with respect to x
+        jacobianWarpRt(0,0)=fx*inv_transf_z;
+        jacobianWarpRt(1,0)=0.f;
+
+        //Derivative with respect to y
+        jacobianWarpRt(0,1)=0.f;
+        jacobianWarpRt(1,1)=fy*inv_transf_z;
+
+        //Derivative with respect to z
+        float inv_transf_z_2 = inv_transf_z*inv_transf_z;
+        jacobianWarpRt(0,2)=-fx*xyz(0)*inv_transf_z_2;
+        jacobianWarpRt(1,2)=-fy*xyz(1)*inv_transf_z_2;
+
+        //Derivative with respect to \w_x
+        jacobianWarpRt(0,3)=-fx*xyz(1)*xyz(0)*inv_transf_z_2;
+        jacobianWarpRt(1,3)=-fy*(1+xyz(1)*xyz(1)*inv_transf_z_2);
+
+        //Derivative with respect to \w_y
+        jacobianWarpRt(0,4)= fx*(1+xyz(0)*xyz(0)*inv_transf_z_2);
+        jacobianWarpRt(1,4)= fy*xyz(0)*xyz(1)*inv_transf_z_2;
+
+        //Derivative with respect to \w_z
+        jacobianWarpRt(0,5)=-fx*xyz(1)*inv_transf_z;
+        jacobianWarpRt(1,5)= fy*xyz(0)*inv_transf_z;
 
         //return jacobianWarpRt;
     }

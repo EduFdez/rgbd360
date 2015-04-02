@@ -411,7 +411,7 @@ int main (int argc, char ** argv)
     // Dense Photo/Depth consistency spherical
     time_start = pcl::getTime();
     RegisterDense align360;
-    align360.setSensorType( RegisterDense::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::alignFrames360 for more details)
+    align360.setSensorType( RegisterDense::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::register360 for more details)
     align360.setNumPyr(4);
     frame360_1.stitchSphericalImage();
     frame360_2.stitchSphericalImage();
@@ -444,9 +444,9 @@ int main (int argc, char ** argv)
     time_start = pcl::getTime();
 //    align360.setVisualization(true);
 //    align360.setGrayVariance(4.f/255);
-    align360.alignFrames360(initDenseMatching, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//    align360.alignFrames360(relPosePbMap, RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//    align360.alignFrames360(Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    align360.register360(initDenseMatching, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//    align360.register360(relPosePbMap, RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//    align360.register360(Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     Matrix4f relPoseDenseSphere = align360.getOptimalPose();
     Matrix4f relPoseDenseSphere_ref = rotOffset.inverse() * relPoseDenseSphere * rotOffset;
     time_end = pcl::getTime();
@@ -455,7 +455,7 @@ int main (int argc, char ** argv)
     //cout << "relPoseDenseSphere_ref: " << align360.avPhotoResidual << " " << align360.avDepthResidual << "\n" << relPoseDenseSphere_ref << endl;
 
     time_start = pcl::getTime();
-    align360.alignFrames360(initDenseMatching, RegisterDense::PHOTO_DEPTH, 1); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    align360.register360(initDenseMatching, RegisterDense::PHOTO_DEPTH, 1); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     relPoseDenseSphere = align360.getOptimalPose();
     relPoseDenseSphere_ref = rotOffset.inverse() * relPoseDenseSphere * rotOffset;
     time_end = pcl::getTime();
@@ -464,7 +464,7 @@ int main (int argc, char ** argv)
 
     time_start = pcl::getTime();
     align360.setVisualization(true);
-    align360.alignFrames360(initDenseMatching, RegisterDense::PHOTO_DEPTH, 2); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    align360.register360(initDenseMatching, RegisterDense::PHOTO_DEPTH, 2); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     relPoseDenseSphere = align360.getOptimalPose();
     relPoseDenseSphere_ref = rotOffset.inverse() * relPoseDenseSphere * rotOffset;
     time_end = pcl::getTime();
