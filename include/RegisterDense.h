@@ -128,6 +128,8 @@ class RegisterDense
     Eigen::VectorXi warp_pixels_src;
     Eigen::VectorXf residualsPhoto_src;
     Eigen::VectorXf residualsDepth_src;
+    Eigen::MatrixXf jacobiansPhoto;
+    Eigen::MatrixXf jacobiansDepth;
     Eigen::VectorXf stdDevError_inv_src;
     Eigen::VectorXf wEstimPhoto_src;
     Eigen::VectorXf wEstimDepth_src;
@@ -325,6 +327,13 @@ public:
 
     /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
     void computeSphereXYZ_sse(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels);
+
+    /*! Get a list of salient points (pixels with hugh gradient) and compute their 3D position xyz */
+    void getSalientPoints_sphere(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+                                const cv::Mat & intensity_img, const cv::Mat & depth_img,
+                                const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
+                                const cv::Mat & depth_gradX, const cv::Mat & depth_gradY
+                                ); // TODO extend this function to employ only depth
 
     /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
     void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);
@@ -579,6 +588,10 @@ public:
                         costFuncType method = PHOTO_CONSISTENCY,
                         const int occlusion = 0);
 
+    void register360_IC(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+                        costFuncType method = PHOTO_CONSISTENCY,
+                        const int occlusion = 0);
+
     void register360_depthPyr(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                                 costFuncType method = PHOTO_CONSISTENCY,
                                 const int occlusion = 0);
@@ -630,6 +643,8 @@ public:
 
     /*! Update the Hessian and the Gradient from a list of jacobians and residuals. */
     void updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels);
+
+    void updateGrad(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels);
 
     /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y' */
 //    inline cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)
