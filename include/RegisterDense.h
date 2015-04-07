@@ -93,8 +93,8 @@ class RegisterDense
 
     /*! A threshold to select salient pixels on the intensity and depth images.*/
     float thresSaliency;
-    float thresSaliencyIntensity;
-    float thresSaliencyDepth;
+    float thres_saliency_gray_;
+    float thres_saliency_depth_;
 
 //    /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
 //    float SSO;
@@ -134,6 +134,7 @@ class RegisterDense
     Eigen::VectorXf wEstimPhoto_src;
     Eigen::VectorXf wEstimDepth_src;
     Eigen::VectorXi validPixels_src;
+    Eigen::VectorXi visible_pixels_src;
     Eigen::VectorXi validPixelsPhoto_src;
     Eigen::VectorXi validPixelsDepth_src;
 
@@ -239,13 +240,13 @@ public:
     /*! Set the saliency threshold of the intensity. */
     void setSaliencyThreshodIntensity(const float thres)
     {
-        thresSaliencyIntensity = thres;
+        thres_saliency_gray_ = thres;
     };
 
     /*! Set the saliency threshold of the depth. */
     void setSaliencyThreshodDepth(const float thres)
     {
-        thresSaliencyDepth = thres;
+        thres_saliency_depth_ = thres;
     };
 
     /*! Set the 3x3 matrix of (pinhole) camera intrinsic parameters used to obtain the 3D colored point cloud from the RGB and depth images.*/
@@ -330,10 +331,14 @@ public:
 
     /*! Get a list of salient points (pixels with hugh gradient) and compute their 3D position xyz */
     void getSalientPoints_sphere(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                const cv::Mat & intensity_img, const cv::Mat & depth_img,
-                                const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
-                                const cv::Mat & depth_gradX, const cv::Mat & depth_gradY
+                                 const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
+                                 const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY
                                 ); // TODO extend this function to employ only depth
+
+    void getSalientPoints_sphere_sse(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+                                     const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
+                                     const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY
+                                    ); // TODO extend this function to employ only depth
 
     /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
     void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);
@@ -643,6 +648,8 @@ public:
 
     /*! Update the Hessian and the Gradient from a list of jacobians and residuals. */
     void updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels);
+
+//    void updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi &warp_pixels);
 
     void updateGrad(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels);
 
