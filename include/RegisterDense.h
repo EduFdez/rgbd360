@@ -99,9 +99,6 @@ class RegisterDense
 //    /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
 //    float SSO;
 
-    /*! If set to true, only the pixels with high gradient in the gray image are used (for both photo and depth minimization) */
-    std::vector<std::vector<int> > vSalientPixels;
-
     /*! Enable the visualization of the optimization process (only for debug).*/
     bool visualizeIterations;
 
@@ -133,6 +130,8 @@ class RegisterDense
     Eigen::VectorXf stdDevError_inv_src;
     Eigen::VectorXf wEstimPhoto_src;
     Eigen::VectorXf wEstimDepth_src;
+
+    /*! If set to true, only the pixels with high gradient in the gray image are used (for both photo and depth minimization) */
     Eigen::VectorXi validPixels_src;
     Eigen::VectorXi visible_pixels_src;
     Eigen::VectorXi validPixelsPhoto_src;
@@ -145,18 +144,10 @@ class RegisterDense
     Eigen::VectorXf stdDevError_inv_trg;
     Eigen::VectorXf wEstimPhoto_trg;
     Eigen::VectorXf wEstimDepth_trg;
+
     Eigen::VectorXi validPixels_trg;
     Eigen::VectorXi validPixelsPhoto_trg;
     Eigen::VectorXi validPixelsDepth_trg;
-
-    Eigen::VectorXf _residualsPhoto;
-    Eigen::VectorXf _residualsDepth;
-    Eigen::VectorXf _stdDevError_inv;
-    Eigen::VectorXf _wEstimPhoto;
-    Eigen::VectorXf _wEstimDepth;
-    Eigen::VectorXi _validPixels;
-    Eigen::VectorXi _validPixelsPhoto;
-    Eigen::VectorXi _validPixelsDepth;
 
     /*! Number of iterations in each pyramid level.*/
     std::vector<int> num_iterations;
@@ -514,6 +505,8 @@ public:
 //    void calcHessianAndGradient(const int &pyramidLevel,
 //                               const Eigen::Matrix4f poseGuess,
 //                               costFuncType method = PHOTO_CONSISTENCY);
+
+    void warpImage ( const int &pyramidLevel, const Eigen::Matrix4f &poseGuess, costFuncType method );
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
     This is done following the work in:

@@ -67,6 +67,27 @@ IF(BUILD_REGISTRATION)
 					   )
 
         # Declare the target (an executable)
+        ADD_EXECUTABLE(OdometryDense_rawlog OdometryDense_rawlog.cpp
+                                                ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
+                                                ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
+                                                ../include/Miscellaneous.h
+                                                #../include/Calib360.h
+                                                #../include/Frame360.h
+                                                #../include/Frame360.cpp
+                                                #../include/Map360_Visualizer.h
+                                                #../include/RegisterRGBD360.h
+                                                ../include/RegisterDense.h
+                                                ../include/RegisterDense.cpp
+        )
+
+        TARGET_LINK_LIBRARIES(OdometryDense_rawlog
+                                        ${MRPT_LIBS}
+                                        ${OpenCV_LIBS}
+                                        ${PCL_LIBRARIES}
+                                        ${Boost_SERIALIZATION_LIBRARY}
+                                           )
+
+        # Declare the target (an executable)
         ADD_EXECUTABLE(OdometryRGBD360_stereo OdometryRGBD360_stereo.cpp
                                                 ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
                                                 ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
