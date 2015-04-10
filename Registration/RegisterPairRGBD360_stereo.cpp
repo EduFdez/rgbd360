@@ -189,34 +189,30 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   cout << "Pose Dense Saliency \n" << align360.getOptimalPose() << endl;
 
-//  time_start = pcl::getTime();
-////  for(size_t i=0; i < 20; i++)
-//  align360.register360_inv(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//  time_end = pcl::getTime();
-//  std::cout << "register360 took " << double (time_end - time_start) << std::endl;
-//  cout << "Pose Dense Inv \n" << align360.getOptimalPose() << endl;
-
-  time_start = pcl::getTime();
-//  for(size_t i=0; i < 20; i++)
-  align360.register360_bidirectional(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-  time_end = pcl::getTime();
-  std::cout << "register360 took " << double (time_end - time_start) << std::endl;
-  cout << "Pose Dense Bidirectional \n" <<  align360.getOptimalPose() << endl;
-
-
-//////  time_start = pcl::getTime();
-////  align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
-////  cout << "RegisterDense UNITY \n";
-////  align360.register360_unity(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//////  time_end = pcl::getTime();
-//////  std::cout << "register360_unity took " << double (time_end - time_start) << std::endl;
-////  std::cout << "Pose Dense unity \n" << align360.getOptimalPose() << std::endl;
-
   align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-  std::cout << "Pose PHOTO_CONSISTENCY \n" << align360.getOptimalPose() << std::endl;
+  std::cout << "Pose Dense PHOTO_CONSISTENCY \n" << align360.getOptimalPose() << std::endl;
 
-//  align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//  std::cout << "Pose DEPTH_CONSISTENCY \n" << align360.getOptimalPose() << std::endl;
+  align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  std::cout << "Pose Dense DEPTH_CONSISTENCY \n" << align360.getOptimalPose() << std::endl;
+
+  align360.useSaliency(false);
+  align360.register360_inv(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  cout << "Pose Dense Inv \n" << align360.getOptimalPose() << endl;
+
+  align360.useSaliency(true);
+  align360.register360_inv(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  cout << "Pose Dense Inv Saliency \n" << align360.getOptimalPose() << endl;
+
+  align360.useSaliency(false);
+  align360.register360_bidirectional(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  cout << "Pose Dense Bidirectional \n" << align360.getOptimalPose() << endl;
+
+  align360.useSaliency(true);
+  align360.setSaliencyThreshodIntensity(0.08f);
+  align360.setSaliencyThreshodDepth(0.06f);
+  align360.register360_bidirectional(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  cout << "Pose Dense Bidirectional Saliency \n" << align360.getOptimalPose() << endl;
+
 
   // ICP alignement
   time_start = pcl::getTime();
