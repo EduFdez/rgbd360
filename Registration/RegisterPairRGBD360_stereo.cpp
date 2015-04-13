@@ -86,12 +86,12 @@ int main (int argc, char ** argv)
 
   if( fileType.compare( rgb1.substr(rgb1.length()-4) ) == 0 && fileType.compare( rgb2.substr(rgb2.length()-4) ) == 0 ) // If the first string correspond to a pointCloud path
   {
-//    depth1 = rgb1.substr(0, rgb1.length()-14) + "depth" + rgb1.substr(rgb1.length()-11, 7) + ".raw";
-//    depth2 = rgb2.substr(0, rgb2.length()-14) + "depth" + rgb2.substr(rgb2.length()-11, 7) + ".raw";
+    depth1 = rgb1.substr(0, rgb1.length()-14) + "depth" + rgb1.substr(rgb1.length()-11, 7) + ".raw";
+    depth2 = rgb2.substr(0, rgb2.length()-14) + "depth" + rgb2.substr(rgb2.length()-11, 7) + ".raw";
 //    depth1 = rgb1.substr(0, rgb1.length()-14) + "depth" + rgb1.substr(rgb1.length()-11, 7) + "pT.raw";
 //    depth2 = rgb2.substr(0, rgb2.length()-14) + "depth" + rgb2.substr(rgb2.length()-11, 7) + "pT.raw";
-    depth1 = rgb1.substr(0, rgb1.length()-14) + "gapFillingPlusFusion/depth" + rgb1.substr(rgb1.length()-11, 7) + ".raw";
-    depth2 = rgb2.substr(0, rgb2.length()-14) + "gapFillingPlusFusion/depth" + rgb2.substr(rgb2.length()-11, 7) + ".raw";
+//    depth1 = rgb1.substr(0, rgb1.length()-14) + "gapFillingPlusFusion/depth" + rgb1.substr(rgb1.length()-11, 7) + ".raw";
+//    depth2 = rgb2.substr(0, rgb2.length()-14) + "gapFillingPlusFusion/depth" + rgb2.substr(rgb2.length()-11, 7) + ".raw";
 
     std::cout << "  depth1: " << depth1 << "\n  depth2: " << depth2 << std::endl;
   }
