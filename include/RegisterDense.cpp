@@ -42,9 +42,9 @@
 #include <immintrin.h>
 #include <pmmintrin.h>
 
-#define ENABLE_OPENMP 0
+#define ENABLE_OPENMP 1
 #define PRINT_PROFILING 1
-#define ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS 1
+#define ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS 0
 #define INVALID_POINT -10000
 #define SSE_AVAILABLE 1
 
@@ -574,7 +574,9 @@ void RegisterDense::buildGradientPyramids(const std::vector<cv::Mat> & grayPyr, 
 /*! Sets the source (Intensity+Depth) frame.*/
 void RegisterDense::setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
 {
+    #if PRINT_PROFILING
     double time_start = pcl::getTime();
+    #endif
 
     //Create a float auxialiary image from the imput image
 //    cv::cvtColor(imgRGB, graySrc, CV_RGB2GRAY);
@@ -592,17 +594,18 @@ void RegisterDense::setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
 //    rgbSrc = imgRGB;
 //    buildPyramid(rgbSrc, colorSrcPyr, nPyrLevels);
 
-#if PRINT_PROFILING
+    #if PRINT_PROFILING
     double time_end = pcl::getTime();
     std::cout << "RegisterDense::setSourceFrame construction " << (time_end - time_start) << std::endl;
-#endif
-
+    #endif
 };
 
 /*! Sets the source (Intensity+Depth) frame. Depth image is ignored*/
 void RegisterDense::setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
 {
+    #if PRINT_PROFILING
     double time_start = pcl::getTime();
+    #endif
 
     //Create a float auxialiary image from the imput image
     // grayTrg.create(imgRGB.rows, imgRGB.cols, CV_32FC1);
@@ -9564,7 +9567,7 @@ void RegisterDense::updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacob
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
-    //for(size_t i=0; i<100; i++)
+    for(size_t i=0; i<100; i++)
     {
 #endif
 
@@ -9574,41 +9577,81 @@ void RegisterDense::updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacob
     float h11=0,h12=0,h13=0,h14=0,h15=0,h16=0,h22=0,h23=0,h24=0,h25=0,h26=0,h33=0,h34=0,h35=0,h36=0,h44=0,h45=0,h46=0,h55=0,h56=0,h66=0;
     float g1=0,g2=0,g3=0,g4=0,g5=0,g6=0;
 
+//    if(use_salient_pixels_)
+//    {
+//    #if ENABLE_OPENMP
+//    #pragma omp parallel for reduction (+:h11,h12,h13,h14,h15,h16,h22,h23,h24,h25,h26,h33,h34,h35,h36,h44,h45,h46,h55,h56,h66,g1,g2,g3,g4,g5,g6) // Cannot reduce on Eigen types
+//    #endif
+//        for(size_t i=0; i < pixel_jacobians.rows(); i++)
+//        {
+//            h11 += pixel_jacobians(i,0)*pixel_jacobians(i,0);
+//            h12 += pixel_jacobians(i,0)*pixel_jacobians(i,1);
+//            h13 += pixel_jacobians(i,0)*pixel_jacobians(i,2);
+//            h14 += pixel_jacobians(i,0)*pixel_jacobians(i,3);
+//            h15 += pixel_jacobians(i,0)*pixel_jacobians(i,4);
+//            h16 += pixel_jacobians(i,0)*pixel_jacobians(i,5);
+//            h22 += pixel_jacobians(i,1)*pixel_jacobians(i,1);
+//            h23 += pixel_jacobians(i,1)*pixel_jacobians(i,2);
+//            h24 += pixel_jacobians(i,1)*pixel_jacobians(i,3);
+//            h25 += pixel_jacobians(i,1)*pixel_jacobians(i,4);
+//            h26 += pixel_jacobians(i,1)*pixel_jacobians(i,5);
+//            h33 += pixel_jacobians(i,2)*pixel_jacobians(i,2);
+//            h34 += pixel_jacobians(i,2)*pixel_jacobians(i,3);
+//            h35 += pixel_jacobians(i,2)*pixel_jacobians(i,4);
+//            h36 += pixel_jacobians(i,2)*pixel_jacobians(i,5);
+//            h44 += pixel_jacobians(i,3)*pixel_jacobians(i,3);
+//            h45 += pixel_jacobians(i,3)*pixel_jacobians(i,4);
+//            h46 += pixel_jacobians(i,3)*pixel_jacobians(i,5);
+//            h55 += pixel_jacobians(i,4)*pixel_jacobians(i,4);
+//            h56 += pixel_jacobians(i,4)*pixel_jacobians(i,5);
+//            h66 += pixel_jacobians(i,5)*pixel_jacobians(i,5);
+
+//            g1 += pixel_jacobians(i,0)*pixel_residuals(i);
+//            g2 += pixel_jacobians(i,1)*pixel_residuals(i);
+//            g3 += pixel_jacobians(i,2)*pixel_residuals(i);
+//            g4 += pixel_jacobians(i,3)*pixel_residuals(i);
+//            g5 += pixel_jacobians(i,4)*pixel_residuals(i);
+//            g6 += pixel_jacobians(i,5)*pixel_residuals(i);
+//        }
+//    }
+//    else
+//    {
     #if ENABLE_OPENMP
     #pragma omp parallel for reduction (+:h11,h12,h13,h14,h15,h16,h22,h23,h24,h25,h26,h33,h34,h35,h36,h44,h45,h46,h55,h56,h66,g1,g2,g3,g4,g5,g6) // Cannot reduce on Eigen types
     #endif
-    for(size_t i=0; i < pixel_jacobians.rows(); i++)
-        if(valid_pixels(i))
-        {
-            h11 += pixel_jacobians(i,0)*pixel_jacobians(i,0);
-            h12 += pixel_jacobians(i,0)*pixel_jacobians(i,1);
-            h13 += pixel_jacobians(i,0)*pixel_jacobians(i,2);
-            h14 += pixel_jacobians(i,0)*pixel_jacobians(i,3);
-            h15 += pixel_jacobians(i,0)*pixel_jacobians(i,4);
-            h16 += pixel_jacobians(i,0)*pixel_jacobians(i,5);
-            h22 += pixel_jacobians(i,1)*pixel_jacobians(i,1);
-            h23 += pixel_jacobians(i,1)*pixel_jacobians(i,2);
-            h24 += pixel_jacobians(i,1)*pixel_jacobians(i,3);
-            h25 += pixel_jacobians(i,1)*pixel_jacobians(i,4);
-            h26 += pixel_jacobians(i,1)*pixel_jacobians(i,5);
-            h33 += pixel_jacobians(i,2)*pixel_jacobians(i,2);
-            h34 += pixel_jacobians(i,2)*pixel_jacobians(i,3);
-            h35 += pixel_jacobians(i,2)*pixel_jacobians(i,4);
-            h36 += pixel_jacobians(i,2)*pixel_jacobians(i,5);
-            h44 += pixel_jacobians(i,3)*pixel_jacobians(i,3);
-            h45 += pixel_jacobians(i,3)*pixel_jacobians(i,4);
-            h46 += pixel_jacobians(i,3)*pixel_jacobians(i,5);
-            h55 += pixel_jacobians(i,4)*pixel_jacobians(i,4);
-            h56 += pixel_jacobians(i,4)*pixel_jacobians(i,5);
-            h66 += pixel_jacobians(i,5)*pixel_jacobians(i,5);
+        for(size_t i=0; i < pixel_jacobians.rows(); i++)
+            if(valid_pixels(i))
+            {
+                h11 += pixel_jacobians(i,0)*pixel_jacobians(i,0);
+                h12 += pixel_jacobians(i,0)*pixel_jacobians(i,1);
+                h13 += pixel_jacobians(i,0)*pixel_jacobians(i,2);
+                h14 += pixel_jacobians(i,0)*pixel_jacobians(i,3);
+                h15 += pixel_jacobians(i,0)*pixel_jacobians(i,4);
+                h16 += pixel_jacobians(i,0)*pixel_jacobians(i,5);
+                h22 += pixel_jacobians(i,1)*pixel_jacobians(i,1);
+                h23 += pixel_jacobians(i,1)*pixel_jacobians(i,2);
+                h24 += pixel_jacobians(i,1)*pixel_jacobians(i,3);
+                h25 += pixel_jacobians(i,1)*pixel_jacobians(i,4);
+                h26 += pixel_jacobians(i,1)*pixel_jacobians(i,5);
+                h33 += pixel_jacobians(i,2)*pixel_jacobians(i,2);
+                h34 += pixel_jacobians(i,2)*pixel_jacobians(i,3);
+                h35 += pixel_jacobians(i,2)*pixel_jacobians(i,4);
+                h36 += pixel_jacobians(i,2)*pixel_jacobians(i,5);
+                h44 += pixel_jacobians(i,3)*pixel_jacobians(i,3);
+                h45 += pixel_jacobians(i,3)*pixel_jacobians(i,4);
+                h46 += pixel_jacobians(i,3)*pixel_jacobians(i,5);
+                h55 += pixel_jacobians(i,4)*pixel_jacobians(i,4);
+                h56 += pixel_jacobians(i,4)*pixel_jacobians(i,5);
+                h66 += pixel_jacobians(i,5)*pixel_jacobians(i,5);
 
-            g1 += pixel_jacobians(i,0)*pixel_residuals(i);
-            g2 += pixel_jacobians(i,1)*pixel_residuals(i);
-            g3 += pixel_jacobians(i,2)*pixel_residuals(i);
-            g4 += pixel_jacobians(i,3)*pixel_residuals(i);
-            g5 += pixel_jacobians(i,4)*pixel_residuals(i);
-            g6 += pixel_jacobians(i,5)*pixel_residuals(i);
-        }
+                g1 += pixel_jacobians(i,0)*pixel_residuals(i);
+                g2 += pixel_jacobians(i,1)*pixel_residuals(i);
+                g3 += pixel_jacobians(i,2)*pixel_residuals(i);
+                g4 += pixel_jacobians(i,3)*pixel_residuals(i);
+                g5 += pixel_jacobians(i,4)*pixel_residuals(i);
+                g6 += pixel_jacobians(i,5)*pixel_residuals(i);
+            }
+    }
 
     // Assign the values for the hessian and gradient
     hessian(0,0) += h11;

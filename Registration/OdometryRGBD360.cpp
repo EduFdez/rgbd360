@@ -91,9 +91,10 @@ public:
         RegisterDense align360; // Dense RGB-D alignment
         align360.setSensorType(RegisterDense::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::register360 for more details)
         align360.setNumPyr(6);
-        align360.useSaliency(false);
+        align360.useSaliency(true);
 //        align360.setVisualization(true);
         align360.setGrayVariance(8.f/255);
+        align360.setSourceFrame(frame360_2->sphereRGB, frame360_2->sphereDepth);
 
 //        // ICP alignement
 //        pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
@@ -105,9 +106,13 @@ public:
 
 
         bool bGoodRegistration = true;
-        Eigen::Matrix4f currentPose = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f currentPose2 = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f current_pose = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f current_pose_inv = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f current_pose_bidirectional = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f prev_motion = Eigen::Matrix4f::Identity();
+
+        std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > trajectory;
+        trajectory.push_back(current_pose);
 
         // Filter the spherical point cloud
         // ICP -> Filter the point clouds and remove nan points
@@ -123,7 +128,7 @@ public:
         // Add the first observation to the map
         {boost::mutex::scoped_lock updateLock(map_.mapMutex);
 
-            map_.addKeyframe(frame360_2, currentPose);
+            map_.addKeyframe(frame360_2, current_pose);
             *viewer.globalMap += *frame360_2->sphereCloud;
 
             map_.vSelectedKFs.push_back(frame360_2->id);
@@ -137,7 +142,12 @@ public:
         Eigen::Matrix4f rigidTransf = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f rigidTransf_pbmap = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f rigidTransf_dense = Eigen::Matrix4f::Identity();
-        Eigen::Matrix4f rigidTransf_dense2 = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f rigidTransf_dense_inv = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f rigidTransf_dense_bidirectional = Eigen::Matrix4f::Identity();
+
+        float diff_rot_threshold = 2.f; // This value is in degrees
+        float diff_trans_threshold = 0.01f; // This value is in meters
+        float diff_rot, diff_trans;
 
         // The reference of the spherical image and the point Clouds are not the same! I should always use the same coordinate system (TODO)
         float angle_offset = 90;
@@ -199,22 +209,39 @@ public:
             {
                 cout << "Align Sphere " << endl;
                 double time_start_dense = pcl::getTime();
-                align360.setTargetFrame(frame360_1->sphereRGB, frame360_1->sphereDepth);
+                align360.swapSourceTarget();
+                //align360.setTargetFrame(frame360_1->sphereRGB, frame360_1->sphereDepth);
                 align360.setSourceFrame(frame360_2->sphereRGB, frame360_2->sphereDepth);
-//                align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-                align360.register360(prev_motion, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                //align360.register360(prev_motion, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
                 //align360.register360(rigidTransf_dense, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-                prev_motion = align360.getOptimalPose();
                 rigidTransf_dense = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
                 double time_end_dense = pcl::getTime();
-                std::cout << "Dense " << (time_end_dense - time_start_dense) << std::endl;
-                cout << "Dense regist \n" << rigidTransf_dense << endl;
+                std::cout << "Dense registration " << (time_end_dense - time_start_dense) << std::endl;
+                cout << "Pose \n" << rigidTransf_dense << endl;
 
-                align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-                cout << "Dense regist Identity \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
+                align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                cout << "Dense regist PHOTO_CONSISTENCY \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
 
                 align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-                cout << "Dense regist Identity \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
+                cout << "Dense regist DEPTH_CONSISTENCY \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
+
+                align360.register360_inv(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                rigidTransf_dense_inv = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
+                cout << "Pose Dense Inv \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
+                diff_rot = mrpt::utils::RAD2DEG(diffRotation(rigidTransf_dense, rigidTransf_dense_inv));
+                diff_trans = 1000*difTranslation(rigidTransf_dense, rigidTransf_dense_inv);
+                cout << "Deviations Inv " << diff_rot << " deg " << diff_trans << " diff_trans \n";
+
+                align360.register360_bidirectional(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                rigidTransf_dense_bidirectional = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
+                cout << "Pose Dense Bidirectional \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
+                diff_rot = mrpt::utils::RAD2DEG(diffRotation(rigidTransf_dense, rigidTransf_dense_bidirectional));
+                diff_trans = 1000*difTranslation(rigidTransf_dense, rigidTransf_dense_bidirectional);
+                cout << "Deviations Bidirectional " << diff_rot << " deg " << diff_trans << " diff_trans \n";
+
+                // Update the prev motion
+                prev_motion = align360.getOptimalPose();
             }
 //            else
 //            {
@@ -274,22 +301,22 @@ public:
             ////        transformation = icp.getFinalTransformation ();
             //      cout << "ICP transformation:\n" << icp.getFinalTransformation() << endl << "PbMap-Registration\n" << rigidTransf << endl;
 
-            // Update currentPose
-            currentPose = currentPose * rigidTransf_pbmap;
-            currentPose2 = currentPose2 * rigidTransf;
+            // Update current_pose
+            current_pose = current_pose * rigidTransf_pbmap;
+            current_pose_inv = current_pose_inv * rigidTransf;
 
 #if VISUALIZE_POINT_CLOUD
             {boost::mutex::scoped_lock updateLock(map_.mapMutex);
 
-                map_.addKeyframe(frame360_2, currentPose); // Add keyframe
-                map_.vOptimizedPoses.back() = currentPose2;
+                map_.addKeyframe(frame360_2, current_pose); // Add keyframe
+                map_.vOptimizedPoses.back() = current_pose_inv;
 
                 // Update the global cloud
                 pcl::PointCloud<PointT>::Ptr transformedCloud(new pcl::PointCloud<PointT>);
-                pcl::transformPointCloud(*frame360_2->sphereCloud, *transformedCloud, currentPose);
+                pcl::transformPointCloud(*frame360_2->sphereCloud, *transformedCloud, current_pose);
 //                *viewer.globalMap += *transformedCloud;
 //                filter.filterVoxel(viewer.globalMap);
-                viewer.currentLocation.matrix() = currentPose2;
+                viewer.currentLocation.matrix() = current_pose_inv;
 
                 rigidTransf_dense = Eigen::Matrix4f::Identity();
             cout << "Add frame " << endl;

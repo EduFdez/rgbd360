@@ -308,6 +308,36 @@ public:
     /*! Sets the source (Intensity+Depth) frame. Depth image is ignored*/
     void setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
 
+    /*! Swap the source and target images */
+    inline void swapSourceTarget()
+    {
+        double time_start = pcl::getTime();
+
+        cv::Mat graySrc_tmp = graySrc;
+        cv::Mat depthSrc_tmp = depthSrc;
+        std::vector<cv::Mat> graySrcGradXPyr_tmp = graySrcGradXPyr;
+        std::vector<cv::Mat> graySrcGradYPyr_tmp = graySrcGradYPyr;
+        std::vector<cv::Mat> depthSrcGradXPyr_tmp = depthSrcGradXPyr;
+        std::vector<cv::Mat> depthSrcGradYPyr_tmp = depthSrcGradYPyr;
+
+        graySrc = grayTrg;
+        depthSrc = depthTrg;
+        graySrcGradXPyr = grayTrgGradXPyr;
+        graySrcGradYPyr = grayTrgGradYPyr;
+        depthSrcGradXPyr = depthTrgGradXPyr;
+        depthSrcGradYPyr = depthTrgGradYPyr;
+
+        grayTrg = graySrc_tmp;
+        depthTrg = depthSrc_tmp;
+        grayTrgGradXPyr = graySrcGradXPyr_tmp;
+        grayTrgGradYPyr = graySrcGradYPyr_tmp;
+        depthTrgGradXPyr = depthSrcGradXPyr_tmp;
+        depthTrgGradYPyr = depthSrcGradYPyr_tmp;
+
+        double time_end = pcl::getTime();
+        std::cout << "RegisterDense::swapSourceTarget took " << (time_end - time_start) << std::endl;
+    };
+
     /*! Compute the 3D points XYZ according to the pinhole camera model. */
     void computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels);
 
