@@ -44,7 +44,7 @@
 
 #define ENABLE_OPENMP 1
 #define PRINT_PROFILING 1
-#define ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS 0
+#define ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS 1
 #define INVALID_POINT -10000
 #define SSE_AVAILABLE 1
 
@@ -633,8 +633,63 @@ void RegisterDense::setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
     double time_end = pcl::getTime();
     std::cout << "RegisterDense::setTargetFrame construction " << (time_end - time_start) << std::endl;
 #endif
+}
 
-};
+/*! Swap the source and target images */
+void RegisterDense::swapSourceTarget()
+{
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t i=0; i<1000; i++)
+    {
+#endif
+
+//    std::vector<cv::Mat> graySrcPyr_tmp = graySrcPyr;
+//    std::vector<cv::Mat> graySrcGradXPyr_tmp = graySrcGradXPyr;
+//    std::vector<cv::Mat> graySrcGradYPyr_tmp = graySrcGradYPyr;
+//    std::vector<cv::Mat> depthSrcPyr_tmp = depthSrcPyr;
+//    std::vector<cv::Mat> depthSrcGradXPyr_tmp = depthSrcGradXPyr;
+//    std::vector<cv::Mat> depthSrcGradYPyr_tmp = depthSrcGradYPyr;
+
+//    graySrcPyr = grayTrgPyr;
+//    graySrcGradXPyr = grayTrgGradXPyr;
+//    graySrcGradYPyr = grayTrgGradYPyr;
+//    depthSrcPyr = depthTrgPyr;
+//    depthSrcGradXPyr = depthTrgGradXPyr;
+//    depthSrcGradYPyr = depthTrgGradYPyr;
+
+//    grayTrgPyr = graySrcPyr_tmp;
+//    grayTrgGradXPyr = graySrcGradXPyr_tmp;
+//    grayTrgGradYPyr = graySrcGradYPyr_tmp;
+//    depthTrgPyr = depthSrcPyr_tmp;
+//    depthTrgGradXPyr = depthSrcGradXPyr_tmp;
+//    depthTrgGradYPyr = depthSrcGradYPyr_tmp;
+
+    cv::imshow( "sphereGray", graySrcPyr[0] );
+    cv::imshow( "sphereGray1", graySrcPyr[1] );
+    cv::imshow( "sphereDepth2", depthSrcPyr[2] );
+
+    cv::waitKey(0);
+
+    grayTrgPyr = graySrcPyr;
+    grayTrgGradXPyr = graySrcGradXPyr;
+    grayTrgGradYPyr = graySrcGradYPyr;
+    depthTrgPyr = depthSrcPyr;
+    depthTrgGradXPyr = depthSrcGradXPyr;
+    depthTrgGradYPyr = depthSrcGradYPyr;
+
+    cv::imshow( "sphereGray", grayTrgPyr[1] );
+    cv::imshow( "sphereGray1", grayTrgPyr[2] );
+    cv::imshow( "sphereDepth2", depthTrgPyr[3] );
+
+    cv::waitKey(0);
+
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    std::cout << "RegisterDense::swapSourceTarget took " << (time_end - time_start) << std::endl;
+#endif
+}
 
 /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
         This is done following the work in:
@@ -3006,8 +3061,9 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
                             residualsPhoto_src(i) = diff * stdDevPhoto_inv;
                             wEstimPhoto_src(i) = weightMEstimator(residualsPhoto_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
                             error2_photo += wEstimPhoto_src(i) * residualsPhoto_src(i) * residualsPhoto_src(i);
-                            //std::cout << i << " " << validPixels_src(i) << " warped_i " << warped_i << " error2_photo " << error2_photo << " residualsPhoto " << residualsPhoto_src(i) << " weight_estim " << wEstimPhoto_src(i) << std::endl;
-                            //mrpt::system::pause();
+                            std::cout << i << " " << validPixels_src(i) << " warped_i " << warped_i << " error2_photo " << error2_photo << " residualsPhoto " << residualsPhoto_src(i) << " weight_estim " << wEstimPhoto_src(i) << std::endl;
+                            std::cout << " _grayTrgPyr[warped_i] " << _grayTrgPyr[warped_i] << " _graySrcPyr[validPixels_src(i)] " << _graySrcPyr[validPixels_src(i)] << std::endl;
+                            mrpt::system::pause();
                             //v_AD_intensity[i] = fabs(diff);
                         }
                     }
@@ -3232,7 +3288,10 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
                                 residualsPhoto_src(i) = diff * stdDevPhoto_inv;
                                 wEstimPhoto_src(i) = weightMEstimator(residualsPhoto_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
                                 error2_photo += wEstimPhoto_src(i) * residualsPhoto_src(i) * residualsPhoto_src(i);
-                                //std::cout << i << " " << validPixels_src(i) << " error2_photo " << error2_photo << " wDepthPhoto " << residualsPhoto_src(i) << " i " << i << " w " << warped_i << " c " << transformed_c_int << " " << theta*pixel_angle_inv << " theta " << theta << " weight_estim " << wEstimPhoto_src(i) << std::endl;
+                                std::cout << i << " " << validPixels_src(i) << " error2_photo " << error2_photo << " wDepthPhoto " << residualsPhoto_src(i) << " i " << i << " w " << warped_i << " c " << transformed_c_int << " " << theta*pixel_angle_inv << " theta " << theta << " weight_estim " << wEstimPhoto_src(i) << std::endl;
+                                std::cout << " _grayTrgPyr[warped_i] " << _grayTrgPyr[warped_i] << " _graySrcPyr[i] " << _graySrcPyr[i] << std::endl;
+                                mrpt::system::pause();
+
                                 //                        _validPixelsPhoto_src(numValidPtsPhoto) = i;
                                 //                        _residualsPhoto_src(numValidPtsPhoto) = (_grayTrgPyr[warped_i] - _graySrcPyr[numValidPtsPhoto]) * stdDevPhoto_inv;
                                 //                        _wEstimPhoto_src(numValidPtsPhoto) = weightMEstimator(_residualsPhoto_src(numValidPtsPhoto)); // Apply M-estimator weighting // The weight computed by an M-estimator
@@ -4035,7 +4094,7 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
     // std::cout << " RegisterDense::calcHessGrad_sphere() method " << method << " use_bilinear " << use_bilinear_ << std::endl;
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
-    //for(size_t i=0; i<100; i++)
+    //for(size_t ii=0; ii<100; ii++)
     {
 #endif
 
@@ -4916,8 +4975,10 @@ void RegisterDense::calcHessGradInv_sphere( const int &pyramidLevel,
 
 //    Eigen::MatrixXf jacobiansPhoto(imgSize,6);
 //    Eigen::MatrixXf jacobiansDepth(imgSize,6);
-    jacobiansPhoto.resize(numValidPts,6);
-    jacobiansDepth.resize(numValidPts,6);
+//    jacobiansPhoto.resize(numValidPts,6);
+//    jacobiansDepth.resize(numValidPts,6);
+    jacobiansPhoto = Eigen::MatrixXf::Zero(numValidPts,6);
+    jacobiansDepth = Eigen::MatrixXf::Zero(numValidPts,6);
 //    assert(residualsPhoto_trg.rows() == imgSize && residualsDepth_trg.rows() == imgSize);
 
     //    float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyramidLevel].data);
@@ -6889,7 +6950,7 @@ void RegisterDense::register360(const Eigen::Matrix4f pose_guess, costFuncType m
     //    std::cout << "RegisterDense::register360 " << std::endl;
 //#if PRINT_PROFILING
     double time_start = pcl::getTime();\
-    //for(size_t i=0; i<100; i++)
+    //for(size_t ii=0; ii<100; ii++)
     {
 //#endif
 
@@ -7164,7 +7225,7 @@ void RegisterDense::register360_IC(const Eigen::Matrix4f pose_guess, costFuncTyp
     //    std::cout << "RegisterDense::register360_IC " << std::endl;
 //#if PRINT_PROFILING
     double time_start = pcl::getTime();\
-    //for(size_t i=0; i<100; i++)
+    //for(size_t ii=0; ii<100; ii++)
     {
 //#endif
 
@@ -7319,7 +7380,7 @@ void RegisterDense::register360_depthPyr(const Eigen::Matrix4f pose_guess, costF
     //    std::cout << "register360_depthPyr " << std::endl;
 //#if PRINT_PROFILING
     double time_start = pcl::getTime();\
-    //for(size_t i=0; i<100; i++)
+    //for(size_t ii=0; ii<100; ii++)
     {
 //#endif
 
@@ -7465,7 +7526,7 @@ void RegisterDense::register360_inv(const Eigen::Matrix4f pose_guess, costFuncTy
     //    std::cout << "register360 " << std::endl;
 //#if PRINT_PROFILING
     double time_start = pcl::getTime();\
-    //for(size_t i=0; i<100; i++)
+    //for(size_t ii=0; ii<100; ii++)
     {
 //#endif
 
@@ -7674,7 +7735,7 @@ void RegisterDense::calcHessGrad_sphere_bidirectional( const int &pyramidLevel,
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
-    //for(size_t i=0; i<100; i++)
+    //for(size_t ii=0; ii<100; ii++)
     {
 #endif
 
@@ -8016,7 +8077,7 @@ void RegisterDense::register360_bidirectional(const Eigen::Matrix4f pose_guess, 
     //    std::cout << "register360_bidirectional " << std::endl;
 //#if PRINT_PROFILING
     double time_start = pcl::getTime();\
-    //for(size_t i=0; i<100; i++)
+    //for(size_t ii=0; ii<100; ii++)
     {
 //#endif
 
@@ -8884,7 +8945,7 @@ void RegisterDense::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf 
 
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
-    for(size_t i=0; i<100; i++)
+    for(size_t ii=0; ii<100; ii++)
     {
 #endif
 
@@ -8959,7 +9020,7 @@ void RegisterDense::computeSphereXYZ_sse(const cv::Mat & depth_img, Eigen::Matri
 
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
-    //for(size_t i=0; i<100; i++)
+    //for(size_t ii=0; ii<100; ii++)
     {
 #endif
 
@@ -9088,7 +9149,7 @@ void RegisterDense::getSalientPoints_sphere(Eigen::MatrixXf & xyz, Eigen::Vector
 
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
-    //for(size_t i=0; i<100; i++)
+    //for(size_t ii=0; ii<100; ii++)
     {
 #endif
 
@@ -9176,7 +9237,7 @@ void RegisterDense::getSalientPoints_sphere_sse(Eigen::MatrixXf & xyz, Eigen::Ve
 
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
-    //for(size_t i=0; i<100; i++)
+    //for(size_t ii=0; ii<100; ii++)
     {
 #endif
 
@@ -9332,7 +9393,7 @@ void RegisterDense::computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf
 
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
-    //for(size_t i=0; i<100; i++)
+    //for(size_t ii=0; ii<100; ii++)
     {
 #endif
 
@@ -9384,7 +9445,7 @@ void RegisterDense::computePinholeXYZ_sse(const cv::Mat & depth_img, Eigen::Matr
 
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
-    //for(size_t i=0; i<100; i++)
+    //for(size_t ii=0; ii<100; ii++)
     {
 #endif
 
@@ -9434,7 +9495,7 @@ void RegisterDense::transformPts3D(const Eigen::MatrixXf & input_pts, const Eige
     //std::cout << " RegisterDense::transformPts3D " << input_pts.rows() << " pts \n";
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
-    //for(size_t i=0; i<100; i++)
+    //for(size_t ii=0; ii<100; ii++)
     {
 #endif
 
@@ -9457,7 +9518,7 @@ void RegisterDense::transformPts3D_sse(const Eigen::MatrixXf & input_pts, const 
     //std::cout << " RegisterDense::transformPts3D_sse " << input_pts.rows() << " pts \n";
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
-    //for(size_t i=0; i<100; i++)
+    //for(size_t ii=0; ii<100; ii++)
     {
 #endif
 
@@ -9567,7 +9628,7 @@ void RegisterDense::updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacob
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
-    for(size_t i=0; i<100; i++)
+    for(size_t ii=0; ii<100; ii++)
     {
 #endif
 
@@ -9615,7 +9676,7 @@ void RegisterDense::updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacob
 //        }
 //    }
 //    else
-//    {
+    {
     #if ENABLE_OPENMP
     #pragma omp parallel for reduction (+:h11,h12,h13,h14,h15,h16,h22,h23,h24,h25,h26,h33,h34,h35,h36,h44,h45,h46,h55,h56,h66,g1,g2,g3,g4,g5,g6) // Cannot reduce on Eigen types
     #endif
@@ -9709,7 +9770,7 @@ void RegisterDense::updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacob
 //{
 //#if PRINT_PROFILING
 //    double time_start = pcl::getTime();
-//    //for(size_t i=0; i<100; i++)
+//    //for(size_t ii=0; ii<100; ii++)
 //    {
 //#endif
 
@@ -9839,4 +9900,113 @@ void RegisterDense::updateGrad(const Eigen::MatrixXf & pixel_jacobians, const Ei
     gradient(3) += g4;
     gradient(4) += g5;
     gradient(5) += g6;
+}
+
+/*! Get a list of salient points from a list of Jacobians corresponding to a set of 3D points */
+void RegisterDense::getSalientPts(const Eigen::MatrixXf & jacobians, Eigen::VectorXi & salient_pts, const float ratio_salient )
+{
+    //std::cout << " RegisterDense::getSalientPts " << input_pts.rows() << " pts \n";
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t ii=0; ii<100; ii++)
+    {
+#endif
+
+   assert( jacobians.cols() == 6 && jacobians.rows() == valid_pts.rows() );
+
+   std::vector<float> w(4, 0.2f);
+   w.push_back(0.3f);
+
+   std::vector<size_t> idx(v.size());
+   for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
+
+   // sort indexes based on comparing values in v
+   std::sort( idx.begin(), idx.end(), [&w](size_t i1, size_t i2) {return fabs(w[i1]) > fabs(w[i2]);} );
+
+//   const size_t n_pts = jacobians.rows();
+//   const size_t n_salient = floor(ratio_salient * n_pts);
+//   std::vector<size_t> sorted_idx;
+//   sorted_idx.reserve(6*n_pts);
+//   // [U,S,V] = svd(J,'econ');
+
+//   for(size_t i = 0 ; i < 6 ; ++i)
+//   {
+//       //Eigen::VectorXi jacobian_column(jacobians.col(i));
+//       std::vector<float> jacobian_column(&jacobians(0,i), &jacobians(0,i) + n_pts);
+//       std::vector<size_t> idx;
+//             idx =  sort_indexes<float>(jacobian_column);
+//       //std::vector<size_t> idx = sort_indexes_(jacobians.col(i));
+//       sorted_idx.insert( sorted_idx.end(), idx.begin(), idx.end() );
+//   }
+
+//   std::vector<size_t> arranged_idx(n_pts);
+//   //salient_pts.resize(N);
+
+//   size_t *tabetiq = new size_t [n_pts*6];
+//   size_t *tabi = new size_t [6];
+
+//   for(size_t j = 0 ; j < n_pts ; ++j)
+//        arranged_idx[j] = 0;
+
+//   for(size_t i = 0 ; i < 6 ; ++i)
+//   {
+//       tabi[i] = 0;
+//       for(size_t j = 0 ; j < n_pts ; ++j)
+//            tabetiq[j*6+i] = 0;
+//   }
+
+//    size_t k = 0;
+//    size_t line;
+//    for(size_t i = 0 ; i < floor(n_pts/6) ; ++i) // Weird!!
+//    {
+//        for(size_t j = 0 ; j < 6 ; ++j)
+//        {
+//             while(tabi[j] < n_pts)
+//             {
+//                 line = (size_t)(sorted_idx[tabi[j]*6 + j]);
+//                 if(tabetiq[j + line*6] ==0)
+//                 {
+//                    for( size_t jj = 0 ; jj < 6 ; ++jj)
+//                        tabetiq[(size_t)(line*6 + jj)] = 1;
+
+//                    arranged_idx[k] =  sorted_idx[tabi[j]*6+ j];
+//                    ++k;
+//                    tabi[j]++;
+//                    //deg[k] = j;
+//                    break;
+//                 }
+//                 else
+//                 {
+//                     tabi[j]++;
+//                 }
+
+//             }
+//        }
+//    }
+
+//    delete [] tabetiq;
+//    delete [] tabi;
+//    arranged_idx.resize(n_salient);
+
+////    if(use_salient_pixels_)
+////    {
+////        Eigen::VectorXi salient_pts_tmp( arranged_idx.size() );
+////        for(size_t j = 0 ; j < arranged_idx.size() ; ++j)
+////        {
+////            salient_pts_tmp(j) = salient_pts(arranged_idx(j));
+////        }
+////        salient_pts = salient_pts_tmp;
+////    }
+////    else
+//    {
+//        salient_pts = Eigen::VectorXi::Zero(n_pts);
+//        for(size_t j = 0 ; j < arranged_idx.size() ; ++j)
+//            salient_pts(arranged_idx(j)) = 1;
+//    }
+
+    #if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    std::cout << " RegisterDense::getSalientPts " << jacobians.rows() << " pts took " << (time_end - time_start) << std::endl;
+    #endif
 }

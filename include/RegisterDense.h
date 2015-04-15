@@ -309,34 +309,7 @@ public:
     void setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
 
     /*! Swap the source and target images */
-    inline void swapSourceTarget()
-    {
-        double time_start = pcl::getTime();
-
-        cv::Mat graySrc_tmp = graySrc;
-        cv::Mat depthSrc_tmp = depthSrc;
-        std::vector<cv::Mat> graySrcGradXPyr_tmp = graySrcGradXPyr;
-        std::vector<cv::Mat> graySrcGradYPyr_tmp = graySrcGradYPyr;
-        std::vector<cv::Mat> depthSrcGradXPyr_tmp = depthSrcGradXPyr;
-        std::vector<cv::Mat> depthSrcGradYPyr_tmp = depthSrcGradYPyr;
-
-        graySrc = grayTrg;
-        depthSrc = depthTrg;
-        graySrcGradXPyr = grayTrgGradXPyr;
-        graySrcGradYPyr = grayTrgGradYPyr;
-        depthSrcGradXPyr = depthTrgGradXPyr;
-        depthSrcGradYPyr = depthTrgGradYPyr;
-
-        grayTrg = graySrc_tmp;
-        depthTrg = depthSrc_tmp;
-        grayTrgGradXPyr = graySrcGradXPyr_tmp;
-        grayTrgGradYPyr = graySrcGradYPyr_tmp;
-        depthTrgGradXPyr = depthSrcGradXPyr_tmp;
-        depthTrgGradYPyr = depthSrcGradYPyr_tmp;
-
-        double time_end = pcl::getTime();
-        std::cout << "RegisterDense::swapSourceTarget took " << (time_end - time_start) << std::endl;
-    };
+    void swapSourceTarget();
 
     /*! Compute the 3D points XYZ according to the pinhole camera model. */
     void computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels);
@@ -360,6 +333,9 @@ public:
                                      const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
                                      const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY
                                     ); // TODO extend this function to employ only depth
+
+    /*! Get a list of salient points from a list of Jacobians corresponding to a set of 3D points */
+    void getSalientPts(const Eigen::MatrixXf & jacobians, Eigen::VectorXi & salient_pts, const float ratio_salient = 0.05f );
 
     /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
     void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);

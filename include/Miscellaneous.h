@@ -137,7 +137,7 @@ inline float diffRotation(Eigen::Matrix4f &pose1, Eigen::Matrix4f &pose2)
 //    std::cout << "  anglePoses " << anglePoses << std::endl;
 
     //return mrpt::utils::RAD2DEG(anglePoses);
-    return RAD2DEG(anglePoses);
+    return anglePoses;
 }
 
 /*! Calculate the rotation difference between the two poses */
@@ -276,6 +276,62 @@ T median(std::vector<T> &v)
     size_t n = v.size() / 2;
     std::nth_element(v.begin(), v.begin()+n, v.end());
     return v[n];
+}
+
+///*! Sort a vector and retrieve the indexes of teh sorted values.*/
+//template <typename T>
+//std::vector<size_t> sort_indexes__(const std::vector<T> & v)
+//{
+//  // initialize original index locations
+//  std::vector<size_t> idx(v.size());
+//  for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
+
+//  // sort indexes based on comparing values in v
+//  std::sort( idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return fabs(v[i1]) > fabs(v[i2]);} );
+
+//  return idx;
+//}
+
+//template <typename T>
+//std::vector<size_t> sort_vector(std::vector<T> & v)
+//{
+//  // initialize original index locations
+//  std::vector<size_t> idx = sort_indexes(v);
+
+//  std::vector<T> sorted_vector(v.size());
+//  for (size_t i = 0; i != idx.size(); ++i)
+//    sorted_vector[i] = v[idx[i]];
+//  v = sorted_vector;
+
+//  return idx;
+//}
+
+/*! Sort a vector and retrieve the indexes of teh sorted values.*/
+template <typename T>
+std::vector<size_t> sort_indexes_(const Eigen::Matrix<T, Eigen::Dynamic, 1> & v)
+{
+  // initialize original index locations
+  std::vector<size_t> idx(v.size());
+  for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
+
+  // sort indexes based on comparing values in v
+  std::sort( idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return fabs(v[i1]) > fabs(v[i2]);} );
+
+  return idx;
+}
+
+template <typename T>
+std::vector<size_t> sort_vector_(Eigen::Matrix<T, Eigen::Dynamic, 1> & v)
+{
+  // initialize original index locations
+  std::vector<size_t> idx = sort_indexes_(v);
+
+  Eigen::Matrix<T, Eigen::Dynamic, 1> sorted_vector(v.rows());
+  for (size_t i = 0; i != idx.size(); ++i)
+    sorted_vector[i] = v[idx[i]];
+  v = sorted_vector;
+
+  return idx;
 }
 
 #endif
