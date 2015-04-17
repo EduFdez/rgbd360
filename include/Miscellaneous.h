@@ -40,6 +40,11 @@
 #include <iostream>
 #include <fstream>
 
+#include <iterator>
+#include <algorithm>
+#include <vector>
+
+
 #ifndef PI
     #define PI 3.14159265359
 #endif
@@ -279,15 +284,14 @@ T median(std::vector<T> &v)
 }
 
 ///*! Sort a vector and retrieve the indexes of teh sorted values.*/
-//template <typename T>
-//std::vector<size_t> sort_indexes__(const std::vector<T> & v)
+//std::vector<size_t> sort_indexes__(const std::vector<float> & v)
 //{
 //  // initialize original index locations
 //  std::vector<size_t> idx(v.size());
 //  for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
 
 //  // sort indexes based on comparing values in v
-//  std::sort( idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return fabs(v[i1]) > fabs(v[i2]);} );
+//  std::sort( idx.begin(), idx.end(), [&v](size_t i1, size_t i2) -> bool {return (v[i1]) > (v[i2]);} );
 
 //  return idx;
 //}

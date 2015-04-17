@@ -2,6 +2,9 @@ IF(BUILD_REGISTRATION)
 
 	INCLUDE_DIRECTORIES( ${OpenCV_INCLUDE_DIRS} )
 
+	ADD_EXECUTABLE(test
+ test.cpp)
+
 	# Declare the target (an executable)
 	ADD_EXECUTABLE(RegisterPairRGBD360 RegisterPairRGBD360.cpp
 						../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp

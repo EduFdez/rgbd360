@@ -3061,9 +3061,9 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
                             residualsPhoto_src(i) = diff * stdDevPhoto_inv;
                             wEstimPhoto_src(i) = weightMEstimator(residualsPhoto_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
                             error2_photo += wEstimPhoto_src(i) * residualsPhoto_src(i) * residualsPhoto_src(i);
-                            std::cout << i << " " << validPixels_src(i) << " warped_i " << warped_i << " error2_photo " << error2_photo << " residualsPhoto " << residualsPhoto_src(i) << " weight_estim " << wEstimPhoto_src(i) << std::endl;
-                            std::cout << " _grayTrgPyr[warped_i] " << _grayTrgPyr[warped_i] << " _graySrcPyr[validPixels_src(i)] " << _graySrcPyr[validPixels_src(i)] << std::endl;
-                            mrpt::system::pause();
+//                            std::cout << i << " " << validPixels_src(i) << " warped_i " << warped_i << " error2_photo " << error2_photo << " residualsPhoto " << residualsPhoto_src(i) << " weight_estim " << wEstimPhoto_src(i) << std::endl;
+//                            std::cout << " _grayTrgPyr[warped_i] " << _grayTrgPyr[warped_i] << " _graySrcPyr[validPixels_src(i)] " << _graySrcPyr[validPixels_src(i)] << std::endl;
+//                            mrpt::system::pause();
                             //v_AD_intensity[i] = fabs(diff);
                         }
                     }
@@ -3288,9 +3288,9 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
                                 residualsPhoto_src(i) = diff * stdDevPhoto_inv;
                                 wEstimPhoto_src(i) = weightMEstimator(residualsPhoto_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
                                 error2_photo += wEstimPhoto_src(i) * residualsPhoto_src(i) * residualsPhoto_src(i);
-                                std::cout << i << " " << validPixels_src(i) << " error2_photo " << error2_photo << " wDepthPhoto " << residualsPhoto_src(i) << " i " << i << " w " << warped_i << " c " << transformed_c_int << " " << theta*pixel_angle_inv << " theta " << theta << " weight_estim " << wEstimPhoto_src(i) << std::endl;
-                                std::cout << " _grayTrgPyr[warped_i] " << _grayTrgPyr[warped_i] << " _graySrcPyr[i] " << _graySrcPyr[i] << std::endl;
-                                mrpt::system::pause();
+//                                std::cout << i << " " << validPixels_src(i) << " error2_photo " << error2_photo << " wDepthPhoto " << residualsPhoto_src(i) << " i " << i << " w " << warped_i << " c " << transformed_c_int << " " << theta*pixel_angle_inv << " theta " << theta << " weight_estim " << wEstimPhoto_src(i) << std::endl;
+//                                std::cout << " _grayTrgPyr[warped_i] " << _grayTrgPyr[warped_i] << " _graySrcPyr[i] " << _graySrcPyr[i] << std::endl;
+//                                mrpt::system::pause();
 
                                 //                        _validPixelsPhoto_src(numValidPtsPhoto) = i;
                                 //                        _residualsPhoto_src(numValidPtsPhoto) = (_grayTrgPyr[warped_i] - _graySrcPyr[numValidPtsPhoto]) * stdDevPhoto_inv;
@@ -4481,6 +4481,8 @@ void RegisterDense::calcHessGrad_sphere(const int &pyramidLevel,
         updateHessianAndGradient(jacobiansDepth, residualsDepth_src, validPixelsDepth_src);
     //std::cout << "hessian \n" << hessian << std::endl;
     //std::cout << "gradient \n" << gradient.transpose() << std::endl;
+
+    getSalientPts(jacobiansPhoto, validPixelsPhoto_src, 0.1f );
 
 #if PRINT_PROFILING
     }
@@ -9902,6 +9904,10 @@ void RegisterDense::updateGrad(const Eigen::MatrixXf & pixel_jacobians, const Ei
     gradient(5) += g6;
 }
 
+typedef std::pair<size_t,float> mypair;
+bool comparator ( const mypair& l, const mypair& r)
+   { return fabs(l.second) < fabs(r.second); }
+
 /*! Get a list of salient points from a list of Jacobians corresponding to a set of 3D points */
 void RegisterDense::getSalientPts(const Eigen::MatrixXf & jacobians, Eigen::VectorXi & salient_pts, const float ratio_salient )
 {
@@ -9916,12 +9922,28 @@ void RegisterDense::getSalientPts(const Eigen::MatrixXf & jacobians, Eigen::Vect
 
    std::vector<float> w(4, 0.2f);
    w.push_back(0.3f);
+   w[2] = 0.1f;
 
-   std::vector<size_t> idx(v.size());
-   for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
+   std::vector<mypair> idx(w.size());
+   for (size_t i = 0; i != idx.size(); ++i)
+   {
+       idx[i].first = i;
+       idx[i].second = w[i];
+   }
+   std::sort( idx.begin(), idx.end(), comparator );
+   std::cout << "ordering:";
+   for (std::vector<mypair>::iterator it=idx.begin(); it!=idx.end(); ++it)
+     std::cout << ' ' << it->first << ":" << it->second;
+   std::cout << '\n';
+
+   mrpt::system::pause();
+
+//   std::vector<size_t> idx(w.size());
+//   for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
 
    // sort indexes based on comparing values in v
-   std::sort( idx.begin(), idx.end(), [&w](size_t i1, size_t i2) {return fabs(w[i1]) > fabs(w[i2]);} );
+   //std::sort( idx.begin(), idx.end(), [&w](size_t i1, size_t i2) -> bool {return w[i1] > w[i2];} );
+
 
 //   const size_t n_pts = jacobians.rows();
 //   const size_t n_salient = floor(ratio_salient * n_pts);
@@ -9932,11 +9954,11 @@ void RegisterDense::getSalientPts(const Eigen::MatrixXf & jacobians, Eigen::Vect
 //   for(size_t i = 0 ; i < 6 ; ++i)
 //   {
 //       //Eigen::VectorXi jacobian_column(jacobians.col(i));
-//       std::vector<float> jacobian_column(&jacobians(0,i), &jacobians(0,i) + n_pts);
-//       std::vector<size_t> idx;
-//             idx =  sort_indexes<float>(jacobian_column);
-//       //std::vector<size_t> idx = sort_indexes_(jacobians.col(i));
-//       sorted_idx.insert( sorted_idx.end(), idx.begin(), idx.end() );
+////       std::vector<float> jacobian_column(&jacobians(0,i), &jacobians(0,i) + n_pts);
+////       std::vector<size_t> idx;
+////             idx =  sort_indexes<float>(jacobian_column);
+//       std::vector<size_t> idx = sort_indexes_<float>(jacobians.col(i));
+//       //sorted_idx.insert( sorted_idx.end(), idx.begin(), idx.end() );
 //   }
 
 //   std::vector<size_t> arranged_idx(n_pts);
