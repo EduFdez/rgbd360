@@ -53,6 +53,9 @@ class RegisterDense
     /*! The Gradient vector of the optimization problem. At the solution it should be zero */
     Eigen::Matrix<float,6,1> gradient;
 
+    Eigen::Matrix<float,3,3> hessian_rot;
+    Eigen::Matrix<float,3,1> gradient_rot;
+
     //    /* Current iteration at the current optimization level.*/
     //    int iter;
 
@@ -555,11 +558,16 @@ public:
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-    void calcHessGrad_sphere(   const int &pyramidLevel,
+    void calcHessGrad_sphere (  const int &pyramidLevel,
                                 const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                 costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
-    void calcHessGradRot_sphere(   const int &pyramidLevel,
+    void calcHessGrad2_sphere ( const int &pyramidLevel,
+                                const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
+                                costFuncType method = PHOTO_CONSISTENCY,
+                                const int side = 0 ); // side is an aproximation parameter, 0 -> optimization starts at the identity and gradients are computed at the source; 1 at the target
+
+    void calcHessGradRot_sphere(const int &pyramidLevel,
                                 const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                 costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
@@ -618,6 +626,14 @@ public:
       * The input parameter occlusion stands for: (0->Regular dense registration, 1->Occlusion1, 2->Occlusion2)
     */
     void register360 ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+                        costFuncType method = PHOTO_CONSISTENCY,
+                        const int occlusion = 0);
+
+    void register360_side ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+                            costFuncType method = PHOTO_CONSISTENCY,
+                            const int occlusion = 0);
+
+    void register360_rot ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                         costFuncType method = PHOTO_CONSISTENCY,
                         const int occlusion = 0);
 
