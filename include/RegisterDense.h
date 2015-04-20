@@ -338,7 +338,7 @@ public:
                                     ); // TODO extend this function to employ only depth
 
     /*! Get a list of salient points from a list of Jacobians corresponding to a set of 3D points */
-    void getSalientPts(const Eigen::MatrixXf & jacobians, std::vector<size_t> & salient_pixels, const float ratio_salient = 0.05f );
+    void getSalientPts(const Eigen::MatrixXf & jacobians, std::vector<size_t> & salient_pixels, const float r_salient = 0.05f );
 
     void trimValidPoints(Eigen::MatrixXf & LUT_xyz, Eigen::VectorXi & validPixels, Eigen::MatrixXf & xyz_transf,
                          Eigen::VectorXi & validPixelsPhoto, Eigen::VectorXi & validPixelsDepth,
@@ -547,15 +547,23 @@ public:
                                             const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                             costFuncType method = PHOTO_CONSISTENCY); //,const bool use_bilinear = false );
 
-    void computeJacobian_sphere(const int &pyramidLevel,
-                                const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+    double computeJacobian_sphere ( const int &pyramidLevel,
+                                    const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
+                                    costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
     void calcHessGrad_sphere(   const int &pyramidLevel,
+                                const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
+                                costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+
+    void calcHessGradRot_sphere(   const int &pyramidLevel,
+                                const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
+                                costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+
+    void calcHessGradIC_sphere( const int &pyramidLevel,
                                 const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                 costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
@@ -776,6 +784,39 @@ public:
         //Eigen::Matrix<float,2,6> jacobianWarpRt;
 
         float dist2 = dist * dist;
+        float x2_z2 = dist2 - xyz(1)*xyz(1);
+        float x2_z2_sqrt = sqrt(x2_z2);
+        float commonDer_c = pixel_angle_inv / x2_z2;
+        float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
+
+        jacobianWarpRt(0,0) = commonDer_c * xyz(2);
+        jacobianWarpRt(0,1) = 0.f;
+        jacobianWarpRt(0,2) = -commonDer_c * xyz(0);
+//        jacobianWarpRt(1,0) = commonDer_r * xyz(0) * xyz(1);
+        jacobianWarpRt(1,1) =-commonDer_r * x2_z2;
+//        jacobianWarpRt(1,2) = commonDer_r * xyz(2) * xyz(1);
+        float commonDer_r_y = commonDer_r * xyz(1);
+        jacobianWarpRt(1,0) = commonDer_r_y * xyz(0);
+        jacobianWarpRt(1,2) = commonDer_r_y * xyz(2);
+
+        jacobianWarpRt(0,3) = jacobianWarpRt(0,2) * xyz(1);
+        jacobianWarpRt(0,4) = jacobianWarpRt(0,0) * xyz(2) - jacobianWarpRt(0,2) * xyz(0);
+        jacobianWarpRt(0,5) =-jacobianWarpRt(0,0) * xyz(1);
+        jacobianWarpRt(1,3) =-jacobianWarpRt(1,1) * xyz(2) + jacobianWarpRt(1,2) * xyz(1);
+        jacobianWarpRt(1,4) = jacobianWarpRt(1,0) * xyz(2) - jacobianWarpRt(1,2) * xyz(0);
+        jacobianWarpRt(1,5) =-jacobianWarpRt(1,0) * xyz(1) + jacobianWarpRt(1,1) * xyz(0);
+
+        //return jacobianWarpRt;
+    }
+
+    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
+    inline void
+    //Eigen::Matrix<float,2,6>
+    computeJacobian26_wT_IC_sphere(const Eigen::Vector3f & xyz, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    {
+        //Eigen::Matrix<float,2,6> jacobianWarpRt;
+
+        float dist2 = xyz.squaredNorm();
         float x2_z2 = dist2 - xyz(1)*xyz(1);
         float x2_z2_sqrt = sqrt(x2_z2);
         float commonDer_c = pixel_angle_inv / x2_z2;
