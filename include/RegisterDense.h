@@ -117,8 +117,11 @@ class RegisterDense
     /*! LUT of 3D points of the source image.*/
     Eigen::MatrixXf LUT_xyz_source;
     Eigen::MatrixXf LUT_xyz_target;
-    Eigen::MatrixXf pts_src_transformed;
-    Eigen::MatrixXf pts_trg_transformed;
+    Eigen::MatrixXf xyz_src_transf;
+    Eigen::MatrixXf xyz_trg_transf;
+
+    std::vector<size_t> salient_pixels_photo;
+    std::vector<size_t> salient_pixels_depth;
 
     /*! Store a copy of the residuals and the weights to speed-up the registration. (Before they were computed twice: in the error function and the Jacobian)*/
     Eigen::MatrixXi warp_img_src;
@@ -131,7 +134,7 @@ class RegisterDense
     Eigen::VectorXf wEstimPhoto_src;
     Eigen::VectorXf wEstimDepth_src;
 
-    /*! If set to true, only the pixels with high gradient in the gray image are used (for both photo and depth minimization) */
+    /*! If set to true, only the pixels with high gradient in the gray image are used (for both photo and depth minimization) */    
     Eigen::VectorXi validPixels_src;
     Eigen::VectorXi visible_pixels_src;
     Eigen::VectorXi validPixelsPhoto_src;
@@ -335,7 +338,11 @@ public:
                                     ); // TODO extend this function to employ only depth
 
     /*! Get a list of salient points from a list of Jacobians corresponding to a set of 3D points */
-    void getSalientPts(const Eigen::MatrixXf & jacobians, Eigen::VectorXi & salient_pts, const float ratio_salient = 0.05f );
+    void getSalientPts(const Eigen::MatrixXf & jacobians, std::vector<size_t> & salient_pixels, const float ratio_salient = 0.05f );
+
+    void trimValidPoints(Eigen::MatrixXf & LUT_xyz, Eigen::VectorXi & validPixels, Eigen::MatrixXf & xyz_transf,
+                         Eigen::VectorXi & validPixelsPhoto, Eigen::VectorXi & validPixelsDepth,
+                         costFuncType method, std::vector<size_t> &salient_pixels_photo, std::vector<size_t> &salient_pixels_depth);
 
     /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
     void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);
@@ -480,6 +487,16 @@ public:
                        const Eigen::Matrix4f poseGuess,
                        costFuncType method = PHOTO_CONSISTENCY );
 
+    /*! Compute the Jacobian matrices which are used to select the salient pixels. */
+    void computeJacobian(const int &pyramidLevel,
+                        const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
+                        costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+
+    /*! Compute the averaged squared error of the salient points. */
+    double computeErrorHessGrad_salient(std::vector<size_t> & salient_pixels_photo,
+                                        std::vector<size_t> & salient_pixels_depth,
+                                        costFuncType method );
+
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
@@ -529,6 +546,10 @@ public:
     double errorDense_sphere_bidirectional (const int &pyramidLevel,
                                             const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                             costFuncType method = PHOTO_CONSISTENCY); //,const bool use_bilinear = false );
+
+    void computeJacobian_sphere(const int &pyramidLevel,
+                                const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
+                                costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
     This is done following the work in:
@@ -591,6 +612,10 @@ public:
     void register360 ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                         costFuncType method = PHOTO_CONSISTENCY,
                         const int occlusion = 0);
+
+    void register360_salientJ ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+                                costFuncType method = PHOTO_CONSISTENCY,
+                                const int occlusion = 0);
 
     void register360_IC(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                         costFuncType method = PHOTO_CONSISTENCY,

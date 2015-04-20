@@ -79,10 +79,7 @@ public:
         CObservation3DRangeScanPtr obsRGBD;  // The RGBD observation
         //CObservation2DRangeScanPtr laserObs;    // Pointer to the laser observation
         const int decimation = 1;
-        int num_observations = 0, num_rgbd360_obs = 0;
-
-
-
+        int num_observations = 0;
 
         while ( CRawlog::getActionObservationPairOrObservation(
                                                      rawlogFile,      // Input file

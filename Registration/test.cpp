@@ -1,9 +1,29 @@
-//// sort algorithm example
-//#include <iostream>     // std::cout
-//#include <algorithm>    // std::sort
-//#include <vector>       // std::vector
+// sort algorithm example
+#include <iostream>     // std::cout
+#include <algorithm>    // std::sort
+#include <vector>       // std::vector
 
-//using namespace std;
+using namespace std;
+
+int main () {
+
+  std::vector<float> v(4, 0.2f);
+  v.push_back(0.3f);
+  v[2] = 0.1f;
+
+  vector<size_t> idx(v.size());
+  for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
+
+  sort(idx.begin(), idx.end(),
+       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
+
+  std::cout << "ordering:";
+  for (std::vector<size_t>::iterator it=idx.begin(); it!=idx.end(); ++it)
+    std::cout << ' ' << *it;
+  std::cout << '\n';
+
+  return 0;
+}
 
 //bool myfunction (int i,int j) { return (i<j); }
 
@@ -76,49 +96,46 @@
 //}
 
 
-// sort algorithm example
-#include <iostream>     // std::cout
-#include <algorithm>    // std::sort
-#include <vector>       // std::vector
-#include <math.h>
+//// sort algorithm example
+//#include <iostream>     // std::cout
+//#include <algorithm>    // std::sort
+//#include <vector>       // std::vector
+//#include <math.h>
 
-using namespace std;
+//using namespace std;
 
-//vector<size_t> sort_indexes(const vector<float> &v) {
+////vector<size_t> sort_indexes(const vector<float> &v) {
 
-//  vector<size_t> idx(v.size());
-//  for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
+////  vector<size_t> idx(v.size());
+////  for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
 
-//  sort(idx.begin(), idx.end(),
-//       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
+////  sort(idx.begin(), idx.end(),
+////       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
 
-//  return idx;
-//}
+////  return idx;
+////}
 
-typedef std::pair<size_t,float> mypair;
-bool comparator ( const mypair& l, const mypair& r)
-   { return (fabs(l.second) > fabs(r.second)); }
+//typedef std::pair<size_t,float> mypair;
+//bool comparator ( const mypair& l, const mypair& r)
+//   { return (fabs(l.second) > fabs(r.second)); }
 
-int main () {
-
-    std::vector<float> w(4, 0.2f);
-    w.push_back(0.3f);
-    w[2] = 0.1f;
-
-    std::vector<mypair> idx(w.size());
-    for (size_t i = 0; i != idx.size(); ++i)
-    {
-        idx[i].first = i;
-        idx[i].second = w[i];
-    }
-    std::sort( idx.begin(), idx.end(), comparator );
-    std::cout << "ordering:";
-    for (std::vector<mypair>::iterator it=idx.begin(); it!=idx.end(); ++it)
-      std::cout << ' ' << it->first << ":" << it->second;
-    std::cout << '\n';
+//int main () {
 
 //  std::vector<float> v(4, 0.2f);
 //  v.push_back(0.3f);
+//  v[2] = 0.1f;
+
+//  //    std::vector<mypair> idx(v.size());
+//  //    for (size_t i = 0; i != idx.size(); ++i)
+//  //    {
+//  //        idx[i].first = i;
+//  //        idx[i].second = v[i];
+//  //    }
+//  //    std::sort( idx.begin(), idx.end(), comparator );
+//  //    std::cout << "ordering:";
+//  //    for (std::vector<mypair>::iterator it=idx.begin(); it!=idx.end(); ++it)
+//  //      std::cout << ' ' << it->first << ":" << it->second;
+//  //    std::cout << '\n';
 
 //  vector<size_t> idx(v.size());
 //  for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
@@ -126,13 +143,13 @@ int main () {
 //  sort(idx.begin(), idx.end(),
 //       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
 
-//  //std::vector<size_t> idx = sort_indexes(v);
+////  //std::vector<size_t> idx = sort_indexes(v);
 
-//  // print out content:
-//  std::cout << "ordering:";
-//  for (std::vector<size_t>::iterator it=idx.begin(); it!=idx.end(); ++it)
-//    std::cout << ' ' << *it;
-//  std::cout << '\n';
+////  // print out content:
+////  std::cout << "ordering:";
+////  for (std::vector<size_t>::iterator it=idx.begin(); it!=idx.end(); ++it)
+////    std::cout << ' ' << *it;
+////  std::cout << '\n';
 
-  return 0;
-}
+//  return 0;
+//}

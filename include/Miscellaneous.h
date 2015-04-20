@@ -283,7 +283,7 @@ T median(std::vector<T> &v)
     return v[n];
 }
 
-///*! Sort a vector and retrieve the indexes of teh sorted values.*/
+///*! Sort a vector and retrieve the indexes of teh sorted values.*/ // This is already in PbMap
 //std::vector<size_t> sort_indexes__(const std::vector<float> & v)
 //{
 //  // initialize original index locations
@@ -297,7 +297,7 @@ T median(std::vector<T> &v)
 //}
 
 //template <typename T>
-//std::vector<size_t> sort_vector(std::vector<T> & v)
+//std::vector<size_t> sort_vector__(std::vector<T> & v)
 //{
 //  // initialize original index locations
 //  std::vector<size_t> idx = sort_indexes(v);
@@ -316,10 +316,10 @@ std::vector<size_t> sort_indexes_(const Eigen::Matrix<T, Eigen::Dynamic, 1> & v)
 {
   // initialize original index locations
   std::vector<size_t> idx(v.size());
-  for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
+  std::iota(idx.begin(), idx.end(), static_cast<size_t>(0));
 
   // sort indexes based on comparing values in v
-  std::sort( idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return fabs(v[i1]) > fabs(v[i2]);} );
+  std::sort( idx.begin(), idx.end(), [&v](const size_t &i1, const size_t &i2) {return fabs(v[i1]) > fabs(v[i2]);} );
 
   return idx;
 }
