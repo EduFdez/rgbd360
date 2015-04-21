@@ -105,11 +105,13 @@ class RegisterDense
     /*! Enable the visualization of the optimization process (only for debug).*/
     bool visualizeIterations;
 
-    /*! Warped intensity image for visualization purposes.*/
-    cv::Mat warped_source_grayImage;
+    /*! Warped intensity image. It is used in the optimization and also for visualization purposes.*/
+    cv::Mat warped_gray;
+    cv::Mat warped_gray_gradX, warped_gray_gradY;
 
-    /*! Warped intensity image for visualization purposes.*/
-    cv::Mat warped_source_depthImage;
+    /*! Warped intensity depth image. It is used in the optimization and also for visualization purposes.*/
+    cv::Mat warped_depth;
+    cv::Mat warped_depth_gradX, warped_depth_gradY;
 
     /*! Vector containing the indices of the pixels that move (forward-backward) or are occluded in the target image to the source image.*/
     cv::Mat mask_dynamic_occlusion;
@@ -542,6 +544,10 @@ public:
                                 const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                 costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
+    double errorDenseWarp_sphere (  const int &pyramidLevel,
+                                    const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
+                                    costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+
     double errorDenseIC_sphere( const int &pyramidLevel,
                                 const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                 costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
@@ -566,7 +572,11 @@ public:
                                 const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                 costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
-    void calcHessGrad2_sphere ( const int &pyramidLevel,
+    void calcHessGrad_warp_sphere ( const int &pyramidLevel,
+                                    const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
+                                    costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+
+    void calcHessGrad_side_sphere ( const int &pyramidLevel,
                                 const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                 costFuncType method = PHOTO_CONSISTENCY,
                                 const int side = 0 ); // side is an aproximation parameter, 0 -> optimization starts at the identity and gradients are computed at the source; 1 at the target

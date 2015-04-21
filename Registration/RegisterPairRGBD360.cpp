@@ -130,6 +130,9 @@ cout << "Create sphere 2\n";
   cout << "Pose Dense \n" << rigidTransf_dense << endl;
   //mrpt::system::pause();
 
+  align360.register360_warp(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  cout << "Pose Dense warp full \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
+
 //  align360.setBilinearInterp(true);
 //  align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //  cout << "Pose Dense Bilinear \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
