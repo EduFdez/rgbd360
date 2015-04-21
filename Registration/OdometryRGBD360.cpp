@@ -155,7 +155,7 @@ public:
         double time_dense_bidirectional = 0.0;
 
         // The reference of the spherical image and the point Clouds are not the same! I should always use the same coordinate system (TODO)
-        float angle_offset = 90;
+        float angle_offset = -90;
         Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(0,0) = rot_offset(1,1) = cos(angle_offset*PI/180); rot_offset(0,1) = -sin(angle_offset*PI/180); rot_offset(1,0) = -rot_offset(0,1);
 
         while( fexists(fileName.c_str()) )

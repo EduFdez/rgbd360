@@ -542,6 +542,10 @@ public:
                                 const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                 costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
+    double errorDenseIC_sphere( const int &pyramidLevel,
+                                const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
+                                costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+
     double errorDenseInv_sphere(const int &pyramidLevel,
                                 const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                 costFuncType method = PHOTO_CONSISTENCY); //,const bool use_bilinear = false );
@@ -628,6 +632,10 @@ public:
     void register360 ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                         costFuncType method = PHOTO_CONSISTENCY,
                         const int occlusion = 0);
+
+    void register360_warp ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+                            costFuncType method = PHOTO_CONSISTENCY,
+                            const int occlusion = 0);
 
     void register360_side ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                             costFuncType method = PHOTO_CONSISTENCY,
@@ -800,39 +808,6 @@ public:
         //Eigen::Matrix<float,2,6> jacobianWarpRt;
 
         float dist2 = dist * dist;
-        float x2_z2 = dist2 - xyz(1)*xyz(1);
-        float x2_z2_sqrt = sqrt(x2_z2);
-        float commonDer_c = pixel_angle_inv / x2_z2;
-        float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
-
-        jacobianWarpRt(0,0) = commonDer_c * xyz(2);
-        jacobianWarpRt(0,1) = 0.f;
-        jacobianWarpRt(0,2) = -commonDer_c * xyz(0);
-//        jacobianWarpRt(1,0) = commonDer_r * xyz(0) * xyz(1);
-        jacobianWarpRt(1,1) =-commonDer_r * x2_z2;
-//        jacobianWarpRt(1,2) = commonDer_r * xyz(2) * xyz(1);
-        float commonDer_r_y = commonDer_r * xyz(1);
-        jacobianWarpRt(1,0) = commonDer_r_y * xyz(0);
-        jacobianWarpRt(1,2) = commonDer_r_y * xyz(2);
-
-        jacobianWarpRt(0,3) = jacobianWarpRt(0,2) * xyz(1);
-        jacobianWarpRt(0,4) = jacobianWarpRt(0,0) * xyz(2) - jacobianWarpRt(0,2) * xyz(0);
-        jacobianWarpRt(0,5) =-jacobianWarpRt(0,0) * xyz(1);
-        jacobianWarpRt(1,3) =-jacobianWarpRt(1,1) * xyz(2) + jacobianWarpRt(1,2) * xyz(1);
-        jacobianWarpRt(1,4) = jacobianWarpRt(1,0) * xyz(2) - jacobianWarpRt(1,2) * xyz(0);
-        jacobianWarpRt(1,5) =-jacobianWarpRt(1,0) * xyz(1) + jacobianWarpRt(1,1) * xyz(0);
-
-        //return jacobianWarpRt;
-    }
-
-    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
-    inline void
-    //Eigen::Matrix<float,2,6>
-    computeJacobian26_wT_IC_sphere(const Eigen::Vector3f & xyz, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
-    {
-        //Eigen::Matrix<float,2,6> jacobianWarpRt;
-
-        float dist2 = xyz.squaredNorm();
         float x2_z2 = dist2 - xyz(1)*xyz(1);
         float x2_z2_sqrt = sqrt(x2_z2);
         float commonDer_c = pixel_angle_inv / x2_z2;
