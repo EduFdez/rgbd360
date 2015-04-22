@@ -472,6 +472,10 @@ public:
         //return weightTDist(error_scaled,dev,5);
     };
 
+    /*! Re-project the source image onto the target one according to the input relative pose 'poseGuess' to compute the error.
+     *  If the parameter 'direction' is -1, then the reprojection is computed from the target to the source images. */
+    double computeReprojError_perspective(const int & pyramidLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY, const int direction = 1);//, const bool use_bilinear = false);
+
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
@@ -536,6 +540,13 @@ public:
 
     void warpImage ( const int &pyramidLevel, const Eigen::Matrix4f &poseGuess, costFuncType method );
 
+    /*! Re-project the source image onto the target one according to the input relative pose 'poseGuess' to compute the error.
+     *  If the parameter 'direction' is -1, then the reprojection is computed from the target to the source images. */
+    double computeReprojError_spherical(const int &pyramidLevel,
+                                        const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
+                                        costFuncType method = PHOTO_CONSISTENCY,
+                                        const int direction = 1 ) ;//,const bool use_bilinear = false );
+
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
@@ -548,6 +559,7 @@ public:
                                     const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                     costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
+    /*! This function do the same as 'errorDense_sphere'. But applying inverse compositional, which only affects the depth error */
     double errorDenseIC_sphere( const int &pyramidLevel,
                                 const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                 costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );

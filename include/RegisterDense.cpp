@@ -3047,6 +3047,1009 @@ void RegisterDense::warpImage(const int &pyramidLevel,
 #endif
 }
 
+/*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
+    This is done following the work in:
+    Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
+    in Computer Vision Workshops (ICCV Workshops), 2011. */
+double RegisterDense::computeReprojError_spherical (  const int &pyramidLevel,
+                                                      const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
+                                                      costFuncType method,
+                                                      const int direction ) //,  const bool use_bilinear )
+{
+    //std::cout << " RegisterDense::errorDense_sphere \n";
+    double error2 = 0.0;
+    double error2_photo = 0.0;
+    double error2_depth = 0.0;
+    size_t numVisiblePts = 0;
+
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t i=0; i<1000; i++)
+    {
+#endif
+
+    assert(direction == 1 || direction == -1);
+
+    const size_t nRows = graySrcPyr[pyramidLevel].rows;
+    const size_t nCols = graySrcPyr[pyramidLevel].cols;
+    const size_t imgSize = graySrcPyr[pyramidLevel].size().area();
+    const float pixel_angle = 2*PI/nCols;
+    const float pixel_angle_inv = 1/pixel_angle;
+    const float half_width = nCols/2 - 0.5f;
+
+    float phi_start = -(0.5f*nRows-0.5f)*pixel_angle;
+//    float phi_start;
+//    if(sensor_type == RGBD360_INDOOR)
+//        phi_start = -(0.5f*nRows-0.5f)*pixel_angle;
+//    else
+//        phi_start = float(174-512)/512 *PI/2 + 0.5f*pixel_angle; // The images must be 640 pixels height to compute the pyramids efficiently (we substract 8 pixels from the top and 7 from the lower part)
+
+    // depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
+    const float stdDevPhoto_inv = 1.f/stdDevPhoto;
+    const float stdDevDepth_inv = 1.f/stdDevDepth;
+
+    const size_t n_pts; // The amount of points to be reprojected (it may be smaller than imgSize if salient points are employed)
+    float *_residualsPhoto, *_residualsDepth, *_stdDevError_inv, *_wEstimPhoto, *_wEstimDepth; // List of residuals and M-Estimator weights to be stored for future operation
+    int *_warp_pixels, *_validPixelsPhoto, *_validPixelsDepth; // List of warped pixel locations
+    float *_warp_img; // (x,y)_warped pixels -> For the bilinear interpolation
+    float *_depthTrgPyr, *_graySrcPyr, *_grayTrgPyr; // Pointers to the data of the source and target images
+    float *_depthSrcGradXPyr, *_depthSrcGradYPyr, *_graySrcGradXPyr, *_graySrcGradYPyr; // Pointers to the image gradients
+    Eigen::MatrixXf &LUT_xyz, &xyz_transf;
+
+    if(direction == 1)
+    {
+        n_pts = LUT_xyz_source.rows();
+        //cout << "n_pts " << n_pts << " / " << imgSize << endl;
+
+        //transformPts3D(LUT_xyz_source, poseGuess, xyz_src_transf);
+        transformPts3D_sse(LUT_xyz_source, poseGuess, xyz_src_transf);
+        LUT_xyz = LUT_xyz_source;
+        xyz_transf = xyz_src_transf;
+
+        residualsPhoto_src.resize(n_pts);
+        residualsDepth_src.resize(n_pts);
+        stdDevError_inv_src.resize(n_pts);
+        wEstimPhoto_src.resize(n_pts);
+        wEstimDepth_src.resize(n_pts);
+        warp_pixels_src = Eigen::VectorXi::Constant(n_pts,-1);
+        //visible_pixels_src = Eigen::VectorXi::Zero(n_pts);
+        validPixelsPhoto_src = Eigen::VectorXi::Zero(n_pts);
+        validPixelsDepth_src = Eigen::VectorXi::Zero(n_pts);
+
+        *_residualsPhoto = &residualsPhoto_src(0);
+        *_residualsDepth = &residualsDepth_src(0);
+        *_stdDevError_inv = &stdDevError_inv_src(0);
+        *_wEstimPhoto = &wEstimPhoto_src(0);
+        *_wEstimDepth = &wEstimDepth_src(0);
+        *_warp_pixels = &warp_pixels_src(0);
+        *_validPixelsPhoto = &validPixelsPhoto_src(0);
+        *_validPixelsDepth = &validPixelsDepth_src(0);
+        if( use_bilinear_ && pyramidLevel ==0 )
+        {
+            warp_img_src.resize(2,n_pts);
+            _warp_img = &warp_img_src(0,0);
+        }
+
+        _depthTrgPyr = reinterpret_cast<float*>(depthTrgPyr[pyramidLevel].data);
+        _graySrcPyr = reinterpret_cast<float*>(graySrcPyr[pyramidLevel].data);
+        _grayTrgPyr = reinterpret_cast<float*>(grayTrgPyr[pyramidLevel].data);
+
+        //    _depthTrgGradXPyr = reinterpret_cast<float*>(depthTrgGradXPyr[pyramidLevel].data);
+        //    _depthTrgGradYPyr = reinterpret_cast<float*>(depthTrgGradYPyr[pyramidLevel].data);
+        //    _grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyramidLevel].data);
+        //    _grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyramidLevel].data);
+
+        _depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyramidLevel].data);
+        _depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyramidLevel].data);
+        _graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyramidLevel].data);
+        _graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyramidLevel].data);
+    }
+    else
+    {
+        n_pts = LUT_xyz_target.rows();
+        //cout << "n_pts " << n_pts << " / " << imgSize << endl;
+
+        transformPts3D_sse(LUT_xyz_target, poseGuess.inverse(), xyz_trg_transf);
+        LUT_xyz = LUT_xyz_target;
+        xyz_transf = xyz_trg_transf;
+
+        residualsPhoto_trg.resize(n_pts);
+        residualsDepth_trg.resize(n_pts);
+        stdDevError_inv_trg.resize(n_pts);
+        wEstimPhoto_trg.resize(n_pts);
+        wEstimDepth_trg.resize(n_pts);
+        warp_pixels_trg = Eigen::VectorXi::Constant(n_pts,-1);
+        //visible_pixels_trg = Eigen::VectorXi::Zero(n_pts);
+        validPixelsPhoto_trg = Eigen::VectorXi::Zero(n_pts);
+        validPixelsDepth_trg = Eigen::VectorXi::Zero(n_pts);
+
+        *_residualsPhoto = &residualsPhoto_trg(0);
+        *_residualsDepth = &residualsDepth_trg(0);
+        *_stdDevError_inv = &stdDevError_inv_trg(0);
+        *_wEstimPhoto = &wEstimPhoto_trg(0);
+        *_wEstimDepth = &wEstimDepth_trg(0);
+        *_warp_pixels = &warp_pixels_trg(0);
+        *_validPixelsPhoto = &validPixelsPhoto_trg(0);
+        *_validPixelsDepth = &validPixelsDepth_trg(0);
+        if( use_bilinear_ && pyramidLevel ==0 )
+        {
+            warp_img_trg.resize(2,n_pts);
+            _warp_img = &warp_img_trg(0,0);
+        }
+
+        // The cource and target references are all inverted following pointers
+        _depthTrgPyr = reinterpret_cast<float*>(depthSrcPyr[pyramidLevel].data);
+        _graySrcPyr = reinterpret_cast<float*>(grayTrgPyr[pyramidLevel].data);
+        _grayTrgPyr = reinterpret_cast<float*>(graySrcPyr[pyramidLevel].data);
+
+        //    _depthTrgGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyramidLevel].data);
+        //    _depthTrgGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyramidLevel].data);
+        //    _grayTrgGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyramidLevel].data);
+        //    _grayTrgGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyramidLevel].data);
+
+        _depthSrcGradXPyr = reinterpret_cast<float*>(depthTrgGradXPyr[pyramidLevel].data);
+        _depthSrcGradYPyr = reinterpret_cast<float*>(depthTrgGradYPyr[pyramidLevel].data);
+        _graySrcGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyramidLevel].data);
+        _graySrcGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyramidLevel].data);
+    }
+
+    // Container to compute the MAD, which is used to update the intensity (or brightness) standard deviation
+    //std::vector<float> v_AD_intensity_(imgSize);
+
+    if(method == PHOTO_DEPTH)
+    {
+        if(use_salient_pixels_)
+        {
+            if( !use_bilinear_ || pyramidLevel !=0 )
+            {
+                //std::cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << std::endl;
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+                for(size_t i=0; i < n_pts; i++)
+                {
+                    //Transform the 3D point using the transformation matrix Rt
+                    Eigen::Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
+                    // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << xyz_transf.block(i,0,1,3) << endl;
+
+                    //Project the 3D point to the S2 sphere
+                    float dist = xyz.norm();
+                    float dist_inv = 1.f / dist;
+                    float phi = asin(xyz(1)*dist_inv);
+                    //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
+                    int transformed_r_int = int(round((phi-phi_start)*pixel_angle_inv));
+                    // std::cout << "Pixel transform " << i << " transformed_r_int " << transformed_r_int << " " << nRows << std::endl;
+                    //Asign the intensity value to the warped image and compute the difference between the transformed
+                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                    if( transformed_r_int>=0 && transformed_r_int < nRows) // && transformed_c_int < nCols )
+                    {
+                        ++numVisiblePts;
+                        //visible_pixels(i) = 1;
+                        float theta = atan2(xyz(0),xyz(2));
+                        int transformed_c_int = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
+                        size_t warped_i = transformed_r_int * nCols + transformed_c_int;
+                        _warp_pixels[i] = warped_i;
+
+                        //Obtain the pixel values that will be used to compute the pixel residual
+                        //if( fabs(_graySrcGradXPyr[_validPixels[i]]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[_validPixels[i]]) > thres_saliency_gray_)
+                        {
+                            _validPixelsPhoto[i] = 1;
+                            // float intensity = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                            float diff = _grayTrgPyr[warped_i] - _graySrcPyr[_validPixels[i]];
+                            _residualsPhoto[i] = diff * stdDevPhoto_inv;
+                            _wEstimPhoto[i] = weightMEstimator(_residualsPhoto[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                            error2_photo += _wEstimPhoto[i] * _residualsPhoto[i] * _residualsPhoto[i];
+                            //                            std::cout << i << " " << _validPixels[i] << " warped_i " << warped_i << " error2_photo " << error2_photo << " residualsPhoto " << _residualsPhoto[i] << " weight_estim " << _wEstimPhoto[i] << std::endl;
+                            //                            std::cout << " _grayTrgPyr[warped_i] " << _grayTrgPyr[warped_i] << " _graySrcPyr[_validPixels[i]] " << _graySrcPyr[_validPixels[i]] << std::endl;
+                            //                            mrpt::system::pause();
+                            //v_AD_intensity[i] = fabs(diff);
+                        }
+
+                        //float depth = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                        float depth = _depthTrgPyr[warped_i];
+                        if(depth > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
+                        {
+                            //Obtain the depth values that will be used to the compute the depth residual
+                            //if( fabs(_depthSrcGradXPyr[_validPixels[i]]) > thres_saliency_depth_ || fabs(_depthSrcGradYPyr[_validPixels[i]]) > thres_saliency_depth_)
+                            {
+                                _validPixelsDepth[i] = 1;
+                                _stdDevError_inv[i] = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+
+                                _residualsDepth[i] = (depth - dist) * _stdDevError_inv[i];
+
+                                _wEstimDepth[i] = weightMEstimator(_residualsDepth[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                error2_depth += _wEstimDepth[i] * _residualsDepth[i] * _residualsDepth[i];
+                                //std::cout << i << " error2_depth " << error2_depth << " wDepthError " << _residualsDepth[i] << " weight_estim " << _wEstimDepth[i] << std::endl;
+                            }
+                        }
+                    }
+                }
+            }
+            else // BILINEAR
+            {
+                const float nCols_1 = nCols-1;
+                std::cout << " BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION \n " << std::endl;
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+                for(size_t i=0; i < xyz_transf.rows(); i++)
+                {
+                    Eigen::Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
+                    // cout << "3D pts " << xyz.transpose() << " transformed " << xyz.transpose() << endl;
+
+                    //Project the 3D point to the S2 sphere
+                    float dist = xyz.norm();
+                    float dist_inv = 1.f / dist;
+                    float phi = asin(xyz(1)*dist_inv);
+                    float transformed_r = (phi-phi_start)*pixel_angle_inv;
+                    int transformed_r_int = round(transformed_r);
+                    //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
+                    // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
+
+                    //Asign the intensity value to the warped image and compute the difference between the transformed
+                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                    if( transformed_r>=0 && transformed_r < nRows) // && transformed_c_int < nCols )
+                    {
+                        ++numVisiblePts;
+                        //_visible_pixels[i] = 1;
+                        float theta = atan2(xyz(0),xyz(2));
+                        float transformed_c = half_width + theta*pixel_angle_inv;
+                        if(transformed_c > nCols_1);
+                        continue;
+                        int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
+                        size_t warped_i = transformed_r_int * nCols + transformed_c_int;
+                        _warp_pixels[i] = warped_i;
+                        _warp_img[2*i] = transformed_r;
+                        _warp_img[2*i+1] = transformed_c;
+                        cv::Point2f warped_pixel(transformed_r,transformed_c);
+                        // std::cout << "Pixel transform_ " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << " " << nRows << "x" << nCols << " n_pts " << n_pts << endl;
+                        // assert(transformed_c_int >= 0 && transformed_c_int < nCols);
+
+
+                        // std::cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
+                        // For higher performance: Interpolation is not applied here (only when computing the Hessian)
+                        //if( fabs(_graySrcGradXPyr[_validPixels[i]]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[_validPixels[i]]) > thres_saliency_gray_)
+                        {
+                            _validPixelsPhoto[i] = 1;
+                            float intensity = bilinearInterp( grayTrgPyr[pyramidLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                            float diff = intensity - _graySrcPyr[i];
+                            _residualsPhoto[i] = diff * stdDevPhoto_inv;
+                            _wEstimPhoto[i] = weightMEstimator(_residualsPhoto[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                            error2_photo += _wEstimPhoto[i] * _residualsPhoto[i] * _residualsPhoto[i];
+                            //std::cout << i << " error2_photo " << error2_photo << " wDepthPhoto " << _residualsPhoto[i] << " weight_estim " << _wEstimPhoto[i] << std::endl;
+                            //v_AD_intensity[i] = fabs(diff);
+                            //++n_ptsPhoto;
+                        }
+
+                        float depth = bilinearInterp_depth( grayTrgPyr[pyramidLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                        if(depth > min_depth_) // Make sure this point has depth (not a NaN)
+                        {
+                            // std::cout << thres_saliency_depth_ << " Grad-Depth " << fabs(depthTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(depthTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
+                            //if( fabs(_depthTrgGradXPyr[warped_i]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warped_i]) > thres_saliency_depth_)
+                            //if( fabs(_depthSrcGradXPyr[_validPixels[i]]) > thres_saliency_depth_ || fabs(_depthSrcGradYPyr[_validPixels[i]]) > thres_saliency_depth_)
+                            {
+                                //Obtain the depth values that will be used to the compute the depth residual
+                                _validPixelsDepth[i] = 1;
+                                _stdDevError_inv[i] = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                _residualsDepth[i] = (depth - dist) * _stdDevError_inv[i];
+                                _wEstimDepth[i] = weightMEstimator(_residualsDepth[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                error2_depth += _wEstimDepth[i] * _residualsDepth[i] * _residualsDepth[i];
+                                // std::cout << i << " error2 " << error2 << " wDepthError " << weightedError << " weight_estim " << weight_estim << " diff " << diff << " " << stdDevError << std::endl;
+                                //++n_ptsDepth;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            if( !use_bilinear_ || pyramidLevel !=0 )
+            {
+                // std::cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.size() << std::endl;
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+                for(size_t i=0; i < xyz_transf.rows(); i++)
+                {
+                    if( _validPixels[i] ) //Compute the jacobian only for the valid points
+                    {
+                        //Transform the 3D point using the transformation matrix Rt
+                        Eigen::Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
+                        // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << xyz_transf.block(i,0,1,3) << endl;
+
+                        //Project the 3D point to the S2 sphere
+                        float dist = xyz.norm();
+                        float dist_inv = 1.f / dist;
+                        float phi = asin(xyz(1)*dist_inv);
+                        //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
+                        int transformed_r_int = int(round((phi-phi_start)*pixel_angle_inv));
+                        // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
+                        //Asign the intensity value to the warped image and compute the difference between the transformed
+                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                        if( transformed_r_int>=0 && transformed_r_int < nRows) // && transformed_c_int < nCols )
+                        {
+                            //_visible_pixels[i] = 1;
+                            float theta = atan2(xyz(0),xyz(2));
+                            int transformed_c_int = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
+                            size_t warped_i = transformed_r_int * nCols + transformed_c_int;
+                            _warp_pixels[i] = warped_i;
+                            //if(compute_MAD_stdDev_)
+                            //    v_AD_intensity[i] = fabs(_grayTrgPyr[warped_i] - _graySrcPyr[i]);
+                            ++numVisiblePts;
+
+                            // std::cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
+                            //if( fabs(_grayTrgGradXPyr[warped_i]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warped_i]) > thres_saliency_gray_)
+                            //if( fabs(_graySrcGradXPyr[i]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[i]) > thres_saliency_gray_)
+                            if( fabs(_graySrcGradXPyr[i]) > 0.f || fabs(_graySrcGradYPyr[i]) > 0.f)
+                            {
+                                //Obtain the pixel values that will be used to compute the pixel residual
+                                // float intensity = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                                _validPixelsPhoto[i] = 1;
+                                float diff = _grayTrgPyr[warped_i] - _graySrcPyr[i];
+                                _residualsPhoto[i] = diff * stdDevPhoto_inv;
+                                _wEstimPhoto[i] = weightMEstimator(_residualsPhoto[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                error2_photo += _wEstimPhoto[i] * _residualsPhoto[i] * _residualsPhoto[i];
+                                //                                std::cout << i << " " << _validPixels[i] << " error2_photo " << error2_photo << " wDepthPhoto " << _residualsPhoto[i] << " i " << i << " w " << warped_i << " c " << transformed_c_int << " " << theta*pixel_angle_inv << " theta " << theta << " weight_estim " << _wEstimPhoto[i] << std::endl;
+                                //                                std::cout << " _grayTrgPyr[warped_i] " << _grayTrgPyr[warped_i] << " _graySrcPyr[i] " << _graySrcPyr[i] << std::endl;
+                                //                                mrpt::system::pause();
+
+                                //v_AD_intensity[i] = fabs(diff);
+                                //++n_ptsPhoto;
+                            }
+
+                            //float depth = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                            float depth = _depthTrgPyr[warped_i];
+                            if(depth > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
+                            {
+                                //if( fabs(_depthTrgGradXPyr[warped_i]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warped_i]) > thres_saliency_depth_)
+                                //if( fabs(_depthSrcGradXPyr[i]) > thres_saliency_depth_ || fabs(_depthSrcGradYPyr[i]) > thres_saliency_depth_)
+                                if( fabs(_depthSrcGradXPyr[i]) > 0.f || fabs(_depthSrcGradYPyr[i]) > 0.f )
+                                {
+                                    //Obtain the depth values that will be used to the compute the depth residual
+                                    _validPixelsDepth[i] = 1;
+                                    _stdDevError_inv[i] = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                    _residualsDepth[i] = (depth - dist) * _stdDevError_inv[i];
+                                    _wEstimDepth[i] = weightMEstimator(_residualsDepth[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                    error2_depth += _wEstimDepth[i] * _residualsDepth[i] * _residualsDepth[i];
+                                    // std::cout << i << " error2 " << error2 << " wDepthError " << weightedError << " weight_estim " << weight_estim << " diff " << diff << " " << stdDevError << std::endl;
+
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                std::cout << " BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION \n " << std::endl;
+                const float nCols_1 = nCols-1;
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+                for(size_t i=0; i < xyz_transf.rows(); i++)
+                {
+                    //Compute the 3D coordinates of the pij of the source frame
+                    if( _validPixels[i] ) //Compute the jacobian only for the valid points
+                    {
+                        Eigen::Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
+                        // cout << "3D pts " << xyz.transpose() << " transformed " << xyz.transpose() << endl;
+
+                        //Project the 3D point to the S2 sphere
+                        float dist = xyz.norm();
+                        float dist_inv = 1.f / dist;
+                        float phi = asin(xyz(1)*dist_inv);
+                        float transformed_r = (phi-phi_start)*pixel_angle_inv;
+                        int transformed_r_int = round(transformed_r);
+                        //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
+                        // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
+
+                        //Asign the intensity value to the warped image and compute the difference between the transformed
+                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                        if( transformed_r>=0 && transformed_r < nRows) // && transformed_c_int < nCols )
+                        {
+                            //_visible_pixels[i] = 1;
+                            ++numVisiblePts;
+                            float theta = atan2(xyz(0),xyz(2));
+                            float transformed_c = half_width + theta*pixel_angle_inv; assert(transformed_c <= nCols_1); //transformed_c -= half_width;
+                            int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
+                            size_t warped_i = transformed_r_int * nCols + transformed_c_int;
+                            _warp_pixels[i] = warped_i;
+                            _warp_img[2*i] = transformed_r;
+                            _warp_img[2*i+1] = transformed_c;
+                            cv::Point2f warped_pixel(transformed_r,transformed_c);
+                            // std::cout << "Pixel transform_ " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << " " << nRows << "x" << nCols << " n_pts " << n_pts << endl;
+                            // assert(transformed_c_int >= 0 && transformed_c_int < nCols);
+
+                            // std::cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
+                            // For higher performance: Interpolation is not applied here (only when computing the Hessian)
+                            //if( fabs(_grayTrgGradXPyr[warped_i]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warped_i]) > thres_saliency_gray_)
+                            //if( fabs(_graySrcGradXPyr[i]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[i]) > thres_saliency_gray_)
+                            {
+                                _validPixelsPhoto[i] = 1;
+                                float intensity = bilinearInterp( grayTrgPyr[pyramidLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                                float diff = intensity - _graySrcPyr[i];
+                                _residualsPhoto[i] = diff * stdDevPhoto_inv;
+                                _wEstimPhoto[i] = weightMEstimator(_residualsPhoto[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                error2_photo += _wEstimPhoto[i] * _residualsPhoto[i] * _residualsPhoto[i];
+                                // std::cout << i << " error2 " << error2 << " wEPhoto " << weightedError << " weight_estim " << weight_estim << " diff " << diff << " " << stdDevPhoto << std::endl;
+                                //v_AD_intensity[i] = fabs(diff);
+                                //++n_ptsPhoto;
+                            }
+
+                            float depth = bilinearInterp_depth( grayTrgPyr[pyramidLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                            if(depth > min_depth_) // Make sure this point has depth (not a NaN)
+                            {
+                                // std::cout << thres_saliency_depth_ << " Grad-Depth " << fabs(depthTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(depthTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
+                                //if( fabs(_depthTrgGradXPyr[warped_i]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warped_i]) > thres_saliency_depth_)
+                                //if( fabs(_depthSrcGradXPyr[i]) > thres_saliency_depth_ || fabs(_depthSrcGradYPyr[i]) > thres_saliency_depth_)
+                                {
+                                    //Obtain the depth values that will be used to the compute the depth residual
+                                    _validPixelsDepth[i] = 1;
+                                    _stdDevError_inv[i] = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                    _residualsDepth[i] = (depth - dist) * _stdDevError_inv[i];
+                                    _wEstimDepth[i] = weightMEstimator(_residualsDepth[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                    error2_depth += _wEstimDepth[i] * _residualsDepth[i] * _residualsDepth[i];
+                                    // std::cout << i << " error2 " << error2 << " wDepthError " << weightedError << " weight_estim " << weight_estim << " diff " << diff << " " << stdDevError << std::endl;
+                                    //++n_ptsDepth;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    else if(method == PHOTO_CONSISTENCY)
+    {
+        if(use_salient_pixels_)
+        {
+            if( !use_bilinear_ || pyramidLevel !=0 )
+            {
+                //std::cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << std::endl;
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+                for(size_t i=0; i < n_pts; i++)
+                {
+                    //Transform the 3D point using the transformation matrix Rt
+                    Eigen::Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
+                    // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << xyz_transf.block(i,0,1,3) << endl;
+
+                    //Project the 3D point to the S2 sphere
+                    float dist = xyz.norm();
+                    float dist_inv = 1.f / dist;
+                    float phi = asin(xyz(1)*dist_inv);
+                    //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
+                    int transformed_r_int = int(round((phi-phi_start)*pixel_angle_inv));
+                    // std::cout << "Pixel transform " << i << " transformed_r_int " << transformed_r_int << " " << nRows << std::endl;
+                    //Asign the intensity value to the warped image and compute the difference between the transformed
+                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                    if( transformed_r_int>=0 && transformed_r_int < nRows) // && transformed_c_int < nCols )
+                    {
+                        ++numVisiblePts;
+                        //visible_pixels(i) = 1;
+                        float theta = atan2(xyz(0),xyz(2));
+                        int transformed_c_int = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
+                        size_t warped_i = transformed_r_int * nCols + transformed_c_int;
+                        _warp_pixels[i] = warped_i;
+
+                        //Obtain the pixel values that will be used to compute the pixel residual
+                        //if( fabs(_graySrcGradXPyr[_validPixels[i]]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[_validPixels[i]]) > thres_saliency_gray_)
+                        {
+                            _validPixelsPhoto[i] = 1;
+                            // float intensity = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                            float diff = _grayTrgPyr[warped_i] - _graySrcPyr[_validPixels[i]];
+                            _residualsPhoto[i] = diff * stdDevPhoto_inv;
+                            _wEstimPhoto[i] = weightMEstimator(_residualsPhoto[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                            error2_photo += _wEstimPhoto[i] * _residualsPhoto[i] * _residualsPhoto[i];
+                            //                            std::cout << i << " " << _validPixels[i] << " warped_i " << warped_i << " error2_photo " << error2_photo << " residualsPhoto " << _residualsPhoto[i] << " weight_estim " << _wEstimPhoto[i] << std::endl;
+                            //                            std::cout << " _grayTrgPyr[warped_i] " << _grayTrgPyr[warped_i] << " _graySrcPyr[_validPixels[i]] " << _graySrcPyr[_validPixels[i]] << std::endl;
+                            //                            mrpt::system::pause();
+                            //v_AD_intensity[i] = fabs(diff);
+                        }
+                    }
+                }
+            }
+            else // BILINEAR
+            {
+                const float nCols_1 = nCols-1;
+                std::cout << " BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION \n " << std::endl;
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+                for(size_t i=0; i < xyz_transf.rows(); i++)
+                {
+                    Eigen::Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
+                    // cout << "3D pts " << xyz.transpose() << " transformed " << xyz.transpose() << endl;
+
+                    //Project the 3D point to the S2 sphere
+                    float dist = xyz.norm();
+                    float dist_inv = 1.f / dist;
+                    float phi = asin(xyz(1)*dist_inv);
+                    float transformed_r = (phi-phi_start)*pixel_angle_inv;
+                    int transformed_r_int = round(transformed_r);
+                    //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
+                    // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
+
+                    //Asign the intensity value to the warped image and compute the difference between the transformed
+                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                    if( transformed_r>=0 && transformed_r < nRows) // && transformed_c_int < nCols )
+                    {
+                        ++numVisiblePts;
+                        //_visible_pixels[i] = 1;
+                        float theta = atan2(xyz(0),xyz(2));
+                        float transformed_c = half_width + theta*pixel_angle_inv;
+                        if(transformed_c > nCols_1);
+                        continue;
+                        int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
+                        size_t warped_i = transformed_r_int * nCols + transformed_c_int;
+                        _warp_pixels[i] = warped_i;
+                        _warp_img[2*i] = transformed_r;
+                        _warp_img[2*i+1] = transformed_c;
+                        cv::Point2f warped_pixel(transformed_r,transformed_c);
+                        // std::cout << "Pixel transform_ " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << " " << nRows << "x" << nCols << " n_pts " << n_pts << endl;
+                        // assert(transformed_c_int >= 0 && transformed_c_int < nCols);
+
+
+                        // std::cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
+                        // For higher performance: Interpolation is not applied here (only when computing the Hessian)
+                        //if( fabs(_graySrcGradXPyr[_validPixels[i]]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[_validPixels[i]]) > thres_saliency_gray_)
+                        {
+                            _validPixelsPhoto[i] = 1;
+                            float intensity = bilinearInterp( grayTrgPyr[pyramidLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                            float diff = intensity - _graySrcPyr[i];
+                            _residualsPhoto[i] = diff * stdDevPhoto_inv;
+                            _wEstimPhoto[i] = weightMEstimator(_residualsPhoto[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                            error2_photo += _wEstimPhoto[i] * _residualsPhoto[i] * _residualsPhoto[i];
+                            //std::cout << i << " error2_photo " << error2_photo << " wDepthPhoto " << _residualsPhoto[i] << " weight_estim " << _wEstimPhoto[i] << std::endl;
+                            //v_AD_intensity[i] = fabs(diff);
+                            //++n_ptsPhoto;
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            if( !use_bilinear_ || pyramidLevel !=0 )
+            {
+                // std::cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.size() << std::endl;
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+                for(size_t i=0; i < xyz_transf.rows(); i++)
+                {
+                    if( _validPixels[i] ) //Compute the jacobian only for the valid points
+                    {
+                        //Transform the 3D point using the transformation matrix Rt
+                        Eigen::Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
+                        // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << xyz_transf.block(i,0,1,3) << endl;
+
+                        //Project the 3D point to the S2 sphere
+                        float dist = xyz.norm();
+                        float dist_inv = 1.f / dist;
+                        float phi = asin(xyz(1)*dist_inv);
+                        //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
+                        int transformed_r_int = int(round((phi-phi_start)*pixel_angle_inv));
+                        // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
+                        //Asign the intensity value to the warped image and compute the difference between the transformed
+                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                        if( transformed_r_int>=0 && transformed_r_int < nRows) // && transformed_c_int < nCols )
+                        {
+                            //_visible_pixels[i] = 1;
+                            float theta = atan2(xyz(0),xyz(2));
+                            int transformed_c_int = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
+                            size_t warped_i = transformed_r_int * nCols + transformed_c_int;
+                            _warp_pixels[i] = warped_i;
+                            //if(compute_MAD_stdDev_)
+                            //    v_AD_intensity[i] = fabs(_grayTrgPyr[warped_i] - _graySrcPyr[i]);
+                            ++numVisiblePts;
+
+                            // std::cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
+                            //if( fabs(_grayTrgGradXPyr[warped_i]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warped_i]) > thres_saliency_gray_)
+                            //if( fabs(_graySrcGradXPyr[i]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[i]) > thres_saliency_gray_)
+                            if( fabs(_graySrcGradXPyr[i]) > 0.f || fabs(_graySrcGradYPyr[i]) > 0.f)
+                            {
+                                //Obtain the pixel values that will be used to compute the pixel residual
+                                // float intensity = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                                _validPixelsPhoto[i] = 1;
+                                float diff = _grayTrgPyr[warped_i] - _graySrcPyr[i];
+                                _residualsPhoto[i] = diff * stdDevPhoto_inv;
+                                _wEstimPhoto[i] = weightMEstimator(_residualsPhoto[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                error2_photo += _wEstimPhoto[i] * _residualsPhoto[i] * _residualsPhoto[i];
+                                //                                std::cout << i << " " << _validPixels[i] << " error2_photo " << error2_photo << " wDepthPhoto " << _residualsPhoto[i] << " i " << i << " w " << warped_i << " c " << transformed_c_int << " " << theta*pixel_angle_inv << " theta " << theta << " weight_estim " << _wEstimPhoto[i] << std::endl;
+                                //                                std::cout << " _grayTrgPyr[warped_i] " << _grayTrgPyr[warped_i] << " _graySrcPyr[i] " << _graySrcPyr[i] << std::endl;
+                                //                                mrpt::system::pause();
+
+                                //v_AD_intensity[i] = fabs(diff);
+                                //++n_ptsPhoto;
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                std::cout << " BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION \n " << std::endl;
+                const float nCols_1 = nCols-1;
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+                for(size_t i=0; i < xyz_transf.rows(); i++)
+                {
+                    //Compute the 3D coordinates of the pij of the source frame
+                    if( _validPixels[i] ) //Compute the jacobian only for the valid points
+                    {
+                        Eigen::Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
+                        // cout << "3D pts " << xyz.transpose() << " transformed " << xyz.transpose() << endl;
+
+                        //Project the 3D point to the S2 sphere
+                        float dist = xyz.norm();
+                        float dist_inv = 1.f / dist;
+                        float phi = asin(xyz(1)*dist_inv);
+                        float transformed_r = (phi-phi_start)*pixel_angle_inv;
+                        int transformed_r_int = round(transformed_r);
+                        //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
+                        // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
+
+                        //Asign the intensity value to the warped image and compute the difference between the transformed
+                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                        if( transformed_r>=0 && transformed_r < nRows) // && transformed_c_int < nCols )
+                        {
+                            //_visible_pixels[i] = 1;
+                            ++numVisiblePts;
+                            float theta = atan2(xyz(0),xyz(2));
+                            float transformed_c = half_width + theta*pixel_angle_inv; assert(transformed_c <= nCols_1); //transformed_c -= half_width;
+                            int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
+                            size_t warped_i = transformed_r_int * nCols + transformed_c_int;
+                            _warp_pixels[i] = warped_i;
+                            _warp_img[2*i] = transformed_r;
+                            _warp_img[2*i+1] = transformed_c;
+                            cv::Point2f warped_pixel(transformed_r,transformed_c);
+                            // std::cout << "Pixel transform_ " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << " " << nRows << "x" << nCols << " n_pts " << n_pts << endl;
+                            // assert(transformed_c_int >= 0 && transformed_c_int < nCols);
+
+                            // std::cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
+                            // For higher performance: Interpolation is not applied here (only when computing the Hessian)
+                            //if( fabs(_grayTrgGradXPyr[warped_i]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warped_i]) > thres_saliency_gray_)
+                            //if( fabs(_graySrcGradXPyr[i]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[i]) > thres_saliency_gray_)
+                            {
+                                _validPixelsPhoto[i] = 1;
+                                float intensity = bilinearInterp( grayTrgPyr[pyramidLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                                float diff = intensity - _graySrcPyr[i];
+                                _residualsPhoto[i] = diff * stdDevPhoto_inv;
+                                _wEstimPhoto[i] = weightMEstimator(_residualsPhoto[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                error2_photo += _wEstimPhoto[i] * _residualsPhoto[i] * _residualsPhoto[i];
+                                // std::cout << i << " error2 " << error2 << " wEPhoto " << weightedError << " weight_estim " << weight_estim << " diff " << diff << " " << stdDevPhoto << std::endl;
+                                //v_AD_intensity[i] = fabs(diff);
+                                //++n_ptsPhoto;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    else if(method == DEPTH_CONSISTENCY)
+    {
+        if(use_salient_pixels_)
+        {
+            if( !use_bilinear_ || pyramidLevel !=0 )
+            {
+                //std::cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << std::endl;
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+                for(size_t i=0; i < n_pts; i++)
+                {
+                    //Transform the 3D point using the transformation matrix Rt
+                    Eigen::Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
+                    // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << xyz_transf.block(i,0,1,3) << endl;
+
+                    //Project the 3D point to the S2 sphere
+                    float dist = xyz.norm();
+                    float dist_inv = 1.f / dist;
+                    float phi = asin(xyz(1)*dist_inv);
+                    //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
+                    int transformed_r_int = int(round((phi-phi_start)*pixel_angle_inv));
+                    // std::cout << "Pixel transform " << i << " transformed_r_int " << transformed_r_int << " " << nRows << std::endl;
+                    //Asign the intensity value to the warped image and compute the difference between the transformed
+                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                    if( transformed_r_int>=0 && transformed_r_int < nRows) // && transformed_c_int < nCols )
+                    {
+                        ++numVisiblePts;
+                        //visible_pixels(i) = 1;
+                        float theta = atan2(xyz(0),xyz(2));
+                        int transformed_c_int = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
+                        size_t warped_i = transformed_r_int * nCols + transformed_c_int;
+                        _warp_pixels[i] = warped_i;
+
+                        //Obtain the pixel values that will be used to compute the pixel residual
+                        //if( fabs(_graySrcGradXPyr[_validPixels[i]]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[_validPixels[i]]) > thres_saliency_gray_)
+                        {
+                            _validPixelsPhoto[i] = 1;
+                            // float intensity = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                            float diff = _grayTrgPyr[warped_i] - _graySrcPyr[_validPixels[i]];
+                            _residualsPhoto[i] = diff * stdDevPhoto_inv;
+                            _wEstimPhoto[i] = weightMEstimator(_residualsPhoto[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                            error2_photo += _wEstimPhoto[i] * _residualsPhoto[i] * _residualsPhoto[i];
+                            //                            std::cout << i << " " << _validPixels[i] << " warped_i " << warped_i << " error2_photo " << error2_photo << " residualsPhoto " << _residualsPhoto[i] << " weight_estim " << _wEstimPhoto[i] << std::endl;
+                            //                            std::cout << " _grayTrgPyr[warped_i] " << _grayTrgPyr[warped_i] << " _graySrcPyr[_validPixels[i]] " << _graySrcPyr[_validPixels[i]] << std::endl;
+                            //                            mrpt::system::pause();
+                            //v_AD_intensity[i] = fabs(diff);
+                        }
+
+                        //float depth = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                        float depth = _depthTrgPyr[warped_i];
+                        if(depth > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
+                        {
+                            //Obtain the depth values that will be used to the compute the depth residual
+                            //if( fabs(_depthSrcGradXPyr[_validPixels[i]]) > thres_saliency_depth_ || fabs(_depthSrcGradYPyr[_validPixels[i]]) > thres_saliency_depth_)
+                            {
+                                _validPixelsDepth[i] = 1;
+                                _stdDevError_inv[i] = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                _residualsDepth[i] = (depth - dist) * _stdDevError_inv[i];
+                                _wEstimDepth[i] = weightMEstimator(_residualsDepth[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                error2_depth += _wEstimDepth[i] * _residualsDepth[i] * _residualsDepth[i];
+                                //std::cout << i << " error2_depth " << error2_depth << " wDepthError " << _residualsDepth[i] << " weight_estim " << _wEstimDepth[i] << std::endl;
+                            }
+                        }
+                    }
+                }
+            }
+            else // BILINEAR
+            {
+                const float nCols_1 = nCols-1;
+                std::cout << " BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION \n " << std::endl;
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+                for(size_t i=0; i < xyz_transf.rows(); i++)
+                {
+                    Eigen::Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
+                    // cout << "3D pts " << xyz.transpose() << " transformed " << xyz.transpose() << endl;
+
+                    //Project the 3D point to the S2 sphere
+                    float dist = xyz.norm();
+                    float dist_inv = 1.f / dist;
+                    float phi = asin(xyz(1)*dist_inv);
+                    float transformed_r = (phi-phi_start)*pixel_angle_inv;
+                    int transformed_r_int = round(transformed_r);
+                    //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
+                    // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
+
+                    //Asign the intensity value to the warped image and compute the difference between the transformed
+                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                    if( transformed_r>=0 && transformed_r < nRows) // && transformed_c_int < nCols )
+                    {
+                        ++numVisiblePts;
+                        //_visible_pixels[i] = 1;
+                        float theta = atan2(xyz(0),xyz(2));
+                        float transformed_c = half_width + theta*pixel_angle_inv;
+                        if(transformed_c > nCols_1);
+                        continue;
+                        int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
+                        size_t warped_i = transformed_r_int * nCols + transformed_c_int;
+                        _warp_pixels[i] = warped_i;
+                        _warp_img[2*i] = transformed_r;
+                        _warp_img[2*i+1] = transformed_c;
+                        cv::Point2f warped_pixel(transformed_r,transformed_c);
+                        // std::cout << "Pixel transform_ " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << " " << nRows << "x" << nCols << " n_pts " << n_pts << endl;
+                        // assert(transformed_c_int >= 0 && transformed_c_int < nCols);
+
+
+                        // std::cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
+                        // For higher performance: Interpolation is not applied here (only when computing the Hessian)
+                        //if( fabs(_graySrcGradXPyr[_validPixels[i]]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[_validPixels[i]]) > thres_saliency_gray_)
+                        {
+                            _validPixelsPhoto[i] = 1;
+                            float intensity = bilinearInterp( grayTrgPyr[pyramidLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                            float diff = intensity - _graySrcPyr[i];
+                            _residualsPhoto[i] = diff * stdDevPhoto_inv;
+                            _wEstimPhoto[i] = weightMEstimator(_residualsPhoto[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                            error2_photo += _wEstimPhoto[i] * _residualsPhoto[i] * _residualsPhoto[i];
+                            //std::cout << i << " error2_photo " << error2_photo << " wDepthPhoto " << _residualsPhoto[i] << " weight_estim " << _wEstimPhoto[i] << std::endl;
+                            //v_AD_intensity[i] = fabs(diff);
+                            //++n_ptsPhoto;
+                        }
+
+                        float depth = bilinearInterp_depth( grayTrgPyr[pyramidLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                        if(depth > min_depth_) // Make sure this point has depth (not a NaN)
+                        {
+                            // std::cout << thres_saliency_depth_ << " Grad-Depth " << fabs(depthTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(depthTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
+                            //if( fabs(_depthTrgGradXPyr[warped_i]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warped_i]) > thres_saliency_depth_)
+                            //if( fabs(_depthSrcGradXPyr[_validPixels[i]]) > thres_saliency_depth_ || fabs(_depthSrcGradYPyr[_validPixels[i]]) > thres_saliency_depth_)
+                            {
+                                //Obtain the depth values that will be used to the compute the depth residual
+                                _validPixelsDepth[i] = 1;
+                                _stdDevError_inv[i] = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                _residualsDepth[i] = (depth - dist) * _stdDevError_inv[i];
+                                _wEstimDepth[i] = weightMEstimator(_residualsDepth[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                error2_depth += _wEstimDepth[i] * _residualsDepth[i] * _residualsDepth[i];
+                                // std::cout << i << " error2 " << error2 << " wDepthError " << weightedError << " weight_estim " << weight_estim << " diff " << diff << " " << stdDevError << std::endl;
+                                //++n_ptsDepth;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            if( !use_bilinear_ || pyramidLevel !=0 )
+            {
+                // std::cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.size() << std::endl;
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+                for(size_t i=0; i < xyz_transf.rows(); i++)
+                {
+                    if( _validPixels[i] ) //Compute the jacobian only for the valid points
+                    {
+                        //Transform the 3D point using the transformation matrix Rt
+                        Eigen::Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
+                        // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << xyz_transf.block(i,0,1,3) << endl;
+
+                        //Project the 3D point to the S2 sphere
+                        float dist = xyz.norm();
+                        float dist_inv = 1.f / dist;
+                        float phi = asin(xyz(1)*dist_inv);
+                        //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
+                        int transformed_r_int = int(round((phi-phi_start)*pixel_angle_inv));
+                        // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
+                        //Asign the intensity value to the warped image and compute the difference between the transformed
+                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                        if( transformed_r_int>=0 && transformed_r_int < nRows) // && transformed_c_int < nCols )
+                        {
+                            //_visible_pixels[i] = 1;
+                            float theta = atan2(xyz(0),xyz(2));
+                            int transformed_c_int = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
+                            size_t warped_i = transformed_r_int * nCols + transformed_c_int;
+                            _warp_pixels[i] = warped_i;
+                            //if(compute_MAD_stdDev_)
+                            //    v_AD_intensity[i] = fabs(_grayTrgPyr[warped_i] - _graySrcPyr[i]);
+                            ++numVisiblePts;
+
+                            // std::cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
+                            //if( fabs(_grayTrgGradXPyr[warped_i]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warped_i]) > thres_saliency_gray_)
+                            //if( fabs(_graySrcGradXPyr[i]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[i]) > thres_saliency_gray_)
+                            if( fabs(_graySrcGradXPyr[i]) > 0.f || fabs(_graySrcGradYPyr[i]) > 0.f)
+                            {
+                                //Obtain the pixel values that will be used to compute the pixel residual
+                                // float intensity = grayTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                                _validPixelsPhoto[i] = 1;
+                                float diff = _grayTrgPyr[warped_i] - _graySrcPyr[i];
+                                _residualsPhoto[i] = diff * stdDevPhoto_inv;
+                                _wEstimPhoto[i] = weightMEstimator(_residualsPhoto[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                error2_photo += _wEstimPhoto[i] * _residualsPhoto[i] * _residualsPhoto[i];
+                                //                                std::cout << i << " " << _validPixels[i] << " error2_photo " << error2_photo << " wDepthPhoto " << _residualsPhoto[i] << " i " << i << " w " << warped_i << " c " << transformed_c_int << " " << theta*pixel_angle_inv << " theta " << theta << " weight_estim " << _wEstimPhoto[i] << std::endl;
+                                //                                std::cout << " _grayTrgPyr[warped_i] " << _grayTrgPyr[warped_i] << " _graySrcPyr[i] " << _graySrcPyr[i] << std::endl;
+                                //                                mrpt::system::pause();
+
+                                //v_AD_intensity[i] = fabs(diff);
+                                //++n_ptsPhoto;
+                            }
+
+                            //float depth = depthTrgPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int);
+                            float depth = _depthTrgPyr[warped_i];
+                            if(depth > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
+                            {
+                                //if( fabs(_depthTrgGradXPyr[warped_i]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warped_i]) > thres_saliency_depth_)
+                                //if( fabs(_depthSrcGradXPyr[i]) > thres_saliency_depth_ || fabs(_depthSrcGradYPyr[i]) > thres_saliency_depth_)
+                                if( fabs(_depthSrcGradXPyr[i]) > 0.f || fabs(_depthSrcGradYPyr[i]) > 0.f )
+                                {
+                                    //Obtain the depth values that will be used to the compute the depth residual
+                                    _validPixelsDepth[i] = 1;
+                                    _stdDevError_inv[i] = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                    _residualsDepth[i] = (depth - dist) * _stdDevError_inv[i];
+                                    _wEstimDepth[i] = weightMEstimator(_residualsDepth[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                    error2_depth += _wEstimDepth[i] * _residualsDepth[i] * _residualsDepth[i];
+                                    // std::cout << i << " error2 " << error2 << " wDepthError " << weightedError << " weight_estim " << weight_estim << " diff " << diff << " " << stdDevError << std::endl;
+
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                std::cout << " BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION \n " << std::endl;
+                const float nCols_1 = nCols-1;
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+                for(size_t i=0; i < xyz_transf.rows(); i++)
+                {
+                    //Compute the 3D coordinates of the pij of the source frame
+                    if( _validPixels[i] ) //Compute the jacobian only for the valid points
+                    {
+                        Eigen::Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
+                        // cout << "3D pts " << xyz.transpose() << " transformed " << xyz.transpose() << endl;
+
+                        //Project the 3D point to the S2 sphere
+                        float dist = xyz.norm();
+                        float dist_inv = 1.f / dist;
+                        float phi = asin(xyz(1)*dist_inv);
+                        float transformed_r = (phi-phi_start)*pixel_angle_inv;
+                        int transformed_r_int = round(transformed_r);
+                        //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
+                        // std::cout << "Pixel transform " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << std::endl;
+
+                        //Asign the intensity value to the warped image and compute the difference between the transformed
+                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+                        if( transformed_r>=0 && transformed_r < nRows) // && transformed_c_int < nCols )
+                        {
+                            //_visible_pixels[i] = 1;
+                            ++numVisiblePts;
+                            float theta = atan2(xyz(0),xyz(2));
+                            float transformed_c = half_width + theta*pixel_angle_inv; assert(transformed_c <= nCols_1); //transformed_c -= half_width;
+                            int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
+                            size_t warped_i = transformed_r_int * nCols + transformed_c_int;
+                            _warp_pixels[i] = warped_i;
+                            _warp_img[2*i] = transformed_r;
+                            _warp_img[2*i+1] = transformed_c;
+                            cv::Point2f warped_pixel(transformed_r,transformed_c);
+                            // std::cout << "Pixel transform_ " << i/nCols << " " << i%nCols << " " << transformed_r_int << " " << transformed_c_int << " " << nRows << "x" << nCols << " n_pts " << n_pts << endl;
+                            // assert(transformed_c_int >= 0 && transformed_c_int < nCols);
+
+                            // std::cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(grayTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
+                            // For higher performance: Interpolation is not applied here (only when computing the Hessian)
+                            //if( fabs(_grayTrgGradXPyr[warped_i]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warped_i]) > thres_saliency_gray_)
+                            //if( fabs(_graySrcGradXPyr[i]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[i]) > thres_saliency_gray_)
+                            {
+                                _validPixelsPhoto[i] = 1;
+                                float intensity = bilinearInterp( grayTrgPyr[pyramidLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                                float diff = intensity - _graySrcPyr[i];
+                                _residualsPhoto[i] = diff * stdDevPhoto_inv;
+                                _wEstimPhoto[i] = weightMEstimator(_residualsPhoto[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                error2_photo += _wEstimPhoto[i] * _residualsPhoto[i] * _residualsPhoto[i];
+                                // std::cout << i << " error2 " << error2 << " wEPhoto " << weightedError << " weight_estim " << weight_estim << " diff " << diff << " " << stdDevPhoto << std::endl;
+                                //v_AD_intensity[i] = fabs(diff);
+                                //++n_ptsPhoto;
+                            }
+
+                            float depth = bilinearInterp_depth( grayTrgPyr[pyramidLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                            if(depth > min_depth_) // Make sure this point has depth (not a NaN)
+                            {
+                                // std::cout << thres_saliency_depth_ << " Grad-Depth " << fabs(depthTrgGradXPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << " " << fabs(depthTrgGradYPyr[pyramidLevel].at<float>(transformed_r_int,transformed_c_int)) << std::endl;
+                                //if( fabs(_depthTrgGradXPyr[warped_i]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warped_i]) > thres_saliency_depth_)
+                                //if( fabs(_depthSrcGradXPyr[i]) > thres_saliency_depth_ || fabs(_depthSrcGradYPyr[i]) > thres_saliency_depth_)
+                                {
+                                    //Obtain the depth values that will be used to the compute the depth residual
+                                    _validPixelsDepth[i] = 1;
+                                    _stdDevError_inv[i] = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                    _residualsDepth[i] = (depth - dist) * _stdDevError_inv[i];
+                                    _wEstimDepth[i] = weightMEstimator(_residualsDepth[i]); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                    error2_depth += _wEstimDepth[i] * _residualsDepth[i] * _residualsDepth[i];
+                                    // std::cout << i << " error2 " << error2 << " wDepthError " << weightedError << " weight_estim " << weight_estim << " diff " << diff << " " << stdDevError << std::endl;
+                                    //++n_ptsDepth;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    SSO = (float)numVisiblePts / n_pts;
+    error2 = (error2_photo + error2_depth) / numVisiblePts;
+
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    std::cout << pyramidLevel << " errorDense_sphere took " << double (time_end - time_start)*1000 << " ms. \n";
+#endif
+
+#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
+    std::cout << "error2 " << error2 << " error2_photo " << error2_photo << " error2_depth " << error2_depth << " numVisiblePts " << numVisiblePts << std::endl;
+#endif
+
+    return error2;
+}
+
 ///*! Compute the median absulute deviation of the projection of reference image onto the target one */
 //float computeMAD(const int &pyramidLevel)
 //{
@@ -3127,7 +4130,7 @@ double RegisterDense::errorDense_sphere ( const int &pyramidLevel,
     {
         if( !use_bilinear_ || pyramidLevel !=0 )
         {
-             std::cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << std::endl;
+             //std::cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << std::endl;
 #if ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
@@ -3686,7 +4689,7 @@ double RegisterDense::errorDenseWarp_sphere ( const int &pyramidLevel,
     {
         if( !use_bilinear_ || pyramidLevel !=0 )
         {
-             std::cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << std::endl;
+             //std::cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << std::endl;
 #if ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
@@ -4100,7 +5103,7 @@ double RegisterDense::errorDenseIC_sphere(const int &pyramidLevel,
     {
         if( !use_bilinear_ || pyramidLevel !=0 )
         {
-             std::cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << std::endl;
+             //std::cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << std::endl;
 #if ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
