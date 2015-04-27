@@ -102,6 +102,7 @@ class RegisterDense
     float thresSaliency;
     float thres_saliency_gray_;
     float thres_saliency_depth_;
+    float _max_depth_grad;
 
 //    /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
 //    float SSO;
@@ -518,6 +519,8 @@ public:
         in Computer Vision Workshops (ICCV Workshops), 2011. */
     double errorDense(const int & pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
 
+    double errorDense_IC(const int & pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
+
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
@@ -532,10 +535,14 @@ public:
                        const Eigen::Matrix4f poseGuess,
                        costFuncType method = PHOTO_CONSISTENCY );
 
-    /*! Compute the Jacobian matrices which are used to select the salient pixels. */
-    void computeJacobian(const int &pyrLevel,
-                        const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                        costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+    double calcHessGrad_IC(const int & pyrLevel,
+                           const Eigen::Matrix4f poseGuess,
+                           costFuncType method = PHOTO_CONSISTENCY );
+
+//    /* Compute the Jacobian matrices which are used to select the salient pixels. */
+//    void computeJacobian(const int &pyrLevel,
+//                        const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
+//                        costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
     /*! Compute the averaged squared error of the salient points. */
     double computeErrorHessGrad_salient(std::vector<size_t> & salient_pixels, costFuncType method );
@@ -631,7 +638,7 @@ public:
                                 const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                 costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
-    void calcHessGradIC_sphere( const int &pyrLevel,
+    double calcHessGradIC_sphere( const int &pyrLevel,
                                 const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                 costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
@@ -669,6 +676,10 @@ public:
       * This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
       * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution. */
     void registerRGBD ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+                         costFuncType method = PHOTO_CONSISTENCY,
+                         const int occlusion = 0);
+
+    void registerRGBD_IC ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                          costFuncType method = PHOTO_CONSISTENCY,
                          const int occlusion = 0);
 
@@ -964,15 +975,98 @@ public:
         //return jacobianWarpRt;
     }
 
-//    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
-//    inline void
-//    computeJacobian16_depth(const Eigen::Vector3f & xyz, const float & dist_inv, Eigen::Matrix<float,1,6> &jacobian_depthT)
-//    {
-//        //Eigen::Matrix<float,2,6> jacobianWarpRt;
-//        jacobian_depthT.block(0,0,1,3) = dist_inv * xyz.transpose();
+    /*! Compute the Jacobian of the warp */
+    inline void
+    computeJacobian23_warp_pinhole(const Eigen::Vector3f & xyz, Eigen::Matrix<float,2,3> &jacobianWarp)
+    {
+        float inv_transf_z = 1.0/xyz(2);
 
-//        //return jacobian_depthT;
-//    }
+        //Derivative with respect to x
+        jacobianWarp(0,0)=fx*inv_transf_z;
+        jacobianWarp(1,0)=0.f;
+
+        //Derivative with respect to y
+        jacobianWarp(0,1)=0.f;
+        jacobianWarp(1,1)=fy*inv_transf_z;
+
+        //Derivative with respect to z
+        float inv_transf_z_2 = inv_transf_z*inv_transf_z;
+        jacobianWarp(0,2)=-fx*xyz(0)*inv_transf_z_2;
+        jacobianWarp(1,2)=-fy*xyz(1)*inv_transf_z_2;
+    }
+
+    /*! Compute the Jacobian of the warp */
+    inline void
+    computeJacobian23_warp_sphere(const Eigen::Vector3f & xyz, const float & dist, Eigen::Matrix<float,2,3> &jacobianWarp)
+    {
+        // The Jacobian of the spherical projection
+        float dist2 = dist * dist;
+        float x2_z2 = dist2 - xyz(1)*xyz(1);
+        float x2_z2_sqrt = sqrt(x2_z2);
+        float commonDer_c = pixel_angle_inv / x2_z2;
+        float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
+        jacobianWarp(0,0) = commonDer_c * xyz(2);
+        jacobianWarp(0,1) = 0;
+        jacobianWarp(0,2) =-commonDer_c * xyz(0);
+//        jacobianWarp(1,0) = commonDer_r * xyz(0) * xyz(1);
+        jacobianWarp(1,1) =-commonDer_r * x2_z2;
+//        jacobianWarp(1,2) = commonDer_r * xyz(2) * xyz(1);
+        float commonDer_r_y = commonDer_r * xyz(1);
+        jacobianWarp(1,0) = commonDer_r_y * xyz(0);
+        jacobianWarp(1,2) = commonDer_r_y * xyz(2);
+    }
+
+    /*! Compute the Jacobian composition of the transformed point: T(x)Tp */
+    inline void
+    //Eigen::Matrix<float,3,6>
+    computeJacobian36_TxT_p(const Eigen::Vector3f & xyz, Eigen::Matrix<float,3,6> &jacobianRt)
+    {
+        //Eigen::Matrix<float,3,6> jacobianWarpRt;
+
+        jacobianRt.block(0,0,3,3) = Eigen::Matrix3f::Identity();
+        jacobianRt.block(0,3,3,3) = skew(-xyz);
+    }
+
+    /*! Compute the Jacobian composition of the transformed point: TT(x)p */
+    inline void
+    //Eigen::Matrix<float,3,6>
+    computeJacobian36_TTx_p(const Eigen::Matrix3f & rot, const Eigen::Vector3f & xyz, Eigen::Matrix<float,3,6> &jacobianRt)
+    {
+        //Eigen::Matrix<float,3,6> jacobianWarpRt;
+
+        jacobianRt.block(0,0,3,3) = Eigen::Matrix3f::Identity();
+        jacobianRt.block(0,3,3,3) = skew(-xyz);
+
+        jacobianRt = rot * jacobianRt;
+    }
+
+    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
+    inline void
+    //Eigen::Matrix<float,2,6>
+    computeJacobian26_wTTx_pinhole(const Eigen::Matrix4f & Rt, const Eigen::Vector3f & xyz, const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    {
+        Eigen::Matrix<float,2,3> jacobianWarp;
+        Eigen::Matrix<float,3,6> jacobianRt;
+
+        computeJacobian23_warp_pinhole(xyz_transf, jacobianWarp);
+        computeJacobian36_TTx_p(Rt.block(0,0,3,3), xyz, jacobianRt);
+
+        jacobianWarpRt = jacobianWarp * jacobianRt;
+    }
+
+    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
+    inline void
+    //Eigen::Matrix<float,2,6>
+    computeJacobian26_wTTx_sphere(const Eigen::Matrix4f & Rt, const Eigen::Vector3f & xyz, const float & dist, const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    {
+        Eigen::Matrix<float,2,3> jacobianWarp;
+        Eigen::Matrix<float,3,6> jacobianRt;
+
+        computeJacobian23_warp_sphere(xyz_transf, dist, jacobianWarp);
+        computeJacobian36_TTx_p(Rt.block(0,0,3,3), xyz, jacobianRt);
+
+        jacobianWarpRt = jacobianWarp * jacobianRt;
+    }
 };
 
 #endif
