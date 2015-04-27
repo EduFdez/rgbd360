@@ -27,6 +27,7 @@ class RegisterDense
 
     /*! Camera intrinsic parameters */
     float fx, fy, ox, oy;
+    float inv_fx, inv_fy;
 
 //    /* Vertical field of view in the sphere (in) .*/
 //    float phi_FoV;
@@ -997,7 +998,7 @@ public:
 
     /*! Compute the Jacobian of the warp */
     inline void
-    computeJacobian23_warp_sphere(const Eigen::Vector3f & xyz, const float & dist, Eigen::Matrix<float,2,3> &jacobianWarp)
+    computeJacobian23_warp_sphere(const Eigen::Vector3f & xyz, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,3> &jacobianWarp)
     {
         // The Jacobian of the spherical projection
         float dist2 = dist * dist;
@@ -1024,7 +1025,7 @@ public:
         //Eigen::Matrix<float,3,6> jacobianWarpRt;
 
         jacobianRt.block(0,0,3,3) = Eigen::Matrix3f::Identity();
-        jacobianRt.block(0,3,3,3) = skew(-xyz);
+        jacobianRt.block(0,3,3,3) = -skew(xyz);
     }
 
     /*! Compute the Jacobian composition of the transformed point: TT(x)p */
@@ -1035,7 +1036,7 @@ public:
         //Eigen::Matrix<float,3,6> jacobianWarpRt;
 
         jacobianRt.block(0,0,3,3) = Eigen::Matrix3f::Identity();
-        jacobianRt.block(0,3,3,3) = skew(-xyz);
+        jacobianRt.block(0,3,3,3) = -skew(xyz);
 
         jacobianRt = rot * jacobianRt;
     }
@@ -1057,12 +1058,12 @@ public:
     /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
     inline void
     //Eigen::Matrix<float,2,6>
-    computeJacobian26_wTTx_sphere(const Eigen::Matrix4f & Rt, const Eigen::Vector3f & xyz, const float & dist, const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    computeJacobian26_wTTx_sphere(const Eigen::Matrix4f & Rt, const Eigen::Vector3f & xyz, const float & dist, const float & pixel_angle_inv, const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt)
     {
         Eigen::Matrix<float,2,3> jacobianWarp;
         Eigen::Matrix<float,3,6> jacobianRt;
 
-        computeJacobian23_warp_sphere(xyz_transf, dist, jacobianWarp);
+        computeJacobian23_warp_sphere(xyz_transf, dist, pixel_angle_inv, jacobianWarp);
         computeJacobian36_TTx_p(Rt.block(0,0,3,3), xyz, jacobianRt);
 
         jacobianWarpRt = jacobianWarp * jacobianRt;
