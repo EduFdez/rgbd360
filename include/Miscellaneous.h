@@ -44,6 +44,7 @@
 #include <algorithm>
 #include <vector>
 
+#include <opencv2/core/eigen.hpp>
 
 #ifndef PI
     #define PI 3.14159265359
@@ -336,6 +337,13 @@ std::vector<size_t> sort_vector_(Eigen::Matrix<T, Eigen::Dynamic, 1> & v)
   v = sorted_vector;
 
   return idx;
+}
+
+inline void convertRange_mrpt2cvMat(const mrpt::math::CMatrix &range_mrpt, cv::Mat & depthImage)
+{
+    //Eigen::MatrixXf range_eigen(range_mrpt.getMatrix());
+    Eigen::MatrixXf range_eigen(range_mrpt.eval());
+    cv::eigen2cv(range_eigen, depthImage);
 }
 
 #endif

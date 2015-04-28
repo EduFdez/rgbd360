@@ -10,7 +10,7 @@
 #include <Miscellaneous.h>
 
 #include <opencv2/opencv.hpp>
-//#include <Eigen/Core>
+#include <Eigen/Core>
 
 #ifndef REGISTER_PHOTO_ICP_H
 #define REGISTER_PHOTO_ICP_H
@@ -361,6 +361,10 @@ public:
 
     /*! Compute the 3D points XYZ according to the pinhole camera model. */
     void computePinholeXYZ_sse(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels);
+
+    void computePinholeXYZsalient_sse ( Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+                                        const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
+                                        const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY );
 
     /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
     void computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels);

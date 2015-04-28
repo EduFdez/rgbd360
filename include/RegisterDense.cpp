@@ -5902,7 +5902,7 @@ double RegisterDense::errorDenseIC_sphere(const int &pyrLevel,
                             validPixelsDepth_src(i) = 1;
                             float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
                             Eigen::Vector3f xyz_src = LUT_xyz_source.block(i,0,1,3).transpose();
-                            float dist_src = _depthSrcPyr[i];
+                            float dist_src = _depthSrcPyr[validPixels_src(i)];
                             Eigen::Vector3f xyz_trg = LUT_xyz_target.block(warped_i,0,1,3).transpose();
                             float residual = (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
                             float weightMEstim = sqrt(weightMEstimator(residual)); // Apply M-estimator weighting // The weight computed by an M-estimator
@@ -5977,7 +5977,7 @@ double RegisterDense::errorDenseIC_sphere(const int &pyrLevel,
                             validPixelsDepth_src(i) = 1;
                             float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
                             Eigen::Vector3f xyz_src = LUT_xyz_source.block(i,0,1,3).transpose();
-                            float dist_src = _depthSrcPyr[i];
+                            float dist_src = _depthSrcPyr[validPixels_src(i)];
                             Eigen::Vector3f xyz_trg;// = LUT_xyz_target.block(warped_i,0,1,3).transpose();
                             float theta = (transformed_r - half_width)*pixel_angle;
                             float phi = transformed_r * pixel_angle + phi_start;
@@ -8382,7 +8382,7 @@ double RegisterDense::calcHessGradIC_sphere(const int &pyrLevel,
                         img_gradient(0,0) = _graySrcGradXPyr[validPixels_src(i)];
                         img_gradient(0,1) = _graySrcGradYPyr[validPixels_src(i)];
 
-                        //Obtain the pixel values that will be used to compute the pixel residual
+                        // (NOTICE that that the sign of this jacobian has been changed)
                         //Apply the chain rule to compound the image gradients with the projective+RigidTransform jacobians
                         jacobiansPhoto.block(i,0,1,6) = ((weightMEstim * stdDevPhoto_inv) * img_gradient) * jacobianWarpRt;
                         //std::cout << img_gradient(0,0) << " " << img_gradient(0,1) << " salient jacobianPhoto " << jacobiansPhoto.block(i,0,1,6) << " \t weightedErrorPhoto " << residualsPhoto_src(i) << std::endl;
@@ -8398,8 +8398,7 @@ double RegisterDense::calcHessGradIC_sphere(const int &pyrLevel,
                             validPixelsDepth_src(i) = 1;
                             float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
                             Eigen::Vector3f xyz_trg = LUT_xyz_target.block(warped_i,0,1,3).transpose();
-                            //float residual = (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
-                            float residual = ((((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) - _depthSrcPyr[validPixels_src(i)]) * stdDevError_inv;
+                            float residual = (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
                             float weightMEstim = sqrt(weightMEstimator(residual)); // Apply M-estimator weighting // The weight computed by an M-estimator
                             float weightedResidual = weightMEstim * residual;
 
@@ -8410,28 +8409,33 @@ double RegisterDense::calcHessGradIC_sphere(const int &pyrLevel,
                             depth_gradient(0,1) = _depthSrcGradYPyr[validPixels_src(i)];
                             // std::cout << "depth_gradient \n " << depth_gradient << std::endl;
 
-                            //Depth jacobian:
+                            //Depth jacobian: (NOTICE that that the sign of this jacobian has been changed)
                             //Apply the chain rule to compound the depth gradients with the projective+RigidTransform jacobians
-                            Eigen::Matrix<float,1,6> jacobian16_depthT;// = Eigen::Matrix<float,1,6>::Zero();
-                            //jacobian16_depthT.block(0,0,1,3) = (1 / dist_src) * LUT_xyz_source.block(i,0,1,3);
-                            Eigen::Vector3f jacDepthProj_trans = (1 / dist_src) * LUT_xyz_source.block(i,0,1,3);
-                            jacobian16_depthT.block(0,0,1,3) = jacDepthProj_trans;
+                            Eigen::Matrix<float,1,6> jacobian16_depthT = Eigen::Matrix<float,1,6>::Zero();
+                            jacobian16_depthT.block(0,0,1,3) = (1 / dist_src) * LUT_xyz_source.block(i,0,1,3);
+                            Eigen::Vector3f jacDepthProj_trans = jacobian16_depthT.block(0,0,1,3).transpose();
+                            //jacobian16_depthT.block(0,0,1,3) = jacDepthProj_trans;
                             Eigen::Vector3f diff = LUT_xyz_target.block(warped_i,0,1,3).transpose() - poseGuess.block(0,3,3,1);
                             if( !(diff.norm() > -1) )
                             {
                                 std::cout << " diff " << diff.transpose() << " xx " << LUT_xyz_target.block(warped_i,0,1,3).transpose() << std::endl;
                                 assert(0);
                             }
-                            Eigen::Vector3f jacDepthProj_rot = jacDepthProj_trans. cross (diff);
-                            jacobian16_depthT.block(0,3,1,3) = jacDepthProj_rot;
+                            //Eigen::Vector3f jacDepthProj_rot = -jacDepthProj_trans. cross (diff);
+                            Eigen::Vector3f jacDepthProj_rot = diff. cross (jacDepthProj_trans);
+                            jacobian16_depthT.block(0,3,1,3) = jacDepthProj_rot.transpose();
+                            //jacobian16_depthT.block(0,3,1,3) = diff.transpose() * skew(jacDepthProj_trans);
                             jacobiansDepth.block(i,0,1,6) = weightMEstim * stdDevError_inv * (depth_gradient*jacobianWarpRt - jacobian16_depthT);
 
-    //                        std::cout << "jacobianDepth " << jacobiansDepth.block(i,0,1,6) << " \t residualsDepth_src " << residualsDepth_src(i) << std::endl;
-    //                        std::cout << "jacobianDepth_Rt " << weight_estim_sqrt * stdDevError_inv * depth_gradient*jacobianWarpRt << std::endl;
-    //                        std::cout << "jacobianDepth_t " << weight_estim_sqrt * stdDevError_inv * jacobian16_depthT << std::endl;
-    //                        mrpt::system::pause();
+//                            std::cout << "depth_src " <<  _depthSrcPyr[validPixels_src(i)] << " \t proj " << (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) << std::endl;
+//                            std::cout << "jacobianDepth " << jacobiansDepth.block(i,0,1,6) << " \t residualsDepth_src " << residualsDepth_src(i) << std::endl;
+//                            std::cout << "jacobianDepth_Rt " << weightMEstim * stdDevError_inv * depth_gradient*jacobianWarpRt << std::endl;
+//                            std::cout << "jacobianDepth_t " << weightMEstim * stdDevError_inv * jacobian16_depthT << std::endl;
+//                            mrpt::system::pause();
                         }
                     }
+                    else
+                        std::cout << "depth_gradient \n " <<  _depthSrcGradXPyr[validPixels_src(i)] << " " <<  _depthSrcGradYPyr[validPixels_src(i)] << std::endl;
                 }
                 else
                     validPixels_src(i) = -1;
@@ -8513,8 +8517,7 @@ double RegisterDense::calcHessGradIC_sphere(const int &pyrLevel,
                             xyz_trg(0) = dist_trg * cos_phi * sin(theta);
                             xyz_trg(1) = dist_trg * sin(phi);
                             xyz_trg(2) = dist_trg * cos_phi * cos(theta);
-                            //float residual = (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
-                            float residual = ((((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) - _depthSrcPyr[validPixels_src(i)]) * stdDevError_inv;
+                            float residual = (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
                             float weightMEstim = sqrt(weightMEstimator(residual)); // Apply M-estimator weighting // The weight computed by an M-estimator
                             float weightedResidual = weightMEstim * residual;
 
@@ -8626,8 +8629,7 @@ double RegisterDense::calcHessGradIC_sphere(const int &pyrLevel,
                             validPixelsDepth_src(i) = 1;
                             float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
                             Eigen::Vector3f xyz_trg = LUT_xyz_target.block(warped_i,0,1,3).transpose();
-                            //float residual = (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
-                            float residual = ((((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) - _depthSrcPyr[validPixels_src(i)]) * stdDevError_inv;
+                            float residual = (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
                             float weightMEstim = sqrt(weightMEstimator(residual)); // Apply M-estimator weighting // The weight computed by an M-estimator
                             float weightedResidual = weightMEstim * residual;
 
@@ -8743,8 +8745,7 @@ double RegisterDense::calcHessGradIC_sphere(const int &pyrLevel,
                             xyz_trg(0) = dist_trg * cos_phi * sin(theta);
                             xyz_trg(1) = dist_trg * sin(phi);
                             xyz_trg(2) = dist_trg * cos_phi * cos(theta);
-                            //float residual = (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
-                            float residual = ((((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) - _depthSrcPyr[validPixels_src(i)]) * stdDevError_inv;
+                            float residual = (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
                             float weightMEstim = sqrt(weightMEstimator(residual)); // Apply M-estimator weighting // The weight computed by an M-estimator
                             float weightedResidual = weightMEstim * residual;
 
@@ -9991,6 +9992,8 @@ void RegisterDense::registerRGBD_IC(const Eigen::Matrix4f pose_guess, costFuncTy
 
         // Make LUT to store the values of the 3D points of the source image
         computePinholeXYZ(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
+        computePinholeXYZ_sse(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
+        computePinholeXYZ_sse(depthTrgPyr[pyrLevel], LUT_xyz_target, validPixels_trg);
 
 //        LUT_xyz_source.resize(imgSize,3);
 //        const float scaleFactor = 1.0/pow(2,pyrLevel);
@@ -10029,14 +10032,9 @@ void RegisterDense::registerRGBD_IC(const Eigen::Matrix4f pose_guess, costFuncTy
 //        double tol_residual_ = 1e-3;
 //        double tol_update_ = 1e-4;
         Eigen::Matrix<float,6,1> update_pose; update_pose << 1, 1, 1, 1, 1, 1;
-        double error = errorDense_IC(pyrLevel, pose_estim, method);
-//        double error, new_error;
-//        if(occlusion == 0)
-//            error = errorDense(pyrLevel, pose_estim, method);
-//        else if(occlusion == 1)
-//            error = errorDense_Occ1(pyrLevel, pose_estim, method);
-//        else if(occlusion == 2)
-//            error = errorDense_Occ2(pyrLevel, pose_estim, method);
+        //double error = errorDense_IC(pyrLevel, pose_estim, method);
+        hessian.setZero();
+        double error = calcHessGradIC_sphere(pyrLevel, pose_estim, method);
 
         double diff_error = error;
 #if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
@@ -10049,10 +10047,12 @@ void RegisterDense::registerRGBD_IC(const Eigen::Matrix4f pose_guess, costFuncTy
 //            cv::TickMeter tm; tm.start();
 //#endif
 
-            //std::cout << "calcHessianAndGradient_sphere " << std::endl;
-            hessian.setZero();
             gradient.setZero();
-            calcHessGrad_IC(pyrLevel, pose_estim, method);
+            if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                updateGrad(jacobiansPhoto, residualsPhoto_src, validPixelsPhoto_src);
+            if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                updateGrad(jacobiansDepth, residualsDepth_src, validPixelsDepth_src);
+            std::cout << "gradient \n" << gradient.transpose() << std::endl;
 
             //                assert(hessian.rank() == 6); // Make sure that the problem is observable
             if( hessian.rank() != 6 )
@@ -11709,9 +11709,9 @@ void RegisterDense::register360_IC(const Eigen::Matrix4f pose_guess, costFuncTyp
         computeSphereXYZ_sse(depthTrgPyr[pyrLevel], LUT_xyz_target, validPixels_trg);
 
         Eigen::Matrix<float,6,1> update_pose; update_pose << 1, 1, 1, 1, 1, 1;
-        error = errorDenseIC_sphere(pyrLevel, pose_estim, method);
+        error = errorDense_sphere(pyrLevel, pose_estim, method);
         hessian.setZero();
-        calcHessGradIC_sphere(pyrLevel, pose_estim, method);
+        error = calcHessGradIC_sphere(pyrLevel, pose_estim, method);
 
         double diff_error = error;
 #if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
@@ -11744,8 +11744,8 @@ void RegisterDense::register360_IC(const Eigen::Matrix4f pose_guess, costFuncTyp
             update_pose = -(hessian.inverse() * gradient);
 //            update_pose = -(hessian + lambda*getDiagonalMatrix(hessian)).inverse() * gradient;
             Eigen::Matrix<double,6,1> update_pose_d = update_pose.cast<double>();
-            //pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d), true).getHomogeneousMatrixVal().cast<float>() * pose_estim;
-            pose_estim_temp = pose_estim * mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d), true).getHomogeneousMatrixVal().cast<float>();
+            pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d), true).getHomogeneousMatrixVal().cast<float>() * pose_estim;
+            //pose_estim_temp = pose_estim * mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d), true).getHomogeneousMatrixVal().cast<float>();
 
             double new_error = errorDenseIC_sphere(pyrLevel, pose_estim_temp, method);
 
@@ -13814,7 +13814,7 @@ void RegisterDense::computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf
 #endif
 
     // Make LUT to store the values of the 3D points of the source sphere
-    LUT_xyz_source.resize(imgSize,3);
+    xyz.resize(imgSize,3);
     validPixels = Eigen::VectorXi::Ones(imgSize);
 
     const float inv_fx = 1./fx;
@@ -13829,15 +13829,15 @@ void RegisterDense::computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf
         for(size_t c=0;c<nCols; c++)
         {
             int i = r*nCols + c;
-            LUT_xyz_source(i,2) = _depth_src[i]; //LUT_xyz_source(i,2) = 0.001f*depthSrcPyr[pyrLevel].at<unsigned short>(r,c);
+            xyz(i,2) = _depth_src[i]; //xyz(i,2) = 0.001f*depthSrcPyr[pyrLevel].at<unsigned short>(r,c);
 
             //Compute the 3D coordinates of the pij of the source frame
             //std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << std::endl;
-            //std::cout << depthSrcPyr[pyrLevel].type() << " LUT_xyz_source " << i << " x " << LUT_xyz_source(i,2) << " thres " << min_depth_ << " " << max_depth_ << std::endl;
-            if(min_depth_ < LUT_xyz_source(i,2) && LUT_xyz_source(i,2) < max_depth_) //Compute the jacobian only for the valid points
+            //std::cout << depthSrcPyr[pyrLevel].type() << " xyz " << i << " x " << xyz(i,2) << " thres " << min_depth_ << " " << max_depth_ << std::endl;
+            if(min_depth_ < xyz(i,2) && xyz(i,2) < max_depth_) //Compute the jacobian only for the valid points
             {
-                LUT_xyz_source(i,0) = (c - ox) * LUT_xyz_source(i,2) * inv_fx;
-                LUT_xyz_source(i,1) = (r - oy) * LUT_xyz_source(i,2) * inv_fy;
+                xyz(i,0) = (c - ox) * xyz(i,2) * inv_fx;
+                xyz(i,1) = (r - oy) * xyz(i,2) * inv_fy;
             }
             else
                 validPixels(i) = 0;
@@ -13852,7 +13852,7 @@ void RegisterDense::computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf
 }
 
 /*! Compute the 3D points XYZ according to the pinhole camera model. */
-void RegisterDense::computePinholeXYZ_sse(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
+void RegisterDense::computePinholeXYZ_sse ( const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
 {
     // TODO: adapt the sse formulation
     const size_t nRows = depth_img.rows;
@@ -13867,34 +13867,44 @@ void RegisterDense::computePinholeXYZ_sse(const cv::Mat & depth_img, Eigen::Matr
 
     assert(nCols % 4 == 0); // Make sure that the image columns are aligned
 
+    float *_depth = reinterpret_cast<float*>(depth_img.data);
+
     // Make LUT to store the values of the 3D points of the source sphere
-    LUT_xyz_source.resize(imgSize,3);
-    validPixels = Eigen::VectorXi::Ones(imgSize);
+    xyz.resize(imgSize,3);
+    float *_x = &xyz(0,0);
+    float *_y = &xyz(0,1);
+    float *_z = &xyz(0,2);
 
-    const float inv_fx = 1./fx;
-    const float inv_fy = 1./fy;
-    float *_depth_src = reinterpret_cast<float*>(depth_img.data);
+    validPixels.resize(imgSize);
+    float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
 
-    #if ENABLE_OPENMP
-    #pragma omp parallel for
-    #endif
-    for(size_t r=0;r<nRows; r++)
+    std::vector<float> idx(nCols);
+    std::iota(idx.begin(), idx.end(), 0.f);
+    float *_idx = &idx[0];
+
+    __m128 _inv_fx = _mm_set1_ps(inv_fx);
+    __m128 _inv_fy = _mm_set1_ps(inv_fy);
+    __m128 _ox = _mm_set1_ps(ox);
+    __m128 _oy = _mm_set1_ps(oy);
+    __m128 _min_depth_ = _mm_set1_ps(min_depth_);
+    __m128 _max_depth_ = _mm_set1_ps(max_depth_);
+    for(size_t r=0; r < nRows; r++)
     {
-        for(size_t c=0;c<nCols; c++)
+        __m128 _r = _mm_set1_ps(r);
+        size_t block_i = r*nCols;
+        for(size_t c=0; c < nCols; c+=4, block_i+=4)
         {
-            int i = r*nCols + c;
-            LUT_xyz_source(i,2) = _depth_src[i]; //LUT_xyz_source(i,2) = 0.001f*depthSrcPyr[pyrLevel].at<unsigned short>(r,c);
+            __m128 block_depth = _mm_load_ps(_depth+block_i);
+            __m128 block_c = _mm_load_ps(_idx+c);
 
-            //Compute the 3D coordinates of the pij of the source frame
-            //std::cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << std::endl;
-            //std::cout << depthSrcPyr[pyrLevel].type() << " LUT_xyz_source " << i << " x " << LUT_xyz_source(i,2) << " thres " << min_depth_ << " " << max_depth_ << std::endl;
-            if(min_depth_ < LUT_xyz_source(i,2) && LUT_xyz_source(i,2) < max_depth_) //Compute the jacobian only for the valid points
-            {
-                LUT_xyz_source(i,0) = (c - ox) * LUT_xyz_source(i,2) * inv_fx;
-                LUT_xyz_source(i,1) = (r - oy) * LUT_xyz_source(i,2) * inv_fy;
-            }
-            else
-                validPixels(i) = 0;
+            __m128 block_x = _mm_mul_ps( block_depth, _mm_mul_ps(_inv_fx, _mm_sub_ps(block_c, _ox) ) );
+            __m128 block_y = _mm_mul_ps( block_depth, _mm_mul_ps(_inv_fy, _mm_sub_ps(_r, _oy) ) );
+            _mm_store_ps(_x+block_i, block_x);
+            _mm_store_ps(_y+block_i, block_y);
+            _mm_store_ps(_z+block_i, block_depth);
+
+            __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
+            _mm_store_ps(_valid_pt+block_i, valid_depth_pts );
         }
     }
 
@@ -13902,6 +13912,90 @@ void RegisterDense::computePinholeXYZ_sse(const cv::Mat & depth_img, Eigen::Matr
     }
     double time_end = pcl::getTime();
     std::cout << " RegisterDense::computePinholeXYZ_sse " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
+    #endif
+}
+
+/*! Compute the 3D points XYZ according to the pinhole camera model. */
+void RegisterDense::computePinholeXYZsalient_sse(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+                                                const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
+                                                const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY )
+{
+    // TODO: adapt the sse formulation
+    const size_t nRows = depth_img.rows;
+    const size_t nCols = depth_img.cols;
+    const size_t imgSize = nRows*nCols;
+
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t ii=0; ii<100; ii++)
+    {
+#endif
+
+    assert(nCols % 4 == 0); // Make sure that the image columns are aligned
+
+    float *_depth = reinterpret_cast<float*>(depth_img.data);
+    float *_depthGradXPyr = reinterpret_cast<float*>(depth_gradX.data);
+    float *_depthGradYPyr = reinterpret_cast<float*>(depth_gradY.data);
+    float *_grayGradXPyr = reinterpret_cast<float*>(intensity_gradX.data);
+    float *_grayGradYPyr = reinterpret_cast<float*>(intensity_gradY.data);
+
+    // Make LUT to store the values of the 3D points of the source sphere
+    xyz.resize(imgSize,3);
+    float *_x = &xyz(0,0);
+    float *_y = &xyz(0,1);
+    float *_z = &xyz(0,2);
+
+    //validPixels = Eigen::VectorXi::Ones(imgSize);
+    validPixels.resize(imgSize);
+    float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
+
+    std::vector<float> idx(nCols);
+    std::iota(idx.begin(), idx.end(), 0.f);
+    float *_idx = &idx[0];
+
+    __m128 _inv_fx = _mm_set1_ps(inv_fx);
+    __m128 _inv_fy = _mm_set1_ps(inv_fy);
+    __m128 _ox = _mm_set1_ps(ox);
+    __m128 _oy = _mm_set1_ps(oy);
+
+    __m128 _min_depth_ = _mm_set1_ps(min_depth_);
+    __m128 _max_depth_ = _mm_set1_ps(max_depth_);
+    __m128 _depth_saliency_ = _mm_set1_ps(thres_saliency_depth_);
+    __m128 _gray_saliency_ = _mm_set1_ps(thres_saliency_gray_);
+    __m128 _depth_saliency_neg = _mm_set1_ps(-thres_saliency_depth_);
+    __m128 _gray_saliency_neg = _mm_set1_ps(-thres_saliency_gray_);
+
+    for(size_t r=0; r < nRows; r++)
+    {
+        __m128 _r = _mm_set1_ps(r);
+        size_t block_i = r*nCols;
+        for(size_t c=0; c < nCols; c+=4, block_i+=4)
+        {
+            __m128 block_depth = _mm_load_ps(_depth+block_i);
+            __m128 block_c = _mm_load_ps(_idx+c);
+
+            __m128 block_x = _mm_mul_ps( block_depth, _mm_mul_ps(_inv_fx, _mm_sub_ps(block_c, _ox) ) );
+            __m128 block_y = _mm_mul_ps( block_depth, _mm_mul_ps(_inv_fy, _mm_sub_ps(_r, _oy) ) );
+            _mm_store_ps(_x+block_i, block_x);
+            _mm_store_ps(_y+block_i, block_y);
+            _mm_store_ps(_z+block_i, block_depth);
+
+            //_mm_store_ps(_valid_pt+block_i, _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) ) );
+            __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
+            __m128 block_gradDepthX = _mm_load_ps(_depthGradXPyr+block_i);
+            __m128 block_gradDepthY = _mm_load_ps(_depthGradYPyr+block_i);
+            __m128 block_gradGrayX = _mm_load_ps(_grayGradXPyr+block_i);
+            __m128 block_gradGrayY = _mm_load_ps(_grayGradYPyr+block_i);
+            __m128 salient_pts = _mm_or_ps( _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps(block_gradDepthX, _depth_saliency_), _mm_cmplt_ps(block_gradDepthX, _depth_saliency_neg) ), _mm_or_ps( _mm_cmpgt_ps(block_gradDepthY, _depth_saliency_), _mm_cmplt_ps(block_gradDepthY, _depth_saliency_neg) ) ),
+                                            _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( block_gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( block_gradGrayX, _gray_saliency_neg ) ), _mm_or_ps( _mm_cmpgt_ps( block_gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( block_gradGrayY, _gray_saliency_neg ) ) ) );
+            _mm_store_ps(_valid_pt+block_i, _mm_and_ps( valid_depth_pts, salient_pts ) );
+        }
+    }
+
+    #if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    std::cout << " RegisterDense::computePinholeXYZ_sse SALIENT " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
     #endif
 }
 
