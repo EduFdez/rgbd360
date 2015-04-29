@@ -173,6 +173,7 @@ public:
     {
         RGBD360_INDOOR = 0,
         STEREO_OUTDOOR,
+        KINECT,
     } sensor_type;
 
     /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/

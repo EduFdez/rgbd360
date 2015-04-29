@@ -31,7 +31,16 @@
 
 #define RECORD_VIDEO 0
 
-#include <mrpt/utils/types_math.h> // Just to make sure it is included before Eigen
+#include <mrpt/gui.h>
+#include <mrpt/opengl.h>
+#include <mrpt/utils/CFileGZInputStream.h>
+#include <mrpt/obs/CObservation3DRangeScan.h>
+//#include <mrpt/slam/CObservationRGBD360.h>
+//#include <mrpt/slam/CObservationIMU.h>
+#include <mrpt/obs/CRawlog.h>
+//#include <mrpt/slam/CActionCollection.h>
+//#include <mrpt/slam/CSensoryFrame.h>
+
 #include "CloudRGBD.h"
 //#include <SerializeFrameRGBD.h>
 #include <FilterPointCloud.h>
@@ -51,6 +60,8 @@
 
 typedef pcl::PointXYZRGBA PointT;
 using namespace std;
+using namespace mrpt::obs;
+using namespace mrpt::utils;
 
 /*! This class' main function 'run' performs PbMap-based odometry with the input data of a stream of
  *  omnidirectional RGB-D images (from a recorded sequence).
@@ -71,19 +82,33 @@ public:
 
     /*! Run the odometry from the image specified by "imgRGB_1st".
      */
-    void run(const string &rawlog, const int &selectSample) //const string &path_results,
+    void run(const string &filename, const int &selectSample = 1) //const string &path_results,
     {
-        CFileGZInputStream rawlogFile(rawlog);
-        CActionCollectionPtr action;
-        CSensoryFramePtr observations;
-        CObservationPtr observation;
+        cout << "OdometryRGBD::run() \n";
+        mrpt::obs::CRawlog dataset;
+        //						Open Rawlog File
+        //==================================================================
+        if (!dataset.loadFromRawLogFile(filename))
+            throw std::runtime_error("\nCouldn't open dataset dataset file for input...");
+
+        cout << "dataset size " << dataset.size() << "\n";
+        //dataset_count = 0;
+
+        // Set external images directory:
+        const string imgsPath = CRawlog::detectImagesDirectory(filename);
+        CImage::IMAGES_PATH_BASE = imgsPath;
+
+//        mrpt::utils::CFileGZInputStream dataset(filename);
+//        mrpt::obs::CActionCollectionPtr action;
+//        mrpt::obs::CSensoryFramePtr observations;
+        mrpt::obs::CObservationPtr observation;
         size_t rawlogEntry=0;
         //bool end = false;
 
-        CObservation3DRangeScanPtr obsRGBD;  // The RGBD observation
+        mrpt::obs::CObservation3DRangeScanPtr obsRGBD;  // The RGBD observation
         //CObservation2DRangeScanPtr laserObs;    // Pointer to the laser observation
         const int decimation = 1;
-        int num_observations = 0;
+        size_t n_RGBD = 0, n_obs = 0;
 
         bVisualize = false;
 
@@ -106,7 +131,7 @@ public:
 
         // Initialize Dense registration
         RegisterDense registerRGBD; // Dense RGB-D alignment
-        registerRGBD.setSensorType( RegisterDense::STEREO_OUTDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::register360 for more details)
+        registerRGBD.setSensorType( RegisterDense::KINECT ); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::register360 for more details)
         registerRGBD.setNumPyr(5);
         registerRGBD.setMaxDepth(8.f);
         registerRGBD.useSaliency(false);
@@ -131,48 +156,64 @@ public:
         ////        filter.filterEuclidean(frame_src_fused->getSphereCloud());
         //        filter.filterVoxel(frame_src_fused->getSphereCloud(), cloud_dense_src);
 
-        while ( CRawlog::getActionObservationPairOrObservation(
-                    rawlogFile,      // Input file
-                    action,            // Possible out var: action of a pair action/obs
-                    observations,  // Possible out var: obs's of a pair action/obs
-                    observation,    // Possible out var: a single obs.
-                    rawlogEntry    // Just an I/O counter
-                    ) )
+//        while ( mrpt::obs::CRawlog::getActionObservationPairOrObservation(
+//                    dataset,      // Input file
+//                    action,            // Possible out var: action of a pair action/obs
+//                    observations,  // Possible out var: obs's of a pair action/obs
+//                    observation,    // Possible out var: a single obs.
+//                    rawlogEntry    // Just an I/O counter
+//                    ) )
+        while ( n_obs < dataset.size() )
         {
-            // Process action & observations
-            if (observation)
+            observation = dataset.getAsObservation(n_obs);
+            cout << n_obs << " observation: " << observation->sensorLabel << ". Timestamp " << observation->timestamp << endl;
+            if(!IS_CLASS(observation, CObservation3DRangeScan))
             {
-                // assert(IS_CLASS(observation, CObservation2DRangeScan) || IS_CLASS(observation, CObservation3DRangeScan));
-                ++num_observations;
-                //        cout << "Observation " << num_observations++ << " timestamp " << observation->timestamp << endl;
-
-                // TODO: Get closest frames in time (more tight synchronization)
-
-                if(observation->sensorLabel == "KINECT")
-                {
-                    obsRGBD = CObservation3DRangeScanPtr(observation);
-                }
-//            else if(observation->sensorLabel == "KINECT_ACC")
-//            {
-//              obsIMU = ...CObservation2DRangeScanPtr(observation);
-//            }
-//            else if(observation->sensorLabel == "LASER")
-//            {
-//              laserObs = CObservation2DRangeScanPtr(observation);
-//            }
+                ++n_obs;
+                continue;
             }
-            else
-            {
-                // action, observations should contain a pair of valid data (Format #1 rawlog file)
-                THROW_EXCEPTION("Not a valid observation \n");
-            }
+
+            obsRGBD = mrpt::obs::CObservation3DRangeScanPtr(observation);
+            obsRGBD->load();
+
+//            // Process action & observations
+//            if (observation)
+//            {
+//                // assert(IS_CLASS(observation, CObservation2DRangeScan) || IS_CLASS(observation, CObservation3DRangeScan));
+//                ++n_RGBD;
+//                //        cout << "Observation " << n_RGBD++ << " timestamp " << observation->timestamp << endl;
+
+//                // TODO: Get closest frames in time (more tight synchronization)
+
+//                if(observation->sensorLabel == "KINECT")
+//                {
+//                    cout << "Observation: 1\n";
+//                    obsRGBD = mrpt::obs::CObservation3DRangeScanPtr(observation);
+//                    cout << "Observation: 2\n";
+//                    obsRGBD->load();
+//                    cout << "Observation: 3\n";
+//                }
+////            else if(observation->sensorLabel == "KINECT_ACC")
+////            {
+////              obsIMU = ...CObservation2DRangeScanPtr(observation);
+////            }
+////            else if(observation->sensorLabel == "LASER")
+////            {
+////              laserObs = CObservation2DRangeScanPtr(observation);
+////            }
+//            }
+//            else
+//            {
+//                // action, observations should contain a pair of valid data (Format #1 filename file)
+//                THROW_EXCEPTION("Not a valid observation \n");
+//            }
 
             if( bFirstFrame )
             {
                 assert( obsRGBD->hasIntensityImage && obsRGBD->hasRangeImage ); // Check that the images are really RGBD
 
-                intensity_src = cv::Mat(obsRGBD->intensityImage);
-                convertRangeEigen2cvMat(obsRGBD->rangeImage, depth_src);
+                intensity_src = cv::Mat(obsRGBD->intensityImage.getAs<IplImage>());
+                convertRange_mrpt2cvMat(obsRGBD->rangeImage, depth_src);
 
                 registerRGBD.setSourceFrame(intensity_src, depth_src);
 
@@ -183,19 +224,19 @@ public:
             }
 
             // Apply decimation
-            num_obs++;
-            if(num_obs % decimation != 0)
+            ++n_RGBD;
+            if(n_RGBD % decimation != 0)
                 continue;
 
             if(bGoodRegistration)
             {
                 intensity_trg = intensity_src;
                 depth_trg = depth_src;
-                intensity_src = cv::Mat(obsRGBD->intensityImage);
-                convertRangeEigen2cvMat(obsRGBD->rangeImage, depth_src);
+                intensity_src = cv::Mat(obsRGBD->intensityImage.getAs<IplImage>());
+                convertRange_mrpt2cvMat(obsRGBD->rangeImage, depth_src);
             }
 
-            cout << "Observation " << num_observations << " timestamp " << observation->timestamp << endl;
+            cout << "Observation " << n_RGBD << " timestamp " << observation->timestamp << endl;
 
             if(bVisualize)
             {
@@ -216,8 +257,6 @@ public:
 //                        cv::imwrite(path_results + mrpt::format("/depth_%04d.png",frame), depth_src);
 //                    }
                 }
-
-                frame+=1;
 
                 //mrpt::system::pause();
             }
@@ -264,15 +303,17 @@ public:
 //                mrpt::system::pause();
 //            }
 
-            intensity_trg = intensity_src;
-            depth_trg = depth_src;
+            cout << "RegisterDense \n";
 
-            //cout << "RegisterDense \n";
-            registerRGBD.swapSourceTarget();
+            // Forward compositional
+            //registerRGBD.swapSourceTarget();
+            registerRGBD.setTargetFrame(intensity_trg, depth_trg);
             registerRGBD.setSourceFrame(intensity_src, depth_src);
 
             registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePose = registerRGBD.getOptimalPose();
+
+            mrpt::system::pause();
 
             registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePose_photo = registerRGBD.getOptimalPose();
@@ -312,6 +353,7 @@ public:
             currentPoseIC = currentPoseIC * relativePoseIC;
             //            relativePose2 = relativePose2 * Rt_dense_photo;
 
+            ++n_obs;
         };
 
 
@@ -340,8 +382,8 @@ void print_help(char ** argv)
 {
     cout << "\nThis program performs Visual-Range Odometry by direct RGBD registration using a rawlong sequence recorded by Kinect or Asus XPL.\n\n";
 
-    cout << "Usage: " << argv[0] << " <path_to_rawlog_dataset> <sampling>\n";
-    cout << "    <path_to_rawlog_dataset> the RGBD video sequence" << endl;
+    cout << "Usage: " << argv[0] << " <path_to_filename_dataset> <sampling>\n";
+    cout << "    <path_to_filename_dataset> the RGBD video sequence" << endl;
     //cout << "    <pathToResults> is the directory where results should be saved" << endl;
     cout << "    <sampling> is the sampling step used in the dataset (e.g. 1: all the frames are used " << endl;
     cout << "                                                              2: each other frame is used " << endl;
@@ -350,21 +392,34 @@ void print_help(char ** argv)
 
 int main (int argc, char ** argv)
 {
-    if(argc != 3 || pcl::console::find_switch(argc, argv, "-h") || pcl::console::find_switch(argc, argv, "--help"))
+    try
     {
-        print_help(argv);
-        return 0;
+        if(argc != 3 || pcl::console::find_switch(argc, argv, "-h") || pcl::console::find_switch(argc, argv, "--help"))
+        {
+            print_help(argv);
+            return 0;
+        }
+
+        const string RAWLOG_FILENAME = string( argv[1] );
+        //string path_results = static_cast<string>(argv[2]);
+        int sampling = atoi(argv[2]);
+
+        cout << "Create OdometryRGBD object\n";
+        OdometryRGBD OdometryRGBD;
+        OdometryRGBD.run(RAWLOG_FILENAME, sampling);
+
+        cout << " EXIT\n";
+
+        return (0);
     }
-
-//    const string RAWLOG_FILENAME = string( argv[1] );
-//    //string path_results = static_cast<string>(argv[2]);
-//    int sampling = atoi(argv[2]);
-
-//    cout << "Create OdometryRGBD object\n";
-//    OdometryRGBD OdometryRGBD;
-//    OdometryRGBD.run(RAWLOG_FILENAME, sampling);
-
-    cout << " EXIT\n";
-
-    return (0);
+    catch (std::exception &e)
+    {
+        std::cout << "RGBD360 exception caught: " << e.what() << std::endl;
+        return -1;
+    }
+    catch (...)
+    {
+        printf("Unspecified exception!!");
+        return -1;
+    }
 }

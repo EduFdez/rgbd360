@@ -32,12 +32,12 @@
 #include <mrpt/gui.h>
 #include <mrpt/opengl.h>
 #include <mrpt/utils/CFileGZInputStream.h>
-#include <mrpt/slam/CObservation3DRangeScan.h>
-#include <mrpt/slam/CObservationRGBD360.h>
-//#include <mrpt/slam/CObservationIMU.h>
-#include <mrpt/slam/CRawlog.h>
-//#include <mrpt/slam/CActionCollection.h>
-//#include <mrpt/slam/CSensoryFrame.h>
+#include <mrpt/obs/CObservation3DRangeScan.h>
+#include <mrpt/obs/CObservationRGBD360.h>
+//#include <mrpt/obs/CObservationIMU.h>
+#include <mrpt/obs/CRawlog.h>
+//#include <mrpt/obs/CActionCollection.h>
+//#include <mrpt/obs/CSensoryFrame.h>
 
 #include <Frame360.h>
 #include <Frame360_Visualizer.h>
