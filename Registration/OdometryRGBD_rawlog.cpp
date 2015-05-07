@@ -52,6 +52,7 @@
 
 #include <pcl/console/parse.h>
 
+#include <opencv2/opencv.hpp>
 //#include <opencv2/core/eigen.hpp>
 
 #define SAVE_TRAJECTORY 0
@@ -62,6 +63,7 @@ typedef pcl::PointXYZRGBA PointT;
 using namespace std;
 using namespace mrpt::obs;
 using namespace mrpt::utils;
+using namespace cv;
 
 /*! This class' main function 'run' performs PbMap-based odometry with the input data of a stream of
  *  omnidirectional RGB-D images (from a recorded sequence).
@@ -73,15 +75,17 @@ private:
     RegisterDense registerer;
 
 public:
+
+    bool bVisualize;
+    size_t skip_frames;
+
     OdometryRGBD()
     {
         registerer.useSaliency(true);
+        skip_frames = 0;
+        bVisualize = false;
     };
 
-    bool bVisualize;
-
-    /*! Run the odometry from the image specified by "imgRGB_1st".
-     */
     void run(const string &filename, const int &selectSample = 1) //const string &path_results,
     {
         cout << "OdometryRGBD::run() \n";
@@ -110,8 +114,6 @@ public:
         const int decimation = 1;
         size_t n_RGBD = 0, n_obs = 0;
 
-        bVisualize = false;
-
         bool bGoodRegistration = true;
         Eigen::Matrix4f currentPose = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f currentPoseIC = Eigen::Matrix4f::Identity();
@@ -137,7 +139,7 @@ public:
         registerRGBD.useSaliency(false);
         //        registerRGBD.thresSaliencyIntensity(0.f);
         //        registerRGBD.thresSaliencyIntensity(0.f);
-        // registerRGBD.setVisualization(true);
+        //registerRGBD.setVisualization(true);
         registerRGBD.setGrayVariance(8.f/255);
 
         //        // Initialize ICP
@@ -166,12 +168,20 @@ public:
         while ( n_obs < dataset.size() )
         {
             observation = dataset.getAsObservation(n_obs);
-            cout << n_obs << " observation: " << observation->sensorLabel << ". Timestamp " << observation->timestamp << endl;
+            ++n_obs;
             if(!IS_CLASS(observation, CObservation3DRangeScan))
             {
-                ++n_obs;
                 continue;
             }
+            cout << n_obs << " observation: " << observation->sensorLabel << ". Timestamp " << observation->timestamp << endl;
+
+            // Apply decimation
+            ++n_RGBD;
+            if( n_RGBD < skip_frames )
+                continue;
+
+            if(n_RGBD % decimation != 0)
+                continue;
 
             obsRGBD = mrpt::obs::CObservation3DRangeScanPtr(observation);
             obsRGBD->load();
@@ -213,6 +223,7 @@ public:
                 assert( obsRGBD->hasIntensityImage && obsRGBD->hasRangeImage ); // Check that the images are really RGBD
 
                 intensity_src = cv::Mat(obsRGBD->intensityImage.getAs<IplImage>());
+                //intensity_src = cv::cvarrToMat(obsRGBD->intensityImage.getAs<IplImage>());
                 convertRange_mrpt2cvMat(obsRGBD->rangeImage, depth_src);
 
                 registerRGBD.setSourceFrame(intensity_src, depth_src);
@@ -223,31 +234,44 @@ public:
                 continue;
             }
 
-            // Apply decimation
-            ++n_RGBD;
-            if(n_RGBD % decimation != 0)
-                continue;
-
             if(bGoodRegistration)
             {
+                cout << "bGoodRegistration " << n_RGBD << " timestamp " << observation->timestamp << endl;
                 intensity_trg = intensity_src;
                 depth_trg = depth_src;
+                //depth_trg = depth_src.clone();
                 intensity_src = cv::Mat(obsRGBD->intensityImage.getAs<IplImage>());
+                depth_src = cv::Mat(depth_trg.rows, depth_trg.cols, CV_32FC1);
                 convertRange_mrpt2cvMat(obsRGBD->rangeImage, depth_src);
+//                cv::Mat new_depth;
+//                convertRange_mrpt2cvMat(obsRGBD->rangeImage, new_depth);
+//                depth_src = new_depth;
             }
-
-            cout << "Observation " << n_RGBD << " timestamp " << observation->timestamp << endl;
+            cout << "bGoodRegistration " << n_RGBD << " timestamp " << observation->timestamp << endl;
 
             if(bVisualize)
             {
                 //if(mode == 1 || mode == 2)
                 {
-                    cv::imshow( "intensity", intensity_src );
+                    cv::imshow( "intensity_src", intensity_src );
+                    cv::Mat sphDepthVis_src;
+                    depth_src.convertTo( sphDepthVis_src, CV_8U, 25 ); //CV_16UC1
+                    cv::imshow( "depth_src", sphDepthVis_src );
 
-                    cv::Mat sphDepthVis;
-                    depth_src.convertTo( sphDepthVis, CV_8U, 25 ); //CV_16UC1
-                    cv::imshow( "depth", sphDepthVis );
-                    cv::waitKey(1);
+                    cv::imshow( "intensity_trg", intensity_trg );
+                    cv::Mat sphDepthVis_trg;
+                    depth_trg.convertTo( sphDepthVis_trg, CV_8U, 25 ); //CV_16UC1
+                    cv::imshow( "depth_trg", sphDepthVis_trg );
+
+                    cv::Mat diff;
+                    cv::absdiff(intensity_src, intensity_trg, diff);
+                    cv::imshow( "diff", diff );
+
+                    cv::Mat diff_depth;
+                    cv::absdiff(sphDepthVis_src, sphDepthVis_trg, diff_depth);
+                    cv::imshow( "diff_depth", diff_depth );
+
+                    cv::waitKey(0);
 
 //                    if(mode == 2)
 //                    {
@@ -257,6 +281,7 @@ public:
 //                        cv::imwrite(path_results + mrpt::format("/depth_%04d.png",frame), depth_src);
 //                    }
                 }
+                cout << "bVisualize " << endl;
 
                 //mrpt::system::pause();
             }
@@ -310,26 +335,33 @@ public:
             registerRGBD.setTargetFrame(intensity_trg, depth_trg);
             registerRGBD.setSourceFrame(intensity_src, depth_src);
 
-            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            relativePose = registerRGBD.getOptimalPose();
+//            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//            relativePose = registerRGBD.getOptimalPose();
+//            cout << "registerRGBD \n" << relativePose << endl;
 
-            mrpt::system::pause();
+            //mrpt::system::pause();
 
-            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            relativePose_photo = registerRGBD.getOptimalPose();
+//            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//            relativePose_photo = registerRGBD.getOptimalPose();
+//            cout << "registerRGBD Photo \n" << relativePose_photo << endl;
 
-            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            relativePose_depth = registerRGBD.getOptimalPose();
+//            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//            relativePose_depth = registerRGBD.getOptimalPose();
+//            cout << "registerRGBD Depth \n" << relativePose_depth << endl;
 
             // Inverse compositional
             registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePoseIC = registerRGBD.getOptimalPose();
+            cout << "registerRGBD IC \n" << relativePoseIC << endl;
 
             registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePoseIC_photo = registerRGBD.getOptimalPose();
+            cout << "registerRGBD Photo IC \n" << relativePoseIC_photo << endl;
 
             registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePoseIC_depth = registerRGBD.getOptimalPose();
+            cout << "registerRGBD Depth IC \n" << relativePoseIC_depth << endl;
+            mrpt::system::pause();
 
             //            double time_start = pcl::getTime();
 

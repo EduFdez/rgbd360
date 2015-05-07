@@ -109,7 +109,7 @@ class RegisterDense
 //    float SSO;
 
     /*! Enable the visualization of the optimization process (only for debug).*/
-    bool visualizeIterations;
+    bool visualize_;
 
     /*! Warped intensity image. It is used in the optimization and also for visualization purposes.*/
     cv::Mat warped_gray;
@@ -295,7 +295,7 @@ public:
     /*! Set the visualization of the optimization progress.*/
     inline void setVisualization(const bool viz)
     {
-        visualizeIterations = viz;
+        visualize_ = viz;
     };
 
     /*! Set the a variable to indicate whether pixel saliency is used.*/
@@ -397,6 +397,7 @@ public:
 
     /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
     void transformPts3D_sse(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);
+    void transformPts3D_avx(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);
 
     /*! Project pixel spherical */
     inline void projectSphere(const int & nCols, const int & nRows, const float & phi_FoV, const int & c, const int & r, const float & depth, const Eigen::Matrix4f & poseGuess,
@@ -777,6 +778,7 @@ public:
 
     /*! Update the Hessian and the Gradient from a list of jacobians and residuals. */
     void updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels);
+    void updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXf & pixel_weights, const Eigen::MatrixXi & valid_pixels);
 
 //    void updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi &warp_pixels);
 
