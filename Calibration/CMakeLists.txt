@@ -1,13 +1,13 @@
 IF(BUILD_CALIBRATION)
 
 	# Declare the target (an executable)
-	ADD_EXECUTABLE(Calibrator Calibrator.cpp
-							../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
-							../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
-							../include/Miscellaneous.h
-							../include/Calib360.h
-							../include/Calibrator.h
-							../include/Frame360.h
+        ADD_EXECUTABLE(Calibrator   Calibrator.cpp
+                                    ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
+                                    ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
+                                    ../include/Miscellaneous.h
+                                    ../include/Calib360.h
+                                    ../include/Calibrator.h
+                                    ../include/Frame360.h
 	)
 
 	TARGET_LINK_LIBRARIES(Calibrator
@@ -16,6 +16,23 @@ IF(BUILD_CALIBRATION)
 					${PCL_LIBRARIES}
 					${Boost_SERIALIZATION_LIBRARY}
 					   )
+
+        # Declare the target (an executable)
+        ADD_EXECUTABLE(RawlogCalibrator RawlogCalibrator.cpp
+                                        ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
+                                        ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
+                                        ../include/Miscellaneous.h
+                                        ../include/Calib360.h
+                                        ../include/Calibrator.h
+                                        ../include/Frame360.h
+        )
+
+        TARGET_LINK_LIBRARIES(RawlogCalibrator
+                                        ${MRPT_LIBS}
+                                        ${OpenCV_LIBS}
+                                        ${PCL_LIBRARIES}
+                                        ${Boost_SERIALIZATION_LIBRARY}
+                                           )
 
 	# Declare the target (an executable)
 	ADD_EXECUTABLE(OnlineCalibration OnlineCalibration.cpp

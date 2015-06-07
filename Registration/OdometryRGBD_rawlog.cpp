@@ -384,8 +384,6 @@ public:
             currentPose = relativePose * currentPose;
             currentPoseIC = currentPoseIC * relativePoseIC;
             //            relativePose2 = relativePose2 * Rt_dense_photo;
-
-            ++n_obs;
         };
 
 
