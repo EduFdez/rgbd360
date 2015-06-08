@@ -199,14 +199,14 @@ class Frame360_Visualizer
       else if(event.getKeySym() == "l" || event.getKeySym() == "L"){cout << " Press L: fill/unfill plane colors\n";
         bColoredPlanes = !bColoredPlanes;
         b_update_vis_ = true;}
-      else if(event.getKeySym () == "a" || event.getKeySym () == "A"){
-        if(frameIdx <= 50)
-          frameIdx = 0;
-        else
-          frameIdx -= 50;
-        }
-      else if(event.getKeySym () == "s" || event.getKeySym () == "S"){
-          frameIdx += 50;}
+//      else if(event.getKeySym () == "a" || event.getKeySym () == "A"){
+//        if(frameIdx <= 50)
+//          frameIdx = 0;
+//        else
+//          frameIdx -= 50;
+//        }
+//      else if(event.getKeySym () == "s" || event.getKeySym () == "S"){
+//          frameIdx += 50;}
 //      else
 //      {
 //        cout << "\n\tASCII key: " << unsigned(event.getKeyCode()) << endl;

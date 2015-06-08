@@ -32,7 +32,9 @@
 #ifndef CALIB360_H
 #define CALIB360_H
 
+#ifndef NUM_ASUS_SENSORS
 #define NUM_ASUS_SENSORS 8
+#endif
 
 //#include <mrpt/base.h>
 #include <clams/discrete_depth_distortion_model.h>
@@ -88,14 +90,14 @@ class Calib360
   }
 
   /*! Return the relative position of the camera 'id' */
-  Eigen::Matrix4f getRt_id(int id) const
+  inline Eigen::Matrix4f getRt_id(int id) const
   {
     assert(id >= 0 && id < NUM_ASUS_SENSORS);
     return Rt_[id];
   }
 
   /*! Stitch both the RGB and the depth images corresponding to the sensor 'sensor_id' */
-  void setRt_id(int id, Eigen::Matrix4f &Rt)
+  inline void setRt_id(int id, const Eigen::Matrix4f &Rt)
   {
     Rt_[id] = Rt;
   }

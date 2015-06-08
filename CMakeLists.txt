@@ -32,7 +32,7 @@ set(RGBD360_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 #Add here your project dependencies
 #FIND_PACKAGE(MRPT REQUIRED hwdrivers maps graphslam)
-FIND_PACKAGE(MRPT REQUIRED base hwdrivers slam maps graphslam pbmap)
+FIND_PACKAGE(MRPT REQUIRED base hwdrivers obs slam maps graphslam pbmap)
 FIND_PACKAGE(PCL REQUIRED)
 FIND_PACKAGE(OpenCV REQUIRED )
 link_directories(${OpenCV_LIBS_DIR})

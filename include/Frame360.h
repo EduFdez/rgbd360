@@ -36,6 +36,10 @@
 #ifndef _DEBUG_MSG
 #define _DEBUG_MSG 0
 #endif
+\
+#ifndef NUM_ASUS_SENSORS
+#define NUM_ASUS_SENSORS 8
+#endif
 
 #define USE_BILATERAL_FILTER 1
 #define DOWNSAMPLE_160 1
@@ -122,12 +126,12 @@ class Frame360
     /*! Spherical (omnidirectional) Depth image*/
     cv::Mat sphereDepth;
 
-    /*! The 8 sets of planes segmented from each camera */
+    /*! The NUM_ASUS_SENSORS sets of planes segmented from each camera */
     std::vector<mrpt::pbmap::PbMap> local_planes_;
 
-    /*! The 8 RGB-D images captured by the omnidirectional device */
-    //  FrameRGBD frameRGBD_[8];
-    CloudRGBD_Ext frameRGBD_[8];
+    /*! The NUM_ASUS_SENSORS RGB-D images captured by the omnidirectional device */
+    //  FrameRGBD frameRGBD_[NUM_ASUS_SENSORS];
+    CloudRGBD_Ext frameRGBD_[NUM_ASUS_SENSORS];
 
     /*! Pose of this frame */
     Eigen::Matrix4f pose;
@@ -149,11 +153,11 @@ class Frame360
 
   private:
 
-    /*! Time-stamp of the spherical frame (it corresponds to the last capture of the 8 sensors, as they are not syncronized) */
+    /*! Time-stamp of the spherical frame (it corresponds to the last capture of the NUM_ASUS_SENSORS sensors, as they are not syncronized) */
     uint64_t timeStamp;
 
-    /*! The 8 separate point clouds from each single Asus XPL */
-    pcl::PointCloud<PointT>::Ptr cloud_[8];
+    /*! The NUM_ASUS_SENSORS separate point clouds from each single Asus XPL */
+    pcl::PointCloud<PointT>::Ptr cloud_[NUM_ASUS_SENSORS];
 
     //  /*! Has the spherical point cloud already been built? */
     //  bool bSphereCloudBuilt;
@@ -179,28 +183,28 @@ public:
     /*! Constructor for the SphericalStereo sensor (outdoor sensor) */
     Frame360();
 
-    /*! Constructor for the sensor RGBD360 (8 Asus XPL)*/
+    /*! Constructor for the sensor RGBD360 (NUM_ASUS_SENSORS Asus XPL)*/
     Frame360(Calib360 *calib360);
 
     /*! Return the total area of the planar patches from this frame */
     float getPlanarArea();
 
     /*! Return the the point cloudgrabbed by the sensor 'id' */
-    inline pcl::PointCloud<PointT>::Ptr getCloud_id(const int id)
+    inline pcl::PointCloud<PointT>::Ptr getCloud_id(int id)
     {
-        assert(id >= 0 && id < 8);
+        assert(id >= 0 && id < NUM_ASUS_SENSORS);
         return cloud_[id];
     }
 
     /*! Return the the point FrameRGBD by the sensor 'id' */
-    inline CloudRGBD_Ext getFrameRGBD_id(const int id)
+    inline CloudRGBD_Ext getFrameRGBD_id(int id)
     {
-        assert(id >= 0 && id < 8);
+        assert(id >= 0 && id < NUM_ASUS_SENSORS);
         return frameRGBD_[id];
     }
 
     /*! Set the spherical image timestamp */
-    inline void setTimeStamp(const uint64_t timestamp)
+    inline void setTimeStamp(uint64_t timestamp)
     {
         timeStamp = timestamp;
     }
@@ -243,19 +247,19 @@ public:
 
         //    getIntensityImage();
         //
-        //    #pragma omp parallel num_threads(8)
+        //    #pragma omp parallel num_threads(NUM_ASUS_SENSORS)
         //    {
         //      int sensor_id = omp_get_thread_num();
-        //      int sum_intensity[8];
-        //      std::fill(sum_intensity, sum_intensity+8, 0);
-        //      for(unsigned i=0; i < 8; i++)
+        //      int sum_intensity[NUM_ASUS_SENSORS];
+        //      std::fill(sum_intensity, sum_intensity+NUM_ASUS_SENSORS, 0);
+        //      for(unsigned i=0; i < NUM_ASUS_SENSORS; i++)
         //        if(sensor_id == i)
         //        {
         //          frameRGBD_[sensor_id].getIntensityImage(); //Make sure that the intensity image has been computed
         //          sum_intensity[sensor_id] = frameRGBD_[sensor_id].getAverageIntensity(sample); //Make sure that the intensity image has been computed
         //        }
         //    }
-        //    for(unsigned i=1; i < 8; i++)
+        //    for(unsigned i=1; i < NUM_ASUS_SENSORS; i++)
         //      sum_intensity[0] += sum_intensity[i];
         //
         //    return floor(sum_intensity[0] / 8.0 + 0.5);
@@ -285,7 +289,7 @@ public:
     /*! Build the cloud from the 'sensor_id' Asus XPL */
     void buildCloud_id(int sensor_id);
 
-    /*! Build the spherical point cloud by superimposing the 8 point clouds from the 8 Asus XPL*/
+    /*! Build the spherical point cloud by superimposing the NUM_ASUS_SENSORS point clouds from the NUM_ASUS_SENSORS Asus XPL*/
     void buildSphereCloud_rgbd360();
 
     /*! Fast version of the method 'buildSphereCloud'. This one performs more poorly for plane segmentation. */

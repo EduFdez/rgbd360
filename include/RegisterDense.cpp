@@ -1436,8 +1436,8 @@ double RegisterDense::errorDense_IC( const int &pyrLevel, const Eigen::Matrix4f 
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-void RegisterDense::calcHessGrad(const int &pyrLevel,
-                                const Eigen::Matrix4f poseGuess,
+void RegisterDense::calcHessGrad(int &pyrLevel,
+                                Eigen::Matrix4f poseGuess,
                                 costFuncType method )
 {
 #if PRINT_PROFILING
@@ -1755,8 +1755,8 @@ void RegisterDense::calcHessGrad(const int &pyrLevel,
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::calcHessGrad_IC(const int &pyrLevel,
-                                    const Eigen::Matrix4f poseGuess,
+double RegisterDense::calcHessGrad_IC(int &pyrLevel,
+                                    Eigen::Matrix4f poseGuess,
                                     costFuncType method )
 {
     std::cout << " RegisterDense::calcHessGrad_IC() method " << method << " use_bilinear " << use_bilinear_ << " n_pts " << LUT_xyz_source.rows() << " " << validPixels_src.rows() << std::endl;
@@ -2463,8 +2463,8 @@ double RegisterDense::errorDense_inv( const int &pyrLevel, const Eigen::Matrix4f
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-void RegisterDense::calcHessGrad_inv(const int &pyrLevel,
-                                    const Eigen::Matrix4f poseGuess,
+void RegisterDense::calcHessGrad_inv(int &pyrLevel,
+                                    Eigen::Matrix4f poseGuess,
                                     costFuncType method )
 {
 #if PRINT_PROFILING
@@ -2634,7 +2634,7 @@ void RegisterDense::calcHessGrad_inv(const int &pyrLevel,
 }
 
 ///*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method. */
-//double RegisterDense::errorDense_Occ1(const int &pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method )
+//double RegisterDense::errorDense_Occ1(int pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method )
 //{
 //    //double error2 = 0.0; // Squared error
 //    double PhotoResidual = 0.0;
@@ -3901,7 +3901,7 @@ void RegisterDense::calcHessGrad_inv(const int &pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-void RegisterDense::warpImage(const int &pyrLevel,
+void RegisterDense::warpImage(int pyrLevel,
                               const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                               costFuncType method ) //,  const bool use_bilinear )
 {
@@ -6059,7 +6059,7 @@ double RegisterDense::errorDenseWarp_sphere ( const int &pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::errorDenseIC_sphere(const int &pyrLevel,
+double RegisterDense::errorDenseIC_sphere(int pyrLevel,
                                           const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                           costFuncType method ) //,  const bool use_bilinear )
 {
@@ -6437,7 +6437,7 @@ double RegisterDense::errorDenseIC_sphere(const int &pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::computeJacobian_sphere(const int &pyrLevel,
+double RegisterDense::computeJacobian_sphere(int pyrLevel,
                                             const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                             costFuncType method ) //,const bool use_bilinear )
 {

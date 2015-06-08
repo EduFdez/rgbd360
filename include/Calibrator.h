@@ -32,8 +32,13 @@
 #ifndef CALIBRATOR_H
 #define CALIBRATOR_H
 
-#include <Calib360.h>
-#include <Frame360.h>
+#ifndef NUM_ASUS_SENSORS
+#define NUM_ASUS_SENSORS 8
+#endif
+
+#include "Calib360.h"
+#include "Frame360.h"
+#include "Miscellaneous.h"
 
 /*! This class is used to gather a set of control planes (they are analogous to the control points used to create panoramic images with a regular
     camera) from a sequence of RGBD360 observations. They permit to find the rigid transformations (extrinsic calibration) between the different
@@ -47,18 +52,18 @@ class ControlPlanes
     std::map<unsigned, std::map<unsigned, mrpt::math::CMatrixDouble> > mmCorrespondences;
 
     /*! Conditioning numbers used to indicate if there is enough reliable information to calculate the extrinsic calibration */
-    float conditioning[8];
+    float conditioning[NUM_ASUS_SENSORS];
 
     /*! Rotation covariance matrices from adjacent sensors */
-    Eigen::Matrix3f covariances[8];
+    Eigen::Matrix3f covariances[NUM_ASUS_SENSORS];
 
     ControlPlanes()
     {
-      std::fill(conditioning, conditioning+8, 9999.9);
+      std::fill(conditioning, conditioning+NUM_ASUS_SENSORS, 9999.9);
 //      conditioning[0] = 1; // The first sensor is fixed
-//      std::fill(weight_pair, weight_pair+8, 0.0);
-//      std::fill(conditioning_measCount, conditioning_measCount+8, 0);
-      std::fill(covariances, covariances+8, Eigen::Matrix3f::Zero());
+//      std::fill(weight_pair, weight_pair+NUM_ASUS_SENSORS, 0.0);
+//      std::fill(conditioning_measCount, conditioning_measCount+NUM_ASUS_SENSORS, 0);
+      std::fill(covariances, covariances+NUM_ASUS_SENSORS, Eigen::Matrix3f::Zero());
     }
 
     /*! Load the plane correspondences between the different Asus sensors from file */
@@ -141,11 +146,11 @@ class ControlPlanes
     void printConditioning()
     {
       cout << "Conditioning\n";
-      for(unsigned sensor_id = 0; sensor_id < 7; sensor_id++)
+      for(unsigned sensor_id = 0; sensor_id < NUM_ASUS_SENSORS-1; sensor_id++)
         cout << mmCorrespondences[sensor_id][sensor_id+1].getRowCount() << "\t";
-      cout << mmCorrespondences[0][7].getRowCount() << "\t";
+      cout << mmCorrespondences[0][NUM_ASUS_SENSORS-1].getRowCount() << "\t";
       cout << endl;
-      for(unsigned sensor_id = 0; sensor_id < 8; sensor_id++)
+      for(unsigned sensor_id = 0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
         cout << conditioning[sensor_id] << "\t";
       cout << endl;
     }
@@ -259,7 +264,8 @@ class PairCalibrator
 
     Eigen::Vector3f calcScoreRotation(Eigen::Vector3f &n1, Eigen::Vector3f &n2)
     {
-      Eigen::Vector3f score = - skew(Rt_estimated.block(0,0,3,3)*n2) * n1;
+      Eigen::Vector3f n2_ref1 = Rt_estimated.block(0,0,3,3)*n2;
+      Eigen::Vector3f score = - skew(n2_ref1) * n1;
 
       return score;
     }
@@ -370,7 +376,7 @@ class PairCalibrator
 //      std::cout << "\nFIM_trans \n" << FIM_trans << std::endl;
 //    }
 
-    Eigen::Matrix3f CalibrateRotation(const int weightedLS = 0)
+    Eigen::Matrix3f CalibrateRotation(int weightedLS = 0)
     {
       // Calibration system
       Eigen::Matrix3f rotationCov = Eigen::Matrix3f::Zero();
@@ -438,7 +444,7 @@ class PairCalibrator
     }
 
 
-    Eigen::Matrix3f CalibrateRotationD(const int weightedLS = 0)
+    Eigen::Matrix3f CalibrateRotationD(int weightedLS = 0)
     {
       // Calibration system
       Eigen::Matrix3d rotationCov = Eigen::Matrix3d::Zero();
@@ -641,7 +647,7 @@ class PairCalibrator
       std::cout << "Rotation \n"<< Rt_estimated.block(0,0,3,3) << std::endl;
     }
 
-    Eigen::Vector3f CalibrateTranslation(const int weightedLS = 0)
+    Eigen::Vector3f CalibrateTranslation(int weightedLS = 0)
     {
       // Calibration system
       Eigen::Matrix3f translationHessian = Eigen::Matrix3f::Zero();
@@ -921,7 +927,7 @@ class Calibrator : public Calib360
               Eigen::Vector3f n_obs_ii; n_obs_ii << it_pair->second(i,4), it_pair->second(i,5), it_pair->second(i,6);
               Eigen::Vector3f n_i = Rt_estimated[sensor_id].block(0,0,3,3) * n_obs_i;
               Eigen::Vector3f n_ii = Rt_estimated[it_pair->first].block(0,0,3,3) * n_obs_ii;
-              jacobian_rot_i = skew(-n_i);
+              jacobian_rot_i = -skew(n_i);
               jacobian_rot_ii = skew(n_ii);
               Eigen::Vector3f rot_error = (n_i - n_ii);
               accum_error2 += rot_error.dot(rot_error);
@@ -1056,7 +1062,7 @@ class Calibrator : public Calib360
 //    cout << "Previous error " << rotation_error2 << " new error " << new_rotation_error2 << endl;
 
       // Rotate the camera system to make the vertical direction correspond to the X axis
-      for(unsigned sensor_id=0; sensor_id<8; sensor_id++)
+      for(unsigned sensor_id=0; sensor_id<NUM_ASUS_SENSORS; sensor_id++)
         Rt_estimated[sensor_id].block(0,0,3,3) = rotation * Rt_estimated[sensor_id].block(0,0,3,3);
 
       std::cout << "ErrorCalibRotation " << accum_error2/numControlPlanes << " " << av_angle_error/numControlPlanes << std::endl;
@@ -1157,7 +1163,7 @@ class Calibrator : public Calib360
         Eigen::Vector3f centerDevice = Eigen::Vector3f::Zero();
         for(int sensor_id = 1; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
           centerDevice += update_vector.block(3*sensor_id-3,0,3,1);
-        centerDevice = centerDevice / 8;
+        centerDevice = centerDevice / NUM_ASUS_SENSORS;
 
         // Update translation of the poses
         Rt_estimatedTemp[0].block(0,3,3,1) = -centerDevice;

@@ -503,7 +503,7 @@ class CalibPairLaserKinect
       std::cout << "Rotation \n"<< Rt_estimated.block(0,0,3,3) << std::endl;
     }
 
-    Eigen::Vector3f CalibrateTranslation(const int weightedLS = 0)
+    Eigen::Vector3f CalibrateTranslation(int weightedLS = 0)
     {
     cout << "CalibrateTranslation Laser-Kinect\n";
       // Calibration system

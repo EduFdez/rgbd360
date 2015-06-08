@@ -105,7 +105,7 @@ Eigen::Matrix<dataType,3,3> skew(const Eigen::Matrix<dataType,3,1> &vec)
 
 /*! Return the translation vector of the input pose */
 template<typename dataType> inline
-Eigen::Matrix<dataType,3,1> getPoseTranslation(Eigen::Matrix<dataType,4,4> pose)
+Eigen::Matrix<dataType,3,1> getPoseTranslation(const Eigen::Matrix<dataType,4,4> pose)
 {
   Eigen::Matrix<dataType,3,1> translation = pose.block(0,3,3,1);
   return  translation;
@@ -113,13 +113,26 @@ Eigen::Matrix<dataType,3,1> getPoseTranslation(Eigen::Matrix<dataType,4,4> pose)
 
 /*! Return the rotation vector of the input pose */
 template<typename dataType> inline
-Eigen::Matrix<dataType,3,1> getPoseRotation(Eigen::Matrix<dataType,4,4> pose)
+Eigen::Matrix<dataType,3,1> getPoseRotation(const Eigen::Matrix<dataType,4,4> pose)
 {
   mrpt::math::CMatrixDouble44 mat_mrpt(pose);
   mrpt::poses::CPose3D pose_mrpt(mat_mrpt);
   mrpt::math::CArrayDouble<3> vRot_mrpt = pose_mrpt.ln_rotation();
   Eigen::Matrix<dataType,3,1> rotation = Eigen::Matrix<dataType,3,1>(vRot_mrpt[0],vRot_mrpt[1],vRot_mrpt[2]);
   return  rotation;
+}
+
+/*! Return the rotation vector of the input pose */
+inline Eigen::Matrix4f getPoseEigenMatrix(const mrpt::poses::CPose3D & pose)
+{
+  Eigen::Matrix4f pose_mat;
+  mrpt::math::CMatrixDouble44 pose_mat_mrpt;
+  pose.getHomogeneousMatrix(pose_mat_mrpt);
+  pose_mat << pose_mat_mrpt(0,0), pose_mat_mrpt(1,0), pose_mat_mrpt(2,0), pose_mat_mrpt(3,0),
+              pose_mat_mrpt(0,1), pose_mat_mrpt(1,1), pose_mat_mrpt(2,1), pose_mat_mrpt(3,1),
+              pose_mat_mrpt(0,2), pose_mat_mrpt(1,2), pose_mat_mrpt(2,2), pose_mat_mrpt(3,2),
+              pose_mat_mrpt(0,3), pose_mat_mrpt(1,3), pose_mat_mrpt(2,3), pose_mat_mrpt(3,3) ;
+  return  pose_mat;
 }
 
 /*! Check if the path 'filename' corresponds to a file */
