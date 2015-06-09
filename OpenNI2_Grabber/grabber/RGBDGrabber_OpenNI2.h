@@ -42,6 +42,9 @@ class RGBDGrabber_OpenNI2 : public RGBDGrabber
 {
  private:
 
+    /*! Device id */
+    const char* deviceURI;
+
     /*! OpenNI2 status signal */
     openni::Status rc;
 
@@ -72,9 +75,6 @@ class RGBDGrabber_OpenNI2 : public RGBDGrabber
     int exposure_; //(miliseconds)
 
 //    int gain_; // In percentage (%)
-
-    /*! Device id */
-    const char* deviceURI;
 
 //    /*! Connected devices information */
 //    openni::Array<openni::DeviceInfo> deviceList;
@@ -123,7 +123,7 @@ class RGBDGrabber_OpenNI2 : public RGBDGrabber
     {
 //      const openni::SensorInfo *sensor_info = device.getSensorInfo(openni::SENSOR_COLOR);
       const openni::Array<openni::VideoMode>& modes_list = device.getSensorInfo(openni::SENSOR_COLOR)->getSupportedVideoModes();
-      for (unsigned i=0; i < modes_list.getSize(); i++)
+      for (int i=0; i < modes_list.getSize(); i++)
       {
         printf("Mode %u. Resolution=%dx%d FPS=%d pixelFormat=%d\n",i , modes_list[i].getResolutionX(), modes_list[i].getResolutionY(), modes_list[i].getFps(), modes_list[i].getPixelFormat() );
       }

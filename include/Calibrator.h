@@ -59,6 +59,7 @@ class ControlPlanes
 
     ControlPlanes()
     {
+      std::cout << "NUM_ASUS_SENSORS " << NUM_ASUS_SENSORS << std::endl;
       std::fill(conditioning, conditioning+NUM_ASUS_SENSORS, 9999.9);
 //      conditioning[0] = 1; // The first sensor is fixed
 //      std::fill(weight_pair, weight_pair+NUM_ASUS_SENSORS, 0.0);
@@ -119,10 +120,10 @@ class ControlPlanes
     /*! Get the rate of inliers near the border of the sensor (the border nearer to the next lower index Asus sensor) */
     float inliersUpperFringe(mrpt::pbmap::Plane &plane, float fringeWidth) // This only works for QVGA resolution
     {
-      unsigned count = 0;
-      unsigned im_size = 320 * 240;
-      unsigned limit = fringeWidth * im_size;
-      for(unsigned i=0; i < plane.inliers.size(); ++i)
+      size_t count = 0;
+      size_t im_size = 320 * 240;
+      int limit = fringeWidth * im_size;
+      for(size_t i=0; i < plane.inliers.size(); ++i)
         if(plane.inliers[i] < limit)
           ++count;
 
@@ -501,7 +502,8 @@ class PairCalibrator
     }
 
     /*! Get the rotation of each sensor in the multisensor RGBD360 setup */
-    Eigen::Matrix3f CalibrateRotationManifold(int weightedLS = 0)
+    //Eigen::Matrix3f
+    void CalibrateRotationManifold(int weightedLS = 0)
     {
     cout << "CalibrateRotationManifold...\n";
       Eigen::Matrix<float,3,3> hessian;
@@ -519,7 +521,7 @@ class PairCalibrator
       Rt_estimatedTemp = Rt_estimated;
 
       // Parameters of the Least-Squares optimization
-      unsigned _max_iterations = 10;
+      int _max_iterations = 10;
       float _epsilon_transf = 0.00001;
       float _convergence_error = 0.000001;
 
@@ -572,12 +574,12 @@ class PairCalibrator
               gradient += jacobian_rot_ii.transpose() * rot_error;
             }
 
-            Eigen::JacobiSVD<Eigen::Matrix3f> svd(hessian, Eigen::ComputeFullU | Eigen::ComputeFullV);
-            float conditioning = svd.singularValues().maxCoeff()/svd.singularValues().minCoeff();
+//            Eigen::JacobiSVD<Eigen::Matrix3f> svd(hessian, Eigen::ComputeFullU | Eigen::ComputeFullV);
 //            Eigen::Matrix3f cov = hessian.inverse();
 //            Eigen::JacobiSVD<Eigen::Matrix3f> svd2(cov, Eigen::ComputeFullU | Eigen::ComputeFullV);
 
 //            float minFIM_rot = std::min(hessian(0,0), std::min(hessian(1,1), hessian(2,2)));
+//            float conditioning = svd.singularValues().maxCoeff()/svd.singularValues().minCoeff();
 //            std::cout << " det " << hessian.determinant() << " minFIM_rot " << minFIM_rot << " conditioningX " << conditioning << std::endl;
 ////            std::cout << hessian(0,0) << " " << hessian(1,1) << " " << hessian(2,2) << endl;
 ////            std::cout << "COV " << svd2.singularValues().transpose() << endl;
@@ -588,8 +590,8 @@ class PairCalibrator
 
         }
 
-        Eigen::JacobiSVD<Eigen::Matrix3f> svd(hessian, Eigen::ComputeFullU | Eigen::ComputeFullV);
-        float conditioning = svd.singularValues().maxCoeff()/svd.singularValues().minCoeff();
+//        Eigen::JacobiSVD<Eigen::Matrix3f> svd(hessian, Eigen::ComputeFullU | Eigen::ComputeFullV);
+//        float conditioning = svd.singularValues().maxCoeff()/svd.singularValues().minCoeff();
 //        Eigen::Matrix3f cov;
 //        svd.pinv(cov);
 //        std::cout << "hessian \n" << hessian << "inv\n" << hessian.inverse() << "\ncov \n" << cov << std::endl;
@@ -645,9 +647,13 @@ class PairCalibrator
 
       std::cout << "ErrorCalibRotation " << accum_error2 << " " << av_angle_error << std::endl;
       std::cout << "Rotation \n"<< Rt_estimated.block(0,0,3,3) << std::endl;
+
+      //rotation = Rt_estimated.block(0,0,3,3);
+      //return rotation;
     }
 
-    Eigen::Vector3f CalibrateTranslation(int weightedLS = 0)
+    //Eigen::Vector3f
+    void CalibrateTranslation(int weightedLS = 0)
     {
       // Calibration system
       Eigen::Matrix3f translationHessian = Eigen::Matrix3f::Zero();
@@ -701,7 +707,7 @@ class PairCalibrator
 //      translation2[2] /= sumNormals[2];
 //      std::cout << "translation " << translation.transpose() << " translation2 " << translation2.transpose() << std::endl;
 
-      return translation;
+      //return translation;
     }
 
     void CalibratePair()
@@ -891,7 +897,7 @@ class Calibrator : public Calib360
       Rt_estimatedTemp[0] = Rt_estimated[0];
 
       // Parameters of the Least-Squares optimization
-      unsigned _max_iterations = 10;
+      int _max_iterations = 10;
       float _epsilon_transf = 0.00001;
       float _convergence_error = 0.000001;
 

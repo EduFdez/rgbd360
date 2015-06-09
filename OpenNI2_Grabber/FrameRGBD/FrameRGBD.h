@@ -117,11 +117,11 @@ class FrameRGBD
   {
     //Make sure that the intensity image has been computed
     getIntensityImage();
-    unsigned sum_intensity = 0;
-    unsigned sample_size = (m_intensityImage.rows/sample) * (m_intensityImage.cols/sample);
-    for(unsigned r=0; r < m_intensityImage.rows; r+=sample)
-      for(unsigned c=0; c < m_intensityImage.cols; c+=sample)
-        sum_intensity += static_cast<unsigned>(m_intensityImage.at<uint8_t>(r,c));
+    size_t sum_intensity = 0;
+    size_t sample_size = (m_intensityImage.rows/sample) * (m_intensityImage.cols/sample);
+    for(int r=0; r < m_intensityImage.rows; r+=sample)
+      for(int c=0; c < m_intensityImage.cols; c+=sample)
+        sum_intensity += static_cast<size_t>(m_intensityImage.at<uint8_t>(r,c));
 
     return sum_intensity / sample_size;
   }

@@ -88,7 +88,7 @@ RegisterDense::RegisterDense() :
     tol_residual_ = 1e-3;
 
     registered_pose_ = Eigen::Matrix4f::Identity();
-};
+}
 
 /*! Build a pyramid of nLevels of image resolutions from the input image.
  * The resolution of each layer is 2x2 times the resolution of its image above.*/
@@ -119,7 +119,7 @@ void RegisterDense::buildPyramid( const cv::Mat & img, std::vector<cv::Mat> & py
     double time_end = pcl::getTime();
     std::cout << "RegisterDense::buildPyramid " << (time_end - time_start)*1000 << " ms. \n";
 #endif
-};
+}
 
 /*! Build a pyramid of nLevels of image resolutions from the input image.
      * The resolution of each layer is 2x2 times the resolution of its image above.*/
@@ -213,7 +213,7 @@ void RegisterDense::buildPyramidRange( const cv::Mat & img, std::vector<cv::Mat>
     double time_end = pcl::getTime();
     std::cout << "RegisterDense::buildPyramidRange " << (time_end - time_start)*1000 << " ms. \n";
 #endif
-};
+}
 
 
 /*! Calculate the image gradients in X and Y. This gradientes are calculated through weighted first order approximation (as adviced by Mariano Jaimez). */
@@ -448,7 +448,7 @@ void RegisterDense::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat
     double time_end = pcl::getTime();
     std::cout << src.rows << "rows. RegisterDense::calcGradientXY " << (time_end - time_start)*1000 << " ms. \n";
 #endif
-};
+}
 
 /*! Calculate the image gradients in X and Y. This gradientes are calculated through weighted first order approximation (as adviced by Mariano Jaimez). */
 void RegisterDense::calcGradientXY_saliency(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gradY, std::vector<int> & vSalientPixels_)
@@ -474,7 +474,7 @@ void RegisterDense::calcGradientXY_saliency(const cv::Mat & src, cv::Mat & gradX
         for(unsigned c=1; c < src.cols-1; c++)
             if( (fabs(gradX.at<float>(r,c)) > thresSaliency) || (fabs(gradY.at<float>(r,c)) > thresSaliency) )
                 vSalientPixels_.push_back(src.cols*r+c); //vector index
-};
+}
 
 /*! Compute the gradient images for each pyramid level. */
 void RegisterDense::buildGradientPyramids(const std::vector<cv::Mat> & grayPyr, std::vector<cv::Mat> & grayGradXPyr, std::vector<cv::Mat> & grayGradYPyr,
@@ -551,7 +551,7 @@ void RegisterDense::buildGradientPyramids(const std::vector<cv::Mat> & grayPyr, 
     double time_end = pcl::getTime();
     std::cout << "RegisterDense::buildGradientPyramids " << (time_end - time_start)*1000 << " ms. \n";
 //#endif
-};
+}
 
 /*! Sets the source (Intensity+Depth) frame.*/
 void RegisterDense::setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
@@ -580,7 +580,7 @@ void RegisterDense::setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
     double time_end = pcl::getTime();
     std::cout << "RegisterDense::setSourceFrame construction " << (time_end - time_start)*1000 << " ms. \n";
     #endif
-};
+}
 
 /*! Sets the source (Intensity+Depth) frame. Depth image is ignored*/
 void RegisterDense::setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
@@ -675,7 +675,7 @@ void RegisterDense::swapSourceTarget()
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::errorDense( const int &pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method )
+double RegisterDense::errorDense( int pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method )
 {
     //std::cout << " RegisterDense::errorDense \n";
     double error2 = 0.0;
@@ -691,9 +691,9 @@ double RegisterDense::errorDense( const int &pyrLevel, const Eigen::Matrix4f pos
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = nRows*nCols;
     const size_t n_pts = LUT_xyz_source.rows();
     float stdDevPhoto_inv = 1./stdDevPhoto;
     float stdDevDepth_inv = 1./stdDevDepth;
@@ -1084,7 +1084,7 @@ double RegisterDense::errorDense( const int &pyrLevel, const Eigen::Matrix4f pos
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::errorDense_IC( const int &pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method )
+double RegisterDense::errorDense_IC( int pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method )
 {
     //std::cout << " RegisterDense::errorDense \n";
     double error2 = 0.0;
@@ -1100,9 +1100,9 @@ double RegisterDense::errorDense_IC( const int &pyrLevel, const Eigen::Matrix4f 
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = nRows*nCols;
     const size_t n_pts = LUT_xyz_source.rows();
     float stdDevPhoto_inv = 1./stdDevPhoto;
     float stdDevDepth_inv = 1./stdDevDepth;
@@ -1436,8 +1436,7 @@ double RegisterDense::errorDense_IC( const int &pyrLevel, const Eigen::Matrix4f 
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-void RegisterDense::calcHessGrad(int &pyrLevel,
-                                Eigen::Matrix4f poseGuess,
+void RegisterDense::calcHessGrad(int pyrLevel,
                                 costFuncType method )
 {
 #if PRINT_PROFILING
@@ -1446,9 +1445,9 @@ void RegisterDense::calcHessGrad(int &pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = nRows*nCols;
     const size_t n_pts = LUT_xyz_source.rows();
 
     float stdDevPhoto_inv = 1./stdDevPhoto;
@@ -1755,9 +1754,9 @@ void RegisterDense::calcHessGrad(int &pyrLevel,
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::calcHessGrad_IC(int &pyrLevel,
-                                    Eigen::Matrix4f poseGuess,
-                                    costFuncType method )
+double RegisterDense::calcHessGrad_IC ( int pyrLevel,
+                                        Eigen::Matrix4f poseGuess,
+                                        costFuncType method )
 {
     std::cout << " RegisterDense::calcHessGrad_IC() method " << method << " use_bilinear " << use_bilinear_ << " n_pts " << LUT_xyz_source.rows() << " " << validPixels_src.rows() << std::endl;
 
@@ -1773,9 +1772,9 @@ double RegisterDense::calcHessGrad_IC(int &pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = nRows*nCols;
     const size_t n_pts = LUT_xyz_source.rows();
 
     const float stdDevPhoto_inv = 1./stdDevPhoto;
@@ -2233,7 +2232,7 @@ double RegisterDense::calcHessGrad_IC(int &pyrLevel,
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::errorDense_inv( const int &pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method )
+double RegisterDense::errorDense_inv( int pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method )
 {
     //std::cout << " RegisterDense::errorDense \n";
     double error2 = 0.0;
@@ -2249,9 +2248,9 @@ double RegisterDense::errorDense_inv( const int &pyrLevel, const Eigen::Matrix4f
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = nRows*nCols;
     float stdDevPhoto_inv = 1./stdDevPhoto;
     float stdDevDepth_inv = 1./stdDevDepth;
 
@@ -2287,7 +2286,7 @@ double RegisterDense::errorDense_inv( const int &pyrLevel, const Eigen::Matrix4f
 #if ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
-        for(size_t i=0; i < xyz_trg_transf.rows(); i++)
+        for(int i=0; i < xyz_trg_transf.rows(); i++)
         {
             if( validPixels_trg(i) ) //Compute the jacobian only for the valid points
             {
@@ -2463,7 +2462,7 @@ double RegisterDense::errorDense_inv( const int &pyrLevel, const Eigen::Matrix4f
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-void RegisterDense::calcHessGrad_inv(int &pyrLevel,
+void RegisterDense::calcHessGrad_inv(int pyrLevel,
                                     Eigen::Matrix4f poseGuess,
                                     costFuncType method )
 {
@@ -2473,9 +2472,9 @@ void RegisterDense::calcHessGrad_inv(int &pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = nRows*nCols;
     float stdDevPhoto_inv = 1./stdDevPhoto;
     float stdDevDepth_inv = 1./stdDevDepth;
 
@@ -2642,9 +2641,9 @@ void RegisterDense::calcHessGrad_inv(int &pyrLevel,
 //    int n_ptsPhoto = 0;
 //    int n_ptsDepth = 0;
 
-//    const size_t nRows = graySrcPyr[pyrLevel].rows;
-//    const size_t nCols = graySrcPyr[pyrLevel].cols;
-//    const size_t imgSize = nRows*nCols;
+//    const int nRows = graySrcPyr[pyrLevel].rows;
+//    const int nCols = graySrcPyr[pyrLevel].cols;
+//    const int imgSize = nRows*nCols;
 
 //    Eigen::VectorXf residualsPhoto_src = Eigen::VectorXf::Zero(imgSize);
 //    Eigen::VectorXf residualsDepth_src = Eigen::VectorXf::Zero(imgSize);
@@ -2857,13 +2856,13 @@ void RegisterDense::calcHessGrad_inv(int &pyrLevel,
 //}
 
 ///*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient. */
-//void RegisterDense::calcHessGrad_Occ1(const int &pyrLevel,
+//void RegisterDense::calcHessGrad_Occ1(int pyrLevel,
 //                                         const Eigen::Matrix4f poseGuess,
 //                                         costFuncType method )
 //{
 //    int nRows = graySrcPyr[pyrLevel].rows;
 //    int nCols = graySrcPyr[pyrLevel].cols;
-//    const size_t imgSize = nRows*nCols;
+//    const int imgSize = nRows*nCols;
 
 //    const float scaleFactor = 1.0/pow(2,pyrLevel);
 //    fx = cameraMatrix(0,0)*scaleFactor;
@@ -3076,7 +3075,7 @@ void RegisterDense::calcHessGrad_inv(int &pyrLevel,
 //}
 
 ///*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method. */
-//double RegisterDense::errorDense_Occ2(const int &pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method )
+//double RegisterDense::errorDense_Occ2(int pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method )
 //{
 //    //double error2 = 0.0; // Squared error
 //    double PhotoResidual = 0.0;
@@ -3084,9 +3083,9 @@ void RegisterDense::calcHessGrad_inv(int &pyrLevel,
 //    int n_ptsPhoto = 0;
 //    int n_ptsDepth = 0;
 
-//    const size_t nRows = graySrcPyr[pyrLevel].rows;
-//    const size_t nCols = graySrcPyr[pyrLevel].cols;
-//    const size_t imgSize = nRows*nCols;
+//    const int nRows = graySrcPyr[pyrLevel].rows;
+//    const int nCols = graySrcPyr[pyrLevel].cols;
+//    const int imgSize = nRows*nCols;
 
 //    Eigen::VectorXf residualsPhoto_src = Eigen::VectorXf::Zero(imgSize);
 //    Eigen::VectorXf residualsDepth_src = Eigen::VectorXf::Zero(imgSize);
@@ -3308,13 +3307,13 @@ void RegisterDense::calcHessGrad_inv(int &pyrLevel,
 //}
 
 ///*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient. */
-//void RegisterDense::calcHessGrad_Occ2(const int &pyrLevel,
+//void RegisterDense::calcHessGrad_Occ2(int pyrLevel,
 //                                         const Eigen::Matrix4f poseGuess,
 //                                         costFuncType method )
 //{
 //    int nRows = graySrcPyr[pyrLevel].rows;
 //    int nCols = graySrcPyr[pyrLevel].cols;
-//    const size_t imgSize = nRows*nCols;
+//    const int imgSize = nRows*nCols;
 
 //    const float scaleFactor = 1.0/pow(2,pyrLevel);
 //    fx = cameraMatrix(0,0)*scaleFactor;
@@ -3560,7 +3559,7 @@ void RegisterDense::calcHessGrad_inv(int &pyrLevel,
 //        This is done following the work in:
 //        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
 //        in Computer Vision Workshops (ICCV Workshops), 2011. */
-//void RegisterDense::calcHessianAndGradient(const int &pyrLevel,
+//void RegisterDense::calcHessianAndGradient(int pyrLevel,
 //                                              const Eigen::Matrix4f poseGuess,
 //                                              costFuncType method )
 //{
@@ -3913,9 +3912,9 @@ void RegisterDense::warpImage(int pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = graySrcPyr[pyrLevel].size().area();
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = graySrcPyr[pyrLevel].size().area();
     const float pixel_angle = 2*PI/nCols;
     const float pixel_angle_inv = 1/pixel_angle;
     const float half_width = nCols/2 - 0.5f;
@@ -3928,14 +3927,12 @@ void RegisterDense::warpImage(int pyrLevel,
 //        phi_start = float(174-512)/512 *PI/2 + 0.5f*pixel_angle; // The images must be 640 pixels height to compute the pyramids efficiently (we substract 8 pixels from the top and 7 from the lower part)
 
     // depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
-    const float stdDevPhoto_inv = 1.f/stdDevPhoto;
-    const float stdDevDepth_inv = 1.f/stdDevDepth;
 
     //computeSphereXYZ_sse(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
     transformPts3D_sse(LUT_xyz_source, poseGuess, xyz_src_transf);
 
-    float *_depthTrgPyr = reinterpret_cast<float*>(depthTrgPyr[pyrLevel].data);
-    float *_graySrcPyr = reinterpret_cast<float*>(graySrcPyr[pyrLevel].data);
+    //float *_depthTrgPyr = reinterpret_cast<float*>(depthTrgPyr[pyrLevel].data);
+    //float *_graySrcPyr = reinterpret_cast<float*>(graySrcPyr[pyrLevel].data);
     float *_grayTrgPyr = reinterpret_cast<float*>(grayTrgPyr[pyrLevel].data);
 
     //    float *_depthTrgGradXPyr = reinterpret_cast<float*>(depthTrgGradXPyr[pyrLevel].data);
@@ -3943,10 +3940,10 @@ void RegisterDense::warpImage(int pyrLevel,
     //    float *_grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyrLevel].data);
     //    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
 
-    float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
-    float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
-    float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
-    float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
+    //float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
+    //float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
+    //float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
+    //float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
 
     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
         //warped_gray = cv::Mat::zeros(nRows,nCols,graySrcPyr[pyrLevel].type());
@@ -4041,7 +4038,7 @@ void RegisterDense::warpImage(int pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::computeReprojError_spherical (  const int &pyrLevel,
+double RegisterDense::computeReprojError_spherical (  int pyrLevel,
                                                       const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                                       costFuncType method,
                                                       const int direction ) //,  const bool use_bilinear )
@@ -4060,9 +4057,9 @@ double RegisterDense::computeReprojError_spherical (  const int &pyrLevel,
 
     assert(direction == 1 || direction == -1);
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = graySrcPyr[pyrLevel].size().area();
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    //const int imgSize = graySrcPyr[pyrLevel].size().area();
     const float pixel_angle = 2*PI/nCols;
     const float pixel_angle_inv = 1/pixel_angle;
     const float half_width = nCols/2 - 0.5f;
@@ -4076,7 +4073,7 @@ double RegisterDense::computeReprojError_spherical (  const int &pyrLevel,
 
     // depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
     const float stdDevPhoto_inv = 1.f/stdDevPhoto;
-    const float stdDevDepth_inv = 1.f/stdDevDepth;
+    //const float stdDevDepth_inv = 1.f/stdDevDepth;
 
     size_t n_pts; // The amount of points to be reprojected (it may be smaller than imgSize if salient points are employed)
     float *_residualsPhoto, *_residualsDepth, *_stdDevError_inv, *_wEstimPhoto, *_wEstimDepth; // List of residuals and M-Estimator weights to be stored for future operation
@@ -4664,7 +4661,7 @@ double RegisterDense::computeReprojError_spherical (  const int &pyrLevel,
             else
             {
                 std::cout << " BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION \n " << std::endl;
-                const float nCols_1 = nCols-1;
+                //const float nCols_1 = nCols-1;
 #if ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
@@ -4948,7 +4945,7 @@ double RegisterDense::computeReprojError_spherical (  const int &pyrLevel,
             else
             {
                 std::cout << " BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION \n " << std::endl;
-                const float nCols_1 = nCols-1;
+                //const float nCols_1 = nCols-1;
 #if ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
@@ -5043,7 +5040,7 @@ double RegisterDense::computeReprojError_spherical (  const int &pyrLevel,
 }
 
 ///*! Compute the median absulute deviation of the projection of reference image onto the target one */
-//float computeMAD(const int &pyrLevel)
+//float computeMAD(int pyrLevel)
 //{
 //}
 
@@ -5051,7 +5048,7 @@ double RegisterDense::computeReprojError_spherical (  const int &pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::errorDense_sphere ( const int &pyrLevel,
+double RegisterDense::errorDense_sphere ( int pyrLevel,
                                           const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                           costFuncType method ) //,  const bool use_bilinear )
 {
@@ -5067,9 +5064,9 @@ double RegisterDense::errorDense_sphere ( const int &pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = graySrcPyr[pyrLevel].size().area();
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = graySrcPyr[pyrLevel].size().area();
     const float pixel_angle = 2*PI/nCols;
     const float pixel_angle_inv = 1/pixel_angle;
     const float half_width = nCols/2 - 0.5f;
@@ -5462,7 +5459,7 @@ double RegisterDense::errorDense_sphere ( const int &pyrLevel,
         {
             std::cout << " BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION \n " << std::endl;
             warp_img_src.resize(imgSize, 2);
-            const float nCols_1 = nCols-1;
+            //const float nCols_1 = nCols-1;
 #if ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
@@ -5624,7 +5621,7 @@ double RegisterDense::errorDense_sphere ( const int &pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::errorDenseWarp_sphere ( const int &pyrLevel,
+double RegisterDense::errorDenseWarp_sphere ( int pyrLevel,
                                               const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                               costFuncType method ) //,  const bool use_bilinear )
 {
@@ -5640,9 +5637,9 @@ double RegisterDense::errorDenseWarp_sphere ( const int &pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = graySrcPyr[pyrLevel].size().area();
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = graySrcPyr[pyrLevel].size().area();
     const float pixel_angle = 2*PI/nCols;
     const float pixel_angle_inv = 1/pixel_angle;
     const float half_width = nCols/2 - 0.5f;
@@ -5656,7 +5653,7 @@ double RegisterDense::errorDenseWarp_sphere ( const int &pyrLevel,
 
     // depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
     const float stdDevPhoto_inv = 1.f/stdDevPhoto;
-    const float stdDevDepth_inv = 1.f/stdDevDepth;
+    //const float stdDevDepth_inv = 1.f/stdDevDepth;
 
     const size_t n_pts = LUT_xyz_source.rows();
     //cout << "n_pts " << n_pts << " / " << imgSize << endl;
@@ -5687,10 +5684,10 @@ double RegisterDense::errorDenseWarp_sphere ( const int &pyrLevel,
     //    float *_grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyrLevel].data);
     //    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
 
-    float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
-    float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
-    float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
-    float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
+//    float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
+//    float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
+//    float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
+//    float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
 
     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
         warped_gray = cv::Mat::zeros(nRows,nCols,graySrcPyr[pyrLevel].type());
@@ -5945,7 +5942,7 @@ double RegisterDense::errorDenseWarp_sphere ( const int &pyrLevel,
         {
             std::cout << " BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION \n " << std::endl;
             warp_img_src.resize(imgSize, 2);
-            const float nCols_1 = nCols-1;
+            //const float nCols_1 = nCols-1;
 #if ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
@@ -6075,9 +6072,9 @@ double RegisterDense::errorDenseIC_sphere(int pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = graySrcPyr[pyrLevel].size().area();
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = graySrcPyr[pyrLevel].size().area();
     const float pixel_angle = 2*PI/nCols;
     const float pixel_angle_inv = 1/pixel_angle;
     const float half_width = nCols/2 - 0.5f;
@@ -6116,10 +6113,10 @@ double RegisterDense::errorDenseIC_sphere(int pyrLevel,
     //    float *_grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyrLevel].data);
     //    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
 
-    float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
-    float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
-    float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
-    float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
+//    float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
+//    float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
+//    float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
+//    float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
 
     if(use_salient_pixels_)
     {
@@ -6453,9 +6450,9 @@ double RegisterDense::computeJacobian_sphere(int pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = nRows*nCols;
     const size_t n_pts = LUT_xyz_source.rows();
 
     const float half_width = nCols/2 - 0.5f;
@@ -6987,7 +6984,7 @@ double RegisterDense::computeErrorHessGrad_salient(std::vector<size_t> & salient
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-void RegisterDense::calcHessGrad_sphere(const int &pyrLevel,
+void RegisterDense::calcHessGrad_sphere(int pyrLevel,
                                         const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                         costFuncType method ) //,const bool use_bilinear )
 {
@@ -6998,9 +6995,9 @@ void RegisterDense::calcHessGrad_sphere(const int &pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    //const int imgSize = nRows*nCols;
     const size_t n_pts = LUT_xyz_source.rows();
 
     const float pixel_angle = 2*PI/nCols;
@@ -7010,12 +7007,12 @@ void RegisterDense::calcHessGrad_sphere(const int &pyrLevel,
     jacobiansDepth = Eigen::MatrixXf::Zero(n_pts,6);
 
     const float stdDevPhoto_inv = 1./stdDevPhoto;
-    const float stdDevDepth_inv = 1./stdDevDepth;
+    //const float stdDevDepth_inv = 1./stdDevDepth;
 
-    float *_grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyrLevel].data);
-    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
-    float *_depthTrgGradXPyr = reinterpret_cast<float*>(depthTrgGradXPyr[pyrLevel].data);
-    float *_depthTrgGradYPyr = reinterpret_cast<float*>(depthTrgGradYPyr[pyrLevel].data);
+//    float *_grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyrLevel].data);
+//    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
+//    float *_depthTrgGradXPyr = reinterpret_cast<float*>(depthTrgGradXPyr[pyrLevel].data);
+//    float *_depthTrgGradYPyr = reinterpret_cast<float*>(depthTrgGradYPyr[pyrLevel].data);
 
     // For ESM
     float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
@@ -7298,7 +7295,7 @@ void RegisterDense::calcHessGrad_sphere(const int &pyrLevel,
                     // cout << "3D pts " << point3D.transpose() << " transformed " << xyz.transpose() << endl;
                     //Project the 3D point to the S2 sphere
                     float dist = xyz.norm();
-                    float dist_inv = 1.f / dist;
+                    //float dist_inv = 1.f / dist;
 
                     //Compute the pixel jacobian
                     Eigen::Matrix<float,2,6> jacobianWarpRt;
@@ -7368,7 +7365,7 @@ void RegisterDense::calcHessGrad_sphere(const int &pyrLevel,
 #endif
 }
 
-void RegisterDense::calcHessGrad_warp_sphere(const int &pyrLevel,
+void RegisterDense::calcHessGrad_warp_sphere(int pyrLevel,
                                             const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                             costFuncType method ) //,const bool use_bilinear )
 {
@@ -7379,9 +7376,9 @@ void RegisterDense::calcHessGrad_warp_sphere(const int &pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    //const int imgSize = nRows*nCols;
     const size_t n_pts = LUT_xyz_source.rows();
 
     const float pixel_angle = 2*PI/nCols;
@@ -7402,11 +7399,11 @@ void RegisterDense::calcHessGrad_warp_sphere(const int &pyrLevel,
     float *_depthTrgGradXPyr = reinterpret_cast<float*>(warped_depth_gradX.data);
     float *_depthTrgGradYPyr = reinterpret_cast<float*>(warped_depth_gradY.data);
 
-    // For ESM
-    float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
-    float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
-    float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
-    float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
+//    // For ESM
+//    float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
+//    float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
+//    float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
+//    float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
 
     if(visualize_)
     {
@@ -7724,7 +7721,7 @@ void RegisterDense::calcHessGrad_warp_sphere(const int &pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-void RegisterDense::calcHessGrad_side_sphere(const int &pyrLevel,
+void RegisterDense::calcHessGrad_side_sphere(int pyrLevel,
                                          const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                          costFuncType method,
                                          const int side) // side is an aproximation parameter, 0 -> optimization starts at the identity and gradients are computed at the source; 1 at the target
@@ -7736,9 +7733,9 @@ void RegisterDense::calcHessGrad_side_sphere(const int &pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = nRows*nCols;
     const size_t n_pts = LUT_xyz_source.rows();
 
     const float pixel_angle = 2*PI/nCols;
@@ -8145,7 +8142,7 @@ void RegisterDense::calcHessGrad_side_sphere(const int &pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-void RegisterDense::calcHessGradRot_sphere(const int &pyrLevel,
+void RegisterDense::calcHessGradRot_sphere(int pyrLevel,
                                         const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                         costFuncType method ) //,const bool use_bilinear )
 {
@@ -8156,9 +8153,9 @@ void RegisterDense::calcHessGradRot_sphere(const int &pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    //const int imgSize = nRows*nCols;
     const size_t n_pts = LUT_xyz_source.rows();
 
     const float pixel_angle = 2*PI/nCols;
@@ -8170,12 +8167,12 @@ void RegisterDense::calcHessGradRot_sphere(const int &pyrLevel,
     jacobiansDepth = Eigen::MatrixXf::Zero(n_pts,3);
 
     const float stdDevPhoto_inv = 1./stdDevPhoto;
-    const float stdDevDepth_inv = 1./stdDevDepth;
+    //const float stdDevDepth_inv = 1./stdDevDepth;
 
-    float *_grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyrLevel].data);
-    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
-    float *_depthTrgGradXPyr = reinterpret_cast<float*>(depthTrgGradXPyr[pyrLevel].data);
-    float *_depthTrgGradYPyr = reinterpret_cast<float*>(depthTrgGradYPyr[pyrLevel].data);
+//    float *_grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyrLevel].data);
+//    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
+//    float *_depthTrgGradXPyr = reinterpret_cast<float*>(depthTrgGradXPyr[pyrLevel].data);
+//    float *_depthTrgGradYPyr = reinterpret_cast<float*>(depthTrgGradYPyr[pyrLevel].data);
 
     // For ESM
     float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
@@ -8518,7 +8515,7 @@ void RegisterDense::calcHessGradRot_sphere(const int &pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::calcHessGradIC_sphere(const int &pyrLevel,
+double RegisterDense::calcHessGradIC_sphere(int pyrLevel,
                                             const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                             costFuncType method ) //,const bool use_bilinear )
 {
@@ -8535,9 +8532,9 @@ double RegisterDense::calcHessGradIC_sphere(const int &pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = nRows*nCols;
     const size_t n_pts = LUT_xyz_source.rows();
     const float pixel_angle = 2*PI/nCols;
     const float pixel_angle_inv = 1/pixel_angle;
@@ -9056,7 +9053,7 @@ double RegisterDense::calcHessGradIC_sphere(const int &pyrLevel,
 }
 
 /*! Compute the residuals of the target image projected onto the source one. */
-double RegisterDense::errorDenseInv_sphere ( const int &pyrLevel,
+double RegisterDense::errorDenseInv_sphere ( int pyrLevel,
                                               const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                               costFuncType method )//,const bool use_bilinear )
 {
@@ -9071,9 +9068,9 @@ double RegisterDense::errorDenseInv_sphere ( const int &pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = nRows*nCols;
     const float pixel_angle = 2*PI/nCols;
     const float pixel_angle_inv = 1/pixel_angle;
     const float half_width = nCols/2 - 0.5f;
@@ -9212,11 +9209,11 @@ double RegisterDense::errorDenseInv_sphere ( const int &pyrLevel,
         else
         {
             std::cout << "inverse BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION \n " << std::endl;
-            const float nCols_1 = nCols-1;
+            //const float nCols_1 = nCols-1;
 #if ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
-            for(size_t i=0; i < xyz_trg_transf.rows(); i++)
+            for(int i=0; i < xyz_trg_transf.rows(); i++)
             {
                 if( validPixels_trg(i) ) //Compute the jacobian only for the valid points
                 {
@@ -9386,7 +9383,7 @@ double RegisterDense::errorDenseInv_sphere ( const int &pyrLevel,
         else
         {
             std::cout << "inverse BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION \n " << std::endl;
-            const float nCols_1 = nCols-1;
+            //const float nCols_1 = nCols-1;
 #if ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
@@ -9505,7 +9502,7 @@ double RegisterDense::errorDenseInv_sphere ( const int &pyrLevel,
 }
 
 /*! Compute the residuals and the jacobians corresponding to the target image projected onto the source one. */
-void RegisterDense::calcHessGradInv_sphere( const int &pyrLevel,
+void RegisterDense::calcHessGradInv_sphere( int pyrLevel,
                                             const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                             costFuncType method )//,const bool use_bilinear )
 {
@@ -9515,15 +9512,15 @@ void RegisterDense::calcHessGradInv_sphere( const int &pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    //const int imgSize = nRows*nCols;
     const size_t n_pts = xyz_trg_transf.rows();
     const float pixel_angle = 2*PI/nCols;
     const float pixel_angle_inv = 1/pixel_angle;
-    const float half_width = nCols/2 - 0.5f;
+    //const float half_width = nCols/2 - 0.5f;
 
-    float phi_start = -(0.5f*nRows-0.5f)*pixel_angle;
+    //float phi_start = -(0.5f*nRows-0.5f)*pixel_angle;
 //    float phi_start;
 //    if(sensor_type == RGBD360_INDOOR)
 //        phi_start = -(0.5*nRows-0.5)*pixel_angle;
@@ -9531,7 +9528,7 @@ void RegisterDense::calcHessGradInv_sphere( const int &pyrLevel,
 //        phi_start = float(174-512)/512 *PI/2 + 0.5*pixel_angle; // The images must be 640 pixels height to compute the pyramids efficiently (we substract 8 pixels from the top and 7 from the lower part)
 
     float stdDevPhoto_inv = 1./stdDevPhoto;
-    float stdDevDepth_inv = 1./stdDevDepth;
+    //float stdDevDepth_inv = 1./stdDevDepth;
 
     const Eigen::Matrix3f rotation = poseGuess.block(0,0,3,3);
     const Eigen::Matrix4f poseGuess_inv = poseGuess.inverse();
@@ -9990,9 +9987,9 @@ void RegisterDense::registerRGBD(const Eigen::Matrix4f pose_guess, costFuncType 
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
     for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
     {
-        const size_t nRows = graySrcPyr[pyrLevel].rows;
-        const size_t nCols = graySrcPyr[pyrLevel].cols;
-        const size_t imgSize = nRows*nCols;
+        const int nRows = graySrcPyr[pyrLevel].rows;
+        const int nCols = graySrcPyr[pyrLevel].cols;
+        const int imgSize = nRows*nCols;
 
         // Set the camera calibration parameters
         const float scaleFactor = 1.0/pow(2,pyrLevel);
@@ -10242,9 +10239,9 @@ void RegisterDense::registerRGBD_InvDepth(const Eigen::Matrix4f pose_guess, cost
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
     for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
     {
-        const size_t nRows = graySrcPyr[pyrLevel].rows;
-        const size_t nCols = graySrcPyr[pyrLevel].cols;
-        const size_t imgSize = nRows*nCols;
+        const int nRows = graySrcPyr[pyrLevel].rows;
+        const int nCols = graySrcPyr[pyrLevel].cols;
+        const int imgSize = nRows*nCols;
 
         // Set the camera calibration parameters
         const float scaleFactor = 1.0/pow(2,pyrLevel);
@@ -10431,9 +10428,9 @@ void RegisterDense::registerRGBD_IC(const Eigen::Matrix4f pose_guess, costFuncTy
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
     for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
     {
-        const size_t nRows = graySrcPyr[pyrLevel].rows;
-        const size_t nCols = graySrcPyr[pyrLevel].cols;
-        const size_t imgSize = nRows*nCols;
+        const int nRows = graySrcPyr[pyrLevel].rows;
+        const int nCols = graySrcPyr[pyrLevel].cols;
+        const int imgSize = nRows*nCols;
 
         // Set the camera calibration parameters
         const float scaleFactor = 1.0/pow(2,pyrLevel);
@@ -10586,9 +10583,9 @@ void RegisterDense::registerRGBD_bidirectional(const Eigen::Matrix4f pose_guess,
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
     for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
     {
-        const size_t nRows = graySrcPyr[pyrLevel].rows;
-        const size_t nCols = graySrcPyr[pyrLevel].cols;
-        const size_t imgSize = nRows*nCols;
+        const int nRows = graySrcPyr[pyrLevel].rows;
+        const int nCols = graySrcPyr[pyrLevel].cols;
+        const int imgSize = nRows*nCols;
 
         // Make LUT to store the values of the 3D points of the source image
         computePinholeXYZ(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
@@ -10849,9 +10846,9 @@ void RegisterDense::register360(const Eigen::Matrix4f pose_guess, costFuncType m
     std::fill(num_iters.begin(), num_iters.end(), 0);
     for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
     {
-        const size_t nRows = graySrcPyr[pyrLevel].rows;
-        const size_t nCols = graySrcPyr[pyrLevel].cols;
-        const size_t imgSize = nRows*nCols;
+        const int nRows = graySrcPyr[pyrLevel].rows;
+        const int nCols = graySrcPyr[pyrLevel].cols;
+        const int imgSize = nRows*nCols;
         const float pixel_angle = 2*PI/nCols;
 
         if(sensor_type == RGBD360_INDOOR)
@@ -11126,9 +11123,9 @@ void RegisterDense::register360_rot(const Eigen::Matrix4f pose_guess, costFuncTy
     std::fill(num_iters.begin(), num_iters.end(), 0);
     for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
     {
-        const size_t nRows = graySrcPyr[pyrLevel].rows;
-        const size_t nCols = graySrcPyr[pyrLevel].cols;
-        const size_t imgSize = nRows*nCols;
+        const int nRows = graySrcPyr[pyrLevel].rows;
+        const int nCols = graySrcPyr[pyrLevel].cols;
+        const int imgSize = nRows*nCols;
         const float pixel_angle = 2*PI/nCols;
 
         if(sensor_type == RGBD360_INDOOR)
@@ -11367,10 +11364,9 @@ void RegisterDense::register360_warp(const Eigen::Matrix4f pose_guess, costFuncT
     std::fill(num_iters.begin(), num_iters.end(), 0);
     for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
     {
-        const size_t nRows = graySrcPyr[pyrLevel].rows;
-        const size_t nCols = graySrcPyr[pyrLevel].cols;
-        const size_t imgSize = nRows*nCols;
-        const float pixel_angle = 2*PI/nCols;
+        const int nRows = graySrcPyr[pyrLevel].rows;
+        const int nCols = graySrcPyr[pyrLevel].cols;
+        const int imgSize = nRows*nCols;
 
         if(sensor_type == RGBD360_INDOOR)
         {
@@ -11579,9 +11575,9 @@ void RegisterDense::register360_side(const Eigen::Matrix4f pose_guess, costFuncT
     std::fill(num_iters.begin(), num_iters.end(), 0);
     for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
     {
-        const size_t nRows = graySrcPyr[pyrLevel].rows;
-        const size_t nCols = graySrcPyr[pyrLevel].cols;
-        const size_t imgSize = nRows*nCols;
+        const int nRows = graySrcPyr[pyrLevel].rows;
+        const int nCols = graySrcPyr[pyrLevel].cols;
+        const int imgSize = nRows*nCols;
         const float pixel_angle = 2*PI/nCols;
 
         if(sensor_type == RGBD360_INDOOR)
@@ -11781,9 +11777,9 @@ void RegisterDense::register360_salientJ(const Eigen::Matrix4f pose_guess, costF
     std::fill(num_iters.begin(), num_iters.end(), 0);
     for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
     {
-        const size_t nRows = graySrcPyr[pyrLevel].rows;
-        const size_t nCols = graySrcPyr[pyrLevel].cols;
-        const size_t imgSize = nRows*nCols;
+        const int nRows = graySrcPyr[pyrLevel].rows;
+        const int nCols = graySrcPyr[pyrLevel].cols;
+        const int imgSize = nRows*nCols;
         const float pixel_angle = 2*PI/nCols;
 
         if(sensor_type == RGBD360_INDOOR)
@@ -12102,9 +12098,9 @@ void RegisterDense::register360_IC(const Eigen::Matrix4f pose_guess, costFuncTyp
     std::fill(num_iters.begin(), num_iters.end(), 0);
     for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
     {
-        const size_t nRows = graySrcPyr[pyrLevel].rows;
-        const size_t nCols = graySrcPyr[pyrLevel].cols;
-        const size_t imgSize = nRows*nCols;
+        const int nRows = graySrcPyr[pyrLevel].rows;
+        const int nCols = graySrcPyr[pyrLevel].cols;
+        const int imgSize = nRows*nCols;
         const float pixel_angle = 2*PI/nCols;
 
         if(sensor_type == RGBD360_INDOOR)
@@ -12260,9 +12256,9 @@ void RegisterDense::register360_depthPyr(const Eigen::Matrix4f pose_guess, costF
     num_iters.resize(nPyrLevels); // Store the number of iterations
     for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
     {
-        const size_t nRows = graySrcPyr[pyrLevel].rows;
-        const size_t nCols = graySrcPyr[pyrLevel].cols;
-        const size_t imgSize = nRows*nCols;
+        const int nRows = graySrcPyr[pyrLevel].rows;
+        const int nCols = graySrcPyr[pyrLevel].cols;
+        const int imgSize = nRows*nCols;
         const float pixel_angle = 2*PI/nCols;
 
         if(sensor_type == RGBD360_INDOOR)
@@ -12407,9 +12403,9 @@ void RegisterDense::register360_inv(const Eigen::Matrix4f pose_guess, costFuncTy
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
     for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
     {
-        const size_t nRows = graySrcPyr[pyrLevel].rows;
-        const size_t nCols = graySrcPyr[pyrLevel].cols;
-        const size_t imgSize = nRows*nCols;
+        const int nRows = graySrcPyr[pyrLevel].rows;
+        const int nCols = graySrcPyr[pyrLevel].cols;
+        const int imgSize = nRows*nCols;
         const float pixel_angle = 2*PI/nCols;
 
         if(sensor_type == RGBD360_INDOOR)
@@ -12598,7 +12594,7 @@ void RegisterDense::register360_inv(const Eigen::Matrix4f pose_guess, costFuncTy
 
 
 /*! Compute the residuals and the jacobians corresponding to the target image projected onto the source one. */
-void RegisterDense::calcHessGrad_sphere_bidirectional( const int &pyrLevel,
+void RegisterDense::calcHessGrad_sphere_bidirectional( int pyrLevel,
                                             const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
                                             costFuncType method )//,const bool use_bilinear )
 {
@@ -12608,9 +12604,9 @@ void RegisterDense::calcHessGrad_sphere_bidirectional( const int &pyrLevel,
     {
 #endif
 
-    const size_t nRows = graySrcPyr[pyrLevel].rows;
-    const size_t nCols = graySrcPyr[pyrLevel].cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = graySrcPyr[pyrLevel].rows;
+    const int nCols = graySrcPyr[pyrLevel].cols;
+    const int imgSize = nRows*nCols;
 
     const float pixel_angle = 2*PI/nCols;
     const float pixel_angle_inv = 1/pixel_angle;
@@ -12957,9 +12953,9 @@ void RegisterDense::register360_bidirectional(const Eigen::Matrix4f pose_guess, 
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
     for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
     {
-        const size_t nRows = graySrcPyr[pyrLevel].rows;
-        const size_t nCols = graySrcPyr[pyrLevel].cols;
-        const size_t imgSize = nRows*nCols;
+        const int nRows = graySrcPyr[pyrLevel].rows;
+        const int nCols = graySrcPyr[pyrLevel].cols;
+        const int imgSize = nRows*nCols;
         const float pixel_angle = 2*PI/nCols;
 
         if(sensor_type == RGBD360_INDOOR)
@@ -13158,8 +13154,8 @@ void RegisterDense::register360_bidirectional(const Eigen::Matrix4f pose_guess, 
 /*! Compute the unit sphere for the given spherical image dimmensions. This serves as a LUT to speed-up calculations. */
 void RegisterDense::computeUnitSphere()
 {
-    const size_t nRows = graySrc.rows;
-    const size_t nCols = graySrc.cols;
+    const int nRows = graySrc.rows;
+    const int nCols = graySrc.cols;
 
     // Make LUT to store the values of the 3D points of the source sphere
     Eigen::MatrixXf unit_sphere;
@@ -13296,15 +13292,15 @@ double RegisterDense::alignPyramidICP(Eigen::Matrix4f poseGuess)
 //        This is done following the work in:
 //        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
 //        in Computer Vision Workshops (ICCV Workshops), 2011. */
-//double RegisterDense::calcDenseError_rgbd360_singlesensor(const int &pyrLevel,
+//double RegisterDense::calcDenseError_rgbd360_singlesensor(int pyrLevel,
 //                                                 const Eigen::Matrix4f poseGuess,
 //                                                 const Eigen::Matrix4f &poseCamRobot,
 //                                                 costFuncType method )
 //{
 //    double error2 = 0.0; // Squared error
 
-//    const size_t nRows = graySrcPyr[pyrLevel].rows;
-//    const size_t nCols = graySrcPyr[pyrLevel].cols;
+//    const int nRows = graySrcPyr[pyrLevel].rows;
+//    const int nCols = graySrcPyr[pyrLevel].cols;
 
 //    const float scaleFactor = 1.0/pow(2,pyrLevel);
 //    fx = cameraMatrix(0,0)*scaleFactor;
@@ -13476,13 +13472,13 @@ double RegisterDense::alignPyramidICP(Eigen::Matrix4f poseGuess)
 //        This is done following the work in:
 //        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
 //        in Computer Vision Workshops (ICCV Workshops), 2011. */
-//void RegisterDense::calcHessGrad_rgbd360_singlesensor( const int &pyrLevel,
+//void RegisterDense::calcHessGrad_rgbd360_singlesensor( int pyrLevel,
 //                                                  const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
 //                                                  const Eigen::Matrix4f &poseCamRobot, // The pose of the camera wrt to the Robot (fixed beforehand through calibration) // Maybe calibration can be computed at the same time
 //                                                  costFuncType method )
 //{
-//    const size_t nRows = graySrcPyr[pyrLevel].rows;
-//    const size_t nCols = graySrcPyr[pyrLevel].cols;
+//    const int nRows = graySrcPyr[pyrLevel].rows;
+//    const int nCols = graySrcPyr[pyrLevel].cols;
 
 //    const double scaleFactor = 1.0/pow(2,pyrLevel);
 //    const double fx = cameraMatrix(0,0)*scaleFactor;
@@ -13807,9 +13803,9 @@ double RegisterDense::alignPyramidICP(Eigen::Matrix4f poseGuess)
 /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
 void RegisterDense::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
 {
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = depth_img.rows;
+    const int nCols = depth_img.cols;
+    const int imgSize = nRows*nCols;
 
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -13882,9 +13878,9 @@ void RegisterDense::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf 
 /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
 void RegisterDense::computeSphereXYZ_sse(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
 {
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = depth_img.rows;
+    const int nCols = depth_img.cols;
+    const int imgSize = nRows*nCols;
 
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -14011,9 +14007,9 @@ void RegisterDense::getSalientPoints_sphere(Eigen::MatrixXf & xyz, Eigen::Vector
                                             const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY
                                             ) // TODO extend this function to employ only depth
 {
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = depth_img.rows;
+    const int nCols = depth_img.cols;
+    const int imgSize = nRows*nCols;
 
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -14097,9 +14093,9 @@ void RegisterDense::getSalientPoints_sphere_sse(Eigen::MatrixXf & xyz, Eigen::Ve
                                                 ) // TODO extend this function to employ only depth
 {
     //std::cout << " RegisterDense::getSalientPoints_sphere_sse \n";
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = depth_img.rows;
+    const int nCols = depth_img.cols;
+    const int imgSize = nRows*nCols;
 
     assert(nCols % 4 == 0);
 
@@ -14257,9 +14253,9 @@ void RegisterDense::getSalientPoints_sphere_sse(Eigen::MatrixXf & xyz, Eigen::Ve
 /*! Compute the 3D points XYZ according to the pinhole camera model. */
 void RegisterDense::computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
 {
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = depth_img.rows;
+    const int nCols = depth_img.cols;
+    const int imgSize = nRows*nCols;
 
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -14310,9 +14306,9 @@ void RegisterDense::computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf
 void RegisterDense::computePinholeXYZ_sse ( const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
 {
     // TODO: adapt the sse formulation
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = depth_img.rows;
+    const int nCols = depth_img.cols;
+    const int imgSize = nRows*nCols;
 
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -14376,9 +14372,9 @@ void RegisterDense::computePinholeXYZsalient_sse(Eigen::MatrixXf & xyz, Eigen::V
                                                 const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY )
 {
     // TODO: adapt the sse formulation
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
+    const int nRows = depth_img.rows;
+    const int nCols = depth_img.cols;
+    const int imgSize = nRows*nCols;
 
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -14595,139 +14591,140 @@ void RegisterDense::transformPts3D_sse(const Eigen::MatrixXf & input_pts, const 
     #endif
 }
 
-/*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
-//void RegisterDense::transformPts3D_sse(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_xyz_transp)
-void RegisterDense::transformPts3D_avx(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts)
-{
-    std::cout << " RegisterDense::transformPts3D_avx " << input_pts.rows() << " pts \n";
-#if PRINT_PROFILING
-    double time_start = pcl::getTime();
-    //for(size_t ii=0; ii<100; ii++)
-    {
-#endif
+///*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
+////void RegisterDense::transformPts3D_sse(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_xyz_transp)
+//void RegisterDense::transformPts3D_avx(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts)
+//{
+//    std::cout << " RegisterDense::transformPts3D_avx " << input_pts.rows() << " pts \n";
+//#if PRINT_PROFILING
+//    double time_start = pcl::getTime();
+//    //for(size_t ii=0; ii<100; ii++)
+//    {
+//#endif
 
-    // Eigen default ColMajor is assumed
-    assert(input_pts.cols() == 3);
-    assert(input_pts.rows() % 8 == 0);
-    output_pts.resize( input_pts.rows(), input_pts.cols() );
+//    // Eigen default ColMajor is assumed
+//    assert(input_pts.cols() == 3);
+//    assert(input_pts.rows() % 8 == 0);
+//    output_pts.resize( input_pts.rows(), input_pts.cols() );
 
-    std::cout << " transformPts3D_avx check 1 \n";
+//    std::cout << " transformPts3D_avx check 1 \n";
 
-    const __m256 r11 = _mm256_set1_ps( Rt(0,0) );
-    const __m256 r12 = _mm256_set1_ps( Rt(0,1) );
-    const __m256 r13 = _mm256_set1_ps( Rt(0,2) );
-    const __m256 r21 = _mm256_set1_ps( Rt(1,0) );
-    const __m256 r22 = _mm256_set1_ps( Rt(1,1) );
-    const __m256 r23 = _mm256_set1_ps( Rt(1,2) );
-    const __m256 r31 = _mm256_set1_ps( Rt(2,0) );
-    const __m256 r32 = _mm256_set1_ps( Rt(2,1) );
-    const __m256 r33 = _mm256_set1_ps( Rt(2,2) );
-    const __m256 t1 = _mm256_set1_ps( Rt(0,3) );
-    const __m256 t2 = _mm256_set1_ps( Rt(1,3) );
-    const __m256 t3 = _mm256_set1_ps( Rt(2,3) );
-    std::cout << " transformPts3D_avx check 2 \n";
+//    const __m256 r11 = _mm256_set1_ps( Rt(0,0) );
+//    const __m256 r12 = _mm256_set1_ps( Rt(0,1) );
+//    const __m256 r13 = _mm256_set1_ps( Rt(0,2) );
+//    const __m256 r21 = _mm256_set1_ps( Rt(1,0) );
+//    const __m256 r22 = _mm256_set1_ps( Rt(1,1) );
+//    const __m256 r23 = _mm256_set1_ps( Rt(1,2) );
+//    const __m256 r31 = _mm256_set1_ps( Rt(2,0) );
+//    const __m256 r32 = _mm256_set1_ps( Rt(2,1) );
+//    const __m256 r33 = _mm256_set1_ps( Rt(2,2) );
+//    const __m256 t1 = _mm256_set1_ps( Rt(0,3) );
+//    const __m256 t2 = _mm256_set1_ps( Rt(1,3) );
+//    const __m256 t3 = _mm256_set1_ps( Rt(2,3) );
+//    std::cout << " transformPts3D_avx check 2 \n";
 
-    //Map<MatrixType>
-    const float *input_x = &input_pts(0,0);
-    const float *input_y = &input_pts(0,1);
-    const float *input_z = &input_pts(0,2);
-    float *output_x = &output_pts(0,0);
-    float *output_y = &output_pts(0,1);
-    float *output_z = &output_pts(0,2);
+//    //Map<MatrixType>
+//    const float *input_x = &input_pts(0,0);
+//    const float *input_y = &input_pts(0,1);
+//    const float *input_z = &input_pts(0,2);
+//    float *output_x = &output_pts(0,0);
+//    float *output_y = &output_pts(0,1);
+//    float *output_z = &output_pts(0,2);
 
-    size_t block_end;
-    const Eigen::MatrixXf *input_pts_aligned;
+//    size_t block_end;
+//    const Eigen::MatrixXf *input_pts_aligned;
 
-    // Take into account that the total number of points might not be a multiple of 8
-    if(input_pts.rows() % 8 == 0) // Data must be aligned
-    {
-        block_end = input_pts.rows();
-    }
-    else
-    {
-        std::cout << " RegisterDense::transformPts3D_sse UNALIGNED MATRIX pts \n";
-        size_t block_end = input_pts.rows() - input_pts.rows() % 8;
-        input_pts_aligned = new Eigen::MatrixXf(input_pts.block(0,0,block_end,3));
-        output_pts.resize( block_end, input_pts.cols() );
-        const float *input_x = &(*input_pts_aligned)(0,0);
-        const float *input_y = &(*input_pts_aligned)(0,1);
-        const float *input_z = &(*input_pts_aligned)(0,2);
-    }
+//    // Take into account that the total number of points might not be a multiple of 8
+//    if(input_pts.rows() % 8 == 0) // Data must be aligned
+//    {
+//        block_end = input_pts.rows();
+//    }
+//    else
+//    {
+//        std::cout << " RegisterDense::transformPts3D_sse UNALIGNED MATRIX pts \n";
+//        size_t block_end = input_pts.rows() - input_pts.rows() % 8;
+//        input_pts_aligned = new Eigen::MatrixXf(input_pts.block(0,0,block_end,3));
+//        output_pts.resize( block_end, input_pts.cols() );
+//        const float *input_x = &(*input_pts_aligned)(0,0);
+//        const float *input_y = &(*input_pts_aligned)(0,1);
+//        const float *input_z = &(*input_pts_aligned)(0,2);
+//    }
 
-    std::cout << " transformPts3D_avx check 3 \n";
+//    std::cout << " transformPts3D_avx check 3 \n";
 
-    if(block_end > 1e2)
-    {
-#if ENABLE_OPENMP
-#pragma omp parallel for
-#endif
-        for(size_t b=0; b < input_pts.rows(); b+=8)
-        {
-            std::cout << " transformPts3D_avx check 3a \n";
+//    if(block_end > 1e2)
+//    {
+//#if ENABLE_OPENMP
+//#pragma omp parallel for
+//#endif
+//        for(size_t b=0; b < input_pts.rows(); b+=8)
+//        {
+//            std::cout << " transformPts3D_avx check 3a \n";
 
-            __m256 block_x_in = _mm256_load_ps(input_x+b);
-            __m256 block_y_in = _mm256_load_ps(input_y+b);
-            __m256 block_z_in = _mm256_load_ps(input_z+b);
-            std::cout << " transformPts3D_avx check 3b \n";
+//            __m256 block_x_in = _mm256_load_ps(input_x+b);
+//            __m256 block_y_in = _mm256_load_ps(input_y+b);
+//            __m256 block_z_in = _mm256_load_ps(input_z+b);
+//            std::cout << " transformPts3D_avx check 3b \n";
 
-            __m256 block_x_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r11, block_x_in), _mm256_mul_ps(r12, block_y_in) ), _mm256_mul_ps(r13, block_z_in) ), t1);
-            __m256 block_y_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r21, block_x_in), _mm256_mul_ps(r22, block_y_in) ), _mm256_mul_ps(r23, block_z_in) ), t2);
-            __m256 block_z_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r31, block_x_in), _mm256_mul_ps(r32, block_y_in) ), _mm256_mul_ps(r33, block_z_in) ), t3);
-            std::cout << " transformPts3D_avx check 3c \n";
+//            __m256 block_x_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r11, block_x_in), _mm256_mul_ps(r12, block_y_in) ), _mm256_mul_ps(r13, block_z_in) ), t1);
+//            __m256 block_y_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r21, block_x_in), _mm256_mul_ps(r22, block_y_in) ), _mm256_mul_ps(r23, block_z_in) ), t2);
+//            __m256 block_z_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r31, block_x_in), _mm256_mul_ps(r32, block_y_in) ), _mm256_mul_ps(r33, block_z_in) ), t3);
+//            std::cout << " transformPts3D_avx check 3c \n";
 
-            _mm256_store_ps(output_x+b, block_x_out);
-            _mm256_store_ps(output_y+b, block_y_out);
-            _mm256_store_ps(output_z+b, block_z_out);
-            //std::cout << b << " b " << input_x[b] << " " << input_y[b] << " " << input_z[b] << " pt " << output_x[b] << " " << output_y[b] << " " << output_z[b] << "\n";
-            std::cout << " transformPts3D_avx check 3d \n";
-        }
-        std::cout << " transformPts3D_avx check 4 \n";
-    }
-    else
-    {
-        for(size_t b=0; b < block_end; b+=8)
-        {
-            std::cout << " transformPts3D_avx check 4 \n";
+//            _mm256_store_ps(output_x+b, block_x_out);
+//            _mm256_store_ps(output_y+b, block_y_out);
+//            _mm256_store_ps(output_z+b, block_z_out);
+//            //std::cout << b << " b " << input_x[b] << " " << input_y[b] << " " << input_z[b] << " pt " << output_x[b] << " " << output_y[b] << " " << output_z[b] << "\n";
+//            std::cout << " transformPts3D_avx check 3d \n";
+//        }
+//        std::cout << " transformPts3D_avx check 4 \n";
+//    }
+//    else
+//    {
+//        for(size_t b=0; b < block_end; b+=8)
+//        {
+//            std::cout << " transformPts3D_avx check 4 \n";
 
-            __m256 block_x_in = _mm256_load_ps(input_x+b);
-            __m256 block_y_in = _mm256_load_ps(input_y+b);
-            __m256 block_z_in = _mm256_load_ps(input_z+b);
+//            __m256 block_x_in = _mm256_load_ps(input_x+b);
+//            __m256 block_y_in = _mm256_load_ps(input_y+b);
+//            __m256 block_z_in = _mm256_load_ps(input_z+b);
 
-            __m256 block_x_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r11, block_x_in), _mm256_mul_ps(r12, block_y_in) ), _mm256_mul_ps(r13, block_z_in) ), t1);
-            __m256 block_y_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r21, block_x_in), _mm256_mul_ps(r22, block_y_in) ), _mm256_mul_ps(r23, block_z_in) ), t2);
-            __m256 block_z_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r31, block_x_in), _mm256_mul_ps(r32, block_y_in) ), _mm256_mul_ps(r33, block_z_in) ), t3);
+//            __m256 block_x_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r11, block_x_in), _mm256_mul_ps(r12, block_y_in) ), _mm256_mul_ps(r13, block_z_in) ), t1);
+//            __m256 block_y_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r21, block_x_in), _mm256_mul_ps(r22, block_y_in) ), _mm256_mul_ps(r23, block_z_in) ), t2);
+//            __m256 block_z_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r31, block_x_in), _mm256_mul_ps(r32, block_y_in) ), _mm256_mul_ps(r33, block_z_in) ), t3);
 
-            _mm256_store_ps(output_x+b, block_x_out);
-            _mm256_store_ps(output_y+b, block_y_out);
-            _mm256_store_ps(output_z+b, block_z_out);
+//            _mm256_store_ps(output_x+b, block_x_out);
+//            _mm256_store_ps(output_y+b, block_y_out);
+//            _mm256_store_ps(output_z+b, block_z_out);
 
-            std::cout << " transformPts3D_avx check 5 \n";
-        }
-    }
+//            std::cout << " transformPts3D_avx check 5 \n";
+//        }
+//    }
 
-    if(input_pts.rows() % 8 != 0) // Compute the transformation of the unaligned points
-    {
-        delete input_pts_aligned;
+//    if(input_pts.rows() % 8 != 0) // Compute the transformation of the unaligned points
+//    {
+//        delete input_pts_aligned;
 
-        // Compute the transformation of those points which do not enter in a block
-        const Eigen::Matrix3f rotation_transposed = Rt.block(0,0,3,3).transpose();
-        const Eigen::Matrix<float,1,3> translation_transposed = Rt.block(0,3,3,1).transpose();
-        output_pts.conservativeResize( input_pts.rows(), input_pts.cols() );
-        for(size_t i=block_end; i < input_pts.rows(); i++)
-        {
-            output_pts.block(i,0,1,3) = input_pts.block(i,0,1,3) * rotation_transposed + translation_transposed;
-        }
-    }
+//        // Compute the transformation of those points which do not enter in a block
+//        const Eigen::Matrix3f rotation_transposed = Rt.block(0,0,3,3).transpose();
+//        const Eigen::Matrix<float,1,3> translation_transposed = Rt.block(0,3,3,1).transpose();
+//        output_pts.conservativeResize( input_pts.rows(), input_pts.cols() );
+//        for(size_t i=block_end; i < input_pts.rows(); i++)
+//        {
+//            output_pts.block(i,0,1,3) = input_pts.block(i,0,1,3) * rotation_transposed + translation_transposed;
+//        }
+//    }
 
-//    // Get the points as a 3xN matrix, where N is the number of points
-//    output_xyz_transp = output_pts.transpose();
+////    // Get the points as a 3xN matrix, where N is the number of points
+////    output_xyz_transp = output_pts.transpose();
 
-    #if PRINT_PROFILING
-    }
-    double time_end = pcl::getTime();
-    std::cout << " RegisterDense::transformPts3D_sse " << input_pts.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
-    #endif
-}
+//    #if PRINT_PROFILING
+//    }
+//    double time_end = pcl::getTime();
+//    std::cout << " RegisterDense::transformPts3D_sse " << input_pts.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
+//    #endif
+//}
+
 
 //                                if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
 //                                {

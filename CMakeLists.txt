@@ -8,10 +8,13 @@ endif(COMMAND cmake_policy)
 # Set the same build directory for all executables
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR} CACHE PATH "Build directory" FORCE)
 
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse -msse2 -msse3")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mavx")
+include(cmakemodules/script_SIMD.cmake REQUIRED)        # SSE2/SSE3/... optimization options
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse -msse2 -msse3")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mavx")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2")
+
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 #if (SSE3_FOUND)
 #  set (CMAKE_C_FLAGS_ALL "${CMAKE_C_FLAGS_ALL} -msse3")
 #endif()
@@ -24,6 +27,168 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 #if (SSE4_2_FOUND)
 #  set (CMAKE_C_FLAGS_ALL "${CMAKE_C_FLAGS_ALL} -msse4.2")
 #endif()
+
+
+
+# The script below is an adaptation of cmakemodules/script_SIMD.cmake from "MRPT"
+# ----------------------------------------------------------------------------
+# 			Set the maximum level of warnings:
+# ----------------------------------------------------------------------------
+SET( EXTRA_WARNINGS OFF CACHE BOOL "Enable extra warnings apart from -Wall")
+MARK_AS_ADVANCED(EXTRA_WARNINGS)
+
+# Should be set to true for development
+SET( WARNINGS_ARE_ERRORS OFF CACHE BOOL "Treat warnings as errors")
+MARK_AS_ADVANCED(WARNINGS_ARE_ERRORS)
+
+# Even more warnings for different compilers
+IF(EXTRA_WARNINGS)
+   #TODO - Add options for MSVC
+   IF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wreturn-type -Wextra") # -Wold-style-cast  -Woverloaded-virtual
+   ELSEIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+                SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wextra")
+        ENDIF()
+ENDIF(EXTRA_WARNINGS)
+
+# Whole program optimization?
+SET( WHOLE_PROGRAM_OPTIMIZATION OFF CACHE BOOL "Flags for whole program optimization.")
+MARK_AS_ADVANCED(WHOLE_PROGRAM_OPTIMIZATION)
+
+# Enable profiling?
+SET(ENABLE_PROFILING OFF CACHE BOOL "Enable profiling (add -g -pg in GCC/CLANG, /PROFILE in Visual C++)")
+
+# GNU GCC options ================================
+IF(CMAKE_COMPILER_IS_GNUCXX)
+        # Wall & pedantic?
+        IF(APPLE)
+                SET(BUILD_GCC_PEDANTIC_DEFAULT "OFF")
+        ELSE(APPLE)
+                SET(BUILD_GCC_PEDANTIC_DEFAULT "ON")
+        ENDIF(APPLE)
+
+        SET( BUILD_GCC_PEDANTIC ${BUILD_GCC_PEDANTIC_DEFAULT} CACHE BOOL "Enable pedantic error detection (with GCC only)")
+        MARK_AS_ADVANCED(BUILD_GCC_PEDANTIC)
+
+        # High level of warnings.
+        # The -Wno-long-long is required in 64bit systems when including sytem headers.
+        # The -Wno-variadic-macros was needed for Eigen3, StdVector.h
+        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CONFIGURE_CFLAGS} -Wall -Wno-long-long -Wno-variadic-macros")
+  IF(NOT APPLE)
+    # This causes the option "-Wnorite-strings" to be set on gcc-4.9 on OS X
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-write-strings")
+  ENDIF(NOT APPLE)
+        SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_CONFIGURE_CFLAGS}")
+
+        # Use "modern" C99 ! ;-)
+        SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
+
+
+        IF(BUILD_GCC_PEDANTIC)
+                SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic")
+                SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pedantic")
+        ENDIF(BUILD_GCC_PEDANTIC)
+
+        # Enable C++11 features in GCC 4.7+
+        IF (NOT CMAKE_GCC_VERSION LESS 47)
+                SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+        ENDIF (NOT CMAKE_GCC_VERSION LESS 47)
+
+        # Parallel stdlibc++?
+        IF(ENABLE_LIBSTD_PARALLEL_MODE)
+                SET(EXTRA_CPP_FLAGS "${EXTRA_CPP_FLAGS} -D_GLIBCXX_PARALLEL -fopenmp")
+        ENDIF(ENABLE_LIBSTD_PARALLEL_MODE)
+ENDIF(CMAKE_COMPILER_IS_GNUCXX)
+
+# Shared options between GCC and CLANG:
+# ======================================
+if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" OR CMAKE_COMPILER_IS_GNUCXX)
+        IF(WARNINGS_ARE_ERRORS)
+                SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+                SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+        ENDIF(WARNINGS_ARE_ERRORS)
+
+        # We need pthread's
+        IF (UNIX AND NOT APPLE)
+                SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+        ENDIF(UNIX AND NOT APPLE)
+
+        IF(CMAKE_BUILD_TYPE MATCHES "Debug")
+                SET(EXTRA_CPP_FLAGS "${EXTRA_CPP_FLAGS} -g")
+                ADD_DEFINITIONS( -D_DEBUG)
+                ADD_DEFINITIONS( -DDEBUG)
+        ENDIF(CMAKE_BUILD_TYPE MATCHES "Debug")
+
+        # Profiling?
+        IF(ENABLE_PROFILING)
+                SET(EXTRA_CPP_FLAGS "${EXTRA_CPP_FLAGS} -pg -g")
+        ELSEIF(ENABLE_PROFILING)
+                # Remove unreferenced functions: function level linking
+        # Remove unreferenced functions: function level linking
+        if(NOT APPLE)
+                        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections")
+        endif(NOT APPLE)
+        ENDIF(ENABLE_PROFILING)
+
+        # Whole program optimization
+        IF(WHOLE_PROGRAM_OPTIMIZATION)
+                SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --combine")
+                SET(EXES_CXX_FLAGS "${EXES_CXX_FLAGS} -fwhole-program --combine")
+        ENDIF(WHOLE_PROGRAM_OPTIMIZATION)
+
+
+        # "-mtune=native" generates code optimized for the detected current processor.
+        if (WIN32 OR "${CMAKE_ARCH}" MATCHES ".*86" OR "${CMAKE_ARCH}" MATCHES "amd64")
+                set(opt_native_def ON)
+        endif (WIN32 OR "${CMAKE_ARCH}" MATCHES ".*86" OR "${CMAKE_ARCH}" MATCHES "amd64")
+
+        SET( OPTIMIZE_NATIVE ${opt_native_def} CACHE BOOL "GCC/clang optimizations for current processor (-mtune=native). Requires GCC 4.2+")
+
+        IF(CMAKE_BUILD_TYPE STREQUAL "Debug")  # Not in debug!
+                SET(OPTIMIZE_NATIVE OFF)
+        ENDIF(CMAKE_BUILD_TYPE STREQUAL "Debug")
+
+        # "-ffast-math"
+        SET( OPTIMIZE_FFAST-MATH OFF CACHE BOOL "GCC/clang optimization for floating math (-ffast-math).")
+        IF(OPTIMIZE_FFAST-MATH)
+                SET(EXTRA_CPP_FLAGS "${EXTRA_CPP_FLAGS} -ffast-math")
+        ENDIF(OPTIMIZE_FFAST-MATH)
+
+        # SSE2?
+        IF (CMAKE_HAS_SSE2)
+                SET(EXTRA_CPP_FLAGS "${EXTRA_CPP_FLAGS} -msse2 -funroll-loops")
+                IF (CMAKE_COMPILER_IS_GNUCXX)
+                        SET(EXTRA_CPP_FLAGS "${EXTRA_CPP_FLAGS} -mfpmath=sse")
+                ENDIF(CMAKE_COMPILER_IS_GNUCXX)
+        ENDIF(CMAKE_HAS_SSE2)
+
+        # SSE3?
+        IF (CMAKE_HAS_SSE3)
+                SET(EXTRA_CPP_FLAGS "${EXTRA_CPP_FLAGS} -msse3 -mssse3")
+        ENDIF(CMAKE_HAS_SSE3)
+
+        # SSE4*?
+        IF (CMAKE_HAS_SSE4_1)
+                SET(EXTRA_CPP_FLAGS "${EXTRA_CPP_FLAGS} -msse4.1")
+        ENDIF(CMAKE_HAS_SSE4_1)
+        IF (CMAKE_HAS_SSE4_2)
+                SET(EXTRA_CPP_FLAGS "${EXTRA_CPP_FLAGS} -msse4.2")
+        ENDIF(CMAKE_HAS_SSE4_2)
+        IF (CMAKE_HAS_SSE4_A)
+                SET(EXTRA_CPP_FLAGS "${EXTRA_CPP_FLAGS} -msse4a")
+        ENDIF(CMAKE_HAS_SSE4_A)
+
+        # AVX?
+        IF (CMAKE_HAS_AVX)
+                SET(EXTRA_CPP_FLAGS "${EXTRA_CPP_FLAGS} -mavx")
+        ENDIF(CMAKE_HAS_AVX)
+
+        # AVX2?
+        #IF (CMAKE_HAS_SSE3)
+        #        SET(EXTRA_CPP_FLAGS "${EXTRA_CPP_FLAGS} -mavx2")
+        #ENDIF(CMAKE_HAS_SSE3)
+
+endif ()
 
 FIND_PACKAGE( Boost 1.46.0 REQUIRED serialization )
 

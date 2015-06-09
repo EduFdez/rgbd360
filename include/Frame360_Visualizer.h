@@ -34,6 +34,7 @@
 #define FRAME360_VISUALIZER_H
 
 #include "Frame360.h"
+#include "colours.h"
 
 #include <pcl/visualization/cloud_viewer.h>
 #include <boost/thread/thread.hpp>

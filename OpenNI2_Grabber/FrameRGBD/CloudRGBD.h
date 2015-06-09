@@ -49,11 +49,11 @@ class CloudRGBD : public FrameRGBD
   /*!Coloured point cloud*/
   pcl::PointCloud<pcl::PointXYZRGBA>::Ptr m_pointCloudPtr;
 
-  /*!Max pointcloud depth*/
-  float maxDepth;
-
   /*!Min pointcloud depth*/
   float minDepth;
+
+  /*!Max pointcloud depth*/
+  float maxDepth;
 
  public:
 
@@ -62,9 +62,9 @@ class CloudRGBD : public FrameRGBD
 
   /*! Constructor */
   CloudRGBD() :
-    pointCloudAvailable(false),
     minDepth(0.3), // Default min depth
-    maxDepth(10.0) // Default max depth
+    maxDepth(10.0), // Default max depth
+    pointCloudAvailable(false)
   {
   };
 

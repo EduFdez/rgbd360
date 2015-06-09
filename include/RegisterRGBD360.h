@@ -528,7 +528,7 @@ public:
     int trackingScore(float &score)
     {
         // Euclidean distance
-        float dist = getPose().block(0,3,3,1).norm();
+        //float dist = getPose().block(0,3,3,1).norm();
 
         // Area 70 -30
         score = getAreaMatched() / areaSource;

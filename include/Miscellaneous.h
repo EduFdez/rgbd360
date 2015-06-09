@@ -32,6 +32,10 @@
 #ifndef MISCELLANEOUS_H
 #define MISCELLANEOUS_H
 
+#ifndef PI
+    #define PI 3.14159265359
+#endif
+
 #include <mrpt/pbmap.h>
 #include <mrpt/utils/CStream.h>
 
@@ -45,49 +49,6 @@
 #include <vector>
 
 #include <opencv2/core/eigen.hpp>
-
-#ifndef PI
-    #define PI 3.14159265359
-#endif
-
-/*! This file contains a set of generic attributes used along the 'RGBD360' project.
- */
-
-/*! Maximum number of planes to match when registering a pair of Spheres */
-static float max_match_planes = 25;
-
-/*! Maximum curvature to consider the region as planar */
-static float max_curvature_plane = 0.0013;
-
-/*! Minimum area to consider the planar patch */
-static float min_area_plane = 0.12;
-
-/*! Maximum elongation to consider the planar patch */
-static float max_elongation_plane = 6;
-
-/*! Minimum number of matched planes to consider a good registration */
-static float min_planes_registration = 4;
-
-/*! Minimum distance between keyframes */
-static float min_dist_keyframes = 0.2;
-
-/*! Maximum distance between two consecutive frames of a RGBD360 video sequence */
-static float max_translation_odometry = 1.8;
-
-/*! Maximum rotation between two consecutive frames of a RGBD360 video sequence */
-static float max_rotation_odometry = 1.2;
-
-/*! Maximum conditioning to resolve the calibration equation system. This parameter
-    represent the ratio between the maximum and the minimum eigenvalue of the system */
-static float threshold_conditioning = 8000.0;
-
-static unsigned char red [10] = {255,   0,   0, 255, 255,   0, 255, 204,   0, 255};
-static unsigned char grn [10] = {  0, 255,   0, 255,   0, 255, 160,  51, 128, 222};
-static unsigned char blu [10] = {  0,   0, 255,   0, 255, 255, 0  , 204,   0, 173};
-
-static double ared [10] = {1.0,   0,   0, 1.0, 1.0,   0, 1.0, 0.8,   0, 1.0};
-static double agrn [10] = {  0, 1.0,   0, 1.0,   0, 1.0, 0.6, 0.2, 0.5, 0.9};
-static double ablu [10] = {  0,   0, 1.0,   0, 1.0, 1.0,   0, 0.8,   0, 0.7};
 
 /*! Generate a skew-symmetric matrix from a 3D vector */
 template<typename dataType> inline
@@ -257,11 +218,11 @@ inline std::vector<Eigen::Vector4f> getVerticalPlanes(mrpt::pbmap::PbMap &planes
     Eigen::Vector2f extremPointRight, extremPointLeft;
     float distRight=0, distLeft=0;
 
-    unsigned dirPpal;
-    if(fabs(normal2D(0)) > 0.1)
-      dirPpal = 1;
-    else
-      dirPpal = 0;
+//    unsigned dirPpal;
+//    if(fabs(normal2D(0)) > 0.1)
+//      dirPpal = 1;
+//    else
+//      dirPpal = 0;
 
     for(unsigned j=0; j<plane_i.polygonContourPtr->size(); j++)
     {

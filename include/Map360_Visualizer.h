@@ -90,29 +90,29 @@ public:
 
 public:
 
+    /*! Index of visualizer screenshot. This is used to create videos with the results */
+    int numScreenshot;
+
+    /*! Mutex to syncrhronize eventual changes in the map */
+    boost::mutex visualizationMutex;
+
     /*! Constructor. It starts the visualization in a separate thread */
     Map360_Visualizer(Map360 &map, int viz_mode = 0) :
         Map(map),
-        viewer("Map360"),
-        globalMap(new pcl::PointCloud<PointT>),
+        bGraphSLAM(false),
+        bFreezeFrame(false),
+        bFirstRun(true),
         bDrawCurrentLocation(false),
         nVizMode(viz_mode),
         currentSphere(-1),
-        bFreezeFrame(false),
-        bGraphSLAM(false),
-        bFirstRun(true),
+        globalMap(new pcl::PointCloud<PointT>),
+        viewer("Map360"),
         numScreenshot(0)
     {
 //        viewer.setFullScreen(true); // ERROR. This only works with PCLVisualizer
         viewer.runOnVisualizationThread (boost::bind(&Map360_Visualizer::viz_cb, this, _1), "viz_cb");
         viewer.registerKeyboardCallback (&Map360_Visualizer::keyboardEventOccurred, *this);
     }
-
-    /*! Index of visualizer screenshot. This is used to create videos with the results */
-    int numScreenshot;
-
-    /*! Mutex to syncrhronize eventual changes in the map */
-    boost::mutex visualizationMutex;
 
     /*! Visualization callback */
     void viz_cb (pcl::visualization::PCLVisualizer& viz)

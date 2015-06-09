@@ -1,3 +1,15 @@
+//#include <immintrin.h>
+//#include <iostream>
+//using namespace std;
+
+//int main() {
+//    float out[8];
+//    float a[8] = { 0.0,1.0,2.0,3.0,4.0,5.0,6.0,7};
+//    __m256 test =  _mm256_load_ps(&a[0]);
+//    cout << "" << endl; // prints
+//    return 0;
+//}
+
 // sort algorithm example
 #include <iostream>     // std::cout
 #include <algorithm>    // std::sort
@@ -7,48 +19,20 @@ using namespace std;
 
 int main () {
 
-    ////            // Declarations
-    ////            Ptr<LSDDetector>        lsd = LSDDetector::createLSDDetector();
-    ////            Ptr<BinaryDescriptor>   lbd = BinaryDescriptor::createBinaryDescriptor();
-    ////            //Ptr<ORB>                orb = ORB::create(nFeatures,scaleFactor,nLevels);
+  std::vector<float> v(4, 0.2f);
+  v.push_back(0.3f);
+  v[2] = 0.1f;
 
-    ////            // Feature detection and description
-    ////            //if(lines)
-    ////            {
-    ////                lsd->detect(imgLeft,linesThird,scale,nOctaves );
-    ////                lbd->compute(imgLeft,linesThird,ldescThird);
-    ////            }
-    ///
-    cout << "Calibrate RGBD360 multisensor\n";
-//    float conditioning[4];
-//    std::fill(conditioning, conditioning+4, 9999.f);
+  vector<size_t> idx(v.size());
+  for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
 
-//    conditioning[0] = 9999;
-//    conditioning[1] = 9999;
-//    conditioning[2] = 9999;
-//    conditioning[3] = 9999;
+  sort(idx.begin(), idx.end(),
+       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
 
-//    for(size_t sensor_id=0; sensor_id < 4; sensor_id++)
-//        std::cout << conditioning[sensor_id] << "\n ";
-
-    vector<float> conditioning(4,100);
-    for(unsigned i=0; i < 4; i++)
-        cout << conditioning[i] << "\n ";
-
-//  std::vector<float> v(4, 0.2f);
-//  v.push_back(0.3f);
-//  v[2] = 0.1f;
-
-//  vector<size_t> idx(v.size());
-//  for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
-
-//  sort(idx.begin(), idx.end(),
-//       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
-
-//  std::cout << "ordering:";
-//  for (std::vector<size_t>::iterator it=idx.begin(); it!=idx.end(); ++it)
-//    std::cout << ' ' << *it;
-//  std::cout << '\n';
+  std::cout << "ordering:";
+  for (std::vector<size_t>::iterator it=idx.begin(); it!=idx.end(); ++it)
+    std::cout << ' ' << *it;
+  std::cout << '\n';
 
   return 0;
 }

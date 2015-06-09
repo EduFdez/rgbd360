@@ -48,7 +48,6 @@
 #include <mrpt/pbmap/Miscellaneous.h>
 
 #include "Calib360.h"
-#include "Miscellaneous.h"
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -103,10 +102,10 @@ class Frame360
   public:
 
     /*! Frame ID*/
-    unsigned id;
+    size_t id;
 
     /*! Topological node where this frame (keyframe) is located */
-    unsigned node;
+    size_t node;
 
     /*! Frame height */
     unsigned short height_;
@@ -142,14 +141,14 @@ class Frame360
     /*! PbMap of the spherical frame */
     mrpt::pbmap::PbMap planes;
 
-    /*! Calibration object */
-    Calib360 *calib;
-
     enum sensorType
     {
         RGBD360_INDOOR = 0,
         STEREO_OUTDOOR,
     } sensor_type;
+
+    /*! Calibration object */
+    Calib360 *calib;
 
   private:
 
@@ -244,6 +243,7 @@ public:
     /*Get the average intensity*/
     inline int getAverageIntensity(int sample = 1)
     {
+        int av_intensity = 0;
 
         //    getIntensityImage();
         //
@@ -263,6 +263,7 @@ public:
         //      sum_intensity[0] += sum_intensity[i];
         //
         //    return floor(sum_intensity[0] / 8.0 + 0.5);
+        return av_intensity;
     }
 
     /*! Undistort the omnidirectional depth image using the models acquired with CLAMS */
