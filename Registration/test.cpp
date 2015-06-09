@@ -7,20 +7,26 @@ using namespace std;
 
 int main () {
 
-  std::vector<float> v(4, 0.2f);
-  v.push_back(0.3f);
-  v[2] = 0.1f;
+    cout << "Calibrate RGBD360 multisensor\n";
+    float conditioning[4];
+    std::fill(conditioning, conditioning+4, 9999.f);
+    for(size_t sensor_id=0; sensor_id < 4; sensor_id++)
+        std::cout << conditioning[sensor_id] << "\n ";
 
-  vector<size_t> idx(v.size());
-  for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
+//  std::vector<float> v(4, 0.2f);
+//  v.push_back(0.3f);
+//  v[2] = 0.1f;
 
-  sort(idx.begin(), idx.end(),
-       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
+//  vector<size_t> idx(v.size());
+//  for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
 
-  std::cout << "ordering:";
-  for (std::vector<size_t>::iterator it=idx.begin(); it!=idx.end(); ++it)
-    std::cout << ' ' << *it;
-  std::cout << '\n';
+//  sort(idx.begin(), idx.end(),
+//       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
+
+//  std::cout << "ordering:";
+//  for (std::vector<size_t>::iterator it=idx.begin(); it!=idx.end(); ++it)
+//    std::cout << ' ' << *it;
+//  std::cout << '\n';
 
   return 0;
 }

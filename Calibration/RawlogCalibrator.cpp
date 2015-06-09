@@ -253,7 +253,21 @@ using namespace mrpt::utils;
 
 int main (int argc, char ** argv)
 {
-    ControlPlanes matches;
+        cout << "Calibrate RGBD360 multisensor\n";
+        float conditioning[4];
+        std::fill(conditioning, conditioning+4, 9999.f);
+        for(size_t sensor_id=0; sensor_id < 4; sensor_id++)
+            std::cout << conditioning[sensor_id] << "\n ";
+
+//        /*! Rotation covariance matrices from adjacent sensors */
+//        Eigen::Matrix3f covariances[NUM_ASUS_SENSORS];
+//        std::fill(covariances, covariances+NUM_ASUS_SENSORS, Eigen::Matrix3f::Zero());
+
+//        for(size_t sensor_id=0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
+//            std::cout << conditioning[sensor_id] << "\n " << covariances[sensor_id] << std::endl;
+
+    //ControlPlanes matches;
+        cout << "Calibrate RGBD360 multisensor 2\n";
 }
 
 //int main (int argc, char ** argv)

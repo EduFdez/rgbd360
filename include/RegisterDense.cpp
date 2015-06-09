@@ -10222,6 +10222,195 @@ void RegisterDense::registerRGBD(const Eigen::Matrix4f pose_guess, costFuncType 
  *  This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
  *  between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
  */
+void RegisterDense::registerRGBD_InvDepth(const Eigen::Matrix4f pose_guess, costFuncType method, const int occlusion )
+{
+    //std::cout << " RegisterDense::register \n";
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t i=0; i<1000; i++)
+    {
+#endif
+
+//    if(occlusion == 2)
+//    {
+//        min_depth_Outliers = 2*stdDevDepth; // in meters
+//        thresDepthOutliers = max_depth_Outliers;
+//    }
+
+    num_iters.resize(nPyrLevels); // Store the number of iterations
+    std::fill(num_iters.begin(), num_iters.end(), 0);
+    Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
+    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    {
+        const size_t nRows = graySrcPyr[pyrLevel].rows;
+        const size_t nCols = graySrcPyr[pyrLevel].cols;
+        const size_t imgSize = nRows*nCols;
+
+        // Set the camera calibration parameters
+        const float scaleFactor = 1.0/pow(2,pyrLevel);
+        fx = cameraMatrix(0,0)*scaleFactor;
+        fy = cameraMatrix(1,1)*scaleFactor;
+        ox = cameraMatrix(0,2)*scaleFactor;
+        oy = cameraMatrix(1,2)*scaleFactor;
+        inv_fx = 1.f/fx;
+        inv_fy = 1.f/fy;
+
+        // Make LUT to store the values of the 3D points of the source image
+        //computePinholeXYZ(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
+        computePinholeXYZ_sse(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
+
+//        int max_iters_ = 10;
+//        double tol_residual_ = 1e-3;
+//        double tol_update_ = 1e-4;
+        Eigen::Matrix<float,6,1> update_pose; update_pose << 1, 1, 1, 1, 1, 1;
+        double error = errorDense(pyrLevel, pose_estim, method);
+//        double error, new_error;
+//        if(occlusion == 0)
+//            error = errorDense(pyrLevel, pose_estim, method);
+//        else if(occlusion == 1)
+//            error = errorDense_Occ1(pyrLevel, pose_estim, method);
+//        else if(occlusion == 2)
+//            error = errorDense_Occ2(pyrLevel, pose_estim, method);
+
+        double diff_error = error;
+#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
+        std::cout << "error2 " << error << std::endl;
+        std::cout << "Level " << pyrLevel << " error " << error << std::endl;
+#endif
+        while(num_iters[pyrLevel] < max_iters_ && update_pose.norm() > tol_update_ && diff_error > tol_residual_) // The LM optimization stops either when the max iterations is reached, or when the alignment converges (error or pose do not change)
+        {
+//#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
+//            cv::TickMeter tm; tm.start();
+//#endif
+
+            //std::cout << "calcHessianAndGradient_sphere " << std::endl;
+            hessian.setZero();
+            gradient.setZero();
+            calcHessGrad(pyrLevel, pose_estim, method);
+//            if(occlusion == 0)
+//                calcHessGrad(pyrLevel, pose_estim, method);
+//            else if(occlusion == 1)
+//                calcHessGrad_Occ1(pyrLevel, pose_estim, method);
+//            else if(occlusion == 2)
+//                calcHessGrad_Occ2(pyrLevel, pose_estim, method);
+//            else
+//                assert(false);
+
+            //                assert(hessian.rank() == 6); // Make sure that the problem is observable
+            if( hessian.rank() != 6 )
+            //if((hessian + lambda*getDiagonalMatrix(hessian)).rank() != 6)
+            {
+                std::cout << "\t The problem is ILL-POSED \n";
+                std::cout << "hessian \n" << hessian << std::endl;
+                std::cout << "gradient \n" << gradient.transpose() << std::endl;
+                registered_pose_ = pose_estim;
+                return;
+            }
+
+            // Compute the pose update
+            update_pose = -hessian.inverse() * gradient;
+            //                update_pose = -(hessian + lambda*getDiagonalMatrix(hessian)).inverse() * gradient;
+            Eigen::Matrix<double,6,1> update_pose_d = update_pose.cast<double>();
+            pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d)).getHomogeneousMatrixVal().cast<float>() * pose_estim;
+            //            std::cout << "update_pose \n" << update_pose.transpose() << std::endl;
+
+            double new_error = errorDense(pyrLevel, pose_estim_temp, method);
+//            if(occlusion == 0)
+//                new_error = errorDense(pyrLevel, pose_estim_temp, method);
+//            else if(occlusion == 1)
+//                new_error = errorDense_Occ1(pyrLevel, pose_estim_temp, method);
+//            else if(occlusion == 2)
+//                new_error = errorDense_Occ2(pyrLevel, pose_estim_temp, method);
+
+            diff_error = error - new_error;
+#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
+            //std::cout << "update_pose \n" << update_pose.transpose() << std::endl;
+            std::cout << "diff_error " << diff_error << std::endl;
+#endif
+            if(diff_error > 0)
+            {
+                // cout << "pose_estim \n" << pose_estim << "\n pose_estim_temp \n" << pose_estim_temp << endl;
+                //lambda /= step;
+                pose_estim = pose_estim_temp;
+                error = new_error;
+                ++num_iters[pyrLevel];
+            }
+
+//#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
+//            tm.stop(); std::cout << "Iterations " << num_iters[pyrLevel] << " time = " << tm.getTimeSec() << " sec." << std::endl;
+//#endif
+
+            if(visualize_)
+            {
+                //std::cout << "visualize_\n";
+                if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                {
+                    cv::Mat imgDiff = cv::Mat::zeros(nRows,nCols,grayTrgPyr[pyrLevel].type());
+                    cv::absdiff(grayTrgPyr[pyrLevel], warped_gray, imgDiff);
+                    // std::cout << "imgDiff " << imgDiff.at<float>(20,20) << " " << grayTrgPyr[pyrLevel].at<float>(20,20) << " " << warped_gray.at<float>(20,20) << std::endl;
+                    // cout << "type " << grayTrgPyr[pyrLevel].type() << " " << warped_gray.type() << endl;
+
+                    //cv::imshow("orig", grayTrgPyr[pyrLevel]);
+                    //cv::imshow("src", graySrcPyr[pyrLevel]);
+                    cv::imshow("optimize::imgDiff", imgDiff);
+                    //cv::imshow("warp", warped_gray);
+
+//                    cv::Mat DispImage = cv::Mat(2*grayTrgPyr[pyrLevel].rows+4, 2*grayTrgPyr[pyrLevel].cols+4, grayTrgPyr[pyrLevel].type(), cv::Scalar(255)); // cv::Scalar(100, 100, 200)
+//                    grayTrgPyr[pyrLevel].copyTo(DispImage(cv::Rect(0, 0, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    graySrcPyr[pyrLevel].copyTo(DispImage(cv::Rect(grayTrgPyr[pyrLevel].cols+4, 0, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    warped_gray.copyTo(DispImage(cv::Rect(0, grayTrgPyr[pyrLevel].rows+4, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    imgDiff.copyTo(DispImage(cv::Rect(grayTrgPyr[pyrLevel].cols+4, grayTrgPyr[pyrLevel].rows+4, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    //cv::namedWindow("Photoconsistency", cv::WINDOW_AUTOSIZE );// Create a window for display.
+//                    cv::imshow("Photoconsistency", DispImage);
+                }
+                if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                {
+                    //std::cout << "sizes " << nRows << " " << nCols << " " << "sizes " << depthTrgPyr[pyrLevel].rows << " " << depthTrgPyr[pyrLevel].cols << " " << "sizes " << warped_depth.rows << " " << warped_depth.cols << " " << grayTrgPyr[pyrLevel].type() << std::endl;
+                    cv::Mat depthDiff = cv::Mat::zeros(nRows,nCols,depthTrgPyr[pyrLevel].type());
+                    cv::absdiff(depthTrgPyr[pyrLevel], warped_depth, depthDiff);
+                    cv::imshow("depthDiff", depthDiff);
+
+//                    cv::Mat DispImage = cv::Mat(2*grayTrgPyr[pyrLevel].rows+4, 2*grayTrgPyr[pyrLevel].cols+4, grayTrgPyr[pyrLevel].type(), cv::Scalar(255)); // cv::Scalar(100, 100, 200)
+//                    depthTrgPyr[pyrLevel].copyTo(DispImage(cv::Rect(0, 0, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    depthSrcPyr[pyrLevel].copyTo(DispImage(cv::Rect(grayTrgPyr[pyrLevel].cols+4, 0, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    warped_depth.copyTo(DispImage(cv::Rect(0, grayTrgPyr[pyrLevel].rows+4, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    weightedError.copyTo(DispImage(cv::Rect(grayTrgPyr[pyrLevel].cols+4, grayTrgPyr[pyrLevel].rows+4, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    DispImage.convertTo(DispImage, CV_8U, 22.5);
+
+//                    //cv::namedWindow("Depth-consistency", cv::WINDOW_AUTOSIZE );// Create a window for display.
+//                    cv::imshow("Depth-consistency", DispImage);
+                }
+                std::cout << "visualize_\n";
+                cv::waitKey(0);
+            }
+        }
+    }
+
+    //        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+    //            cv::destroyWindow("Photoconsistency");
+    //        if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+    //            cv::destroyWindow("Depth-consistency");
+
+    //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
+    std::cout << "Iterations: ";
+    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+        std::cout << num_iters[pyrLevel] << " ";
+    std::cout << std::endl;
+    //#endif
+
+    registered_pose_ = pose_estim;
+
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    std::cout << " registerRGBD took " << double (time_end - time_start)*1000 << " ms. \n";
+#endif
+}
+
+/*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
+ *  This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
+ *  between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
+ */
 void RegisterDense::registerRGBD_IC(const Eigen::Matrix4f pose_guess, costFuncType method, const int occlusion )
 {
     //std::cout << " RegisterDense::register \n";
