@@ -392,19 +392,6 @@ int main (int argc, char ** argv)
 //            //          cloud[sensor_id].setDepthImage(depth_mat);
 //            //          cloud[sensor_id].getPointCloud();
 
-
-////            // Declarations
-////            Ptr<LSDDetector>        lsd = LSDDetector::createLSDDetector();
-////            Ptr<BinaryDescriptor>   lbd = BinaryDescriptor::createBinaryDescriptor();
-////            //Ptr<ORB>                orb = ORB::create(nFeatures,scaleFactor,nLevels);
-
-////            // Feature detection and description
-////            //if(lines)
-////            {
-////                lsd->detect(imgLeft,linesThird,scale,nOctaves );
-////                lbd->compute(imgLeft,linesThird,ldescThird);
-////            }
-
 ////            Frame360 frame360(&calib);
 ////            frame360.getLocalPlanes();
 

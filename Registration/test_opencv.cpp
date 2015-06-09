@@ -7,33 +7,11 @@ using namespace std;
 
 int main () {
 
-    ////            // Declarations
-    ////            Ptr<LSDDetector>        lsd = LSDDetector::createLSDDetector();
-    ////            Ptr<BinaryDescriptor>   lbd = BinaryDescriptor::createBinaryDescriptor();
-    ////            //Ptr<ORB>                orb = ORB::create(nFeatures,scaleFactor,nLevels);
-
-    ////            // Feature detection and description
-    ////            //if(lines)
-    ////            {
-    ////                lsd->detect(imgLeft,linesThird,scale,nOctaves );
-    ////                lbd->compute(imgLeft,linesThird,ldescThird);
-    ////            }
-    ///
     cout << "Calibrate RGBD360 multisensor\n";
-//    float conditioning[4];
-//    std::fill(conditioning, conditioning+4, 9999.f);
-
-//    conditioning[0] = 9999;
-//    conditioning[1] = 9999;
-//    conditioning[2] = 9999;
-//    conditioning[3] = 9999;
-
-//    for(size_t sensor_id=0; sensor_id < 4; sensor_id++)
-//        std::cout << conditioning[sensor_id] << "\n ";
-
-    vector<float> conditioning(4,100);
-    for(unsigned i=0; i < 4; i++)
-        cout << conditioning[i] << "\n ";
+    float conditioning[4];
+    std::fill(conditioning, conditioning+4, 9999.f);
+    for(size_t sensor_id=0; sensor_id < 4; sensor_id++)
+        std::cout << conditioning[sensor_id] << "\n ";
 
 //  std::vector<float> v(4, 0.2f);
 //  v.push_back(0.3f);

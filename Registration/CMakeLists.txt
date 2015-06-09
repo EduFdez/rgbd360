@@ -4,6 +4,9 @@ IF(BUILD_REGISTRATION)
 
         ADD_EXECUTABLE(test test.cpp)
 
+        ADD_EXECUTABLE(test_opencv test_opencv.cpp)
+        #TARGET_LINK_LIBRARIES( ${OpenCV_LIBS} )
+
 	# Declare the target (an executable)
 	ADD_EXECUTABLE(RegisterPairRGBD360 RegisterPairRGBD360.cpp
 						../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
