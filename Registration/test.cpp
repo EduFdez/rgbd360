@@ -19,6 +19,14 @@ using namespace std;
 
 int main () {
 
+#if _SSE2
+    std::cout << __SSE2__ << " _SSE2 \n";
+#endif
+
+#if _AVX
+    std::cout << " _AVX \n";
+#endif
+
   std::vector<float> v(4, 0.2f);
   v.push_back(0.3f);
   v[2] = 0.1f;

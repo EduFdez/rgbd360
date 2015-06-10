@@ -7,6 +7,7 @@ IF(BUILD_GRABBER)
 						../include/Miscellaneous.h
 						../include/Calib360.h
 						../include/Frame360.h
+                                                ../src/Frame360.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(RGBD360_Grabber

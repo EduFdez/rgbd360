@@ -31,14 +31,16 @@
 
 #define RECORD_VIDEO 0
 
-#include <Frame360.h>
 #include <Frame360_Visualizer.h>
+#include <Miscellaneous.h>
+//#include "../include/Frame360_Visualizer.h"
+//#include "../include/Miscellaneous.h"
 
 #include <pcl/common/time.h>
 #include <pcl/console/parse.h>
 
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 //#include <dirent.h> // To read files from disk
 

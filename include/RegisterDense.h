@@ -1,11 +1,33 @@
-/* +---------------------------------------------------------------------------+
-   |                     Mobile Robot Programming Toolkit (MRPT)               |
-   |                          http://www.mrpt.org/                             |
-   |                                                                           |
-   | Copyright (c) 2005-2014, Individual contributors, see AUTHORS file        |
-   | See: http://www.mrpt.org/Authors - All rights reserved.                   |
-   | Released under BSD License. See details in http://www.mrpt.org/License    |
-   +---------------------------------------------------------------------------+ */
+/*
+ *  Copyright (c) 2015,   INRIA Sophia Antipolis - LAGADIC Team
+ *
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions are met:
+ *      * Redistributions of source code must retain the above copyright
+ *        notice, this list of conditions and the following disclaimer.
+ *      * Redistributions in binary form must reproduce the above copyright
+ *        notice, this list of conditions and the following disclaimer in the
+ *        documentation and/or other materials provided with the distribution.
+ *      * Neither the name of the holder(s) nor the
+ *        names of its contributors may be used to endorse or promote products
+ *        derived from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ *  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ *  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ *  DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+ *  DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ *  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ *  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *
+ * Author: Eduardo Fernandez-Moral
+ */
 
 #include <Miscellaneous.h>
 
@@ -360,9 +382,6 @@ public:
     /*! Compute the 3D points XYZ according to the pinhole camera model. */
     void computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels);
 
-    /*! Compute the 3D points XYZ according to the pinhole camera model. */
-    void computePinholeXYZ_sse(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels);
-
     void computePinholeXYZsalient_sse ( Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
                                         const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
                                         const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY );
@@ -379,11 +398,6 @@ public:
                                  const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY
                                 ); // TODO extend this function to employ only depth
 
-    void getSalientPoints_sphere_sse(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                     const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                     const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY
-                                    ); // TODO extend this function to employ only depth
-
     /*! Get a list of salient points from a list of Jacobians corresponding to a set of 3D points */
     void getSalientPts(const Eigen::MatrixXf & jacobians, std::vector<size_t> & salient_pixels, const float r_salient = 0.05f );
 
@@ -393,11 +407,7 @@ public:
                          std::vector<size_t> &salient_pixels, std::vector<size_t> &salient_pixels_photo, std::vector<size_t> &salient_pixels_depth);
 
     /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
-    void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);
-
-    /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
-    void transformPts3D_sse(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);
-    void transformPts3D_avx(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);
+    //void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);
 
     /*! Project pixel spherical */
     inline void projectSphere(const int & nCols, const int & nRows, const float & phi_FoV, const int & c, const int & r, const float & depth, const Eigen::Matrix4f & poseGuess,
@@ -518,37 +528,37 @@ public:
 
     /*! Re-project the source image onto the target one according to the input relative pose 'poseGuess' to compute the error.
      *  If the parameter 'direction' is -1, then the reprojection is computed from the target to the source images. */
-    double computeReprojError_perspective( int pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY, const int direction = 1);//, const bool use_bilinear = false);
+    double computeReprojError_perspective( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY, const int direction = 1);//, const bool use_bilinear = false);
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-    double errorDense( int pyrLevel, const Eigen::Matrix4f &poseGuess, costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
+    double errorDense( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
 
-    double errorDense_IC( int pyrLevel, const Eigen::Matrix4f &poseGuess, costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
+    double errorDense_IC( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-    double errorDense_inv( int pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
+    double errorDense_inv( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-    void calcHessGrad( int pyrLevel,
-                       costFuncType method = PHOTO_CONSISTENCY );
+    void calcHessGrad( const int pyrLevel,
+                       const costFuncType method = PHOTO_CONSISTENCY );
 
-    double calcHessGrad_IC( int pyrLevel,
-                           const Eigen::Matrix4f poseGuess,
-                           costFuncType method = PHOTO_CONSISTENCY );
+    double calcHessGrad_IC(const int pyrLevel,
+                           const Eigen::Matrix4f & poseGuess,
+                           const costFuncType method = PHOTO_CONSISTENCY );
 
 //    /* Compute the Jacobian matrices which are used to select the salient pixels. */
 //    void computeJacobian(int pyrLevel,
 //                        const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-//                        costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+//                        const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
     /*! Compute the averaged squared error of the salient points. */
     double computeErrorHessGrad_salient(std::vector<size_t> & salient_pixels, costFuncType method );
@@ -557,104 +567,80 @@ public:
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-    void calcHessGrad_inv( int pyrLevel,
-                           const Eigen::Matrix4f poseGuess,
-                           costFuncType method = PHOTO_CONSISTENCY );
+    void calcHessGrad_inv( const int pyrLevel,
+                           const Eigen::Matrix4f & poseGuess,
+                           const costFuncType method = PHOTO_CONSISTENCY );
 
-//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method. */
-//    double errorDense_Occ1(int pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);
-//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient. */
-//    void calcHessGrad_Occ1(int pyrLevel,
-//                           const Eigen::Matrix4f poseGuess,
-//                           costFuncType method = PHOTO_CONSISTENCY);
-
-//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method. */
-//    double errorDense_Occ2(int pyrLevel, const Eigen::Matrix4f poseGuess, costFuncType method = PHOTO_CONSISTENCY);
-
-//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient. */
-//    void calcHessGrad_Occ2(int pyrLevel,
-//                           const Eigen::Matrix4f poseGuess,
-//                           costFuncType method = PHOTO_CONSISTENCY);
-
-
-//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-//        This is done following the work in:
-//        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
-//        in Computer Vision Workshops (ICCV Workshops), 2011. */
-//    void calcHessianAndGradient(int pyrLevel,
-//                               const Eigen::Matrix4f poseGuess,
-//                               costFuncType method = PHOTO_CONSISTENCY);
-
-    void warpImage ( int pyrLevel, const Eigen::Matrix4f &poseGuess, costFuncType method );
+    void warpImage ( const int pyrLevel, const Eigen::Matrix4f &poseGuess, costFuncType method );
 
     /*! Re-project the source image onto the target one according to the input relative pose 'poseGuess' to compute the error.
      *  If the parameter 'direction' is -1, then the reprojection is computed from the target to the source images. */
     double computeReprojError_spherical(int pyrLevel,
-                                        const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
-                                        costFuncType method = PHOTO_CONSISTENCY,
+                                        const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
+                                        const costFuncType method = PHOTO_CONSISTENCY,
                                         const int direction = 1 ) ;//,const bool use_bilinear = false );
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-    double errorDense_sphere (  int pyrLevel,
-                                const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
-                                costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+    double errorDense_sphere (  const int pyrLevel,
+                                const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
+                                const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
     double errorDenseWarp_sphere (  int pyrLevel,
-                                    const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
-                                    costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+                                    const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
+                                    const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
     /*! This function do the same as 'errorDense_sphere'. But applying inverse compositional, which only affects the depth error */
-    double errorDenseIC_sphere( int pyrLevel,
-                                const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
-                                costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+    double errorDenseIC_sphere( const int pyrLevel,
+                                const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
+                                const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
-    double errorDenseInv_sphere(int pyrLevel,
-                                const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
-                                costFuncType method = PHOTO_CONSISTENCY); //,const bool use_bilinear = false );
+    double errorDenseInv_sphere(const int pyrLevel,
+                                const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
+                                const costFuncType method = PHOTO_CONSISTENCY); //,const bool use_bilinear = false );
 
-    double errorDense_sphere_bidirectional (int pyrLevel,
-                                            const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
-                                            costFuncType method = PHOTO_CONSISTENCY); //,const bool use_bilinear = false );
+    double errorDense_sphere_bidirectional (const int pyrLevel,
+                                            const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
+                                            const costFuncType method = PHOTO_CONSISTENCY); //,const bool use_bilinear = false );
 
-    double computeJacobian_sphere ( int pyrLevel,
-                                    const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                    costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+    double computeJacobian_sphere ( const int pyrLevel,
+                                    const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
+                                    const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-    void calcHessGrad_sphere (  int pyrLevel,
-                                const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+    void calcHessGrad_sphere (  const int pyrLevel,
+                                const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
+                                const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
-    void calcHessGrad_warp_sphere ( int pyrLevel,
-                                    const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                    costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+    void calcHessGrad_warp_sphere ( const int pyrLevel,
+                                    const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
+                                    const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
-    void calcHessGrad_side_sphere ( int pyrLevel,
-                                const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                costFuncType method = PHOTO_CONSISTENCY,
-                                const int side = 0 ); // side is an aproximation parameter, 0 -> optimization starts at the identity and gradients are computed at the source; 1 at the target
+    void calcHessGrad_side_sphere ( const int pyrLevel,
+                                    const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
+                                    const costFuncType method = PHOTO_CONSISTENCY,
+                                    const int side = 0 ); // side is an aproximation parameter, 0 -> optimization starts at the identity and gradients are computed at the source; 1 at the target
 
-    void calcHessGradRot_sphere(int pyrLevel,
-                                const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+    void calcHessGradRot_sphere(const int pyrLevel,
+                                const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
+                                const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
-    double calcHessGradIC_sphere( int pyrLevel,
-                                const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+    double calcHessGradIC_sphere (  const int pyrLevel,
+                                    const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
+                                    const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
-    void calcHessGradInv_sphere(   int pyrLevel,
-                                const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+    void calcHessGradInv_sphere(const int pyrLevel,
+                                const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
+                                const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
-    void calcHessGrad_sphere_bidirectional (int pyrLevel,
-                                            const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                            costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
+    void calcHessGrad_sphere_bidirectional (const int pyrLevel,
+                                            const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
+                                            const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
 //    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
 //        Occlusions are taken into account by a Z-buffer. */
@@ -681,7 +667,7 @@ public:
     /*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
       * This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
       * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution. */
-    void registerRGBD ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+    void registerRGBD (  const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                          costFuncType method = PHOTO_CONSISTENCY,
                          const int occlusion = 0);
 
@@ -689,7 +675,7 @@ public:
                                  costFuncType method = PHOTO_CONSISTENCY,
                                  const int occlusion = 0);
 
-    void registerRGBD_IC ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+    void registerRGBD_IC(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                          costFuncType method = PHOTO_CONSISTENCY,
                          const int occlusion = 0);
 

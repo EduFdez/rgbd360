@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2012, Universidad de Málaga - Grupo MAPIR
+ *  Copyright (c) 2015,   INRIA Sophia Antipolis - LAGADIC Team
  *
  *  All rights reserved.
  *
@@ -26,13 +26,13 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- *  Author: efernand Fernandez-Moral
+ * Author: Eduardo Fernandez-Moral
  */
 
-#include <Frame360.h>
 #include <Frame360CompareVisualizer.h>
-#include <FilterPointCloud.h>
+#include <Miscellaneous.h>
 
+#include <pcl/filters/passthrough.h>
 #include <pcl/console/parse.h>
 
 using namespace std;

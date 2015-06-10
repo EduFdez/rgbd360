@@ -39,8 +39,9 @@
 //#include <mrpt/obs/CActionCollection.h>
 //#include <mrpt/obs/CSensoryFrame.h>
 
-#include <Frame360.h>
+//#include <Frame360.h>
 #include <Frame360_Visualizer.h>
+#include <Miscellaneous.h>
 
 #ifndef PI
   #define PI 3.14159265

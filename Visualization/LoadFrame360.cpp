@@ -1,5 +1,6 @@
 /*
- *  Copyright (c) 2012, Universidad de Málaga - Grupo MAPIR
+ *  Copyright (c) 2013, Universidad de Málaga  - Grupo MAPIR
+ *                      INRIA Sophia Antipolis - LAGADIC Team
  *
  *  All rights reserved.
  *
@@ -26,11 +27,11 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- *  Author: efernand Fernandez-Moral
+ * Author: Eduardo Fernandez-Moral
  */
 
-#include <Frame360.h>
 #include <Frame360_Visualizer.h>
+
 #include <pcl/console/parse.h>
 
 using namespace std;
@@ -66,7 +67,6 @@ int main (int argc, char ** argv)
   frame360.undistort();
   frame360.buildSphereCloud_rgbd360();
   frame360.getPlanes();
-//std::cout << "Traza 1 \n";
 
 //  frame360.stitchSphericalImage();
 //  cv::imwrite("rgb_test.png", frame360.sphereRGB);

@@ -8,6 +8,7 @@ IF(BUILD_CALIBRATION)
                                     ../include/Calib360.h
                                     ../include/Calibrator.h
                                     ../include/Frame360.h
+                                    ../src/Frame360.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(Calibrator
@@ -25,7 +26,7 @@ IF(BUILD_CALIBRATION)
                                         ../include/Calib360.h
                                         ../include/Calibrator.h
                                         ../include/Frame360.h
-                                        ../include/Frame360.cpp
+                                        ../src/Frame360.cpp
         )
 
         TARGET_LINK_LIBRARIES(RawlogCalibrator

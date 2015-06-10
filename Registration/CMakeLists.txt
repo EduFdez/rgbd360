@@ -14,11 +14,13 @@ IF(BUILD_REGISTRATION)
 						../include/Miscellaneous.h
 						../include/Calib360.h
 						../include/Frame360.h
-                                                ../include/Frame360.cpp
+                                                ../src/Frame360.cpp
                                                 ../include/Map360_Visualizer.h
 						../include/RegisterRGBD360.h
                                                 ../include/RegisterDense.h
-                                                ../include/RegisterDense.cpp
+                                                ../src/RegisterDense.cpp
+                                                ../include/transformPts3D.h
+                                                ../src/transformPts3D.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(RegisterPairRGBD360
@@ -35,11 +37,11 @@ IF(BUILD_REGISTRATION)
 						../include/Miscellaneous.h
 						../include/Calib360.h
 						../include/Frame360.h
-                                                ../include/Frame360.cpp
+                                                ../src/Frame360.cpp
                                                 ../include/Map360_Visualizer.h
 						../include/RegisterRGBD360.h
                                                 ../include/RegisterDense.h
-                                                ../include/RegisterDense.cpp
+                                                ../src/RegisterDense.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(RegisterPairRGBD360_PbMap
@@ -56,12 +58,12 @@ IF(BUILD_REGISTRATION)
 						../include/Miscellaneous.h
 						../include/Calib360.h
 						../include/Frame360.h
-                                                ../include/Frame360.cpp
+                                                ../src/Frame360.cpp
 						../include/Frame360_stereo.h
 						../include/Map360_Visualizer.h
 						../include/RegisterRGBD360.h
                                                 ../include/RegisterDense.h
-                                                ../include/RegisterDense.cpp
+                                                ../src/RegisterDense.cpp
 	)
 
         TARGET_LINK_LIBRARIES(RegisterPairRGBD360_stereo
@@ -78,11 +80,11 @@ IF(BUILD_REGISTRATION)
                                             ../include/Miscellaneous.h
                                             #../include/Calib360.h
                                             #../include/Frame360.h
-                                            #../include/Frame360.cpp
+                                            #../src/Frame360.cpp
                                             #../include/Map360_Visualizer.h
                                             #../include/RegisterRGBD360.h
                                             ../include/RegisterDense.h
-                                            ../include/RegisterDense.cpp
+                                            ../src/RegisterDense.cpp
         )
 
         TARGET_LINK_LIBRARIES(OdometryRGBD_rawlog
@@ -99,11 +101,11 @@ IF(BUILD_REGISTRATION)
                                                 ../include/Miscellaneous.h
                                                 ../include/Calib360.h
                                                 ../include/Frame360.h
-                                                ../include/Frame360.cpp
+                                                ../src/Frame360.cpp
                                                 ../include/Map360_Visualizer.h
                                                 ../include/RegisterRGBD360.h
                                                 ../include/RegisterDense.h
-                                                ../include/RegisterDense.cpp
+                                                ../src/RegisterDense.cpp
         )
 
         TARGET_LINK_LIBRARIES(OdometryRGBD360_stereo
@@ -134,11 +136,11 @@ IF(BUILD_REGISTRATION)
 						../include/Miscellaneous.h
 						../include/Calib360.h
 						../include/Frame360.h
-                                                ../include/Frame360.cpp
+                                                ../src/Frame360.cpp
 						../include/Map360_Visualizer.h
 						../include/RegisterRGBD360.h
                                                 ../include/RegisterDense.h
-                                                ../include/RegisterDense.cpp
+                                                ../src/RegisterDense.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(MethodsRegisterRGBD360
@@ -155,11 +157,11 @@ IF(BUILD_REGISTRATION)
 						../include/Miscellaneous.h
 						../include/Calib360.h
 						../include/Frame360.h
-                                                ../include/Frame360.cpp
+                                                ../src/Frame360.cpp
 						../include/Map360.h
 						../include/RegisterRGBD360.h
                                                 ../include/RegisterDense.h
-                                                ../include/RegisterDense.cpp
+                                                ../src/RegisterDense.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(OdometryRGBD360
@@ -176,11 +178,11 @@ IF(BUILD_REGISTRATION)
 						../include/Miscellaneous.h
 						../include/Calib360.h
 						../include/Frame360.h
-                                                ../include/Frame360.cpp
+                                                ../src/Frame360.cpp
 						../include/Map360.h
 						../include/RegisterRGBD360.h
                                                 ../include/RegisterDense.h
-                                                ../include/RegisterDense.cpp
+                                                ../src/RegisterDense.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(OdometryKeyFrame360
@@ -213,7 +215,7 @@ IF(BUILD_REGISTRATION)
 #						../include/Miscellaneous.h
 #						../include/Calib360.h
 #						../include/Frame360.h
-                                                #../include/Frame360.cpp
+                                                #../src/Frame360.cpp
 #						../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
 #						../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
 #	)

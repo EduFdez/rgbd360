@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2012, Universidad de Málaga - Grupo MAPIR and
+ *  Copyright (c) 2013, Universidad de Málaga  - Grupo MAPIR
  *                      INRIA Sophia Antipolis - LAGADIC Team
  *
  *  All rights reserved.
@@ -27,7 +27,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- *  Author: Eduardo Fernandez-Moral
+ * Author: Eduardo Fernandez-Moral
  */
 
 #ifndef MAP360_VISUALIZER_H

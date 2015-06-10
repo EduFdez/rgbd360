@@ -1,5 +1,6 @@
 /*
- *  Copyright (c) 2012, Universidad de Málaga - Grupo MAPIR
+ *  Copyright (c) 2013, Universidad de Málaga  - Grupo MAPIR
+ *                      INRIA Sophia Antipolis - LAGADIC Team
  *
  *  All rights reserved.
  *
@@ -26,7 +27,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- *  Author: Eduardo Fernandez-Moral
+ * Author: Eduardo Fernandez-Moral
  */
 
 #ifndef MISCELLANEOUS_H
@@ -39,16 +40,16 @@
 #include <mrpt/pbmap.h>
 #include <mrpt/utils/CStream.h>
 
-#include <Eigen/Core>
-#include <Eigen/SVD>
-#include <iostream>
-#include <fstream>
+#include <opencv2/core/eigen.hpp>
 
 #include <iterator>
 #include <algorithm>
-#include <vector>
+//#include <vector>
 
-#include <opencv2/core/eigen.hpp>
+//#include <Eigen/Core>
+//#include <Eigen/SVD>
+//#include <iostream>
+//#include <fstream>
 
 /*! Generate a skew-symmetric matrix from a 3D vector */
 template<typename dataType> inline
@@ -104,7 +105,7 @@ inline bool fexists(const char *filename)
 }
 
 /*! Calculate the rotation difference between the two poses */
-inline float diffRotation(Eigen::Matrix4f &pose1, Eigen::Matrix4f &pose2)
+inline float diffRotation(const Eigen::Matrix4f & pose1, const Eigen::Matrix4f & pose2)
 {
     // Eigen::Matrix3f relativeRotation = pose1.block(0,0,3,3).transpose() * pose2.block(0,0,3,3);
     //    Eigen::Isometry3d cam; // camera pose
@@ -121,7 +122,7 @@ inline float diffRotation(Eigen::Matrix4f &pose1, Eigen::Matrix4f &pose2)
 }
 
 /*! Calculate the rotation difference between the two poses */
-inline float difTranslation(Eigen::Matrix4f &pose1, Eigen::Matrix4f &pose2)
+inline float difTranslation(const Eigen::Matrix4f & pose1, const Eigen::Matrix4f & pose2)
 {
     Eigen::Matrix4f relativePose = pose1.inverse() * pose2;
     std::cout << "  distPoses " << relativePose.block(0,3,3,1).norm() << std::endl;
@@ -144,27 +145,27 @@ Eigen::Matrix<typedata,nRows,nCols> getDiagonalMatrix(const Eigen::Matrix<typeda
 
 /*! Compute the mean and standard deviation from a std::vector of float/double values.*/
 template<typename dataType> inline
-void calcMeanAndStDev(std::vector<dataType> &v, dataType &mean, dataType &stdev)
+void calcMeanAndStDev(const std::vector<dataType> & vec, dataType mean, dataType stdev)
 {
-    dataType sum = std::accumulate(v.begin(), v.end(), 0.0);
-    mean =  sum / v.size();
+    dataType sum = std::accumulate(vec.begin(), vec.end(), 0.0);
+    mean =  sum / vec.size();
 
     dataType accum = 0.0;
-    for(unsigned i=0; i<v.size(); i++)
-        accum += (v[i] - mean) * (v[i] - mean);
-    stdev = sqrt(accum / (v.size()-1));
+    for(unsigned i=0; i<vec.size(); i++)
+        accum += (vec[i] - mean) * (vec[i] - mean);
+    stdev = sqrt(accum / (vec.size()-1));
 
 //    dataType accum = 0.0;
-//    std::for_each (v.begin(), v.end(), [&](const dataType d) {
+//    std::for_each (vec.begin(), vec.end(), [&](const dataType d) {
 //        accum += (d - mean) * (d - mean);
 //    });
-//    stdev = sqrt(accum / (v.size()-1));
+//    stdev = sqrt(accum / (vec.size()-1));
 
-//    std::vector<dataType> diff(v.size());
-//    std::transform(v.begin(), v.end(), diff.begin(),
+//    std::vector<dataType> diff(vec.size());
+//    std::transform(vec.begin(), vec.end(), diff.begin(),
 //                   std::bind2nd(std::minus<double>(), mean));
 //    dataType sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
-//    stdev = std::sqrt(sq_sum / v.size()-1);
+//    stdev = std::sqrt(sq_sum / vec.size()-1);
 }
 
 ///* Transform pose from Tawsif reference system to the one of RGBD360 */
@@ -199,12 +200,12 @@ void calcMeanAndStDev(std::vector<dataType> &v, dataType &mean, dataType &stdev)
 //}
 
 /*! Return a vector of pairs of 2D-points (x1,y1,x2,y2) defining segments which correspond to vertical planes */
-inline std::vector<Eigen::Vector4f> getVerticalPlanes(mrpt::pbmap::PbMap &planes)
+inline std::vector<Eigen::Vector4f> getVerticalPlanes(mrpt::pbmap::PbMap & planes)
 {
   std::vector<Eigen::Vector4f> wall_planes2D;
-  for(unsigned i=0; i<planes.vPlanes.size(); i++)
+  for(unsigned i=0; i < planes.vPlanes.size(); i++)
   {
-    mrpt::pbmap::Plane &plane_i = planes.vPlanes[i];
+    mrpt::pbmap::Plane & plane_i = planes.vPlanes[i];
 
     if(plane_i.v3normal(0) < 0.98) // Check that the plane is vertical
       continue;

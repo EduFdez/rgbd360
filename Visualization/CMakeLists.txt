@@ -4,7 +4,14 @@ IF(BUILD_VISUALIZATION)
 	#INCLUDE_DIRECTORIES(${PCL_INCLUDE_DIRS})
 
 	# Declare the target (an executable)
-	ADD_EXECUTABLE(LoadSphere LoadSphere.cpp)
+        ADD_EXECUTABLE(LoadSphere LoadSphere.cpp
+                                    ../include/Calib360.h
+                                    ../include/Frame360.h
+                                    ../src/Frame360.cpp
+                                    ../include/Frame360_Visualizer.h
+                                    ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
+                                    ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
+        )
 
 	TARGET_LINK_LIBRARIES(LoadSphere
 					${MRPT_LIBS}
@@ -15,12 +22,12 @@ IF(BUILD_VISUALIZATION)
 
 	# Declare the target (an executable)
 	ADD_EXECUTABLE(LoadFrame360 LoadFrame360.cpp
-					../include/Calib360.h
-					../include/Frame360.h
-					../include/Frame360.cpp
-					../include/Frame360_Visualizer.h
-					../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
-					../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
+                                    ../include/Calib360.h
+                                    ../include/Frame360.h
+                                    ../src/Frame360.cpp
+                                    ../include/Frame360_Visualizer.h
+                                    ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
+                                    ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(LoadFrame360
@@ -35,7 +42,7 @@ IF(BUILD_VISUALIZATION)
 					../include/Frame360_stereo.h
 					../include/Calib360.h
 					../include/Frame360.h
-					../include/Frame360.cpp
+                                        ../src/Frame360.cpp
 					../include/Frame360_Visualizer.h
 					../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
 					../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
@@ -53,7 +60,7 @@ IF(BUILD_VISUALIZATION)
                                         ../include/Frame360_stereo.h
                                         ../include/Calib360.h
                                         ../include/Frame360.h
-                                        ../include/Frame360.cpp
+                                        ../src/Frame360.cpp
                                         ../include/Frame360CompareVisualizer.h
                                         ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
                                         ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
@@ -70,7 +77,7 @@ IF(BUILD_VISUALIZATION)
 	ADD_EXECUTABLE(LoadSequence LoadSequence.cpp
 					../include/Calib360.h
 					../include/Frame360.h
-					../include/Frame360.cpp
+                                        ../src/Frame360.cpp
 					../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
 					../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
 	)
@@ -85,7 +92,7 @@ IF(BUILD_VISUALIZATION)
 	ADD_EXECUTABLE(LoadRawlog LoadRawlog.cpp
 					../include/Calib360.h
 					../include/Frame360.h
-					../include/Frame360.cpp
+                                        ../src/Frame360.cpp
 					../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
 					../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
 	)
