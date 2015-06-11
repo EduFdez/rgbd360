@@ -33,9 +33,7 @@
 #ifndef CALIB360_H
 #define CALIB360_H
 
-#ifndef NUM_ASUS_SENSORS
-#define NUM_ASUS_SENSORS 8
-#endif
+#include "definitions.h"
 
 //#include <mrpt/base.h>
 #include <clams/discrete_depth_distortion_model.h>

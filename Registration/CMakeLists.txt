@@ -42,6 +42,8 @@ IF(BUILD_REGISTRATION)
 						../include/RegisterRGBD360.h
                                                 ../include/RegisterDense.h
                                                 ../src/RegisterDense.cpp
+                                                ../include/transformPts3D.h
+                                                ../src/transformPts3D.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(RegisterPairRGBD360_PbMap
@@ -64,6 +66,8 @@ IF(BUILD_REGISTRATION)
 						../include/RegisterRGBD360.h
                                                 ../include/RegisterDense.h
                                                 ../src/RegisterDense.cpp
+                                                ../include/transformPts3D.h
+                                                ../src/transformPts3D.cpp
 	)
 
         TARGET_LINK_LIBRARIES(RegisterPairRGBD360_stereo

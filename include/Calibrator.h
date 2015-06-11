@@ -32,9 +32,7 @@
 #ifndef CALIBRATOR_H
 #define CALIBRATOR_H
 
-#ifndef NUM_ASUS_SENSORS
-#define NUM_ASUS_SENSORS 8
-#endif
+#include "definitions.h"
 
 #include "Calib360.h"
 #include "Frame360.h"
@@ -76,7 +74,7 @@ class ControlPlanes
         for(std::map<unsigned, mrpt::math::CMatrixDouble>::iterator it_pair2=it_pair1->second.begin();
             it_pair2 != it_pair1->second.end(); it_pair2++)
         {
-          if(it_pair2->second.getRowCount() > 0)
+          if(it_pair2->second.rows() > 0)
             it_pair2->second.saveToTextFile( mrpt::format("%s/correspondences_%u_%u.txt", planeCorrespDirectory.c_str(), it_pair1->first, it_pair2->first) );
         }
       }
@@ -90,7 +88,7 @@ class ControlPlanes
       mrpt::math::CMatrixDouble correspMat;
       correspMat.loadFromTextFile(matchedPlanesFile);
 //      std::cout << "Load ControlPlanes " << sensor_id << " and " << sensor_corresp << std::endl;
-      std::cout << correspMat.getRowCount() << " correspondences " << std::endl;
+      std::cout << correspMat.rows() << " correspondences " << std::endl;
 
       return correspMat;
     }
@@ -111,7 +109,7 @@ class ControlPlanes
             correspMat.loadFromTextFile(fileCorresp);
             mmCorrespondences[sensor_id][sensor_corresp] = correspMat;
 //          std::cout << "Load ControlPlanes " << sensor_id << " and " << sensor_corresp << std::endl;
-//          std::cout << correspMat.getRowCount() << " correspondences " << std::endl;
+//          std::cout << correspMat.rows() << " correspondences " << std::endl;
           }
         }
       }
@@ -133,9 +131,9 @@ class ControlPlanes
     /*! Get the rate of inliers near the border of the sensor (the border nearer to the next upper index Asus sensor) */
     float inliersLowerFringe(mrpt::pbmap::Plane &plane, float fringeWidth)
     {
-      unsigned count = 0;
-      unsigned im_size = 320 * 240;
-      unsigned limit = (1 - fringeWidth) * im_size;
+      size_t count = 0;
+      size_t im_size = 320 * 240;
+      int limit = (1 - fringeWidth) * im_size;
       for(unsigned i=0; i < plane.inliers.size(); ++i)
         if(plane.inliers[i] > limit)
           ++count;
@@ -148,8 +146,8 @@ class ControlPlanes
     {
       cout << "Conditioning\n";
       for(unsigned sensor_id = 0; sensor_id < NUM_ASUS_SENSORS-1; sensor_id++)
-        cout << mmCorrespondences[sensor_id][sensor_id+1].getRowCount() << "\t";
-      cout << mmCorrespondences[0][NUM_ASUS_SENSORS-1].getRowCount() << "\t";
+        cout << mmCorrespondences[sensor_id][sensor_id+1].rows() << "\t";
+      cout << mmCorrespondences[0][NUM_ASUS_SENSORS-1].rows() << "\t";
       cout << endl;
       for(unsigned sensor_id = 0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
         cout << conditioning[sensor_id] << "\t";
@@ -229,7 +227,7 @@ class PairCalibrator
     {
       float accum_error2 = 0.0;
 //      float accum_error_deg = 0.0;
-      for(unsigned i=0; i < correspondences.getRowCount(); i++)
+      for(unsigned i=0; i < correspondences.rows(); i++)
       {
 //        float weight = (correspondences(i,8) / (correspondences(i,3) * correspondences(i,9)));
         float weight = 1.0;
@@ -241,15 +239,15 @@ class PairCalibrator
 //        accum_error_deg += acos(fabs(rot_error.dot(rot_error)));
       }
 
-//      std::cout << "AvError deg " << accum_error_deg/correspondences.getRowCount() << std::endl;
-      return accum_error2/correspondences.getRowCount();
+//      std::cout << "AvError deg " << accum_error_deg/correspondences.rows() << std::endl;
+      return accum_error2/correspondences.rows();
     }
 
 //    float calcCorrespTransError(Eigen::Matrix3f &Rot_)
 //    {
 //      float accum_error2 = 0.0;
 //      float accum_error_m = 0.0;
-//      for(unsigned i=0; i < correspondences.getRowCount(); i++)
+//      for(unsigned i=0; i < correspondences.rows(); i++)
 //      {
 ////        float weight = (correspondences(i,8) / (correspondences(i,3) * correspondences(i,9)));
 //        float weight = 1.0;
@@ -259,8 +257,8 @@ class PairCalibrator
 //        accum_error_deg += acos(fabs(rot_error.dot(rot_error)));
 //      }
 //
-//      std::cout << "AvError deg " << accum_error_deg/correspondences.getRowCount() << std::endl;
-//      return accum_error2/correspondences.getRowCount();
+//      std::cout << "AvError deg " << accum_error_deg/correspondences.rows() << std::endl;
+//      return accum_error2/correspondences.rows();
 //    }
 
     Eigen::Vector3f calcScoreRotation(Eigen::Vector3f &n1, Eigen::Vector3f &n2)
@@ -275,9 +273,9 @@ class PairCalibrator
     {
       Eigen::Matrix3f FIM = Eigen::Matrix3f::Zero();
 
-      for(unsigned i=0; i < correspondences.getRowCount(); i++)
+      for(unsigned i=0; i < correspondences.rows(); i++)
       {
-//          float weight = (inliers / correspondences(i,3)) / correspondences.getRowCount()
+//          float weight = (inliers / correspondences(i,3)) / correspondences.rows()
         Eigen::Vector3f n_obs_i; n_obs_i << correspondences(i,0), correspondences(i,1), correspondences(i,2);
         Eigen::Vector3f n_obs_ii; n_obs_ii << correspondences(i,4), correspondences(i,5), correspondences(i,6);
 
@@ -304,9 +302,9 @@ class PairCalibrator
     {
       Eigen::Matrix3f FIM = Eigen::Matrix3f::Zero();
 
-      for(unsigned i=0; i < correspondences.getRowCount(); i++)
+      for(unsigned i=0; i < correspondences.rows(); i++)
       {
-//          float weight = (inliers / correspondences(i,3)) / correspondences.getRowCount()
+//          float weight = (inliers / correspondences(i,3)) / correspondences.rows()
         Eigen::Vector3f n_obs_i; n_obs_i << correspondences(i,0), correspondences(i,1), correspondences(i,2);
 //        Eigen::Vector3f n_obs_ii; n_obs_ii << correspondences(i,4), correspondences(i,5), correspondences(i,6);
         float d_obs_i = correspondences(i,3);
@@ -327,7 +325,7 @@ class PairCalibrator
 
       correspondences.loadFromTextFile(matchedPlanesFile);
 //      std::cout << "Load ControlPlanes " << sensor_id << " and " << sensor_corresp << std::endl;
-      std::cout << correspondences.getRowCount() << " correspondences " << std::endl;
+      std::cout << correspondences.rows() << " correspondences " << std::endl;
     }
 
 //    Eigen::Matrix3f calcFisherInfMat(const int weightedLS = 0)
@@ -341,9 +339,9 @@ class PairCalibrator
 //
 //      float accum_error2 = 0;
 ////      rotationCov += v3normal2 * v3normal1.transpose();
-//      for(unsigned i=0; i < correspondences.getRowCount(); i++)
+//      for(unsigned i=0; i < correspondences.rows(); i++)
 //      {
-////          float weight = (inliers / correspondences(i,3)) / correspondences.getRowCount()
+////          float weight = (inliers / correspondences(i,3)) / correspondences.rows()
 //        Eigen::Vector3f n_obs_i; n_obs_i << correspondences(i,0), correspondences(i,1), correspondences(i,2);
 //        Eigen::Vector3f n_obs_ii; n_obs_ii << correspondences(i,4), correspondences(i,5), correspondences(i,6);
 //        Eigen::Vector3f n_i = n_obs_i;
@@ -351,9 +349,9 @@ class PairCalibrator
 //        Eigen::Vector3f rot_error = (n_i - n_ii);
 //        accum_error2 += fabs(rot_error.dot(rot_error));
 //
-//        if(weightedLS == 1 && correspondences.getColCount() == 10)
+//        if(weightedLS == 1 && correspondences.cols() == 10)
 //        {
-//          float weight = (correspondences(i,8) / (correspondences(i,3) * correspondences(i,9)));// / correspondences.getRowCount();
+//          float weight = (correspondences(i,8) / (correspondences(i,3) * correspondences(i,9)));// / correspondences.rows();
 //          rotationCov += weight * n_obs_ii * n_obs_i.transpose();
 //        }
 //        else
@@ -372,7 +370,7 @@ class PairCalibrator
 //
 //      float minFIM_rot = std::min(FIM_rot(0,0), std::min(FIM_rot(1,1), FIM_rot(2,2)));
 //      float minFIM_trans = std::min(FIM_trans(0,0), std::min(FIM_trans(1,1), FIM_trans(2,2)));
-////      std::cout << "minFIM_rot " << minFIM_rot << " " << minFIM_trans << " conditioning " << conditioning << " numCorresp " << correspondences.getRowCount() << std::endl;
+////      std::cout << "minFIM_rot " << minFIM_rot << " " << minFIM_trans << " conditioning " << conditioning << " numCorresp " << correspondences.rows() << std::endl;
 //      std::cout << "\nFIM_rot \n" << FIM_rot << std::endl;
 //      std::cout << "\nFIM_trans \n" << FIM_trans << std::endl;
 //    }
@@ -388,9 +386,9 @@ class PairCalibrator
 
       float accum_error2 = 0;
 //      rotationCov += v3normal2 * v3normal1.transpose();
-      for(unsigned i=0; i < correspondences.getRowCount(); i++)
+      for(unsigned i=0; i < correspondences.rows(); i++)
       {
-//          float weight = (inliers / correspondences(i,3)) / correspondences.getRowCount()
+//          float weight = (inliers / correspondences(i,3)) / correspondences.rows()
         Eigen::Vector3f n_obs_i; n_obs_i << correspondences(i,0), correspondences(i,1), correspondences(i,2);
         Eigen::Vector3f n_obs_ii; n_obs_ii << correspondences(i,4), correspondences(i,5), correspondences(i,6);
         Eigen::Vector3f n_i = n_obs_i;
@@ -398,9 +396,9 @@ class PairCalibrator
         Eigen::Vector3f rot_error = (n_i - n_ii);
         accum_error2 += fabs(rot_error.dot(rot_error));
 
-        if(weightedLS == 1 && correspondences.getColCount() == 10)
+        if(weightedLS == 1 && correspondences.cols() == 10)
         {
-          float weight = (correspondences(i,8) / (correspondences(i,3) * correspondences(i,9)));// / correspondences.getRowCount();
+          float weight = (correspondences(i,8) / (correspondences(i,3) * correspondences(i,9)));// / correspondences.rows();
           rotationCov += weight * n_obs_ii * n_obs_i.transpose();
         }
         else
@@ -416,7 +414,7 @@ class PairCalibrator
       }
 //      float minFIM_rot = std::min(FIM_rot(0,0), std::min(FIM_rot(1,1), FIM_rot(2,2)));
 //      std::cout << "minFIM_rot " << minFIM_rot << std::endl;// << " " << calcCorrespRotError(Rt_estimated) << std::endl;
-//      std::cout << "accum_rot_error2 av_deg " << acos(accum_error2/correspondences.getRowCount()) << std::endl;// << " " << calcCorrespRotError(Rt_estimated) << std::endl;
+//      std::cout << "accum_rot_error2 av_deg " << acos(accum_error2/correspondences.rows()) << std::endl;// << " " << calcCorrespRotError(Rt_estimated) << std::endl;
 //      std::cout << "Rt_estimated\n" << Rt_estimated << std::endl;
 
       // Calculate calibration Rt
@@ -453,9 +451,9 @@ class PairCalibrator
 
       double accum_error2 = 0;
 //      rotationCov += v3normal2 * v3normal1.transpose();
-      for(unsigned i=0; i < correspondences.getRowCount(); i++)
+      for(unsigned i=0; i < correspondences.rows(); i++)
       {
-//          double weight = (inliers / correspondences(i,3)) / correspondences.getRowCount()
+//          double weight = (inliers / correspondences(i,3)) / correspondences.rows()
         Eigen::Vector3d n_obs_i; n_obs_i << correspondences(i,0), correspondences(i,1), correspondences(i,2);
         Eigen::Vector3d n_obs_ii; n_obs_ii << correspondences(i,4), correspondences(i,5), correspondences(i,6);
         Eigen::Vector3d n_i = n_obs_i;
@@ -463,15 +461,15 @@ class PairCalibrator
         Eigen::Vector3d rot_error = (n_i - n_ii);
         accum_error2 += fabs(rot_error.dot(rot_error));
 
-        if(weightedLS == 1 && correspondences.getColCount() == 10)
+        if(weightedLS == 1 && correspondences.cols() == 10)
         {
-          double weight = (correspondences(i,8) / (correspondences(i,3) * correspondences(i,9)));// / correspondences.getRowCount();
+          double weight = (correspondences(i,8) / (correspondences(i,3) * correspondences(i,9)));// / correspondences.rows();
           rotationCov += weight * n_obs_ii * n_obs_i.transpose();
         }
         else
           rotationCov += n_obs_ii * n_obs_i.transpose();
       }
-      std::cout << "accum_rot_error2 av deg" << acos(accum_error2/correspondences.getRowCount()) << std::endl;// << " " << calcCorrespRotError(Rt_estimated) << std::endl;
+      std::cout << "accum_rot_error2 av deg" << acos(accum_error2/correspondences.rows()) << std::endl;// << " " << calcCorrespRotError(Rt_estimated) << std::endl;
       std::cout << "Rt_estimated\n" << Rt_estimated << std::endl;
 
       // Calculate calibration Rt
@@ -502,8 +500,9 @@ class PairCalibrator
     }
 
     /*! Get the rotation of each sensor in the multisensor RGBD360 setup */
-    //Eigen::Matrix3f
-    void CalibrateRotationManifold(int weightedLS = 0)
+    Eigen::Matrix3f
+    //void
+    CalibrateRotationManifold(int weightedLS = 0)
     {
     cout << "CalibrateRotationManifold...\n";
       Eigen::Matrix<float,3,3> hessian;
@@ -538,11 +537,11 @@ class PairCalibrator
 
 //        for(int sensor_id = 0; sensor_id < NUM_ASUS_SENSORS-1; sensor_id++)
         {
-//          assert( correspondences.getRowCount() >= 3 );
+//          assert( correspondences.rows() >= 3 );
 
-          for(unsigned i=0; i < correspondences.getRowCount(); i++)
+          for(unsigned i=0; i < correspondences.rows(); i++)
           {
-//          float weight = (inliers / correspondences(i,3)) / correspondences.getRowCount()
+//          float weight = (inliers / correspondences(i,3)) / correspondences.rows()
             Eigen::Vector3f n_obs_i; n_obs_i << correspondences(i,0), correspondences(i,1), correspondences(i,2);
             Eigen::Vector3f n_obs_ii; n_obs_ii << correspondences(i,4), correspondences(i,5), correspondences(i,6);
 //            Eigen::Vector3f n_i = n_obs_i;
@@ -554,10 +553,10 @@ class PairCalibrator
             av_angle_error += acos(n_obs_i.dot(n_ii));
             numControlPlanes++;
 //          cout << "rotation error_i " << rot_error.transpose() << endl;
-            if(weightedLS == 1 && correspondences.getColCount() == 10)
+            if(weightedLS == 1 && correspondences.cols() == 10)
             {
               // The weight takes into account the number of inliers of the patch, the distance of the patch's center to the image center and the distance of the plane to the sensor
-//              float weight = (correspondences(i,8) / (correspondences(i,3) * correspondences(i,9)));// / correspondences.getRowCount();
+//              float weight = (correspondences(i,8) / (correspondences(i,3) * correspondences(i,9)));// / correspondences.rows();
 //              hessian += weight * (jacobian_rot_ii.transpose() * jacobian_rot_ii);
 //              gradient += weight * (jacobian_rot_ii.transpose() * rot_error);
               Eigen::Matrix3f information;
@@ -648,12 +647,13 @@ class PairCalibrator
       std::cout << "ErrorCalibRotation " << accum_error2 << " " << av_angle_error << std::endl;
       std::cout << "Rotation \n"<< Rt_estimated.block(0,0,3,3) << std::endl;
 
-      //rotation = Rt_estimated.block(0,0,3,3);
-      //return rotation;
+      rotation = Rt_estimated.block(0,0,3,3);
+      return rotation;
     }
 
-    //Eigen::Vector3f
-    void CalibrateTranslation(int weightedLS = 0)
+    Eigen::Vector3f
+    //void
+    CalibrateTranslation(int weightedLS = 0)
     {
       // Calibration system
       Eigen::Matrix3f translationHessian = Eigen::Matrix3f::Zero();
@@ -665,7 +665,7 @@ class PairCalibrator
 //              translationHessian += v3normal1 * v3normal1.transpose();
 //  //            double error = d2 - d1;
 //              translationGradient += v3normal1 * (d2 - d1);
-      for(unsigned i=0; i < correspondences.getRowCount(); i++)
+      for(unsigned i=0; i < correspondences.rows(); i++)
       {
         Eigen::Vector3f n_obs_i; n_obs_i << correspondences(i,0), correspondences(i,1), correspondences(i,2);
         Eigen::Vector3f n_obs_ii; n_obs_ii << correspondences(i,4), correspondences(i,5), correspondences(i,6);
@@ -679,10 +679,10 @@ class PairCalibrator
 //        translation2[2] += n_obs_i[2] * trans_error;
 //        sumNormals += n_obs_i;
 
-        if(weightedLS == 1 && correspondences.getColCount() == 18)
+        if(weightedLS == 1 && correspondences.cols() == 18)
         {
           // The weight takes into account the number of inliers of the patch, the distance of the patch's center to the image center and the distance of the plane to the sensor
-//          float weight = (correspondences(i,8) / (correspondences(i,3) * correspondences(i,9)));// / correspondences.getRowCount();
+//          float weight = (correspondences(i,8) / (correspondences(i,3) * correspondences(i,9)));// / correspondences.rows();
           float weight = correspondences(i,17);
           translationHessian += weight * (n_obs_i * n_obs_i.transpose() );
           translationGradient += weight * (n_obs_i * trans_error);
@@ -707,7 +707,7 @@ class PairCalibrator
 //      translation2[2] /= sumNormals[2];
 //      std::cout << "translation " << translation.transpose() << " translation2 " << translation2.transpose() << std::endl;
 
-      //return translation;
+      return translation;
     }
 
     void CalibratePair()
@@ -720,7 +720,7 @@ class PairCalibrator
       // Calculate average error
       float av_rot_error = 0;
       float av_trans_error = 0;
-      for(unsigned i=0; i < correspondences.getRowCount(); i++)
+      for(unsigned i=0; i < correspondences.rows(); i++)
       {
         Eigen::Vector3f n_obs_i; n_obs_i << correspondences(i,0), correspondences(i,1), correspondences(i,2);
         Eigen::Vector3f n_obs_ii; n_obs_ii << correspondences(i,4), correspondences(i,5), correspondences(i,6);
@@ -728,8 +728,8 @@ class PairCalibrator
         av_trans_error += fabs(correspondences(i,3) - correspondences(i,7) - n_obs_i .dot(translation));
 //        params_error += plane_correspondences1[i] .dot( plane_correspondences2[i] );
       }
-      av_rot_error /= correspondences.getRowCount();
-      av_trans_error /= correspondences.getRowCount();
+      av_rot_error /= correspondences.rows();
+      av_trans_error /= correspondences.rows();
       std::cout << "Errors n.n " << calcCorrespRotError(Rt_estimated) << " av deg " << av_rot_error*180/PI << " av trans " << av_trans_error << std::endl;
     }
 };
@@ -743,6 +743,9 @@ class Calibrator : public Calib360
 
     /*! Conditioning of the system of equations used to indicate if there is enough reliable information to calculate the extrinsic calibration */
     float conditioning;
+
+    /*! This threshold limits the unevenness of information in the different degrees of freedom (DoF) */
+    float threshold_conditioning;
 
     /*! Hessian of the of the least-squares problem. This container is used indifferently for both rotation and translation as both systems are decoupled and have the same dimensions */
     Eigen::Matrix<float,21,21> hessian;
@@ -762,14 +765,13 @@ class Calibrator : public Calib360
     /*! The extrinsic parameter matrices estimated by this calibration method */
     Eigen::Matrix4f Rt_estimated[NUM_ASUS_SENSORS];
 
-//    Calibrator()
-    // :
-//      successful(false)
-//    {
+    Calibrator() :
+      threshold_conditioning(100)
+    {
 //      string mouseMsg2D ("Mouse coordinates in image viewer");
 //      string keyMsg2D ("Key event for image viewer");
 //      viewer.registerKeyboardCallback(&RGBD360_Visualizer::keyboard_callback, *this, static_cast<void*> (&keyMsg2D));
-//    }
+    }
 
     /*! Load the extrinsic parameters given by the construction specifications of the omnidirectional sensor */
     void loadConstructionSpecs()
@@ -795,9 +797,9 @@ class Calibrator : public Calib360
         for(std::map<unsigned, mrpt::math::CMatrixDouble>::iterator it_pair=matchedPlanes.mmCorrespondences[sensor_id].begin();
             it_pair != matchedPlanes.mmCorrespondences[sensor_id].end(); it_pair++)
         {
-          for(unsigned i=0; i < it_pair->second.getRowCount(); i++)
+          for(unsigned i=0; i < it_pair->second.rows(); i++)
           {
-//          float weight = (inliers / it_pair->second(i,3)) / it_pair->second.getRowCount()
+//          float weight = (inliers / it_pair->second(i,3)) / it_pair->second.rows()
             Eigen::Vector3f n_obs_i; n_obs_i << it_pair->second(i,0), it_pair->second(i,1), it_pair->second(i,2);
             Eigen::Vector3f n_obs_ii; n_obs_ii << it_pair->second(i,4), it_pair->second(i,5), it_pair->second(i,6);
             Eigen::Vector3f n_i = Rt_[sensor_id].block(0,0,3,3) * n_obs_i;
@@ -820,7 +822,7 @@ class Calibrator : public Calib360
         for(std::map<unsigned, mrpt::math::CMatrixDouble>::iterator it_pair=matchedPlanes.mmCorrespondences[sensor_id].begin();
             it_pair != matchedPlanes.mmCorrespondences[sensor_id].end(); it_pair++)
         {
-          for(unsigned i=0; i < it_pair->second.getRowCount(); i++)
+          for(unsigned i=0; i < it_pair->second.rows(); i++)
           {
             float weight = (it_pair->second(i,8) / (it_pair->second(i,3) * it_pair->second(i,9)));
             Eigen::Vector3f n_obs_i; n_obs_i << it_pair->second(i,0), it_pair->second(i,1), it_pair->second(i,2);
@@ -845,9 +847,9 @@ class Calibrator : public Calib360
 //        for(std::map<unsigned, mrpt::math::CMatrixDouble>::iterator it_pair=matchedPlanes.mmCorrespondences[sensor_id].begin();
 //            it_pair != matchedPlanes.mmCorrespondences[sensor_id].end(); it_pair++)
 //        {
-//          for(unsigned i=0; i < it_pair->second.getRowCount(); i++)
+//          for(unsigned i=0; i < it_pair->second.rows(); i++)
 //          {
-////          float weight = (inliers / it_pair->second(i,3)) / it_pair->second.getRowCount()
+////          float weight = (inliers / it_pair->second(i,3)) / it_pair->second.rows()
 //            Eigen::Vector3f n_obs_i; n_obs_i << it_pair->second(i,0), it_pair->second(i,1), it_pair->second(i,2);
 //            Eigen::Vector3f n_obs_ii; n_obs_ii << it_pair->second(i,4), it_pair->second(i,5), it_pair->second(i,6);
 //            Eigen::Vector3f n_i = Rt_[sensor_id].block(0,0,3,3) * n_obs_i;
@@ -862,7 +864,7 @@ class Calibrator : public Calib360
 //      double new_accum_error2 = 0;
 //      for(sensor_id = 0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
 //      {
-//        for(unsigned i=0; i < it_pair->second.getRowCount(); i++)
+//        for(unsigned i=0; i < it_pair->second.rows(); i++)
 //        {
 //          Eigen::Vector3f n_obs_i; n_obs_i << it_pair->second(i,0), it_pair->second(i,1), it_pair->second(i,2);
 //          Eigen::Vector3f n_obs_ii; n_obs_ii << it_pair->second(i,4), it_pair->second(i,5), it_pair->second(i,6);
@@ -914,7 +916,7 @@ class Calibrator : public Calib360
 
         for(int sensor_id = 0; sensor_id < NUM_ASUS_SENSORS-1; sensor_id++)
         {
-          assert( matchedPlanes.mmCorrespondences[sensor_id].count(sensor_id+1) && matchedPlanes.mmCorrespondences[sensor_id][sensor_id+1].getRowCount() >= 3 );
+          assert( matchedPlanes.mmCorrespondences[sensor_id].count(sensor_id+1) && matchedPlanes.mmCorrespondences[sensor_id][sensor_id+1].rows() >= 3 );
 //        cout << "sensor_id " << sensor_id << endl;
 //        cout << "Rt+1 " << sensor_id << endl;
 //        cout << it_pair->second << endl;
@@ -926,9 +928,9 @@ class Calibrator : public Calib360
             int id_corresp1 = 3*(sensor_id-1);
             int id_corresp2 = 3*(it_pair->first - 1);
 
-            for(unsigned i=0; i < it_pair->second.getRowCount(); i++)
+            for(unsigned i=0; i < it_pair->second.rows(); i++)
             {
-//          float weight = (inliers / it_pair->second(i,3)) / it_pair->second.getRowCount()
+//          float weight = (inliers / it_pair->second(i,3)) / it_pair->second.rows()
               Eigen::Vector3f n_obs_i; n_obs_i << it_pair->second(i,0), it_pair->second(i,1), it_pair->second(i,2);
               Eigen::Vector3f n_obs_ii; n_obs_ii << it_pair->second(i,4), it_pair->second(i,5), it_pair->second(i,6);
               Eigen::Vector3f n_i = Rt_estimated[sensor_id].block(0,0,3,3) * n_obs_i;
@@ -940,10 +942,10 @@ class Calibrator : public Calib360
               av_angle_error += acos(n_i.dot(n_ii));
               numControlPlanes++;
   //          cout << "rotation error_i " << rot_error.transpose() << endl;
-              if(weightedLS == 1 && it_pair->second.getColCount() == 18)
+              if(weightedLS == 1 && it_pair->second.cols() == 18)
               {
                 // The weight takes into account the number of inliers of the patch, the distance of the patch's center to the image center and the distance of the plane to the sensor
-                float weight = (it_pair->second(i,8) / (it_pair->second(i,3) * it_pair->second(i,9)));// / it_pair->second.getRowCount();
+                float weight = (it_pair->second(i,8) / (it_pair->second(i,3) * it_pair->second(i,9)));// / it_pair->second.rows();
                 if(sensor_id != 0) // The pose of the first camera is fixed
                 {
                   hessian.block(id_corresp1, id_corresp1, 3, 3) += weight * (jacobian_rot_i.transpose() * jacobian_rot_i);
@@ -1093,7 +1095,7 @@ class Calibrator : public Calib360
 
       for(int sensor_id = 0; sensor_id < NUM_ASUS_SENSORS-1; sensor_id++)
       {
-        assert( matchedPlanes.mmCorrespondences[sensor_id].count(sensor_id+1) && matchedPlanes.mmCorrespondences[sensor_id][sensor_id+1].getRowCount() >= 3 );
+        assert( matchedPlanes.mmCorrespondences[sensor_id].count(sensor_id+1) && matchedPlanes.mmCorrespondences[sensor_id][sensor_id+1].rows() >= 3 );
 //        cout << "sensor_id " << sensor_id << endl;
 //        cout << "Rt_estimated \n" << Rt_estimated[sensor_id] << endl;
 //        cout << "Rt+1 " << sensor_id << endl;
@@ -1106,9 +1108,9 @@ class Calibrator : public Calib360
           int id_corresp2 = 3*(it_pair->first - 1);
 //        cout << "id_corresp1 " << id_corresp1 << "id_corresp2 " << id_corresp2 << endl;
 
-          for(unsigned i=0; i < it_pair->second.getRowCount(); i++)
+          for(unsigned i=0; i < it_pair->second.rows(); i++)
           {
-//          float weight = (inliers / it_pair->second(i,3)) / it_pair->second.getRowCount()
+//          float weight = (inliers / it_pair->second(i,3)) / it_pair->second.rows()
             Eigen::Vector3f n_obs_i; n_obs_i << it_pair->second(i,0), it_pair->second(i,1), it_pair->second(i,2);
             Eigen::Vector3f n_obs_ii; n_obs_ii << it_pair->second(i,4), it_pair->second(i,5), it_pair->second(i,6);
             Eigen::Vector3f n_i = Rt_estimated[sensor_id].block(0,0,3,3) * n_obs_i;
@@ -1117,10 +1119,10 @@ class Calibrator : public Calib360
             accum_error2 += trans_error * trans_error;
             numControlPlanes++;
 //          cout << "Rt_estimated \n" << Rt_estimated[sensor_id] << " n_i " << n_i.transpose() << " n_ii " << n_ii.transpose() << endl;
-            if(weightedLS == 1 && it_pair->second.getColCount() == 18)
+            if(weightedLS == 1 && it_pair->second.cols() == 18)
             {
               // The weight takes into account the number of inliers of the patch, the distance of the patch's center to the image center and the distance of the plane to the sensor
-              float weight = (it_pair->second(i,8) / (it_pair->second(i,3) * it_pair->second(i,9)));// / it_pair->second.getRowCount();
+              float weight = (it_pair->second(i,8) / (it_pair->second(i,3) * it_pair->second(i,9)));// / it_pair->second.rows();
 
               if(sensor_id != 0) // The pose of the first camera is fixed
               {

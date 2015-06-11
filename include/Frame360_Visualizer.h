@@ -62,10 +62,13 @@ class Frame360_Visualizer
     bColoredPlanes(false)
 //    numScreenshot(0)
   {
-    viewer.runOnVisualizationThread (boost::bind(&Frame360_Visualizer::viz_cb, this, _1), "viz_cb");
-    viewer.registerKeyboardCallback (&Frame360_Visualizer::keyboardEventOccurred, *this);
     b_update_vis_ = true;
     b_init_viewer_ = true;
+    viewer.runOnVisualizationThread (boost::bind(&Frame360_Visualizer::viz_cb, this, _1), "viz_cb");
+    viewer.registerKeyboardCallback (&Frame360_Visualizer::keyboardEventOccurred, *this);
+
+    std::cout << "Initialize Frame360_Visualizer \n\n";
+    std::cout << "\n  Press 'q' to close the program\n";
   }
 
   /*! Mutex to syncrhronize eventual changes in frame360 */
@@ -114,9 +117,7 @@ class Frame360_Visualizer
       viz.setSize(800,600); // Set the window size
       //viz.setBackgroundColor (1.0, 1.0, 1.0);
       viz.setBackgroundColor (0.5, 0.5, 0.5);
-      viz.addCoordinateSystem (0.3, "global");
-
-      std::cout << "b_init_viewer_ \n";
+      viz.addCoordinateSystem (0.3, "global");   
     }
 
 //    if (!viz.updatePointCloud (frame360->sphereCloud, "sphereCloud"))
@@ -193,11 +194,11 @@ class Frame360_Visualizer
   {
     if ( event.keyDown() )
     {
-//      cout << "Key pressed " << event.getKeySym () << endl;
-      if(event.getKeySym() == "k" || event.getKeySym() == "K"){cout << " Press K: Show/hide planes\n";
+//      std::cout << "Key pressed " << event.getKeySym () << endl;
+      if(event.getKeySym() == "k" || event.getKeySym() == "K"){std::cout << " Press K: Show/hide planes\n";
         bShowPlanes = !bShowPlanes;
         b_update_vis_ = true;}
-      else if(event.getKeySym() == "l" || event.getKeySym() == "L"){cout << " Press L: fill/unfill plane colors\n";
+      else if(event.getKeySym() == "l" || event.getKeySym() == "L"){std::cout << " Press L: fill/unfill plane colors\n";
         bColoredPlanes = !bColoredPlanes;
         b_update_vis_ = true;}
 //      else if(event.getKeySym () == "a" || event.getKeySym () == "A"){
@@ -210,7 +211,7 @@ class Frame360_Visualizer
 //          frameIdx += 50;}
 //      else
 //      {
-//        cout << "\n\tASCII key: " << unsigned(event.getKeyCode()) << endl;
+//        std::cout << "\n\tASCII key: " << unsigned(event.getKeyCode()) << endl;
 ////        string key_input = event.getKeySym();
 //      }
     }

@@ -90,10 +90,10 @@ inline Eigen::Matrix4f getPoseEigenMatrix(const mrpt::poses::CPose3D & pose)
   Eigen::Matrix4f pose_mat;
   mrpt::math::CMatrixDouble44 pose_mat_mrpt;
   pose.getHomogeneousMatrix(pose_mat_mrpt);
-  pose_mat << pose_mat_mrpt(0,0), pose_mat_mrpt(1,0), pose_mat_mrpt(2,0), pose_mat_mrpt(3,0),
-              pose_mat_mrpt(0,1), pose_mat_mrpt(1,1), pose_mat_mrpt(2,1), pose_mat_mrpt(3,1),
-              pose_mat_mrpt(0,2), pose_mat_mrpt(1,2), pose_mat_mrpt(2,2), pose_mat_mrpt(3,2),
-              pose_mat_mrpt(0,3), pose_mat_mrpt(1,3), pose_mat_mrpt(2,3), pose_mat_mrpt(3,3) ;
+  pose_mat << pose_mat_mrpt(0,0), pose_mat_mrpt(0,1), pose_mat_mrpt(0,2), pose_mat_mrpt(0,3),
+              pose_mat_mrpt(1,0), pose_mat_mrpt(1,1), pose_mat_mrpt(1,2), pose_mat_mrpt(1,3),
+              pose_mat_mrpt(2,0), pose_mat_mrpt(2,1), pose_mat_mrpt(2,2), pose_mat_mrpt(2,3),
+              pose_mat_mrpt(3,0), pose_mat_mrpt(3,1), pose_mat_mrpt(3,2), pose_mat_mrpt(3,3) ;
   return  pose_mat;
 }
 

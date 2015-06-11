@@ -36,10 +36,8 @@
 #ifndef _DEBUG_MSG
 #define _DEBUG_MSG 0
 #endif
-\
-#ifndef NUM_ASUS_SENSORS
-#define NUM_ASUS_SENSORS 8
-#endif
+
+#include "definitions.h"
 
 #define USE_BILATERAL_FILTER 1
 #define DOWNSAMPLE_160 1

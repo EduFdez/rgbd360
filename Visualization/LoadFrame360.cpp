@@ -81,7 +81,6 @@ int main (int argc, char ** argv)
 
   // Visualize point cloud
   Frame360_Visualizer sphereViewer(&frame360);
-  cout << "\n  Press 'q' to close the program\n";
 
   while (!sphereViewer.viewer.wasStopped() )
     boost::this_thread::sleep (boost::posix_time::milliseconds (10));

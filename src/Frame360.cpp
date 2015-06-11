@@ -67,6 +67,8 @@
 
 //typedef pcl::PointXYZRGBA PointT;
 
+using namespace std;
+
 /*! Constructor for the SphericalStereo sensor (outdoor sensor) */
 Frame360::Frame360() :
     node(0),
@@ -77,7 +79,7 @@ Frame360::Frame360() :
 
 }
 
-/*! Constructor for the sensor RGBD360 (8 Asus XPL)*/
+/*! Constructor for the sensor RGBD360 (NUM_ASUS_SENSORS Asus XPL)*/
 Frame360::Frame360(Calib360 *calib360) :
     node(0),
     sphereCloud(new pcl::PointCloud<PointT>()),
@@ -85,8 +87,8 @@ Frame360::Frame360(Calib360 *calib360) :
     calib(calib360)
     //    bSphereCloudBuilt(false),
 {
-    local_planes_.resize(8);
-    for(unsigned sensor_id=0; sensor_id<8; sensor_id++)
+    local_planes_.resize(NUM_ASUS_SENSORS);
+    for(unsigned sensor_id=0; sensor_id<NUM_ASUS_SENSORS; sensor_id++)
     {
         cloud_[sensor_id].reset(new pcl::PointCloud<PointT>());
     }
@@ -104,7 +106,7 @@ float Frame360::getPlanarArea()
 }
 
 /*! Load a spherical point cloud */
-void Frame360::loadCloud(const std::string &pointCloudPath)
+void Frame360::loadCloud(const string &pointCloudPath)
 {
     // Load pointCloud
     sphereCloud.reset(new pcl::PointCloud<pcl::PointXYZRGBA>);
@@ -113,7 +115,7 @@ void Frame360::loadCloud(const std::string &pointCloudPath)
 }
 
 /*! Load a spherical PbMap */
-void Frame360::loadPbMap(std::string &pbmapPath)
+void Frame360::loadPbMap(string &pbmapPath)
 {
     // Load planes
     mrpt::utils::CFileGZInputStream serialize_planes;
@@ -130,7 +132,7 @@ void Frame360::loadPbMap(std::string &pbmapPath)
 }
 
 /*! Load a spherical frame from its point cloud and its PbMap files */
-void Frame360::load_PbMap_Cloud(std::string &pointCloudPath, std::string &pbmapPath)
+void Frame360::load_PbMap_Cloud(string &pointCloudPath, string &pbmapPath)
 {
     // Load pointCloud
     loadCloud(pointCloudPath);
@@ -140,30 +142,30 @@ void Frame360::load_PbMap_Cloud(std::string &pointCloudPath, std::string &pbmapP
 }
 
 /*! Load a spherical frame from its point cloud and its PbMap files */
-void Frame360::load_PbMap_Cloud(std::string &path, unsigned &index)
+void Frame360::load_PbMap_Cloud(string &path, unsigned &index)
 {
-    std::string pointCloudPath = path + mrpt::format("/sphereCloud_%u.pcd", index);
-    std::string pbmapPath = path + mrpt::format("/spherePlanes_%u.pbmap", index);
+    string pointCloudPath = path + mrpt::format("/sphereCloud_%u.pcd", index);
+    string pbmapPath = path + mrpt::format("/spherePlanes_%u.pbmap", index);
     load_PbMap_Cloud(pointCloudPath, pbmapPath);
 }
 
 /*! Load a spherical RGB-D image from the raw data stored in a binary file */
-void Frame360::loadFrame(std::string &binaryFile)
+void Frame360::loadFrame(string &binaryFile)
 {
 #if _DEBUG_MSG
     double time_start = pcl::getTime();
 #endif
 
-    //    std::cout << "Opening binary file... " << binaryFile << std::endl;
-    std::ifstream ifs(binaryFile.c_str(), std::ios::in | std::ios::binary);
-    //    std::cout << " binary file... " << binaryFile << std::endl;
+    //    cout << "Opening binary file... " << binaryFile << endl;
+    ifstream ifs(binaryFile.c_str(), ios::in | ios::binary);
+    //    cout << " binary file... " << binaryFile << endl;
 
     try{// use scope to ensure archive goes out of scope before stream
 
         boost::archive::binary_iarchive binary360(ifs);
 
         cv::Mat timeStampMatrix;
-        for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+        for(unsigned sensor_id=0; sensor_id < NUM_ASUS_SENSORS; ++sensor_id)
             binary360 >> frameRGBD_[sensor_id].getRGBImage() >> frameRGBD_[sensor_id].getDepthImage();
         binary360 >> timeStampMatrix;
         get_uint64_t_ofMatrixRepresentation(timeStampMatrix, timeStamp);
@@ -174,11 +176,11 @@ void Frame360::loadFrame(std::string &binaryFile)
     ifs.close();
 
 #if ENABLE_OPENMP
-    #pragma omp parallel num_threads(8)
+    #pragma omp parallel num_threads(NUM_ASUS_SENSORS)
     {
         int sensor_id = omp_get_thread_num();
 #else
-    for(int sensor_id = 0; sensor_id < 8; sensor_id++)
+    for(int sensor_id = 0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
     {
 #endif
         frameRGBD_[sensor_id].loadDepthEigen();
@@ -188,7 +190,7 @@ void Frame360::loadFrame(std::string &binaryFile)
 
 #if _DEBUG_MSG
     double time_end = pcl::getTime();
-    std::cout << "Load Frame360 took " << double (time_end - time_start) << std::endl;
+    cout << "Load Frame360 took " << double (time_end - time_start) << endl;
 #endif
 }
 
@@ -196,9 +198,9 @@ void Frame360::loadFrame(std::string &binaryFile)
 void Frame360::undistort()
 {
     double time_start = pcl::getTime();
-    //    std::cout << "Undistort Frame360\n";
+    //    cout << "Undistort Frame360\n";
 
-#pragma omp parallel num_threads(8)
+#pragma omp parallel num_threads(NUM_ASUS_SENSORS)
     {
         int sensor_id = omp_get_thread_num();
         undistortDepthSensor(sensor_id);
@@ -207,13 +209,13 @@ void Frame360::undistort()
 
     //#if _DEBUG_MSG
     double time_end = pcl::getTime();
-    std::cout << "Undistort Frame360 took " << double (time_end - time_start) << std::endl;
+    cout << "Undistort Frame360 took " << double (time_end - time_start) << endl;
     //#endif
 
 }
 
 /*! Save the PbMap from an omnidirectional RGB-D image */
-void Frame360::savePlanes(std::string pathPbMap)
+void Frame360::savePlanes(string pathPbMap)
 {
     mrpt::utils::CFileGZOutputStream serialize_planesLabeled(pathPbMap);
     serialize_planesLabeled << planes;
@@ -221,24 +223,24 @@ void Frame360::savePlanes(std::string pathPbMap)
 }
 
 /*! Save the pointCloud and PbMap from an omnidirectional RGB-D image */
-void Frame360::save(std::string &path, unsigned &frame)
+void Frame360::save(string &path, unsigned &frame)
 {
     assert(!sphereCloud->empty() && planes.vPlanes.size() > 0);
 
-    std::string cloudPath = path + mrpt::format("/sphereCloud_%d.pcd",frame);
+    string cloudPath = path + mrpt::format("/sphereCloud_%d.pcd",frame);
     pcl::io::savePCDFile(cloudPath, *sphereCloud);
 
-    std::string pbmapPath = path + mrpt::format("/spherePlanes_%d.pbmap",frame);
+    string pbmapPath = path + mrpt::format("/spherePlanes_%d.pbmap",frame);
     savePlanes(pbmapPath);
 }
 
 /*! Serialize the omnidirectional RGB-D image */
-void Frame360::serialize(std::string &fileName)
+void Frame360::serialize(string &fileName)
 {
-    std::ofstream ofs_images(fileName.c_str(), std::ios::out | std::ios::binary);
+    ofstream ofs_images(fileName.c_str(), ios::out | ios::binary);
     boost::archive::binary_oarchive oa_images(ofs_images);
 
-    for(int sensor_id = 0; sensor_id < 8; sensor_id++)
+    for(int sensor_id = 0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
         oa_images << frameRGBD_[sensor_id].getRGBImage() << frameRGBD_[sensor_id].getDepthImage();
     cv::Mat timeStampMatrix;
     getMatrixNumberRepresentationOf_uint64_t(timeStamp,timeStampMatrix);
@@ -255,26 +257,26 @@ void Frame360::fastStitchImage360() // Parallelized with OpenMP
 #endif
 
     int width_im = frameRGBD_[0].getRGBImage().rows;
-    int width_SphereImg = frameRGBD_[0].getRGBImage().rows * 8;
+    int width_SphereImg = frameRGBD_[0].getRGBImage().rows * NUM_ASUS_SENSORS;
     int height_SphereImg = frameRGBD_[0].getRGBImage().cols;
     sphereRGB = cv::Mat::zeros(height_SphereImg, width_SphereImg, CV_8UC3);
     sphereDepth = cv::Mat::zeros(height_SphereImg, width_SphereImg, CV_32FC1);
 
-    for(int sensor_id = 0; sensor_id < 8; sensor_id++)
-        //    #pragma omp parallel num_threads(8)
+    for(int sensor_id = 0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
+        //    #pragma omp parallel num_threads(NUM_ASUS_SENSORS)
     {
         //      int sensor_id = omp_get_thread_num();
 
         // RGB
         cv::Mat rgb_transposed, rgb_rotated;
-        cv::transpose(frameRGBD_[7-sensor_id].getRGBImage(), rgb_transposed);
+        cv::transpose(frameRGBD_[NUM_ASUS_SENSORS-1-sensor_id].getRGBImage(), rgb_transposed);
         cv::flip(rgb_transposed, rgb_rotated, 0);
         cv::Mat tmp = sphereRGB(cv::Rect(sensor_id*width_im, 0, frameRGBD_[0].getRGBImage().rows, frameRGBD_[0].getRGBImage().cols));
         rgb_rotated.copyTo(tmp);
 
         // Depth
         //      cv::Mat depth_transposed, depth_rotated;
-        //      cvTranspose(frameRGBD_[7-sensor_id].getDepthImage(), depth_transposed);
+        //      cvTranspose(frameRGBD_[NUM_ASUS_SENSORS-1-sensor_id].getDepthImage(), depth_transposed);
         //      cv::flip(depth_transposed, depth_rotated, 0);
         //      cv::Mat tmp_depth =  sphereDepth(cv::Rect(sensor_id*width_im, 0, frameRGBD_[0].getDepthImage().rows, frameRGBD_[0].getDepthImage().cols));
         //      depth_rotated.copyTo(tmp_depth);
@@ -282,7 +284,7 @@ void Frame360::fastStitchImage360() // Parallelized with OpenMP
 
 #if _DEBUG_MSG
     double time_end = pcl::getTime();
-    std::cout << "fastStitchImage360 took " << double (time_end - time_start) << std::endl;
+    cout << "fastStitchImage360 took " << double (time_end - time_start) << endl;
 #endif
 
 }
@@ -293,12 +295,12 @@ void Frame360::stitchSphericalImage() // Parallelized with OpenMP
     //        cout << "stitchSphericalImage\n";
     double time_start = pcl::getTime();
 
-    int width_SphereImg = frameRGBD_[0].getRGBImage().rows * 8;
+    int width_SphereImg = frameRGBD_[0].getRGBImage().rows * NUM_ASUS_SENSORS;
     int height_SphereImg = width_SphereImg * 0.5 * 60.0/180; // Store only the part of the sphere which contains information
     sphereRGB = cv::Mat::zeros(height_SphereImg, width_SphereImg, CV_8UC3);
     sphereDepth = cv::Mat::zeros(height_SphereImg, width_SphereImg, CV_16UC1);
-#pragma omp parallel num_threads(8)
-    //        for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+#pragma omp parallel num_threads(NUM_ASUS_SENSORS)
+    //        for(unsigned sensor_id=0; sensor_id < NUM_ASUS_SENSORS; ++sensor_id)
     {
         int sensor_id = omp_get_thread_num();
         stitchImage(sensor_id);
@@ -306,7 +308,7 @@ void Frame360::stitchSphericalImage() // Parallelized with OpenMP
     }
 
     double time_end = pcl::getTime();
-    std::cout << "stitchSphericalImage took " << double (time_end - time_start) << std::endl;
+    cout << "stitchSphericalImage took " << double (time_end - time_start) << endl;
 }
 
 /*! Downsample and filter the individual point clouds from the different Asus XPL */
@@ -314,7 +316,7 @@ void Frame360::buildCloudsDownsampleAndFilter()
 {
     double time_start = pcl::getTime();
 
-#pragma omp parallel num_threads(8)
+#pragma omp parallel num_threads(NUM_ASUS_SENSORS)
     {
         int sensor_id = omp_get_thread_num();
 
@@ -336,7 +338,7 @@ void Frame360::buildCloudsDownsampleAndFilter()
     }
 
     double time_end = pcl::getTime();
-    std::cout << "Build single clouds + downsample + filter took " << double (time_end - time_start) << std::endl;
+    cout << "Build single clouds + downsample + filter took " << double (time_end - time_start) << endl;
 }
 
 /*! Build the cloud from the 'sensor_id' Asus XPL */
@@ -345,14 +347,14 @@ void Frame360::buildCloud_id(int sensor_id)
     pcl::FastBilateralFilter<pcl::PointXYZRGBA> filter;
     filter.setSigmaS (10.0);
     filter.setSigmaR (0.05);
-    //  std::cout << "buildCloud_id1 " << sensor_id << "\n";
+    //  cout << "buildCloud_id1 " << sensor_id << "\n";
 
     // #pragma openmp
 #if DOWNSAMPLE_160
     //      DownsampleRGBD downsampler(2);
-    ////      std::cout << "buildCloud_id1\n";
+    ////      cout << "buildCloud_id1\n";
     //      frameRGBD_[sensor_id].setPointCloud(downsampler.downsamplePointCloud(frameRGBD_[sensor_id].getPointCloudUndist()));
-    ////    std::cout << "buildCloud_id2\n";
+    ////    cout << "buildCloud_id2\n";
     frameRGBD_[sensor_id].getDownsampledPointCloudUndist(2);
 #endif
 
@@ -365,10 +367,10 @@ void Frame360::buildCloud_id(int sensor_id)
 
     //    buildCloud_im_[sensor_id] = true;
 
-    //  std::cout << "buildCloud_id3 " << sensor_id << "\n";
+    //  cout << "buildCloud_id3 " << sensor_id << "\n";
 }
 
-/*! Build the spherical point cloud by superimposing the 8 point clouds from the 8 Asus XPL
+/*! Build the spherical point cloud by superimposing the NUM_ASUS_SENSORS point clouds from the NUM_ASUS_SENSORS Asus XPL
  * Z -> Forward, X -> Upwards, X -> Rightwards
  */
 void Frame360::buildSphereCloud_rgbd360()
@@ -380,22 +382,26 @@ void Frame360::buildSphereCloud_rgbd360()
     double time_start = pcl::getTime();
 #endif
 
-    //      #pragma omp parallel num_threads(8) // I still don't understand why this doesn't work
-    for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+    //      #pragma omp parallel num_threads(NUM_ASUS_SENSORS) // I still don't understand why this doesn't work
+    for(unsigned sensor_id=0; sensor_id < NUM_ASUS_SENSORS; ++sensor_id)
     {
         //        int sensor_id = omp_get_thread_num();
         //            cout << "build " << sensor_id << endl;
-#if DOWNSAMPLE_160
+#if USE_INTRINSICS
+    #if DOWNSAMPLE_160
         DownsampleRGBD downsampler(2);
         frameRGBD_[sensor_id].setPointCloud(downsampler.downsamplePointCloud(frameRGBD_[sensor_id].getPointCloudUndist()));
         //          frameRGBD_[sensor_id].getDownsampledPointCloudUndist(2);
-#else
+    #else
         frameRGBD_[sensor_id].getPointCloudUndist();
+    #endif
+#else
+    frameRGBD_[sensor_id].getPointCloud();
 #endif
     }
-    //      std::cout << "Downsample image\n";
+    //      cout << "Downsample image\n";
 
-#pragma omp parallel num_threads(8)
+#pragma omp parallel num_threads(NUM_ASUS_SENSORS)
     {
         int sensor_id = omp_get_thread_num();
 
@@ -408,10 +414,10 @@ void Frame360::buildSphereCloud_rgbd360()
 #endif
 
         //pcl::transformPointCloud(*frameRGBD_[sensor_id].getPointCloud(),*cloud_[sensor_id],calib->getRt_id(sensor_id));
-        float angle_offset = 45;
+        float angle_offset = 0; //-22.5; //45
         Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(1,1) = rot_offset(2,2) = cos(angle_offset*PI/180); rot_offset(1,2) = -sin(angle_offset*PI/180); rot_offset(2,1) = -rot_offset(1,2);
         Eigen::Matrix4f Rt = rot_offset * calib->getRt_id(sensor_id);
-//        std::cout << "Transforms \n" << calib->getRt_id(sensor_id) << "\n\n"
+//        cout << "Transforms \n" << calib->getRt_id(sensor_id) << "\n\n"
 //                                    << rot_offset * calib->getRt_id(sensor_id) << "\n\n"
 //                                    << calib->getRt_id(sensor_id) * rot_offset << "\n\n"
 //                                    << rot_offset.inverse() * calib->getRt_id(sensor_id) << "\n\n"
@@ -421,18 +427,18 @@ void Frame360::buildSphereCloud_rgbd360()
     }
 
     *sphereCloud = *cloud_[0];
-    for(unsigned sensor_id=1; sensor_id < 8; ++sensor_id)
+    for(unsigned sensor_id=1; sensor_id < NUM_ASUS_SENSORS; ++sensor_id)
         *sphereCloud += *cloud_[sensor_id];
 
     sphereCloud->height = cloud_[0]->width;
-    sphereCloud->width = 8 * cloud_[0]->height;
+    sphereCloud->width = NUM_ASUS_SENSORS * cloud_[0]->height;
     sphereCloud->is_dense = false;
 
     //    bSphereCloudBuilt = true;
 
 #if _DEBUG_MSG
     double time_end = pcl::getTime();
-    std::cout << "PointCloud sphere construction took " << double (time_end - time_start) << std::endl;
+    cout << "PointCloud sphere construction took " << double (time_end - time_start) << endl;
 #endif
 
 }
@@ -444,8 +450,8 @@ void Frame360::buildSphereCloud_fast()
     double time_start = pcl::getTime();
 #endif
 
-#pragma omp parallel num_threads(8) // I still don't understand why this doesn't work
-    //      for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+#pragma omp parallel num_threads(NUM_ASUS_SENSORS) // I still don't understand why this doesn't work
+    //      for(unsigned sensor_id=0; sensor_id < NUM_ASUS_SENSORS; ++sensor_id)
     {
         int sensor_id = omp_get_thread_num();
 #if DOWNSAMPLE_160
@@ -458,16 +464,16 @@ void Frame360::buildSphereCloud_fast()
     }
 
     *sphereCloud = *cloud_[0];
-    for(unsigned sensor_id=1; sensor_id < 8; ++sensor_id)
+    for(unsigned sensor_id=1; sensor_id < NUM_ASUS_SENSORS; ++sensor_id)
         *sphereCloud += *cloud_[sensor_id];
 
     sphereCloud->height = cloud_[0]->width;
-    sphereCloud->width = 8 * cloud_[0]->height;
+    sphereCloud->width = NUM_ASUS_SENSORS * cloud_[0]->height;
     sphereCloud->is_dense = false;
 
 #if _DEBUG_MSG
     double time_end = pcl::getTime();
-    std::cout << "buildSphereCloud_fast took " << double (time_end - time_start) << std::endl;
+    cout << "buildSphereCloud_fast took " << double (time_end - time_start) << endl;
 #endif
 
 }
@@ -475,7 +481,7 @@ void Frame360::buildSphereCloud_fast()
 /*! Build the spherical point cloud. The reference system is the one used by the INRIA SphericalStereo sensor. Z points forward, X points to the right and Y points downwards */
 void Frame360::buildSphereCloud()
 {
-    //        std::cout << " Frame360_stereo::buildSphereCloud_rgbd360() " << std::endl;
+    //        cout << " Frame360_stereo::buildSphereCloud_rgbd360() " << endl;
     //    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
     //      return;
 
@@ -499,9 +505,9 @@ void Frame360::buildSphereCloud()
     //const int half_height = sphereDepth.rows/2;
     const int half_width = sphereDepth.cols/2;
 
-//    std::cout << "half_height " << half_height << std::endl;
-//    std::cout << "half_width " << half_width << std::endl;
-//    std::cout << "ENABLE_OPENMP " << ENABLE_OPENMP << std::endl;
+//    cout << "half_height " << half_height << endl;
+//    cout << "half_width " << half_width << endl;
+//    cout << "ENABLE_OPENMP " << ENABLE_OPENMP << endl;
 
     //  Efficiency: store the values of the trigonometric functions
     Eigen::VectorXf v_sinTheta(sphereDepth.cols);
@@ -548,9 +554,9 @@ void Frame360::buildSphereCloud()
             }
             else
             {
-                sphereCloud->points[pixel_index].x = std::numeric_limits<float>::quiet_NaN ();
-                sphereCloud->points[pixel_index].y = std::numeric_limits<float>::quiet_NaN ();
-                sphereCloud->points[pixel_index].z = std::numeric_limits<float>::quiet_NaN ();
+                sphereCloud->points[pixel_index].x = numeric_limits<float>::quiet_NaN ();
+                sphereCloud->points[pixel_index].y = numeric_limits<float>::quiet_NaN ();
+                sphereCloud->points[pixel_index].z = numeric_limits<float>::quiet_NaN ();
             }
         }
     }
@@ -582,7 +588,7 @@ void Frame360::buildSphereCloud()
         {
             if((*depth) > min_depth && (*depth) < max_depth)
             {
-                //std::cout << min_depth << " depth " << *depth << " max_depth " << max_depth << std::endl;
+                //cout << min_depth << " depth " << *depth << " max_depth " << max_depth << endl;
                 sphereCloud->points[pixel_index].x = (*depth) * cos_phi * v_sinTheta[col_count];
                 sphereCloud->points[pixel_index].y = (*depth)* sin_phi;
                 sphereCloud->points[pixel_index].z = (*depth) * cos_phi * v_cosTheta[col_count];
@@ -592,9 +598,9 @@ void Frame360::buildSphereCloud()
             }
             else
             {
-                sphereCloud->points[pixel_index].x = std::numeric_limits<float>::quiet_NaN ();
-                sphereCloud->points[pixel_index].y = std::numeric_limits<float>::quiet_NaN ();
-                sphereCloud->points[pixel_index].z = std::numeric_limits<float>::quiet_NaN ();
+                sphereCloud->points[pixel_index].x = numeric_limits<float>::quiet_NaN ();
+                sphereCloud->points[pixel_index].y = numeric_limits<float>::quiet_NaN ();
+                sphereCloud->points[pixel_index].z = numeric_limits<float>::quiet_NaN ();
             }
             ++depth;
             ++intensity;
@@ -603,14 +609,14 @@ void Frame360::buildSphereCloud()
 #endif
 //}
 //double time_end = pcl::getTime();
-//std::cout << "Construction took " << double (time_end - time_start) << std::endl;
+//cout << "Construction took " << double (time_end - time_start) << endl;
 
     //    bSphereCloudBuilt = true;
-    //std::cout << " Frame360::buildSphereCloud_rgbd360() finished" << std::endl;
+    //cout << " Frame360::buildSphereCloud_rgbd360() finished" << endl;
 
 #if _DEBUG_MSG
     double time_end = pcl::getTime();
-    std::cout << "Frame360::buildSphereCloud() took " << double (time_end - time_start) << std::endl;
+    cout << "Frame360::buildSphereCloud() took " << double (time_end - time_start) << endl;
 #endif
 }
 
@@ -620,7 +626,7 @@ void Frame360::buildSphereCloud_old()
     //    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
     //      return;
 
-    //        std::cout << " Frame360_stereo::buildSphereCloud_rgbd360() " << std::endl;
+    //        cout << " Frame360_stereo::buildSphereCloud_rgbd360() " << endl;
 
 #if _DEBUG_MSG
     double time_start = pcl::getTime();
@@ -655,7 +661,7 @@ void Frame360::buildSphereCloud_old()
         for(int col_theta=0, pixel_index=index_row; col_theta < sphereDepth.cols; ++col_theta, ++pixel_index)
         {
             float depth = sphereDepth.at<float> (row_phi, col_theta);
-            //std::cout << pixel_index << " " << depth << std::endl;
+            //cout << pixel_index << " " << depth << endl;
 
             //                    // RGBD360
             //float theta_i = col_theta*angle_pixel_inv; // - PI;
@@ -678,37 +684,37 @@ void Frame360::buildSphereCloud_old()
             }
             else
             {
-                sphereCloud->points[pixel_index].x = std::numeric_limits<float>::quiet_NaN ();
-                sphereCloud->points[pixel_index].y = std::numeric_limits<float>::quiet_NaN ();
-                sphereCloud->points[pixel_index].z = std::numeric_limits<float>::quiet_NaN ();
+                sphereCloud->points[pixel_index].x = numeric_limits<float>::quiet_NaN ();
+                sphereCloud->points[pixel_index].y = numeric_limits<float>::quiet_NaN ();
+                sphereCloud->points[pixel_index].z = numeric_limits<float>::quiet_NaN ();
             }
         }
     }
 
     //    bSphereCloudBuilt = true;
-    //std::cout << " Frame360::buildSphereCloud_rgbd360() finished" << std::endl;
+    //cout << " Frame360::buildSphereCloud_rgbd360() finished" << endl;
 
 #if _DEBUG_MSG
     double time_end = pcl::getTime();
-    std::cout << "PointCloud sphere construction OLD took " << double (time_end - time_start) << std::endl;
+    cout << "PointCloud sphere construction OLD took " << double (time_end - time_start) << endl;
 #endif
 }
 
 /*! Create the PbMap of the spherical point cloud */
 void Frame360::getPlanes()
 {
-    std::cout << "Frame360.getPlanes()\n";
+    cout << "Frame360.getPlanes()\n";
 
 #if _DEBUG_MSG
     double time_start = pcl::getTime();
 #endif
 
 #if ENABLE_OPENMP
-    #pragma omp parallel num_threads(8)
+    #pragma omp parallel num_threads(NUM_ASUS_SENSORS)
     {
         int sensor_id = omp_get_thread_num();
 #else
-    for(int sensor_id = 0; sensor_id < 8; sensor_id++)
+    for(int sensor_id = 0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
     {
 #endif
         getPlanesSensor(sensor_id);
@@ -716,7 +722,7 @@ void Frame360::getPlanes()
 
 #if _DEBUG_MSG
     double segmentation_end = pcl::getTime();
-    std::cout << "Segmentation took " << double (segmentation_end - time_start)*1000 << " ms.\n";
+    cout << "Segmentation took " << double (segmentation_end - time_start)*1000 << " ms.\n";
 #endif
 
     // Merge the big planes
@@ -725,7 +731,7 @@ void Frame360::getPlanes()
 
 #if _DEBUG_MSG
     double extractPlanes_end = pcl::getTime();
-    std::cout << planes.vPlanes.size() << " planes. Extraction took " << double (extractPlanes_end - time_start)*1000 << " ms.\n";
+    cout << planes.vPlanes.size() << " planes. Extraction took " << double (extractPlanes_end - time_start)*1000 << " ms.\n";
 #endif
 
 }
@@ -734,16 +740,17 @@ void Frame360::getPlanes()
 void Frame360::getLocalPlanes()
 {
     //double time_start = pcl::getTime();
+    cout << "getLocalPlanes() " << NUM_ASUS_SENSORS << endl;
 
-    //    #pragma omp parallel num_threads(8)
-    for(unsigned sensor_id=0; sensor_id < 8; ++sensor_id)
+    //    #pragma omp parallel num_threads(NUM_ASUS_SENSORS)
+    for(unsigned sensor_id=0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
     {
         //      int sensor_id = omp_get_thread_num();
         getLocalPlanesInFrame(sensor_id);
     }
 
     //    double time_end = pcl::getTime();
-    //    std::cout << "Local-Plane extraction took " << double (time_end - time_start) << std::endl;
+    //    cout << "Local-Plane extraction took " << double (time_end - time_start) << endl;
 }
 
 /*! Merge the planar patches that correspond to the same surface in the sphere */
@@ -766,7 +773,7 @@ void Frame360::mergePlanes()
                     if( planes.vPlanes[j].v3normal.dot(planes.vPlanes[k].v3normal) > 0.99 )
                         if( fabs(planes.vPlanes[j].d - planes.vPlanes[k].d) < 0.45 )
                             //          if( BhattacharyyaDist_(plane1.hist_H, plane2.hist_H) > configLocaliser.hue_threshold )
-                            //          if( fabs(planes.vPlanes[j].v3normal.dot(center_diff)) < std::max(0.07, 0.03*center_diff.norm() ) )
+                            //          if( fabs(planes.vPlanes[j].v3normal.dot(center_diff)) < max(0.07, 0.03*center_diff.norm() ) )
                         {
                             // Checking distances:
                             // a) Between an vertex and a vertex
@@ -816,7 +823,7 @@ void Frame360::mergePlanes()
                             --planes.vPlanes[h].id;
 
                         // Delete plane to merge
-                        std::vector<mrpt::pbmap::Plane>::iterator itPlane = planes.vPlanes.begin();
+                        vector<mrpt::pbmap::Plane>::iterator itPlane = planes.vPlanes.begin();
                         for(size_t i = 0; i < k; i++)
                             itPlane++;
                         planes.vPlanes.erase(itPlane);
@@ -828,7 +835,7 @@ void Frame360::mergePlanes()
                 }
 #if _DEBUG_MSG
     double time_end = pcl::getTime();
-    std::cout << "Merge planes took " << double (time_end - time_start) << std::endl;
+    cout << "Merge planes took " << double (time_end - time_start) << endl;
 #endif
 
 }
@@ -845,20 +852,20 @@ void Frame360::groupPlanes()
     //    Eigen::Matrix4f Rt = calib->getRt_id(0);
     //    planes.MergeWith(local_planes_[0], Rt);
     planes = local_planes_[0];
-    std::set<unsigned> prev_planes, first_planes;
+    set<unsigned> prev_planes, first_planes;
     for(size_t i=0; i < planes.vPlanes.size(); i++)
         first_planes.insert(planes.vPlanes[i].id);
     prev_planes = first_planes;
 
-    for(unsigned sensor_id=1; sensor_id < 8; ++sensor_id)
+    for(unsigned sensor_id=1; sensor_id < NUM_ASUS_SENSORS; ++sensor_id)
     {
         size_t j;
-        std::set<unsigned> next_prev_planes;
+        set<unsigned> next_prev_planes;
         for(size_t k = 0; k < local_planes_[sensor_id].vPlanes.size(); k++)
         {
             bool bSamePlane = false;
             if(local_planes_[sensor_id].vPlanes[k].areaHull > 0.5 || local_planes_[sensor_id].vPlanes[k].curvature < max_curvature_plane)
-                for(std::set<unsigned>::iterator it = prev_planes.begin(); it != prev_planes.end() && !bSamePlane; it++) // numPrevPlanes
+                for(set<unsigned>::iterator it = prev_planes.begin(); it != prev_planes.end() && !bSamePlane; it++) // numPrevPlanes
                 {
                     j = *it;
 
@@ -932,8 +939,8 @@ void Frame360::groupPlanes()
 void Frame360::getLocalPlanesInFrame(int sensor_id)
 {
     // Segment planes
-    //    cout << "extractPlaneFeatures\n";
-    //      double extractPlanes_start = pcl::getTime();
+    //cout << sensor_id << " getLocalPlanesInFrame \n";
+    //double extractPlanes_start = pcl::getTime();
 
     pcl::IntegralImageNormalEstimation<PointT, pcl::Normal> ne;
     ne.setNormalEstimationMethod (ne.COVARIANCE_MATRIX);
@@ -952,20 +959,20 @@ void Frame360::getLocalPlanesInFrame(int sensor_id)
 
     mps.setInputNormals (normal_cloud);
     mps.setInputCloud ( frameRGBD_[sensor_id].getPointCloud() );
-    std::vector<pcl::PlanarRegion<PointT>, Eigen::aligned_allocator<pcl::PlanarRegion<PointT> > > regions;
-    std::vector<pcl::ModelCoefficients> model_coefficients;
-    std::vector<pcl::PointIndices> inlier_indices;
+    vector<pcl::PlanarRegion<PointT>, Eigen::aligned_allocator<pcl::PlanarRegion<PointT> > > regions;
+    vector<pcl::ModelCoefficients> model_coefficients;
+    vector<pcl::PointIndices> inlier_indices;
     pcl::PointCloud<pcl::Label>::Ptr labels (new pcl::PointCloud<pcl::Label>);
-    std::vector<pcl::PointIndices> label_indices;
-    std::vector<pcl::PointIndices> boundary_indices;
+    vector<pcl::PointIndices> label_indices;
+    vector<pcl::PointIndices> boundary_indices;
     mps.segmentAndRefine (regions, model_coefficients, inlier_indices, labels, label_indices, boundary_indices);
     //      mps.segment (model_coefficients, inlier_indices);
-    //    cout << regions.size() << " planes detected\n";
+        cout << regions.size() << " planes detected\n";
 
     // Create a vector with the planes detected in this keyframe, and calculate their parameters (normal, center, pointclouds, etc.)
     for (size_t i = 0; i < regions.size (); i++)
     {
-        //      std::cout << "curv " << regions[i].getCurvature() << std::endl;
+        //      cout << "curv " << regions[i].getCurvature() << endl;
         if(regions[i].getCurvature() > max_curvature_plane)
             continue;
 
@@ -1024,8 +1031,8 @@ void Frame360::getLocalPlanesInFrame(int sensor_id)
             local_planes_[sensor_id].vPlanes.push_back(plane);
         }
     }
-    //      double extractPlanes_end = pcl::getTime();
-    //    std::cout << local_planes_[sensor_id].vPlanes.size() << " planes. Extraction in " << sensor_id << " took " << double (extractPlanes_end - extractPlanes_start) << std::endl;
+    //double extractPlanes_end = pcl::getTime();
+    //cout << local_planes_[sensor_id].vPlanes.size() << " planes. Extraction in " << sensor_id << " took " << double (extractPlanes_end - extractPlanes_start) << endl;
 
     //      segmentation_im_[sensor_id] = true;
 }
@@ -1037,7 +1044,7 @@ void Frame360::getLocalPlanesInFrame(int sensor_id)
 void Frame360::getPlanesSensor(int sensor_id)
 {
     // Segment planes
-    //    std::cout << "extractPlaneFeatures, size " << frameRGBD_[sensor_id].getPointCloud()->size() << "\n";
+    //    cout << "extractPlaneFeatures, size " << frameRGBD_[sensor_id].getPointCloud()->size() << "\n";
 
 #if _DEBUG_MSG
     double time_start = pcl::getTime();
@@ -1055,7 +1062,7 @@ void Frame360::getPlanesSensor(int sensor_id)
     ne.setDepthDependentSmoothing (true);
 
     pcl::OrganizedMultiPlaneSegmentation<PointT, pcl::Normal, pcl::Label> mps;
-    //      mps.setMinInliers (std::max(uint32_t(40),frameRGBD_[sensor_id].getPointCloud()->height*2));
+    //      mps.setMinInliers (max(uint32_t(40),frameRGBD_[sensor_id].getPointCloud()->height*2));
     mps.setMinInliers (80);
     mps.setAngularThreshold (0.039812); // (0.017453 * 2.0) // 3 degrees
     mps.setDistanceThreshold (0.02); //2cm
@@ -1067,20 +1074,21 @@ void Frame360::getPlanesSensor(int sensor_id)
 
     mps.setInputNormals (normal_cloud);
     mps.setInputCloud ( frameRGBD_[sensor_id].getPointCloud() );
-    std::vector<pcl::PlanarRegion<PointT>, Eigen::aligned_allocator<pcl::PlanarRegion<PointT> > > regions;
-    std::vector<pcl::ModelCoefficients> model_coefficients;
-    std::vector<pcl::PointIndices> inlier_indices;
+    vector<pcl::PlanarRegion<PointT>, Eigen::aligned_allocator<pcl::PlanarRegion<PointT> > > regions;
+    vector<pcl::ModelCoefficients> model_coefficients;
+    vector<pcl::PointIndices> inlier_indices;
     pcl::PointCloud<pcl::Label>::Ptr labels (new pcl::PointCloud<pcl::Label>);
-    std::vector<pcl::PointIndices> label_indices;
-    std::vector<pcl::PointIndices> boundary_indices;
+    vector<pcl::PointIndices> label_indices;
+    vector<pcl::PointIndices> boundary_indices;
     mps.segmentAndRefine (regions, model_coefficients, inlier_indices, labels, label_indices, boundary_indices);
 
     // Create a vector with the planes detected in this keyframe, and calculate their parameters (normal, center, pointclouds, etc.)
     unsigned single_cloud_size = frameRGBD_[sensor_id].getPointCloud()->size();
     //Eigen::Matrix4f Rt = calib->getRt_id(sensor_id);//.cast<float>();
-    float angle_offset = 45;
-    Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(1,1) = rot_offset(2,2) = cos(angle_offset*PI/180); rot_offset(1,2) = -sin(angle_offset*PI/180); rot_offset(2,1) = -rot_offset(1,2);
-    Eigen::Matrix4f Rt = rot_offset * calib->getRt_id(sensor_id);
+//    float angle_offset = 45;
+//    Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(1,1) = rot_offset(2,2) = cos(angle_offset*PI/180); rot_offset(1,2) = -sin(angle_offset*PI/180); rot_offset(2,1) = -rot_offset(1,2);
+//    Eigen::Matrix4f Rt = rot_offset * calib->getRt_id(sensor_id);
+    Eigen::Matrix4f Rt = calib->getRt_id(sensor_id);
     for (size_t i = 0; i < regions.size (); i++)
     {
         mrpt::pbmap::Plane plane;
@@ -1122,7 +1130,7 @@ void Frame360::getPlanesSensor(int sensor_id)
         else
         {
             //        assert(false);
-            std::cout << "HULL 000\n" << plane.planePointCloudPtr->size() << std::endl;
+            cout << "HULL 000\n" << plane.planePointCloudPtr->size() << endl;
             static pcl::VoxelGrid<pcl::PointXYZRGBA> plane_grid;
             plane_grid.setLeafSize(0.05,0.05,0.05);
             plane_grid.setInputCloud (plane.planePointCloudPtr);
@@ -1157,12 +1165,12 @@ void Frame360::getPlanesSensor(int sensor_id)
         plane.calcPlaneHistH();
         plane.calcMainColor2();
         //      double color_end = pcl::getTime();
-        //    std::cout << "color in " << (color_end - color_start)*1000 << " ms\n";
+        //    cout << "color in " << (color_end - color_start)*1000 << " ms\n";
 
         //      color_start = pcl::getTime();
         plane.transform(Rt);
         //      color_end = pcl::getTime();
-        //    std::cout << "transform in " << (color_end - color_start)*1000 << " ms\n";
+        //    cout << "transform in " << (color_end - color_start)*1000 << " ms\n";
 
         bool isSamePlane = false;
         if(plane.curvature < max_curvature_plane)
@@ -1174,7 +1182,7 @@ void Frame360::getPlanesSensor(int sensor_id)
                     //            double time_start = pcl::getTime();
                     local_planes_[sensor_id].vPlanes[j].mergePlane2(plane);
                     //            double time_end = pcl::getTime();
-                    //          std::cout << " mergePlane2 took " << double (time_start - time_end) << std::endl;
+                    //          cout << " mergePlane2 took " << double (time_start - time_end) << endl;
 
                     break;
                 }
@@ -1187,7 +1195,7 @@ void Frame360::getPlanesSensor(int sensor_id)
     }
 #if _DEBUG_MSG
     double extractPlanes_end = pcl::getTime();
-    std::cout << "getPlanesInFrame in " << (extractPlanes_end - time_start)*1000 << " ms\n";
+    cout << "getPlanesInFrame in " << (extractPlanes_end - time_start)*1000 << " ms\n";
 #endif
 
 }
@@ -1204,7 +1212,7 @@ void Frame360::undistortDepthSensor(int sensor_id)
 
 #if _DEBUG_MSG
     double time_end = pcl::getTime();
-    std::cout << " undistort " << sensor_id << " took " << double (time_end - time_start)*10e3 << std::endl;
+    cout << " undistort " << sensor_id << " took " << double (time_end - time_start)*10e3 << endl;
 #endif
 
 }
@@ -1216,13 +1224,13 @@ void Frame360::stitchImage(int sensor_id)
     Eigen::Vector3f virtualPoint, pointFromCamera;
     const int size_w = frameRGBD_[sensor_id].getRGBImage().cols;
     const int size_h = frameRGBD_[sensor_id].getRGBImage().rows;
-    const float offsetPhi = sphereRGB.rows/2 - 0.5;
-    const float offsetTheta = -frameRGBD_[sensor_id].getRGBImage().rows*15/2 + 0.5;
+    const float offsetPhi = sphereRGB.rows/2 - 0.5f;
+    const float offsetTheta = -frameRGBD_[sensor_id].getRGBImage().rows*(NUM_ASUS_SENSORS-0.5f) + 0.5f;
     const float angle_pixel = 2*PI/sphereRGB.cols;
     const int marginStitching = 0;
 
     // Change reference system so that it coincides with the Spherical stereo system
-    const int pixels_offset = 4.5 * frameRGBD_[sensor_id].getRGBImage().rows;
+    const int pixels_offset = (NUM_ASUS_SENSORS-3.5f) * frameRGBD_[sensor_id].getRGBImage().rows;
 
     for(int row_phi=0; row_phi < sphereRGB.rows; row_phi++)
     {
@@ -1232,13 +1240,13 @@ void Frame360::stitchImage(int sensor_id)
         float cos_phi = cos(phi_i);
 
         // Stitch each image from each sensor
-        //        for(unsigned cam=0; cam < 8; cam++)
+        //        for(unsigned cam=0; cam < NUM_ASUS_SENSORS; cam++)
         //      #pragma omp parallel for
-        int init_col_sphere = (7-sensor_id)*size_h;
-        int end_col_sphere = (8-sensor_id)*size_h;
+        int init_col_sphere = (NUM_ASUS_SENSORS-1-sensor_id)*size_h;
+        int end_col_sphere = (NUM_ASUS_SENSORS-sensor_id)*size_h;
         if(sensor_id != 0)
             end_col_sphere += marginStitching;
-        if(sensor_id != 7)
+        if(sensor_id != NUM_ASUS_SENSORS-1)
             init_col_sphere -= marginStitching;
         for(int col_theta=init_col_sphere; col_theta < end_col_sphere; col_theta++)
         {
@@ -1258,10 +1266,10 @@ void Frame360::stitchImage(int sensor_id)
                 if(col_theta_ref4 < 0) col_theta_ref4 += sphereRGB.cols;
                 //sphereRGB.at<cv::Vec3b>(row_phi,col_theta) = frameRGBD_[sensor_id].getRGBImage().at<cv::Vec3b>(v,u);
                 sphereRGB.at<cv::Vec3b>(row_phi,col_theta_ref4) = frameRGBD_[sensor_id].getRGBImage().at<cv::Vec3b>(v,u);
-                //                    std::cout << " d " << frameRGBD_[sensor_id].getDepthImage().at<unsigned short>(v,u);
+                //                    cout << " d " << frameRGBD_[sensor_id].getDepthImage().at<unsigned short>(v,u);
                 if( pcl_isfinite(frameRGBD_[sensor_id].getDepthImage().at<unsigned short>(v,u)) ){
                     sphereDepth.at<unsigned short>(row_phi,col_theta_ref4) = frameRGBD_[sensor_id].getDepthImage().at<unsigned short>(v,u) * sqrt(1 + pow((u-calib->cameraMatrix(0,2))/calib->cameraMatrix(0,0),2) + pow((v-calib->cameraMatrix(1,2))/calib->cameraMatrix(1,1),2));
-                    //                        std::cout << " dm " << sphereDepth.at<unsigned short>(row_phi,col_theta);
+                    //                        cout << " dm " << sphereDepth.at<unsigned short>(row_phi,col_theta);
                 }
             }
         }
@@ -1270,13 +1278,13 @@ void Frame360::stitchImage(int sensor_id)
 
 // Functions for SphereStereo images (outdoors)
 /*! Load a spherical RGB-D image from the raw data stored in a binary file */
-void Frame360::loadDepth (const std::string &binaryDepthFile, const cv::Mat * mask)
+void Frame360::loadDepth (const string &binaryDepthFile, const cv::Mat * mask)
 {
 #if _DEBUG_MSG
     double time_start = pcl::getTime();
 #endif
 
-    std::ifstream file (binaryDepthFile.c_str(), std::ios::in | std::ios::binary);
+    ifstream file (binaryDepthFile.c_str(), ios::in | ios::binary);
     if (file)
     {
         char *header_property = new char[2]; // Read height_ and width_
@@ -1289,11 +1297,11 @@ void Frame360::loadDepth (const std::string &binaryDepthFile, const cv::Mat * ma
         file.read (header_property, 2);
         unsigned short *width = reinterpret_cast<unsigned short*> (header_property);
         width_ = *width;
-        //std::cout << "height_ " << height_ << " width_ " << width_ << std::endl;
+        //cout << "height_ " << height_ << " width_ " << width_ << endl;
 
         cv::Mat sphereDepth_aux(width_, height_, CV_32FC1);
         char *mem_block = reinterpret_cast<char*>(sphereDepth_aux.data);
-        std::streampos size = height_*width_*4; // file.tellg() - std::streampos(4); // Header is 4 bytes: 2 unsigned short for height and width
+        streampos size = height_*width_*4; // file.tellg() - streampos(4); // Header is 4 bytes: 2 unsigned short for height and width
         //file.seekg (4, ios::beg);
         file.read (mem_block, size);
 
@@ -1324,29 +1332,29 @@ void Frame360::loadDepth (const std::string &binaryDepthFile, const cv::Mat * ma
             sphereDepth.copyTo(aux, (*mask)(region_of_interest) );
             sphereDepth = aux;
         }
-        // std::cout << "height_ " << sphereDepth.rows << " width_ " << sphereDepth.cols << std::endl;
+        // cout << "height_ " << sphereDepth.rows << " width_ " << sphereDepth.cols << endl;
         //cv::imshow( "sphereDepth", sphereDepth );
         //cv::waitKey(0);
     }
     else
-        std::cerr << "File: " << binaryDepthFile << " does NOT EXIST.\n";
+        cerr << "File: " << binaryDepthFile << " does NOT EXIST.\n";
 
     //    bSphereCloudBuilt = false; // The spherical PointCloud of the frame just loaded is not built yet
 
 #if _DEBUG_MSG
     double time_end = pcl::getTime();
-    std::cout << "loadDepth took " << double (time_end - time_start) << std::endl;
+    cout << "loadDepth took " << double (time_end - time_start) << endl;
 #endif
 }
 
 /*! Load a spherical RGB-D image from the raw data stored in a binary file */
-void Frame360::loadRGB(std::string &fileNamePNG)
+void Frame360::loadRGB(string &fileNamePNG)
 {
 #if _DEBUG_MSG
     double time_start = pcl::getTime();
 #endif
 
-    std::ifstream file (fileNamePNG.c_str(), std::ios::in | std::ios::binary);
+    ifstream file (fileNamePNG.c_str(), ios::in | ios::binary);
     if (file)
     {
         //            sphereRGB = cv::imread (fileNamePNG.c_str(), CV_LOAD_IMAGE_COLOR); // Full size 665x2048
@@ -1359,11 +1367,11 @@ void Frame360::loadRGB(std::string &fileNamePNG)
         sphereRGB = sphereRGB_aux (region_of_interest); // Size 640x2048
     }
     else
-        std::cerr << "File: " << fileNamePNG << " does NOT EXIST.\n";
+        cerr << "File: " << fileNamePNG << " does NOT EXIST.\n";
 
 #if _DEBUG_MSG
     double time_end = pcl::getTime();
-    std::cout << "loadRGB took " << double (time_end - time_start) << std::endl;
+    cout << "loadRGB took " << double (time_end - time_start) << endl;
 #endif
 }
 
@@ -1387,7 +1395,7 @@ void Frame360::filterCloudBilateral_stereo()
 
 #if _DEBUG_MSG
     double time_end = pcl::getTime();
-    std::cout << "filterCloudBilateral in " << (time_end - time_start)*1000 << " ms\n";
+    cout << "filterCloudBilateral in " << (time_end - time_start)*1000 << " ms\n";
 #endif
 }
 
@@ -1397,7 +1405,7 @@ void Frame360::filterCloudBilateral_stereo()
 void Frame360::segmentPlanesStereo()
 {
     // Segment planes
-    //    std::cout << "extractPlaneFeatures, size " << sphereCloud->size() << "\n";
+    //    cout << "extractPlaneFeatures, size " << sphereCloud->size() << "\n";
 
 #if _DEBUG_MSG
     double time_start = pcl::getTime();
@@ -1415,7 +1423,7 @@ void Frame360::segmentPlanesStereo()
     ne.setDepthDependentSmoothing (true);
 
     pcl::OrganizedMultiPlaneSegmentation<PointT, pcl::Normal, pcl::Label> mps;
-    //      mps.setMinInliers (std::max(uint32_t(40),sphereCloud->height*2));
+    //      mps.setMinInliers (max(uint32_t(40),sphereCloud->height*2));
     mps.setMinInliers (1000);
     mps.setAngularThreshold (0.07); // (0.017453 * 2.0 = 0.039812) // 3 degrees
     mps.setDistanceThreshold (0.1); //2cm
@@ -1431,12 +1439,12 @@ void Frame360::segmentPlanesStereo()
 
     mps.setInputNormals (normal_cloud);
     mps.setInputCloud ( sphereCloud );
-    std::vector<pcl::PlanarRegion<PointT>, Eigen::aligned_allocator<pcl::PlanarRegion<PointT> > > regions;
-    std::vector<pcl::ModelCoefficients> model_coefficients;
-    std::vector<pcl::PointIndices> inlier_indices;
+    vector<pcl::PlanarRegion<PointT>, Eigen::aligned_allocator<pcl::PlanarRegion<PointT> > > regions;
+    vector<pcl::ModelCoefficients> model_coefficients;
+    vector<pcl::PointIndices> inlier_indices;
     pcl::PointCloud<pcl::Label>::Ptr labels (new pcl::PointCloud<pcl::Label>);
-    std::vector<pcl::PointIndices> label_indices;
-    std::vector<pcl::PointIndices> boundary_indices;
+    vector<pcl::PointIndices> label_indices;
+    vector<pcl::PointIndices> boundary_indices;
     mps.segmentAndRefine (regions, model_coefficients, inlier_indices, labels, label_indices, boundary_indices);
 
     // Create a vector with the planes detected in this keyframe, and calculate their parameters (normal, center, pointclouds, etc.)
@@ -1479,7 +1487,7 @@ void Frame360::segmentPlanesStereo()
         else
         {
             //        assert(false);
-            std::cout << "HULL 000\n" << plane.planePointCloudPtr->size() << std::endl;
+            cout << "HULL 000\n" << plane.planePointCloudPtr->size() << endl;
             static pcl::VoxelGrid<pcl::PointXYZRGBA> plane_grid;
             plane_grid.setLeafSize(0.05,0.05,0.05);
             plane_grid.setInputCloud (plane.planePointCloudPtr);
@@ -1507,12 +1515,12 @@ void Frame360::segmentPlanesStereo()
         plane.calcPlaneHistH();
         plane.calcMainColor2();
         //      double color_end = pcl::getTime();
-        //    std::cout << "color in " << (color_end - color_start)*1000 << " ms\n";
+        //    cout << "color in " << (color_end - color_start)*1000 << " ms\n";
 
         //      color_start = pcl::getTime();
         //plane.transform(Rt);
         //      color_end = pcl::getTime();
-        //    std::cout << "transform in " << (color_end - color_start)*1000 << " ms\n";
+        //    cout << "transform in " << (color_end - color_start)*1000 << " ms\n";
 
         bool isSamePlane = false;
         if(plane.curvature < max_curvature_plane)
@@ -1524,7 +1532,7 @@ void Frame360::segmentPlanesStereo()
                     //            double time_start = pcl::getTime();
                     planes.vPlanes[j].mergePlane2(plane);
                     //            double time_end = pcl::getTime();
-                    //          std::cout << " mergePlane2 took " << double (time_start - time_end) << std::endl;
+                    //          cout << " mergePlane2 took " << double (time_start - time_end) << endl;
 
                     break;
                 }
@@ -1537,9 +1545,9 @@ void Frame360::segmentPlanesStereo()
     }
 #if _DEBUG_MSG
     double extractPlanes_end = pcl::getTime();
-    std::cout << "getPlanesInFrame in " << (extractPlanes_end - time_start)*1000 << " ms\n";
+    cout << "getPlanesInFrame in " << (extractPlanes_end - time_start)*1000 << " ms\n";
 #endif
-    std::cout << "Planes " << planes.vPlanes.size() << " \n";
+    cout << "Planes " << planes.vPlanes.size() << " \n";
 
 }
 
@@ -1549,7 +1557,7 @@ void Frame360::segmentPlanesStereo()
 void Frame360::segmentPlanesStereoRANSAC()
 {
     // Segment planes
-    //    std::cout << "extractPlaneFeatures, size " << sphereCloud->size() << "\n";
+    //    cout << "extractPlaneFeatures, size " << sphereCloud->size() << "\n";
 
 #if _DEBUG_MSG
     double time_start = pcl::getTime();
@@ -1566,7 +1574,7 @@ void Frame360::segmentPlanesStereoRANSAC()
     seg.setMethodType (pcl::SAC_RANSAC);
     seg.setDistanceThreshold (0.08);
 
-    //        std::cout << "cloud_non_segmented " << cloud_non_segmented->size () << "\n";
+    //        cout << "cloud_non_segmented " << cloud_non_segmented->size () << "\n";
 
     FilterPointCloud<PointT> filter(0.1);
     filter.filterVoxel(cloud_non_segmented);
@@ -1576,7 +1584,7 @@ void Frame360::segmentPlanesStereoRANSAC()
     //unsigned single_cloud_size = sphereCloud->size();
     while (cloud_non_segmented->size() > min_cloud_segmentation )
     {
-        std::cout << "cloud_non_segmented Pts " << cloud_non_segmented->size() << std::endl;
+        cout << "cloud_non_segmented Pts " << cloud_non_segmented->size() << endl;
 
         pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
         pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
@@ -1584,7 +1592,7 @@ void Frame360::segmentPlanesStereoRANSAC()
         seg.setInputCloud (cloud_non_segmented);
         seg.segment (*inliers, *coefficients);
 
-        std::cout << "Inliers " << inliers->indices.size () << "\n";
+        cout << "Inliers " << inliers->indices.size () << "\n";
 
         if (inliers->indices.size () < 1000)
             break;
@@ -1630,7 +1638,7 @@ void Frame360::segmentPlanesStereoRANSAC()
         plane_grid.setInputCloud (plane.planePointCloudPtr);
         plane_grid.filter (*contourPtr);
         plane.calcConvexHull(contourPtr);
-        std::cout << "Inliers " << plane.planePointCloudPtr->size() << " hull " << plane.polygonContourPtr->size() << std::endl;
+        cout << "Inliers " << plane.planePointCloudPtr->size() << " hull " << plane.polygonContourPtr->size() << endl;
 
         //        assert(contourPtr->size() > 0);
         //        plane.calcConvexHull(contourPtr);
@@ -1655,9 +1663,9 @@ void Frame360::segmentPlanesStereoRANSAC()
     }
 #if _DEBUG_MSG
     double extractPlanes_end = pcl::getTime();
-    std::cout << "getPlanesRANSAC took " << (extractPlanes_end - time_start)*1000 << " ms\n";
+    cout << "getPlanesRANSAC took " << (extractPlanes_end - time_start)*1000 << " ms\n";
 #endif
-    std::cout << "Planes " << planes.vPlanes.size() << " \n";
+    cout << "Planes " << planes.vPlanes.size() << " \n";
 
 }
 
@@ -1669,16 +1677,16 @@ void Frame360::computeNormalMap(const pcl::PointCloud<pcl::Normal>::Ptr & normal
         for(size_t c=0; c < sphereCloud->width; ++c)
         {
             int i = r*sphereCloud->width + c;
-    //            if( normal_cloud->points[i].normal_x == std::numeric_limits<float>::quiet_NaN () )
+    //            if( normal_cloud->points[i].normal_x == numeric_limits<float>::quiet_NaN () )
             if( normal_cloud->points[i].normal_x < 2.f )
             {
                 normalMap.at<cv::Vec3b>(r,c)[2] = 255*(0.5*normal_cloud->points[i].normal_x+0.5);
                 normalMap.at<cv::Vec3b>(r,c)[1] = 255*(0.5*normal_cloud->points[i].normal_y+0.5);
                 normalMap.at<cv::Vec3b>(r,c)[0] = 255*(0.5*normal_cloud->points[i].normal_z+0.5);
     //            // Create a RGB image file with the values of the normal (multiply by 1.5 to increase the saturation to 0.5 = 1.5*0.33. Notice that normal vectors can be directly interpreted as normalized rgb, which has constant saturation of 0.33).
-    //            normalMap.at<cv::Vec3b>(r,c)[2] = std::max(255., 255*(1.5f*fabs(normal_cloud->points[i].normal_x) ) );
-    //            normalMap.at<cv::Vec3b>(r,c)[1] = std::max(255., 255*(1.5f*fabs(normal_cloud->points[i].normal_y) ) );
-    //            normalMap.at<cv::Vec3b>(r,c)[0] = std::max(255., 255*(1.5f*fabs(normal_cloud->points[i].normal_z) ) );
+    //            normalMap.at<cv::Vec3b>(r,c)[2] = max(255., 255*(1.5f*fabs(normal_cloud->points[i].normal_x) ) );
+    //            normalMap.at<cv::Vec3b>(r,c)[1] = max(255., 255*(1.5f*fabs(normal_cloud->points[i].normal_y) ) );
+    //            normalMap.at<cv::Vec3b>(r,c)[0] = max(255., 255*(1.5f*fabs(normal_cloud->points[i].normal_z) ) );
             }
             //else
                 //cout << "normal " << normal_cloud->points[i].normal_x << " " << normal_cloud->points[i].normal_y << " " << normal_cloud->points[i].normal_z << endl;
