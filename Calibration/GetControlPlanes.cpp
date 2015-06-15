@@ -29,6 +29,9 @@
  *  Author: Eduardo Fernandez-Moral
  */
 
+#include <mrpt/utils/types_simple.h>
+#include <mrpt/math/CMatrix.h>
+
 #include <Calibrator.h>
 #include <Frame360.h>
 #include <Frame360_Visualizer.h>
@@ -43,7 +46,9 @@
 #define SAVE_CALIBRATION 1
 
 using namespace std;
+using namespace mrpt;
 using namespace mrpt::math;
+using namespace mrpt::utils;
 using namespace Eigen;
 
 // Obtain the rigid transformation from 3 matched planes
@@ -105,6 +110,8 @@ CMatrixDouble getAlignment( const CMatrixDouble &matched_planes )
 //  rigidTransf.row(3) << 0,0,0,1;
 
   CMatrixDouble rigidTransf(4,4);
+//  rigidTransf.block(0,0,3,3) = Rotation;
+//  rigidTransf.block(0,3,3,1) = translation;
   rigidTransf(0,0) = Rotation(0,0);
   rigidTransf(0,1) = Rotation(0,1);
   rigidTransf(0,2) = Rotation(0,2);
@@ -216,8 +223,6 @@ class GetControlPlanes
 {
   private:
 
-    boost::mutex visualizationMutex;
-
     mrpt::pbmap::PbMap planes;
     pcl::PointCloud<PointT>::Ptr sphere_cloud;
 
@@ -228,12 +233,13 @@ class GetControlPlanes
     bool drawMatch;
 
     pcl::visualization::CloudViewer viewer;
+    boost::mutex visualizationMutex;
 
   public:
 
     GetControlPlanes() :
-              viewer("RGBD360_calib"),
-              sphere_cloud(new pcl::PointCloud<PointT>)
+            sphere_cloud(new pcl::PointCloud<PointT>),
+            viewer("RGBD360_calib")
     {
       keyPressed = 'b';
       keyDown = false;
@@ -308,7 +314,8 @@ class GetControlPlanes
         viewer.registerKeyboardCallback(&GetControlPlanes::keyboardEventOccurred, *this);
       #endif
 
-      ControlPlanes matches;
+      Calibrator calibrator;
+      ControlPlanes &matches = calibrator.matchedPlanes;
       for(unsigned sensor_id1=0; sensor_id1 < NUM_ASUS_SENSORS; sensor_id1++)
       {
         matches.mmCorrespondences[sensor_id1] = std::map<unsigned, mrpt::math::CMatrixDouble>();
@@ -490,16 +497,14 @@ class GetControlPlanes
 //      }
 
 
-      cout << "Conditioning " << *std::max_element(matches.conditioning, matches.conditioning+8) << " threshold " << threshold_conditioning << endl;
-      if(*std::max_element(matches.conditioning, matches.conditioning+8) < threshold_conditioning)
+      cout << "Conditioning " << *std::max_element(matches.conditioning, matches.conditioning+8) << " threshold " << calibrator.threshold_conditioning << endl;
+      if(*std::max_element(matches.conditioning, matches.conditioning+8) < calibrator.threshold_conditioning)
       {
 //          printConditioning();
       cout << "\tSave CorrespMat\n";
         // Save correspondence matrices
         matches.savePlaneCorrespondences(mrpt::format("%s/Calibration/ControlPlanes", PROJECT_SOURCE_PATH));
 
-        Calibrator calibrator;
-        calibrator.matchedPlanes = matches;
         calibrator.loadConstructionSpecs();
         calibrator.CalibrateRotation();
 //        calibrator.CalibrateTranslation();

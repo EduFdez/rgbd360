@@ -273,31 +273,74 @@ int main (int argc, char ** argv)
     Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(1,1) = rot_offset(2,2) = cos(angle_offset*PI/180); rot_offset(1,2) = -sin(angle_offset*PI/180); rot_offset(2,1) = -rot_offset(1,2);
     // Load initial calibration
     cout << "Load initial calibration\n";
-//    mrpt::poses::CPose3D pose[NUM_ASUS_SENSORS];
-//    pose[0] = mrpt::poses::CPose3D(0.285, 0, 1.015, DEG2RAD(0), DEG2RAD(1.3), DEG2RAD(-90));
-//    pose[1] = mrpt::poses::CPose3D(0.271, -0.031, 1.015, DEG2RAD(-45), DEG2RAD(0), DEG2RAD(-90));
-//    pose[2] = mrpt::poses::CPose3D(0.271, 0.031, 1.125, DEG2RAD(45), DEG2RAD(2), DEG2RAD(-89));
-//    pose[3] = mrpt::poses::CPose3D(0.24, -0.045, 0.975, DEG2RAD(-90), DEG2RAD(1.5), DEG2RAD(-90));
+    mrpt::poses::CPose3D pose[NUM_ASUS_SENSORS];
+    pose[0] = mrpt::poses::CPose3D(0.285, 0, 1.015, DEG2RAD(0), DEG2RAD(1.3), DEG2RAD(-90));
+    pose[1] = mrpt::poses::CPose3D(0.271, -0.031, 1.015, DEG2RAD(-45), DEG2RAD(0), DEG2RAD(-90));
+    pose[2] = mrpt::poses::CPose3D(0.271, 0.031, 1.125, DEG2RAD(45), DEG2RAD(2), DEG2RAD(-89));
+    pose[3] = mrpt::poses::CPose3D(0.24, -0.045, 0.975, DEG2RAD(-90), DEG2RAD(1.5), DEG2RAD(-90));
     int rgbd180_arrangement[4] = {1,8,2,7};
+    //Eigen::Matrix4f Rt_raul[4];
     for(size_t sensor_id=0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
     {
+        //calib.Rt_[sensor_id].loadFromTextFile( mrpt::format("/home/efernand/Libraries/rgbd360/Calibration/test/Rt_0%i.txt",sensor_id+1) );
+
 //        Eigen::Matrix4f pose_mat = getPoseEigenMatrix( pose[sensor_id] ); //.inverse();
 //        calib.setRt_id( sensor_id, pose_mat);
         calib.Rt_[sensor_id].loadFromTextFile( mrpt::format("/home/efernand/Libraries/rgbd360/Calibration/Extrinsics/ConstructionSpecs/Rt_0%i.txt",rgbd180_arrangement[sensor_id]) );
         //cout << sensor_id << " sensor pose\n" << calib.Rt_[sensor_id] << endl;
         calib.Rt_[sensor_id] = rot_offset * calib.Rt_[sensor_id];
+
+//        if(sensor_id > 0)
+//        {
+//            Rt_raul[sensor_id] = getPoseEigenMatrix( pose[sensor_id] ); //.inverse();
+//            cout << "relative raul \n" << Rt_raul[sensor_id-1].inverse() * Rt_raul[sensor_id] << endl;
+//            cout << "relative calibration \n" << calib.Rt_[sensor_id-1].inverse() * calib.Rt_[sensor_id] << endl;
+//            mrpt::system::pause();
+//        }
     }
 
-    cout << "Init ControlPlanes \n";
-    ControlPlanes matches;
-    for(unsigned sensor_id1=0; sensor_id1 < NUM_ASUS_SENSORS; sensor_id1++)
+    Calibrator calibrator;
+    ControlPlanes &matches = calibrator.matchedPlanes;
+    matches.loadPlaneCorrespondences(mrpt::format("%s/Calibration/ControlPlanes/180", PROJECT_SOURCE_PATH));
+    if(!fexists(mrpt::format("%s/Calibration/ControlPlanes/180/correspondences_0_1.txt", PROJECT_SOURCE_PATH).c_str() ) )
     {
-        matches.mmCorrespondences[sensor_id1] = std::map<unsigned, mrpt::math::CMatrixDouble>();
-        for(unsigned sensor_id2=sensor_id1+1; sensor_id2 < NUM_ASUS_SENSORS; sensor_id2++)
+        cout << "Init ControlPlanes \n";
+        for(unsigned sensor_id1=0; sensor_id1 < NUM_ASUS_SENSORS; sensor_id1++)
         {
-            matches.mmCorrespondences[sensor_id1][sensor_id2] = mrpt::math::CMatrixDouble(0, 10);
+            matches.mmCorrespondences[sensor_id1] = std::map<unsigned, mrpt::math::CMatrixDouble>();
+            for(unsigned sensor_id2=sensor_id1+1; sensor_id2 < NUM_ASUS_SENSORS; sensor_id2++)
+            {
+                matches.mmCorrespondences[sensor_id1][sensor_id2] = mrpt::math::CMatrixDouble(0, 10);
+            }
         }
     }
+
+
+
+//    // Calibrate the omnidirectional RGBD multisensor
+//      for(size_t sensor_id=0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
+//          calibrator.Rt_specs[sensor_id] = calib.getRt_id( sensor_id );
+//    //calibrator.loadConstructionSpecs(); // Get the inital extrinsic matrices for the different sensors
+
+//  //      calibrator.Calibrate();
+//    calibrator.CalibrateRotation(0);
+//    calibrator.CalibrateTranslation(0);
+
+//      ofstream calibFile;
+//      for(unsigned sensor_id=0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
+//      {
+//        string calibFileName = mrpt::format("%s/Calibration/test/Rt_0%u.txt", PROJECT_SOURCE_PATH, sensor_id+1);
+//        calibFile.open(calibFileName.c_str());
+//        if (calibFile.is_open())
+//        {
+//          calibFile << calibrator.Rt_estimated[sensor_id];
+//          calibFile.close();
+//        }
+//        else
+//          cout << "Unable to open file " << calibFileName << endl;
+//      }
+//return 0;
+
 
     cout << "Open CRawlog \n";
     mrpt::obs::CRawlog dataset;
@@ -323,12 +366,12 @@ int main (int argc, char ** argv)
     while ( n_obs < dataset.size() )
     {
         observation = dataset.getAsObservation(n_obs);
+        //cout << n_obs << " observation: " << observation->sensorLabel << ". Timestamp " << observation->timestamp << endl;
         ++n_obs;
         if(!IS_CLASS(observation, CObservation3DRangeScan))
         {
             continue;
         }
-        cout << n_obs << " observation: " << observation->sensorLabel << ". Timestamp " << observation->timestamp << endl;
 
         size_t sensor_id = 0;
         if(observation->sensorLabel == "RGBD_1")
@@ -435,119 +478,121 @@ int main (int argc, char ** argv)
             //        cout << endl;
 
 
-//            // Visualize cloud
+            // Visualize cloud
             frame360.buildSphereCloud_rgbd360();
-//            frame360.getPlanes();
-//            Frame360_Visualizer sphereViewer(&frame360);
-//            while (!sphereViewer.viewer.wasStopped() )
-//              boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+            frame360.getPlanes();
+            Frame360_Visualizer sphereViewer(&frame360);
+            while (!sphereViewer.viewer.wasStopped() )
+              boost::this_thread::sleep (boost::posix_time::milliseconds (10));
 
 
-            for(unsigned sensor_id1=0; sensor_id1 < NUM_ASUS_SENSORS; sensor_id1++)
-            {
-                //          matches.mmCorrespondences[sensor_id1] = std::map<unsigned, mrpt::math::CMatrixDouble>();
-                for(unsigned sensor_id2=sensor_id1+1; sensor_id2 < NUM_ASUS_SENSORS; sensor_id2++)
-                    //            if( sensor_id2 - sensor_id1 == 1 || sensor_id2 - sensor_id1 == 7)
-                {
-                    //            cout << " sensor_id1 " << sensor_id1 << " " << frame360.local_planes_[sensor_id1].vPlanes.size() << " sensor_id2 " << sensor_id2 << " " << frame360.local_planes_[sensor_id2].vPlanes.size() << endl;
-                    //              matches.mmCorrespondences[sensor_id1][sensor_id2] = mrpt::math::CMatrixDouble(0, 10);
+//            for(unsigned sensor_id1=0; sensor_id1 < NUM_ASUS_SENSORS; sensor_id1++)
+//            {
+//                //          matches.mmCorrespondences[sensor_id1] = std::map<unsigned, mrpt::math::CMatrixDouble>();
+//                for(unsigned sensor_id2=sensor_id1+1; sensor_id2 < NUM_ASUS_SENSORS; sensor_id2++)
+//                    //            if( sensor_id2 - sensor_id1 == 1 || sensor_id2 - sensor_id1 == 7)
+//                {
+//                    //            cout << " sensor_id1 " << sensor_id1 << " " << frame360.local_planes_[sensor_id1].vPlanes.size() << " sensor_id2 " << sensor_id2 << " " << frame360.local_planes_[sensor_id2].vPlanes.size() << endl;
+//                    //              matches.mmCorrespondences[sensor_id1][sensor_id2] = mrpt::math::CMatrixDouble(0, 10);
 
-                    for(unsigned i=0; i < frame360.local_planes_[sensor_id1].vPlanes.size(); i++)
-                    {
-                        unsigned planesIdx_i = planesSourceIdx[sensor_id1];
-                        for(unsigned j=0; j < frame360.local_planes_[sensor_id2].vPlanes.size(); j++)
-                        {
-                            unsigned planesIdx_j = planesSourceIdx[sensor_id2];
+//                    for(unsigned i=0; i < frame360.local_planes_[sensor_id1].vPlanes.size(); i++)
+//                    {
+//                        unsigned planesIdx_i = planesSourceIdx[sensor_id1];
+//                        for(unsigned j=0; j < frame360.local_planes_[sensor_id2].vPlanes.size(); j++)
+//                        {
+//                            unsigned planesIdx_j = planesSourceIdx[sensor_id2];
 
-                            //                if(sensor_id1 == 0 && sensor_id2 == 2 && i == 0 && j == 0)
-                            //                {
-                            //                  cout << "Inliers " << planes.vPlanes[planesIdx_i+i].inliers.size() << " and " << planes.vPlanes[planesIdx_j+j].inliers.size() << endl;
-                            //                  cout << "elongation " << planes.vPlanes[planesIdx_i+i].elongation << " and " << planes.vPlanes[planesIdx_j+j].elongation << endl;
-                            //                  cout << "normal " << planes.vPlanes[planesIdx_i+i].v3normal.transpose() << " and " << planes.vPlanes[planesIdx_j+j].v3normal.transpose() << endl;
-                            //                  cout << "d " << planes.vPlanes[planesIdx_i+i].d << " and " << planes.vPlanes[planesIdx_j+j].d << endl;
-                            //                  cout << "color " << planes.vPlanes[planesIdx_i+i].hasSimilarDominantColor(planes.vPlanes[planesIdx_j+j],0.06) << endl;
-                            //                  cout << "nearby " << planes.vPlanes[planesIdx_i+i].isPlaneNearby(planes.vPlanes[planesIdx_j+j], 0.5) << endl;
-                            //                }
+//                            //                if(sensor_id1 == 0 && sensor_id2 == 2 && i == 0 && j == 0)
+//                            //                {
+//                            //                  cout << "Inliers " << planes.vPlanes[planesIdx_i+i].inliers.size() << " and " << planes.vPlanes[planesIdx_j+j].inliers.size() << endl;
+//                            //                  cout << "elongation " << planes.vPlanes[planesIdx_i+i].elongation << " and " << planes.vPlanes[planesIdx_j+j].elongation << endl;
+//                            //                  cout << "normal " << planes.vPlanes[planesIdx_i+i].v3normal.transpose() << " and " << planes.vPlanes[planesIdx_j+j].v3normal.transpose() << endl;
+//                            //                  cout << "d " << planes.vPlanes[planesIdx_i+i].d << " and " << planes.vPlanes[planesIdx_j+j].d << endl;
+//                            //                  cout << "color " << planes.vPlanes[planesIdx_i+i].hasSimilarDominantColor(planes.vPlanes[planesIdx_j+j],0.06) << endl;
+//                            //                  cout << "nearby " << planes.vPlanes[planesIdx_i+i].isPlaneNearby(planes.vPlanes[planesIdx_j+j], 0.5) << endl;
+//                            //                }
 
-                            cout << "  Check planes " << planesIdx_i+i << " and " << planesIdx_j+j << endl;
+//                            //cout << "  Check planes " << planesIdx_i+i << " and " << planesIdx_j+j << endl;
+//                            //cout << " information " << planes.vPlanes[planesIdx_i+i].information << endl;
 
-                            if( planes.vPlanes[planesIdx_i+i].inliers.size() > 1000 && planes.vPlanes[planesIdx_j+j].inliers.size() > 1000 &&
-                                    planes.vPlanes[planesIdx_i+i].elongation < 5 && planes.vPlanes[planesIdx_j+j].elongation < 5 &&
-                                    planes.vPlanes[planesIdx_i+i].v3normal .dot (planes.vPlanes[planesIdx_j+j].v3normal) > 0.99 &&
-                                    fabs(planes.vPlanes[planesIdx_i+i].d - planes.vPlanes[planesIdx_j+j].d) < 0.2 )//&&
-                                //                    planes.vPlanes[planesIdx_i+i].hasSimilarDominantColor(planes.vPlanes[planesIdx_j+j],0.06) &&
-                                //                    planes.vPlanes[planesIdx_i+i].isPlaneNearby(planes.vPlanes[planesIdx_j+j], 0.5) )
-                                //                      matches.inliersUpperFringe(planes.vPlanes[planesIdx_i+i], 0.2) > 0.2 &&
-                                //                      matches.inliersLowerFringe(planes.vPlanes[planesIdx_j+j], 0.2) > 0.2 ) // Assign correspondence
-                            {
+//                            if( planes.vPlanes[planesIdx_i+i].inliers.size() > 1000 && planes.vPlanes[planesIdx_j+j].inliers.size() > 1000 &&
+//                                    planes.vPlanes[planesIdx_i+i].elongation < 5 && planes.vPlanes[planesIdx_j+j].elongation < 5 &&
+//                                    planes.vPlanes[planesIdx_i+i].v3normal .dot (planes.vPlanes[planesIdx_j+j].v3normal) > 0.99 &&
+//                                    fabs(planes.vPlanes[planesIdx_i+i].d - planes.vPlanes[planesIdx_j+j].d) < 0.2 )//&&
+//                                //                    planes.vPlanes[planesIdx_i+i].hasSimilarDominantColor(planes.vPlanes[planesIdx_j+j],0.06) &&
+//                                //                    planes.vPlanes[planesIdx_i+i].isPlaneNearby(planes.vPlanes[planesIdx_j+j], 0.5) )
+//                                //                      matches.inliersUpperFringe(planes.vPlanes[planesIdx_i+i], 0.2) > 0.2 &&
+//                                //                      matches.inliersLowerFringe(planes.vPlanes[planesIdx_j+j], 0.2) > 0.2 ) // Assign correspondence
+//                            {
 
-                                unsigned prevSize = matches.mmCorrespondences[sensor_id1][sensor_id2].getRowCount();
-                                matches.mmCorrespondences[sensor_id1][sensor_id2].setSize(prevSize+1, matches.mmCorrespondences[sensor_id1][sensor_id2].getColCount());
-                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 0) = frame360.local_planes_[sensor_id1].vPlanes[i].v3normal[0];
-                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 1) = frame360.local_planes_[sensor_id1].vPlanes[i].v3normal[1];
-                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 2) = frame360.local_planes_[sensor_id1].vPlanes[i].v3normal[2];
-                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 3) = frame360.local_planes_[sensor_id1].vPlanes[i].d;
-                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 4) = frame360.local_planes_[sensor_id2].vPlanes[j].v3normal[0];
-                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 5) = frame360.local_planes_[sensor_id2].vPlanes[j].v3normal[1];
-                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 6) = frame360.local_planes_[sensor_id2].vPlanes[j].v3normal[2];
-                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 7) = frame360.local_planes_[sensor_id2].vPlanes[j].d;
-                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 8) = std::min(frame360.local_planes_[sensor_id1].vPlanes[i].inliers.size(), frame360.local_planes_[sensor_id2].vPlanes[j].inliers.size());
+//                                unsigned prevSize = matches.mmCorrespondences[sensor_id1][sensor_id2].getRowCount();
+//                                matches.mmCorrespondences[sensor_id1][sensor_id2].setSize(prevSize+1, matches.mmCorrespondences[sensor_id1][sensor_id2].getColCount());
+//                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 0) = frame360.local_planes_[sensor_id1].vPlanes[i].v3normal[0];
+//                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 1) = frame360.local_planes_[sensor_id1].vPlanes[i].v3normal[1];
+//                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 2) = frame360.local_planes_[sensor_id1].vPlanes[i].v3normal[2];
+//                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 3) = frame360.local_planes_[sensor_id1].vPlanes[i].d;
+//                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 4) = frame360.local_planes_[sensor_id2].vPlanes[j].v3normal[0];
+//                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 5) = frame360.local_planes_[sensor_id2].vPlanes[j].v3normal[1];
+//                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 6) = frame360.local_planes_[sensor_id2].vPlanes[j].v3normal[2];
+//                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 7) = frame360.local_planes_[sensor_id2].vPlanes[j].d;
+//                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 8) = std::min(frame360.local_planes_[sensor_id1].vPlanes[i].inliers.size(), frame360.local_planes_[sensor_id2].vPlanes[j].inliers.size());
 
-                                float dist_center1 = 0, dist_center2 = 0;
-                                for(unsigned k=0; k < frame360.local_planes_[sensor_id1].vPlanes[i].inliers.size(); k++)
-                                    dist_center1 += frame360.local_planes_[sensor_id1].vPlanes[i].inliers[k] / frame360.frameRGBD_[sensor_id1].getPointCloud()->width + frame360.local_planes_[sensor_id1].vPlanes[i].inliers[k] % frame360.frameRGBD_[sensor_id1].getPointCloud()->width;
-                                //                      dist_center1 += (frame360.local_planes_[sensor_id1].vPlanes[i].inliers[k] / frame360.sphereCloud->width)*(frame360.local_planes_[sensor_id1].vPlanes[i].inliers[k] / frame360.sphereCloud->width) + (frame360.local_planes_[sensor_id1].vPlanes[i].inliers[k] % frame360.sphereCloud->width)+(frame360.local_planes_[sensor_id1].vPlanes[i].inliers[k] % frame360.sphereCloud->width);
-                                dist_center1 /= frame360.local_planes_[sensor_id1].vPlanes[i].inliers.size();
+//                                // dist_center1 center is a wrong heuristic. TODO: implement full covariance method
+//                                float dist_center1 = 0, dist_center2 = 0;
+//                                for(unsigned k=0; k < frame360.local_planes_[sensor_id1].vPlanes[i].inliers.size(); k++)
+//                                    dist_center1 += frame360.local_planes_[sensor_id1].vPlanes[i].inliers[k] / frame360.frameRGBD_[sensor_id1].getPointCloud()->width + frame360.local_planes_[sensor_id1].vPlanes[i].inliers[k] % frame360.frameRGBD_[sensor_id1].getPointCloud()->width;
+//                                //                      dist_center1 += (frame360.local_planes_[sensor_id1].vPlanes[i].inliers[k] / frame360.sphereCloud->width)*(frame360.local_planes_[sensor_id1].vPlanes[i].inliers[k] / frame360.sphereCloud->width) + (frame360.local_planes_[sensor_id1].vPlanes[i].inliers[k] % frame360.sphereCloud->width)+(frame360.local_planes_[sensor_id1].vPlanes[i].inliers[k] % frame360.sphereCloud->width);
+//                                dist_center1 /= frame360.local_planes_[sensor_id1].vPlanes[i].inliers.size();
 
-                                for(unsigned k=0; k < frame360.local_planes_[sensor_id2].vPlanes[j].inliers.size(); k++)
-                                    dist_center2 += frame360.local_planes_[sensor_id2].vPlanes[j].inliers[k] / frame360.frameRGBD_[sensor_id2].getPointCloud()->width + frame360.local_planes_[sensor_id2].vPlanes[j].inliers[k] % frame360.frameRGBD_[sensor_id2].getPointCloud()->width;
-                                //                      dist_center2 += (frame360.local_planes_[sensor_id2].vPlanes[j].inliers[k] / frame360.sphereCloud->width)*(frame360.local_planes_[sensor_id2].vPlanes[j].inliers[k] / frame360.sphereCloud->width) + (frame360.local_planes_[sensor_id2].vPlanes[j].inliers[k] % frame360.sphereCloud->width)+(frame360.local_planes_[sensor_id2].vPlanes[j].inliers[k] % frame360.sphereCloud->width);
-                                dist_center2 /= frame360.local_planes_[sensor_id2].vPlanes[j].inliers.size();
+//                                for(unsigned k=0; k < frame360.local_planes_[sensor_id2].vPlanes[j].inliers.size(); k++)
+//                                    dist_center2 += frame360.local_planes_[sensor_id2].vPlanes[j].inliers[k] / frame360.frameRGBD_[sensor_id2].getPointCloud()->width + frame360.local_planes_[sensor_id2].vPlanes[j].inliers[k] % frame360.frameRGBD_[sensor_id2].getPointCloud()->width;
+//                                //                      dist_center2 += (frame360.local_planes_[sensor_id2].vPlanes[j].inliers[k] / frame360.sphereCloud->width)*(frame360.local_planes_[sensor_id2].vPlanes[j].inliers[k] / frame360.sphereCloud->width) + (frame360.local_planes_[sensor_id2].vPlanes[j].inliers[k] % frame360.sphereCloud->width)+(frame360.local_planes_[sensor_id2].vPlanes[j].inliers[k] % frame360.sphereCloud->width);
+//                                dist_center2 /= frame360.local_planes_[sensor_id2].vPlanes[j].inliers.size();
 
-                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 9) = std::max(dist_center1, dist_center2);
-                                cout << sensor_id1 << " vs. " << sensor_id2 << "\t Size " << matches.mmCorrespondences[sensor_id1][sensor_id2].getRowCount() << " x " << matches.mmCorrespondences[sensor_id1][sensor_id2].getColCount() << endl;
+//                                matches.mmCorrespondences[sensor_id1][sensor_id2](prevSize, 9) = std::max(dist_center1, dist_center2);
+//                                cout << sensor_id1 << " vs. " << sensor_id2 << "\t Size " << matches.mmCorrespondences[sensor_id1][sensor_id2].getRowCount() << " x " << matches.mmCorrespondences[sensor_id1][sensor_id2].getColCount() << endl;
 
-                                if( sensor_id2 - sensor_id1 == 1 ) // Calculate conditioning
-                                {
-                                    //                      updateConditioning(couple_id, correspondences[couple_id].back());
-                                    matches.covariances[sensor_id1] += planes.vPlanes[planesIdx_i+i].v3normal * planes.vPlanes[planesIdx_j+j].v3normal.transpose();
-                                    matches.calcAdjacentConditioning(sensor_id1);
-                                    cout << "Update " << sensor_id1 << ": " << matches.conditioning[sensor_id1] << endl;
+//                                if( sensor_id2 - sensor_id1 == 1 ) // Calculate conditioning
+//                                {
+//                                    //                      updateConditioning(couple_id, correspondences[couple_id].back());
+//                                    matches.covariances[sensor_id1] += frame360.local_planes_[sensor_id1].vPlanes[i].v3normal * frame360.local_planes_[sensor_id2].vPlanes[j].v3normal.transpose();
+//                                    //matches.covariances[sensor_id1] += planes.vPlanes[planesIdx_i+i].v3normal * planes.vPlanes[planesIdx_j+j].v3normal.transpose();
+//                                    matches.calcAdjacentConditioning(sensor_id1);
+//                                    cout << "Update " << sensor_id1 << ": " << matches.conditioning[sensor_id1] << endl;
 
-                                    //                    // For visualization
-                                    //                    plane_corresp[couple_id].push_back(pair<mrpt::pbmap::Plane*, mrpt::pbmap::Plane*>(&planes.vPlanes[planesIdx_i+i], &planes.vPlanes[planes_counter_j+j]));
-                                }
-                                else if(sensor_id2 - sensor_id1 == 3)
-                                {
-                                    //                      updateConditioning(couple_id, correspondences[couple_id].back());
-                                    matches.covariances[sensor_id2] += planes.vPlanes[planesIdx_i+i].v3normal * planes.vPlanes[planesIdx_j+j].v3normal.transpose();
-                                    matches.calcAdjacentConditioning(sensor_id2);
-                                    cout << "Update " << sensor_id2 << ": " << matches.conditioning[sensor_id2] << endl;
-                                }
+//                                    //                    // For visualization
+//                                    //                    plane_corresp[couple_id].push_back(pair<mrpt::pbmap::Plane*, mrpt::pbmap::Plane*>(&planes.vPlanes[planesIdx_i+i], &planes.vPlanes[planes_counter_j+j]));
+//                                }
+//                                else if(sensor_id2 - sensor_id1 == 3)
+//                                {
+//                                    //                      updateConditioning(couple_id, correspondences[couple_id].back());
+//                                    matches.covariances[sensor_id2] += frame360.local_planes_[sensor_id1].vPlanes[i].v3normal * frame360.local_planes_[sensor_id2].vPlanes[j].v3normal.transpose();
+//                                    //matches.covariances[sensor_id2] += planes.vPlanes[planesIdx_i+i].v3normal * planes.vPlanes[planesIdx_j+j].v3normal.transpose();
+//                                    matches.calcAdjacentConditioning(sensor_id2);
+//                                    cout << "Update " << sensor_id2 << ": " << matches.conditioning[sensor_id2] << endl;
+//                                }
 
-                                //mrpt::system::pause();
+//                                //mrpt::system::pause();
 
-//                                Calib360_Visualizer calibViewer(&frame360, planesIdx_i+i, planesIdx_j+j);
-//                                while (!calibViewer.viewer.wasStopped() )
-//                                    boost::this_thread::sleep (boost::posix_time::milliseconds (1));
-                            }
-                        }
-                    }
-                }
-            }
+////                                Calib360_Visualizer calibViewer(&frame360, planesIdx_i+i, planesIdx_j+j);
+////                                while (!calibViewer.viewer.wasStopped() )
+////                                    boost::this_thread::sleep (boost::posix_time::milliseconds (1));
+//                            }
+//                        }
+//                    }
+//                }
+//            }
         }
     }
 
   // Calibrate the omnidirectional RGBD multisensor
-    Calibrator calibrator;
     for(size_t sensor_id=0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
         calibrator.Rt_specs[sensor_id] = calib.getRt_id( sensor_id );
-
   //calibrator.loadConstructionSpecs(); // Get the inital extrinsic matrices for the different sensors
-    // Get the plane correspondences
-    //calibrator.matchedPlanes.loadPlaneCorrespondences(filename);
-    //  calibrator.matchedPlanes.loadPlaneCorrespondences(mrpt::format("%s/Calibration/ControlPlanes", PROJECT_SOURCE_PATH));
-    calibrator.matchedPlanes = matches;
+
+    // Save the plane correspondences
+    calibrator.matchedPlanes.savePlaneCorrespondences(mrpt::format("%s/Calibration/ControlPlanes/180", PROJECT_SOURCE_PATH));
+
 //      calibrator.Calibrate();
   calibrator.CalibrateRotation(0);
 //  calibrator.CalibrateTranslation(0);

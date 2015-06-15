@@ -103,4 +103,19 @@ IF(BUILD_VISUALIZATION)
 					${Boost_SERIALIZATION_LIBRARY}
 	)
 
+        # Declare the target (an executable)
+        ADD_EXECUTABLE(LoadRawlog180 LoadRawlog180.cpp
+                                        ../include/Calib360.h
+                                        ../include/Frame360.h
+                                        ../src/Frame360.cpp
+                                        ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
+                                        ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
+        )
+        TARGET_LINK_LIBRARIES(LoadRawlog180
+                                        ${MRPT_LIBS}
+                                        ${OpenCV_LIBS}
+                                        ${PCL_LIBRARIES}
+                                        ${Boost_SERIALIZATION_LIBRARY}
+        )
+
 ENDIF(BUILD_VISUALIZATION)

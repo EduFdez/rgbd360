@@ -16,7 +16,15 @@ IF(BUILD_CALIBRATION)
 					${OpenCV_LIBS}
 					${PCL_LIBRARIES}
 					${Boost_SERIALIZATION_LIBRARY}
-					   )
+                              )
+
+        # Declare the target (an executable)
+        ADD_EXECUTABLE(test_sysRef   test_sysRef.cpp	)
+        TARGET_LINK_LIBRARIES(test_sysRef ${MRPT_LIBS}
+                                        ${OpenCV_LIBS}
+                                        ${PCL_LIBRARIES}
+                                        ${Boost_SERIALIZATION_LIBRARY}
+                              )
 
         # Declare the target (an executable)
         ADD_EXECUTABLE(RawlogCalibrator RawlogCalibrator.cpp
@@ -45,6 +53,7 @@ IF(BUILD_CALIBRATION)
 						../include/Calib360.h
 						../include/Calibrator.h
 						../include/Frame360.h
+                                                ../src/Frame360.cpp
         )
 
 	TARGET_LINK_LIBRARIES(OnlineCalibration
@@ -65,6 +74,7 @@ IF(BUILD_CALIBRATION)
 							../include/Calib360.h
 							../include/Calibrator.h
 							../include/Frame360.h
+                                                        ../src/Frame360.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(EvalCalibration
@@ -82,6 +92,7 @@ IF(BUILD_CALIBRATION)
 							../include/Calib360.h
 							../include/Calibrator.h
 							../include/Frame360.h
+                                                        ../src/Frame360.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(VisualizeCalibration
@@ -99,6 +110,7 @@ IF(BUILD_CALIBRATION)
 							../include/Calib360.h
 							../include/Calibrator.h
 							../include/Frame360.h
+                                                        ../src/Frame360.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(GetControlPlanes
@@ -116,6 +128,7 @@ IF(BUILD_CALIBRATION)
 							../include/Calib360.h
 							../include/Calibrator.h
 							../include/Frame360.h
+                                                        ../src/Frame360.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(PairCalibrator
@@ -133,6 +146,7 @@ IF(BUILD_CALIBRATION)
 							../include/Calib360.h
 							../include/Calibrator.h
 							../include/Frame360.h
+                                                        ../src/Frame360.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(EvalPairCalibration
@@ -151,6 +165,7 @@ IF(BUILD_CALIBRATION)
 						../include/Calib360.h
 						../include/Calibrator.h
 						../include/Frame360.h
+                                                ../src/Frame360.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(OnlinePairCalibrator
@@ -171,6 +186,7 @@ IF(BUILD_CALIBRATION)
 							../include/Calib360.h
 							../include/Calibrator.h
 							../include/Frame360.h
+                                                        ../src/Frame360.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(ToFCalibrator
@@ -188,6 +204,7 @@ IF(BUILD_CALIBRATION)
 							../include/Calib360.h
 							../include/Calibrator.h
 							../include/Frame360.h
+                                                        ../src/Frame360.cpp
 	)
 
 	TARGET_LINK_LIBRARIES(LaserCalibrator
