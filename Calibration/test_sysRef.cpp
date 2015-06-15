@@ -54,7 +54,7 @@ int main (int argc, char ** argv)
     pose[1] = mrpt::poses::CPose3D(0.271, -0.031, 1.015, DEG2RAD(-45), DEG2RAD(0), DEG2RAD(-90));
     pose[2] = mrpt::poses::CPose3D(0.271, 0.031, 1.125, DEG2RAD(45), DEG2RAD(2), DEG2RAD(-89));
     pose[3] = mrpt::poses::CPose3D(0.24, -0.045, 0.975, DEG2RAD(-90), DEG2RAD(1.5), DEG2RAD(-90));
-    int rgbd180_arrangement[4] = {1,8,2,7};
+//    int rgbd180_arrangement[4] = {1,8,2,7};
 
     Eigen::Matrix4f Rt_[4];
     Eigen::Matrix4f Rt_raul[4];
@@ -63,9 +63,15 @@ int main (int argc, char ** argv)
     Eigen::Matrix4f Rt_raul_new[4];
 
     Eigen::Matrix4f change_ref = Eigen::Matrix4f::Zero();
-    change_ref(0,1) = 1.f;
-    change_ref(1,2) = 1.f;
+//    change_ref(0,1) = 1.f;
+//    change_ref(1,2) = 1.f;
+//    change_ref(2,0) = 1.f;
+//    change_ref(3,3) = 1.f;
+
+    change_ref(1,1) = -1.f;
+    change_ref(0,2) = 1.f;
     change_ref(2,0) = 1.f;
+    change_ref(3,3) = 1.f;
 
     for(size_t sensor_id=0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
     {
@@ -75,13 +81,20 @@ int main (int argc, char ** argv)
         if(sensor_id > 0)
         {
             rel_edu[sensor_id] = Rt_[0].inverse() * Rt_[sensor_id];
-            rel_raul[sensor_id] = change_ref * rel_edu[sensor_id] * change_ref;
+//            rel_edu[sensor_id] = Rt_[sensor_id] * Rt_[0].inverse();
+//            rel_edu[sensor_id] = Rt_[sensor_id].inverse() * Rt_[0];
+            rel_raul[sensor_id] = change_ref.transpose() * rel_edu[sensor_id] * change_ref;
+//            rel_raul[sensor_id] = change_ref * rel_edu[sensor_id] * change_ref.transpose();
 
-            Rt_raul_new[sensor_id] = Rt_raul[0] * rel_raul[sensor_id];
+//            rel_raul[sensor_id] = rel_raul[sensor_id].inverse();
 
-            cout << " rel edu \n" << rel_edu[sensor_id] << endl;
-            cout << " rel edu change \n" << change_ref.transpose() * rel_edu[sensor_id] * change_ref << endl;
-            cout << " rel raul \n" << Rt_raul[0].inverse() * Rt_raul[sensor_id] << endl;
+//            Rt_raul_new[sensor_id] = Rt_raul[0] * rel_raul[sensor_id];
+            Rt_raul_new[sensor_id] = rel_raul[sensor_id] * Rt_raul[0];
+
+            //cout << " rel edu \n" << rel_edu[sensor_id] << endl;
+            cout << " rel edu change \n" << rel_raul[sensor_id] << endl;
+//            cout << " rel edu change inv \n" << rel_raul[sensor_id].inverse() << endl;
+            cout << " rel raul \n" << Rt_raul[sensor_id] * Rt_raul[0].inverse() << endl;
             cout << " raul \n" << Rt_raul[sensor_id] << endl;
             cout << " new \n" << Rt_raul_new[sensor_id] << endl;
             mrpt::system::pause();
