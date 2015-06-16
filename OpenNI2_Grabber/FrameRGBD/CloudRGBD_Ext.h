@@ -34,7 +34,7 @@
 
 #include "CloudRGBD.h"
 #include <opencv2/core/eigen.hpp>
-#include <SerializeFrameRGBD.h>
+#include "SerializeFrameRGBD.h"
 
 //#include <mrpt/base.h>
 //#include <mrpt/pbmap.h>

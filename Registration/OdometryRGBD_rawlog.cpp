@@ -55,6 +55,9 @@
 #include <opencv2/opencv.hpp>
 //#include <opencv2/core/eigen.hpp>
 
+#include <CloudRGBD_Ext.h>
+//#include <Frame360.h>
+
 #define SAVE_TRAJECTORY 0
 #define SAVE_IMAGES 0
 #define VISUALIZE_POINT_CLOUD 1
@@ -158,6 +161,8 @@ public:
         ////        filter.filterEuclidean(frame_src_fused->getSphereCloud());
         //        filter.filterVoxel(frame_src_fused->getSphereCloud(), cloud_dense_src);
 
+        pcl::visualization::CloudViewer cloud_viewer("PoinCloud");
+
 //        while ( mrpt::obs::CRawlog::getActionObservationPairOrObservation(
 //                    dataset,      // Input file
 //                    action,            // Possible out var: action of a pair action/obs
@@ -185,6 +190,24 @@ public:
 
             obsRGBD = mrpt::obs::CObservation3DRangeScanPtr(observation);
             obsRGBD->load();
+
+            CloudRGBD_Ext cloud;
+            cloud.setRGBImage( cv::Mat(obsRGBD->intensityImage.getAs<IplImage>()) );
+            cv::Mat depth_mat;
+            convertRange_mrpt2cvMat(obsRGBD->rangeImage, depth_mat);
+            cloud.setDepthImage(depth_mat);
+            cloud.getPointCloud();
+
+            cloud_viewer.showCloud (cloud.getPointCloud());
+            while (!cloud_viewer.wasStopped ())
+                boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+
+//            cv::imshow( "img_", cloud.getRGBImage( ) );
+//            cv::imshow( "depth_", cloud.getDepthImage( ) );
+//            while (cv::waitKey(1)!='\n')
+//                boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+
+            continue;
 
 //            // Process action & observations
 //            if (observation)

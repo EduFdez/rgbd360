@@ -29,24 +29,34 @@
  * Author: Eduardo Fernandez-Moral
  */
 
-#include <definitions.h>
+#define NUM_ASUS_SENSORS 4
 
 #include <mrpt/poses/CPose3D.h>
 #include <mrpt/utils.h>
 #include <mrpt/system/os.h>
 #include <iostream>
 
-#include <Miscellaneous.h>
-
 using namespace std;
 using namespace mrpt::utils;
 
+/*! Return the rotation vector of the input pose */
+inline Eigen::Matrix4f getPoseEigenMatrix(const mrpt::poses::CPose3D & pose)
+{
+  Eigen::Matrix4f pose_mat;
+  mrpt::math::CMatrixDouble44 pose_mat_mrpt;
+  pose.getHomogeneousMatrix(pose_mat_mrpt);
+  pose_mat << pose_mat_mrpt(0,0), pose_mat_mrpt(0,1), pose_mat_mrpt(0,2), pose_mat_mrpt(0,3),
+              pose_mat_mrpt(1,0), pose_mat_mrpt(1,1), pose_mat_mrpt(1,2), pose_mat_mrpt(1,3),
+              pose_mat_mrpt(2,0), pose_mat_mrpt(2,1), pose_mat_mrpt(2,2), pose_mat_mrpt(2,3),
+              pose_mat_mrpt(3,0), pose_mat_mrpt(3,1), pose_mat_mrpt(3,2), pose_mat_mrpt(3,3) ;
+  return  pose_mat;
+}
 int main (int argc, char ** argv)
 {
 
     cout << "Change the reference system of the calibrattion of RGBD360 multisensor\n";
     float angle_offset = 22.5; //45
-    Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(1,1) = rot_offset(2,2) = cos(angle_offset*PI/180); rot_offset(1,2) = -sin(angle_offset*PI/180); rot_offset(2,1) = -rot_offset(1,2);
+    Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(1,1) = rot_offset(2,2) = cos(DEG2RAD(angle_offset)); rot_offset(1,2) = -sin(DEG2RAD(angle_offset)); rot_offset(2,1) = -rot_offset(1,2);
     // Load initial calibration
     cout << "Load initial calibration\n";
     mrpt::poses::CPose3D pose[NUM_ASUS_SENSORS];
@@ -58,8 +68,8 @@ int main (int argc, char ** argv)
 
     Eigen::Matrix4f Rt_[4];
     Eigen::Matrix4f Rt_raul[4];
-    Eigen::Matrix4f rel_edu[4];
-    Eigen::Matrix4f rel_raul[4];
+    Eigen::Matrix4f relative_edu[4];
+    Eigen::Matrix4f relative_raul[4];
     Eigen::Matrix4f Rt_raul_new[4];
 
     Eigen::Matrix4f change_ref = Eigen::Matrix4f::Zero();
@@ -68,39 +78,33 @@ int main (int argc, char ** argv)
 //    change_ref(2,0) = 1.f;
 //    change_ref(3,3) = 1.f;
 
-    change_ref(1,1) = -1.f;
     change_ref(0,2) = 1.f;
+    change_ref(1,1) = -1.f;
     change_ref(2,0) = 1.f;
     change_ref(3,3) = 1.f;
 
     for(size_t sensor_id=0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
     {
-        Rt_[sensor_id].loadFromTextFile( mrpt::format("/home/efernand/Libraries/rgbd360/Calibration/test/Rt_0%i.txt",sensor_id+1) );
+        Rt_[sensor_id].loadFromTextFile( mrpt::format("Rt_0%i.txt",sensor_id+1) );
         Rt_raul[sensor_id] = getPoseEigenMatrix( pose[sensor_id] ); //.inverse();
+        //cout << " Rt_raul \n" << pose[sensor_id].getHomogeneousMatrixVal() << endl << Rt_raul[sensor_id] << endl;
 
         if(sensor_id > 0)
         {
-            rel_edu[sensor_id] = Rt_[0].inverse() * Rt_[sensor_id];
-//            rel_edu[sensor_id] = Rt_[sensor_id] * Rt_[0].inverse();
-//            rel_edu[sensor_id] = Rt_[sensor_id].inverse() * Rt_[0];
-            rel_raul[sensor_id] = change_ref.transpose() * rel_edu[sensor_id] * change_ref;
-//            rel_raul[sensor_id] = change_ref * rel_edu[sensor_id] * change_ref.transpose();
+            relative_edu[sensor_id] = Rt_[0].inverse() * Rt_[sensor_id];
+            relative_raul[sensor_id] = change_ref.transpose() * relative_edu[sensor_id] * change_ref;
 
-//            rel_raul[sensor_id] = rel_raul[sensor_id].inverse();
+            Rt_raul_new[sensor_id] = Rt_raul[0] * relative_raul[sensor_id];
 
-//            Rt_raul_new[sensor_id] = Rt_raul[0] * rel_raul[sensor_id];
-            Rt_raul_new[sensor_id] = rel_raul[sensor_id] * Rt_raul[0];
-
-            //cout << " rel edu \n" << rel_edu[sensor_id] << endl;
-            cout << " rel edu change \n" << rel_raul[sensor_id] << endl;
-//            cout << " rel edu change inv \n" << rel_raul[sensor_id].inverse() << endl;
-            cout << " rel raul \n" << Rt_raul[sensor_id] * Rt_raul[0].inverse() << endl;
+            cout << " rel edu \n" << relative_edu[sensor_id] << endl;
+            cout << " rel edu to raul \n" << relative_raul[sensor_id] << endl;
+            cout << " rel raul \n" << Rt_raul[0].inverse() * Rt_raul[sensor_id] << endl;
             cout << " raul \n" << Rt_raul[sensor_id] << endl;
             cout << " new \n" << Rt_raul_new[sensor_id] << endl;
             mrpt::system::pause();
 
             ofstream calibFile;
-              string calibFileName = mrpt::format("%s/Calibration/test/ref_Rt_0%u.txt", PROJECT_SOURCE_PATH, sensor_id);
+              string calibFileName = mrpt::format("ref_Rt_0%u.txt", sensor_id);
               calibFile.open(calibFileName.c_str());
               if (calibFile.is_open())
               {
@@ -112,27 +116,6 @@ int main (int argc, char ** argv)
         }
     }
     Rt_raul_new[0] = Rt_raul[0];
-
-//  // Ask the user if he wants to save the calibration matrices
-//  string input;
-//  cout << "Do you want to save the calibrated extrinsic matrices? (y/n)" << endl;
-//  getline(cin, input);
-//  if(input == "y" || input == "Y")
-  {
-    ofstream calibFile;
-    for(unsigned sensor_id=0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
-    {
-      string calibFileName = mrpt::format("%s/Calibration/test/ref_Rt_0%u.txt", PROJECT_SOURCE_PATH, sensor_id+1);
-      calibFile.open(calibFileName.c_str());
-      if (calibFile.is_open())
-      {
-        calibFile << Rt_raul_new[sensor_id];
-        calibFile.close();
-      }
-      else
-        cout << "Unable to open file " << calibFileName << endl;
-    }
-  }
 
   cout << "EXIT\n";
 

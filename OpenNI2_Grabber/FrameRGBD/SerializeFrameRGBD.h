@@ -38,7 +38,7 @@
 //#include "opencv2/imgproc/imgproc.hpp"
 #include <boost/lexical_cast.hpp>
 
-//#include "../third_party/cvmat_serialization.h"
+#include "../third_party/cvSerialization/cvmat_serialization.h"
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <fstream>

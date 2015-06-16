@@ -82,13 +82,10 @@ IF(BUILD_REGISTRATION)
                                             ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
                                             ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
                                             ../include/Miscellaneous.h
-                                            #../include/Calib360.h
-                                            #../include/Frame360.h
-                                            #../src/Frame360.cpp
-                                            #../include/Map360_Visualizer.h
-                                            #../include/RegisterRGBD360.h
                                             ../include/RegisterDense.h
                                             ../src/RegisterDense.cpp
+                                            ../include/transformPts3D.h
+                                            ../src/transformPts3D.cpp
         )
 
         TARGET_LINK_LIBRARIES(OdometryRGBD_rawlog
