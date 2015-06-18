@@ -29,7 +29,7 @@
  * Author: Eduardo Fernandez-Moral
  */
 
-#include <Miscellaneous.h>
+#include "Miscellaneous.h"
 
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
@@ -233,6 +233,7 @@ public:
     /*! Set the number of pyramid levels.*/
     inline void setNumPyr(const int Npyr)
     {
+        assert(Npyr > 0);
         nPyrLevels = Npyr;
     };
 
@@ -773,96 +774,97 @@ public:
 
     void updateGrad(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels);
 
-    /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y' */
+    /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y'.
+     * WARNING: this function can only be used by this class since it is defined inline in the cpp file. */
 //    inline cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)
     //template <typename T>
-    inline float bilinearInterp(const cv::Mat & img, cv::Point2f pt)
-    {
-        assert( img.type() == CV_32FC1 && !img.empty() );
-        cv::Mat patch;
-        cv::getRectSubPix(img, cv::Size(1,1), pt, patch);
-        return patch.at<float>(0,0);
-    }
+    inline float bilinearInterp(const cv::Mat & img, cv::Point2f pt);
+//    {
+//        assert( img.type() == CV_32FC1 && !img.empty() );
+//        cv::Mat patch;
+//        cv::getRectSubPix(img, cv::Size(1,1), pt, patch);
+//        return patch.at<float>(0,0);
+//    }
 
     /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y'.
-     * It takes into account NaN pixels and (<= 0 && > max_depth_) values to rule them out of the interpolation
-     */
-    inline float bilinearInterp_depth(const cv::Mat& img, const cv::Point2f &pt)
-    {
-        assert( img.type() == CV_32FC1 && !img.empty() );
+     * It takes into account NaN pixels and (<= 0 && > max_depth_) values to rule them out of the interpolation.\
+     * WARNING: this function can only be used by this class since it is defined inline in the cpp file. */
+    inline float bilinearInterp_depth(const cv::Mat& img, const cv::Point2f &pt);
+//    {
+//        assert( img.type() == CV_32FC1 && !img.empty() );
 
-        float *_img = reinterpret_cast<float*>(img.data);
+//        float *_img = reinterpret_cast<float*>(img.data);
 
-        int x = (int)pt.x;
-        int y = (int)pt.y;
+//        int x = (int)pt.x;
+//        int y = (int)pt.y;
 
-        size_t x0_y0 = y * img.cols + x;
-        size_t x1_y0 = x0_y0 + 1;
-        size_t x0_y1 = x0_y0 + img.cols;
-        size_t x1_y1 = x0_y1 + 1;
+//        size_t x0_y0 = y * img.cols + x;
+//        size_t x1_y0 = x0_y0 + 1;
+//        size_t x0_y1 = x0_y0 + img.cols;
+//        size_t x1_y1 = x0_y1 + 1;
 
-        float a = pt.x - (float)x;
-        float b = 1.f - a;
-        float c = pt.y - (float)y;
-        float d = 1.f - c;
-
-        float pt_y0;
-        if( _img[x0_y0] < max_depth_ && _img[x1_y0] < max_depth_ && _img[x0_y0] >= 0 && _img[x1_y0] >= 0 )
-            pt_y0 = _img[x0_y0] * b + _img[x1_y0] * a;
-        else if (_img[x0_y0] < max_depth_ && _img[x0_y0] >= 0 )
-            pt_y0 = _img[x0_y0];
-        else //if(_img[x0_y0] < max_depth_)
-            pt_y0 = _img[x1_y0];
-        // The NaN/OutOfDepth case (_img[x0_y0] > max_depth_ && _img[x1_y0] > max_depth_) is automatically assumed
-
-        float pt_y1;
-        if( _img[x0_y1] < max_depth_ && _img[x1_y1] < max_depth_ && _img[x0_y1] >= 0 && _img[x1_y1] >= 0 )
-            pt_y1 = _img[x0_y1] * b + _img[x1_y1] * a;
-        else if (_img[x0_y1] < max_depth_ && _img[x0_y1] >= 0)
-            pt_y1 = _img[x0_y1];
-        else //if(_img[x0_y1] < max_depth_)
-            pt_y1 = _img[x1_y1];
-
-        float interpDepth;
-        if( pt_y0 < max_depth_ && _img[x1_y1] < max_depth_ )
-            interpDepth = pt_y0 * d + pt_y1 * c;
-        else if (_img[x0_y1] < max_depth_)
-            interpDepth = pt_y0;
-        else
-            interpDepth = pt_y1;
-
-//        int x0 = cv::borderInterpolate(x,   img.cols, cv::BORDER_REFLECT_101);
-//        int x1 = cv::borderInterpolate(x+1, img.cols, cv::BORDER_REFLECT_101);
-//        int y0 = cv::borderInterpolate(y,   img.rows, cv::BORDER_REFLECT_101);
-//        int y1 = cv::borderInterpolate(y+1, img.rows, cv::BORDER_REFLECT_101);
+//        float a = pt.x - (float)x;
+//        float b = 1.f - a;
+//        float c = pt.y - (float)y;
+//        float d = 1.f - c;
 
 //        float pt_y0;
-//        if( img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x1) < max_depth_ && img.at<float>(y0, x0) >= 0 && img.at<float>(y0, x1) >= 0 )
-//            pt_y0 = img.at<float>(y0, x0) * b + img.at<float>(y0, x1) * a;
-//        else if (img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x0) >= 0 )
-//            pt_y0 = img.at<float>(y0, x0);
-//        else //if(img.at<float>(y0, x0) < max_depth_)
-//            pt_y0 = img.at<float>(y0, x1);
-//        // The NaN/OutOfDepth case (img.at<float>(y0, x0) > max_depth_ && img.at<float>(y0, x1) > max_depth_) is automatically assumed
+//        if( _img[x0_y0] < max_depth_ && _img[x1_y0] < max_depth_ && _img[x0_y0] >= 0 && _img[x1_y0] >= 0 )
+//            pt_y0 = _img[x0_y0] * b + _img[x1_y0] * a;
+//        else if (_img[x0_y0] < max_depth_ && _img[x0_y0] >= 0 )
+//            pt_y0 = _img[x0_y0];
+//        else //if(_img[x0_y0] < max_depth_)
+//            pt_y0 = _img[x1_y0];
+//        // The NaN/OutOfDepth case (_img[x0_y0] > max_depth_ && _img[x1_y0] > max_depth_) is automatically assumed
 
 //        float pt_y1;
-//        if( img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x1) < max_depth_ && img.at<float>(y1, x0) >= 0 && img.at<float>(y1, x1) >= 0 )
-//            pt_y1 = img.at<float>(y1, x0) * b + img.at<float>(y1, x1) * a;
-//        else if (img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x0) >= 0)
-//            pt_y1 = img.at<float>(y1, x0);
-//        else //if(img.at<float>(y1, x0) < max_depth_)
-//            pt_y1 = img.at<float>(y1, x1);
+//        if( _img[x0_y1] < max_depth_ && _img[x1_y1] < max_depth_ && _img[x0_y1] >= 0 && _img[x1_y1] >= 0 )
+//            pt_y1 = _img[x0_y1] * b + _img[x1_y1] * a;
+//        else if (_img[x0_y1] < max_depth_ && _img[x0_y1] >= 0)
+//            pt_y1 = _img[x0_y1];
+//        else //if(_img[x0_y1] < max_depth_)
+//            pt_y1 = _img[x1_y1];
 
 //        float interpDepth;
-//        if( pt_y0 < max_depth_ && img.at<float>(y1, x1) < max_depth_ )
+//        if( pt_y0 < max_depth_ && _img[x1_y1] < max_depth_ )
 //            interpDepth = pt_y0 * d + pt_y1 * c;
-//        else if (img.at<float>(y1, x0) < max_depth_)
+//        else if (_img[x0_y1] < max_depth_)
 //            interpDepth = pt_y0;
 //        else
 //            interpDepth = pt_y1;
 
-        return interpDepth;
-    }
+////        int x0 = cv::borderInterpolate(x,   img.cols, cv::BORDER_REFLECT_101);
+////        int x1 = cv::borderInterpolate(x+1, img.cols, cv::BORDER_REFLECT_101);
+////        int y0 = cv::borderInterpolate(y,   img.rows, cv::BORDER_REFLECT_101);
+////        int y1 = cv::borderInterpolate(y+1, img.rows, cv::BORDER_REFLECT_101);
+
+////        float pt_y0;
+////        if( img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x1) < max_depth_ && img.at<float>(y0, x0) >= 0 && img.at<float>(y0, x1) >= 0 )
+////            pt_y0 = img.at<float>(y0, x0) * b + img.at<float>(y0, x1) * a;
+////        else if (img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x0) >= 0 )
+////            pt_y0 = img.at<float>(y0, x0);
+////        else //if(img.at<float>(y0, x0) < max_depth_)
+////            pt_y0 = img.at<float>(y0, x1);
+////        // The NaN/OutOfDepth case (img.at<float>(y0, x0) > max_depth_ && img.at<float>(y0, x1) > max_depth_) is automatically assumed
+
+////        float pt_y1;
+////        if( img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x1) < max_depth_ && img.at<float>(y1, x0) >= 0 && img.at<float>(y1, x1) >= 0 )
+////            pt_y1 = img.at<float>(y1, x0) * b + img.at<float>(y1, x1) * a;
+////        else if (img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x0) >= 0)
+////            pt_y1 = img.at<float>(y1, x0);
+////        else //if(img.at<float>(y1, x0) < max_depth_)
+////            pt_y1 = img.at<float>(y1, x1);
+
+////        float interpDepth;
+////        if( pt_y0 < max_depth_ && img.at<float>(y1, x1) < max_depth_ )
+////            interpDepth = pt_y0 * d + pt_y1 * c;
+////        else if (img.at<float>(y1, x0) < max_depth_)
+////            interpDepth = pt_y0;
+////        else
+////            interpDepth = pt_y1;
+
+//        return interpDepth;
+//    }
 
     /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
     inline void

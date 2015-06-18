@@ -219,4 +219,105 @@ class Frame360_Visualizer
 
 };
 
+/*! This class creates a visualizer to display a Frame360 object. The visualizer runs in a separate thread,
+ *  and can be sychronized using the visualizationMutex.
+ */
+class RGBD_Visualizer
+{
+ public:
+
+  /*! Visualizer object */
+  pcl::visualization::CloudViewer viewer;
+  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
+
+  /*! Constructor. It starts the visualization in a separate thread */
+  RGBD_Visualizer(const pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &cloud_) :
+    viewer("cloud"),
+    cloud(cloud_),
+    b_init_viewer_(true)
+  {
+    viewer.runOnVisualizationThread (boost::bind(&RGBD_Visualizer::viz_cb, this, _1), "viz_cb");
+    viewer.registerKeyboardCallback (&RGBD_Visualizer::keyboardEventOccurred, *this);
+
+    std::cout << "Initialize RGBD_Visualizer \n\n";
+    std::cout << "\n  Press 'q' to close the program\n";
+  }
+
+  /*! Mutex to syncrhronize eventual changes in frame360 */
+  boost::mutex visualizationMutex;
+
+  #if RECORD_VIDEO
+    /*! Index of visualizer screenshot. This is used to create videos with the results */
+    int numScreenshot;
+  #endif
+
+ private:
+    bool b_init_viewer_;
+
+  /*! Visualization callback */
+  void viz_cb(pcl::visualization::PCLVisualizer& viz)
+  {
+    if (cloud->empty())
+    {
+      boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+      return;
+    }
+
+    if (b_init_viewer_)
+    {
+      b_init_viewer_ = false;
+      viz.setCameraPosition (
+        0,0,-9,		// Position
+        0,0,1,		// Viewpoint
+        0,-1,0);	// Up
+
+      viz.setSize(800,600); // Set the window size
+      viz.setBackgroundColor (1.0, 1.0, 1.0);
+//      viz.setBackgroundColor (0.5, 0.5, 0.5);
+      viz.addCoordinateSystem (0.01, "global");
+    }
+
+//    if (!viz.updatePointCloud (cloud, "sphereCloud"))
+//      viz.addPointCloud (cloud, "sphereCloud");
+//      viz.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "sphereCloud");
+//      viz.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_COLOR, 1.0,0.0,0.0, "sphereCloud");
+
+    // Render the data
+//    if (b_update_vis_)
+    {
+      boost::mutex::scoped_lock updateLock(visualizationMutex);
+
+      viz.removeAllPointClouds();
+      viz.removeAllShapes();
+
+      if (!viz.updatePointCloud (cloud, "cloud"))
+        viz.addPointCloud (cloud, "cloud");
+
+      char name[1024];
+
+//      sprintf (name, "Frame %u", frameIdx);
+      sprintf (name, "Frame %lu", cloud->size () );
+      viz.addText (name, 20, 20, "info");
+    }
+
+    viz.spinOnce();
+    boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+
+    #if RECORD_VIDEO
+      std::string screenshotFile = mrpt::format("im_%04u.png", ++numScreenshot);
+      viz.saveScreenshot (screenshotFile);
+    #endif
+  }
+
+  /*! Get events from the keyboard */
+  void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event, void* viewer_void)
+  {
+    if ( event.keyDown() )
+    {
+      std::cout << "Key pressed " << event.getKeySym () << endl;
+    }
+  }
+
+};
+
 #endif

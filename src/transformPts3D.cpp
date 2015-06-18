@@ -59,7 +59,6 @@ using namespace std;
 /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
 void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts)
 {
-    //cout << " RegisterDense::transformPts3D " << input_pts.rows() << " pts \n";
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -69,13 +68,15 @@ void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & R
         size_t n_pts = input_pts.rows();
 
 #if !(_SSE3) // # ifdef __SSE3__
+        cout << " transformPts3D " << input_pts.rows() << " pts \n";
+
         Eigen::MatrixXf input_xyz_transp = Eigen::MatrixXf::Ones(4,n_pts);
         input_xyz_transp = input_pts.block(0,0,n_pts,3).transpose();
         Eigen::MatrixXf aux = Rt * input_xyz_transp;
         output_pts = aux.block(0,0,3,n_pts).transpose();
 
 #elif !(_AVX) // # ifdef __AVX__
-        cout << " RegisterDense::transformPts3D _SSE3 " << n_pts << " pts \n";
+        cout << " transformPts3D _SSE3 " << n_pts << " pts \n";
 
         // Eigen default ColMajor is assumed
         assert(input_pts.cols() == 3);
@@ -172,7 +173,7 @@ void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & R
         }
 
 #else // _AVX
-        cout << " RegisterDense::transformPts3D _AVX " << n_pts << " pts \n";
+        cout << " transformPts3D _AVX " << n_pts << " pts \n";
 
         // Eigen default ColMajor is assumed
         assert(input_pts.cols() == 3);

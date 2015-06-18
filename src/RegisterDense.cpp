@@ -84,6 +84,174 @@
 
 using namespace std;
 
+/*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y' */
+//    inline cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)
+//template <typename T>
+inline float RegisterDense::bilinearInterp(const cv::Mat & img, cv::Point2f pt)
+{
+    assert( img.type() == CV_32FC1 && !img.empty() );
+    cv::Mat patch;
+    cv::getRectSubPix(img, cv::Size(1,1), pt, patch);
+    return patch.at<float>(0,0);
+}
+
+/*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y'.
+ * It takes into account NaN pixels and (<= 0 && > max_depth_) values to rule them out of the interpolation
+ */
+inline float RegisterDense::bilinearInterp_depth(const cv::Mat& img, const cv::Point2f &pt)
+{
+    assert( img.type() == CV_32FC1 && !img.empty() );
+
+    float *_img = reinterpret_cast<float*>(img.data);
+
+    int x = (int)pt.x;
+    int y = (int)pt.y;
+
+    size_t x0_y0 = y * img.cols + x;
+    size_t x1_y0 = x0_y0 + 1;
+    size_t x0_y1 = x0_y0 + img.cols;
+    size_t x1_y1 = x0_y1 + 1;
+
+    float a = pt.x - (float)x;
+    float b = 1.f - a;
+    float c = pt.y - (float)y;
+    float d = 1.f - c;
+
+    float pt_y0;
+    if( _img[x0_y0] < max_depth_ && _img[x1_y0] < max_depth_ && _img[x0_y0] >= 0 && _img[x1_y0] >= 0 )
+        pt_y0 = _img[x0_y0] * b + _img[x1_y0] * a;
+    else if (_img[x0_y0] < max_depth_ && _img[x0_y0] >= 0 )
+        pt_y0 = _img[x0_y0];
+    else //if(_img[x0_y0] < max_depth_)
+        pt_y0 = _img[x1_y0];
+    // The NaN/OutOfDepth case (_img[x0_y0] > max_depth_ && _img[x1_y0] > max_depth_) is automatically assumed
+
+    float pt_y1;
+    if( _img[x0_y1] < max_depth_ && _img[x1_y1] < max_depth_ && _img[x0_y1] >= 0 && _img[x1_y1] >= 0 )
+        pt_y1 = _img[x0_y1] * b + _img[x1_y1] * a;
+    else if (_img[x0_y1] < max_depth_ && _img[x0_y1] >= 0)
+        pt_y1 = _img[x0_y1];
+    else //if(_img[x0_y1] < max_depth_)
+        pt_y1 = _img[x1_y1];
+
+    float interpDepth;
+    if( pt_y0 < max_depth_ && _img[x1_y1] < max_depth_ )
+        interpDepth = pt_y0 * d + pt_y1 * c;
+    else if (_img[x0_y1] < max_depth_)
+        interpDepth = pt_y0;
+    else
+        interpDepth = pt_y1;
+
+//        int x0 = cv::borderInterpolate(x,   img.cols, cv::BORDER_REFLECT_101);
+//        int x1 = cv::borderInterpolate(x+1, img.cols, cv::BORDER_REFLECT_101);
+//        int y0 = cv::borderInterpolate(y,   img.rows, cv::BORDER_REFLECT_101);
+//        int y1 = cv::borderInterpolate(y+1, img.rows, cv::BORDER_REFLECT_101);
+
+//        float pt_y0;
+//        if( img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x1) < max_depth_ && img.at<float>(y0, x0) >= 0 && img.at<float>(y0, x1) >= 0 )
+//            pt_y0 = img.at<float>(y0, x0) * b + img.at<float>(y0, x1) * a;
+//        else if (img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x0) >= 0 )
+//            pt_y0 = img.at<float>(y0, x0);
+//        else //if(img.at<float>(y0, x0) < max_depth_)
+//            pt_y0 = img.at<float>(y0, x1);
+//        // The NaN/OutOfDepth case (img.at<float>(y0, x0) > max_depth_ && img.at<float>(y0, x1) > max_depth_) is automatically assumed
+
+//        float pt_y1;
+//        if( img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x1) < max_depth_ && img.at<float>(y1, x0) >= 0 && img.at<float>(y1, x1) >= 0 )
+//            pt_y1 = img.at<float>(y1, x0) * b + img.at<float>(y1, x1) * a;
+//        else if (img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x0) >= 0)
+//            pt_y1 = img.at<float>(y1, x0);
+//        else //if(img.at<float>(y1, x0) < max_depth_)
+//            pt_y1 = img.at<float>(y1, x1);
+
+//        float interpDepth;
+//        if( pt_y0 < max_depth_ && img.at<float>(y1, x1) < max_depth_ )
+//            interpDepth = pt_y0 * d + pt_y1 * c;
+//        else if (img.at<float>(y1, x0) < max_depth_)
+//            interpDepth = pt_y0;
+//        else
+//            interpDepth = pt_y1;
+
+    return interpDepth;
+}
+
+///*! Function to obtain a pixel value with bilinear interpolation. Unsafe function Unsafe (it does not check that the pixel is inside the image limits) */
+//float getPixelBilinear(const float* img, float x, float y)
+//{
+//#if !(_SSE3) // # ifdef __SSE3__
+//    int px = (int)x; // floor of x
+//    int py = (int)y; // floor of y
+//    const int stride = img->width;
+//    const Pixel* p0 = img->data + px + py * stride; // pointer to first pixel
+
+//    // load the four neighboring pixels
+//    const Pixel& p1 = p0[0 + 0 * stride];
+//    const Pixel& p2 = p0[1 + 0 * stride];
+//    const Pixel& p3 = p0[0 + 1 * stride];
+//    const Pixel& p4 = p0[1 + 1 * stride];
+
+//    // Calculate the weights for each pixel
+//    float fx = x - px;
+//    float fy = y - py;
+//    float fx1 = 1.0f - fx;
+//    float fy1 = 1.0f - fy;
+
+//    int w1 = fx1 * fy1 * 256.0f;
+//    int w2 = fx  * fy1 * 256.0f;
+//    int w3 = fx1 * fy  * 256.0f;
+//    int w4 = fx  * fy  * 256.0f;
+
+//    // Calculate the weighted sum of pixels (for each color channel)
+//    int outr = p1.r * w1 + p2.r * w2 + p3.r * w3 + p4.r * w4;
+//    int outg = p1.g * w1 + p2.g * w2 + p3.g * w3 + p4.g * w4;
+//    int outb = p1.b * w1 + p2.b * w2 + p3.b * w3 + p4.b * w4;
+//    int outa = p1.a * w1 + p2.a * w2 + p3.a * w3 + p4.a * w4;
+
+//    return Pixel(outr >> 8, outg >> 8, outb >> 8, outa >> 8);
+
+//#else // SSE optimzed
+//    const int stride = img->width;
+//    const Pixel* p0 = img->data + (int)x + (int)y * stride; // pointer to first pixel
+
+//    // Load the data (2 pixels in one load)
+//    __m128i p12 = _mm_loadl_epi64((const __m128i*)&p0[0 * stride]);
+//    __m128i p34 = _mm_loadl_epi64((const __m128i*)&p0[1 * stride]);
+
+//    __m128 weight = CalcWeights(x, y);
+
+//    // convert RGBA RGBA RGBA RGAB to RRRR GGGG BBBB AAAA (AoS to SoA)
+//    __m128i p1234 = _mm_unpacklo_epi8(p12, p34);
+//    __m128i p34xx = _mm_unpackhi_epi64(p1234, _mm_setzero_si128());
+//    __m128i p1234_8bit = _mm_unpacklo_epi8(p1234, p34xx);
+
+//    // extend to 16bit
+//    __m128i pRG = _mm_unpacklo_epi8(p1234_8bit, _mm_setzero_si128());
+//    __m128i pBA = _mm_unpackhi_epi8(p1234_8bit, _mm_setzero_si128());
+
+//    // convert weights to integer
+//    weight = _mm_mul_ps(weight, CONST_256);
+//    __m128i weighti = _mm_cvtps_epi32(weight); // w4 w3 w2 w1
+//    weighti = _mm_packs_epi32(weighti, weighti); // 32->2x16bit
+
+//    //outRG = [w1*R1 + w2*R2 | w3*R3 + w4*R4 | w1*G1 + w2*G2 | w3*G3 + w4*G4]
+//    __m128i outRG = _mm_madd_epi16(pRG, weighti);
+//    //outBA = [w1*B1 + w2*B2 | w3*B3 + w4*B4 | w1*A1 + w2*A2 | w3*A3 + w4*A4]
+//    __m128i outBA = _mm_madd_epi16(pBA, weighti);
+
+//    // horizontal add that will produce the output values (in 32bit)
+//    __m128i out = _mm_hadd_epi32(outRG, outBA);
+//    out = _mm_srli_epi32(out, 8); // divide by 256
+
+//    // convert 32bit->8bit
+//    out = _mm_packus_epi32(out, _mm_setzero_si128());
+//    out = _mm_packus_epi16(out, _mm_setzero_si128());
+
+//    // return
+//    return _mm_cvtsi128_si32(out);
+//#endif
+//}
+
+
 RegisterDense::RegisterDense() :
     min_depth_(0.3f),
     max_depth_(20.f),
@@ -130,6 +298,7 @@ RegisterDense::RegisterDense() :
 void RegisterDense::buildPyramid( const cv::Mat & img, std::vector<cv::Mat> & pyramid, const int nLevels)
 {
 #if PRINT_PROFILING
+    cout << "RegisterDense::buildPyramid... \n";
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
     {
@@ -139,6 +308,12 @@ void RegisterDense::buildPyramid( const cv::Mat & img, std::vector<cv::Mat> & py
     pyramid[0] = img;
     //cout << "types " << pyramid[0].type() << " " << img.type() << endl;
 
+//    cv::Mat img_show;
+//    pyramid[0].convertTo(img_show, CV_8UC1, 255);
+//    cv::imwrite(mrpt::format("/home/efernand/pyr_gray_%d.png",0), img_show);
+//    //cv::imshow("pyramid", img_show);
+//    //cv::waitKey(0);
+
     for(int level=1; level < nLevels; level++)
     {
         assert(pyramid[0].rows % 2 == 0 && pyramid[0].cols % 2 == 0 );
@@ -146,8 +321,11 @@ void RegisterDense::buildPyramid( const cv::Mat & img, std::vector<cv::Mat> & py
         // Assign the resized image to the current level of the pyramid
         pyrDown( pyramid[level-1], pyramid[level], cv::Size( pyramid[level-1].cols/2, pyramid[level-1].rows/2 ) );
 
-        //cv::imshow("pyramid", pyramid[level]);
-        //cv::waitKey(0);
+//        cv::Mat img_show;
+//        pyramid[level].convertTo(img_show, CV_8UC1, 255);
+//        cv::imwrite(mrpt::format("/home/efernand/pyr_gray_%d.png",level), img_show);
+//        //cv::imshow("pyramid", pyramid[level]);
+//        //cv::waitKey(0);
     }
 #if PRINT_PROFILING
     }
@@ -161,6 +339,7 @@ void RegisterDense::buildPyramid( const cv::Mat & img, std::vector<cv::Mat> & py
 void RegisterDense::buildPyramidRange( const cv::Mat & img, std::vector<cv::Mat> & pyramid, const int nLevels)
 {
 #if PRINT_PROFILING
+    cout << "RegisterDense::buildPyramidRange... \n";
     double time_start = pcl::getTime();\
     //for(size_t i=0; i<1000; i++)
     {
@@ -172,6 +351,15 @@ void RegisterDense::buildPyramidRange( const cv::Mat & img, std::vector<cv::Mat>
     else
         pyramid[0] = img;
     //    cout << "types " << pyramid[0].type() << " " << img.type() << endl;
+
+//    cv::Mat img_show;
+//    cv::Mat img255(pyramid[0].rows, pyramid[0].cols, CV_8U, 255);
+//    const float viz_factor_meters = 82.5;
+//    pyramid[0].convertTo(img_show, CV_8U, viz_factor_meters);
+//    cv::Mat mask = img_show == 0;
+//    img_show = img255 - img_show;
+//    img_show.setTo(0, mask);
+//    cv::imwrite(mrpt::format("/home/efernand/pyr_depth_%d.png",0), img_show);
 
     for(int level=1; level < nLevels; level++)
     {
@@ -189,6 +377,7 @@ void RegisterDense::buildPyramidRange( const cv::Mat & img, std::vector<cv::Mat>
 #pragma omp parallel for
 #endif
             for(size_t r=0; r < nRows; r+=2)
+            {
                 for(size_t c=0; c < nCols; c+=2)
                 {
                     float avDepth = 0.f;
@@ -213,6 +402,7 @@ void RegisterDense::buildPyramidRange( const cv::Mat & img, std::vector<cv::Mat>
                         _z_sub[pixel_sub] = avDepth / nvalidPixels_src;
                     }
                 }
+            }
         }
         else
         {
@@ -242,6 +432,13 @@ void RegisterDense::buildPyramidRange( const cv::Mat & img, std::vector<cv::Mat>
                     }
                 }
         }
+//        cv::Mat img_show;
+//        cv::Mat img255(pyramid[level].rows, pyramid[level].cols, CV_8U, 255);
+//        pyramid[level].convertTo(img_show, CV_8U, viz_factor_meters);
+//        cv::Mat mask = img_show == 0;
+//        img_show = img255 - img_show;
+//        img_show.setTo(0, mask);
+//        cv::imwrite(mrpt::format("/home/efernand/pyr_depth_%d.png",level), img_show);
     }
 #if PRINT_PROFILING
     }
@@ -268,7 +465,92 @@ void RegisterDense::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat
     float *_pixel_gradX = reinterpret_cast<float*>(gradX.data);
     float *_pixel_gradY = reinterpret_cast<float*>(gradY.data);
 
-#if SSE_AVAILABLE
+#if !(_SSE3) // # ifdef __SSE3__
+
+    if(img_size > 4*1e4) // Apply multicore only to the bigger images
+    {
+        #if ENABLE_OPENMP
+        #pragma omp parallel for // schedule(static) // schedule(dynamic)
+        #endif
+        for(size_t r=1; r < src.rows-1; ++r)
+        {
+            size_t row_pix = r*src.cols;
+            for(int c=1; c < src.cols-1; ++c)
+            {
+                // Efficient pointer-based gradient computation
+                //unsigned i = r*src.cols + c;
+                size_t i = row_pix + c;
+
+                if( (_pixel[i+1] > _pixel[i] && _pixel[i] > _pixel[i-1]) || (_pixel[i+1] < _pixel[i] && _pixel[i] < _pixel[i-1]) )
+                    _pixel_gradX[i] = 2.f * (_pixel[i+1] - _pixel[i]) * (_pixel[i] - _pixel[i-1]) / (_pixel[i+1] - _pixel[i-1]);
+
+                if( (_pixel[i+src.cols] > _pixel[i] && _pixel[i] > _pixel[i-src.cols]) || (_pixel[i+src.cols] < _pixel[i] && _pixel[i] < _pixel[i-src.cols]) )
+                    _pixel_gradY[i] = 2.f * (_pixel[i+src.cols] - _pixel[i]) * (_pixel[i] - _pixel[i-src.cols]) / (_pixel[i+src.cols] - _pixel[i-src.cols]);
+
+    //            if( (src.at<float>(r,c) > src.at<float>(r,c+1) && src.at<float>(r,c) < src.at<float>(r,c-1) ) ||
+    //                (src.at<float>(r,c) < src.at<float>(r,c+1) && src.at<float>(r,c) > src.at<float>(r,c-1) )   )//{
+    //                    gradX.at<float>(r,c) = 2.f * (src.at<float>(r,c+1)-src.at<float>(r,c)) * (src.at<float>(r,c)-src.at<float>(r,c-1)) / (src.at<float>(r,c+1)-src.at<float>(r,c-1));
+    //                    //cout << "GradX " << gradX.at<float>(r,c) << " " << gradX_.at<float>(r,c) << endl;}
+
+    //            if( (src.at<float>(r,c) > src.at<float>(r+1,c) && src.at<float>(r,c) < src.at<float>(r-1,c) ) ||
+    //                (src.at<float>(r,c) < src.at<float>(r+1,c) && src.at<float>(r,c) > src.at<float>(r-1,c) )   )
+    //                    gradY.at<float>(r,c) = 2.f * (src.at<float>(r+1,c)-src.at<float>(r,c)) * (src.at<float>(r,c)-src.at<float>(r-1,c)) / (src.at<float>(r+1,c)-src.at<float>(r-1,c));
+            }
+            // Compute the gradint at the image border
+            _pixel_gradX[row_pix] = _pixel[row_pix] - _pixel[row_pix-1];
+            _pixel_gradX[row_pix+src.cols-1] = _pixel[row_pix+src.cols-1] - _pixel[row_pix+src.cols-2];
+        }
+        // Compute the gradint at the image border
+        size_t last_row_pix = (src.rows - 1) * src.cols;
+        #if ENABLE_OPENMP
+        #pragma omp parallel for // schedule(static) // schedule(dynamic)
+        #endif
+        for(int c=1; c < src.cols-1; ++c)
+        {
+            _pixel_gradY[c] = _pixel[c+src.cols] - _pixel[c];
+            _pixel_gradY[last_row_pix+c] = _pixel[last_row_pix+c] - _pixel[last_row_pix-src.cols+c];
+        }
+    }
+    else
+    {
+        for(size_t r=1; r < src.rows-1; ++r)
+        {
+            size_t row_pix = r*src.cols;
+            for(int c=1; c < src.cols-1; ++c)
+            {
+                // Efficient pointer-based gradient computation
+                //unsigned i = r*src.cols + c;
+                size_t i = row_pix + c;
+
+                if( (_pixel[i+1] > _pixel[i] && _pixel[i] > _pixel[i-1]) || (_pixel[i+1] < _pixel[i] && _pixel[i] < _pixel[i-1]) )
+                    _pixel_gradX[i] = 2.f * (_pixel[i+1] - _pixel[i]) * (_pixel[i] - _pixel[i-1]) / (_pixel[i+1] - _pixel[i-1]);
+
+                if( (_pixel[i+src.cols] > _pixel[i] && _pixel[i] > _pixel[i-src.cols]) || (_pixel[i+src.cols] < _pixel[i] && _pixel[i] < _pixel[i-src.cols]) )
+                    _pixel_gradY[i] = 2.f * (_pixel[i+src.cols] - _pixel[i]) * (_pixel[i] - _pixel[i-src.cols]) / (_pixel[i+src.cols] - _pixel[i-src.cols]);
+
+    //            if( (src.at<float>(r,c) > src.at<float>(r,c+1) && src.at<float>(r,c) < src.at<float>(r,c-1) ) ||
+    //                (src.at<float>(r,c) < src.at<float>(r,c+1) && src.at<float>(r,c) > src.at<float>(r,c-1) )   )//{
+    //                    gradX.at<float>(r,c) = 2.f * (src.at<float>(r,c+1)-src.at<float>(r,c)) * (src.at<float>(r,c)-src.at<float>(r,c-1)) / (src.at<float>(r,c+1)-src.at<float>(r,c-1));
+    //                    //cout << "GradX " << gradX.at<float>(r,c) << " " << gradX_.at<float>(r,c) << endl;}
+
+    //            if( (src.at<float>(r,c) > src.at<float>(r+1,c) && src.at<float>(r,c) < src.at<float>(r-1,c) ) ||
+    //                (src.at<float>(r,c) < src.at<float>(r+1,c) && src.at<float>(r,c) > src.at<float>(r-1,c) )   )
+    //                    gradY.at<float>(r,c) = 2.f * (src.at<float>(r+1,c)-src.at<float>(r,c)) * (src.at<float>(r,c)-src.at<float>(r-1,c)) / (src.at<float>(r+1,c)-src.at<float>(r-1,c));
+            }
+            // Compute the gradint at the image border
+            _pixel_gradX[row_pix] = _pixel[row_pix] - _pixel[row_pix-1];
+            _pixel_gradX[row_pix+src.cols-1] = _pixel[row_pix+src.cols-1] - _pixel[row_pix+src.cols-2];
+        }
+        // Compute the gradint at the image border
+        size_t last_row_pix = (src.rows - 1) * src.cols;
+        for(int c=1; c < src.cols-1; ++c)
+        {
+            _pixel_gradY[c] = _pixel[c+src.cols] - _pixel[c];
+            _pixel_gradY[last_row_pix+c] = _pixel[last_row_pix+c] - _pixel[last_row_pix-src.cols+c];
+        }
+    }
+
+#else // Use _SSE3
     // Use SIMD instructions -> x4 performance
     assert( src.cols % 4 == 0);
     //size_t img_size = src.rows * src.cols;
@@ -389,89 +671,6 @@ void RegisterDense::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat
         }
     }
 
-#else
-    if(img_size > 4*1e4) // Apply multicore only to the bigger images
-    {
-        #if ENABLE_OPENMP
-        #pragma omp parallel for // schedule(static) // schedule(dynamic)
-        #endif
-        for(size_t r=1; r < src.rows-1; ++r)
-        {
-            size_t row_pix = r*src.cols;
-            for(int c=1; c < src.cols-1; ++c)
-            {
-                // Efficient pointer-based gradient computation
-                //unsigned i = r*src.cols + c;
-                size_t i = row_pix + c;
-
-                if( (_pixel[i+1] > _pixel[i] && _pixel[i] > _pixel[i-1]) || (_pixel[i+1] < _pixel[i] && _pixel[i] < _pixel[i-1]) )
-                    _pixel_gradX[i] = 2.f * (_pixel[i+1] - _pixel[i]) * (_pixel[i] - _pixel[i-1]) / (_pixel[i+1] - _pixel[i-1]);
-
-                if( (_pixel[i+src.cols] > _pixel[i] && _pixel[i] > _pixel[i-src.cols]) || (_pixel[i+src.cols] < _pixel[i] && _pixel[i] < _pixel[i-src.cols]) )
-                    _pixel_gradY[i] = 2.f * (_pixel[i+src.cols] - _pixel[i]) * (_pixel[i] - _pixel[i-src.cols]) / (_pixel[i+src.cols] - _pixel[i-src.cols]);
-
-    //            if( (src.at<float>(r,c) > src.at<float>(r,c+1) && src.at<float>(r,c) < src.at<float>(r,c-1) ) ||
-    //                (src.at<float>(r,c) < src.at<float>(r,c+1) && src.at<float>(r,c) > src.at<float>(r,c-1) )   )//{
-    //                    gradX.at<float>(r,c) = 2.f * (src.at<float>(r,c+1)-src.at<float>(r,c)) * (src.at<float>(r,c)-src.at<float>(r,c-1)) / (src.at<float>(r,c+1)-src.at<float>(r,c-1));
-    //                    //cout << "GradX " << gradX.at<float>(r,c) << " " << gradX_.at<float>(r,c) << endl;}
-
-    //            if( (src.at<float>(r,c) > src.at<float>(r+1,c) && src.at<float>(r,c) < src.at<float>(r-1,c) ) ||
-    //                (src.at<float>(r,c) < src.at<float>(r+1,c) && src.at<float>(r,c) > src.at<float>(r-1,c) )   )
-    //                    gradY.at<float>(r,c) = 2.f * (src.at<float>(r+1,c)-src.at<float>(r,c)) * (src.at<float>(r,c)-src.at<float>(r-1,c)) / (src.at<float>(r+1,c)-src.at<float>(r-1,c));
-            }
-            // Compute the gradint at the image border
-            _pixel_gradX[row_pix] = _pixel[row_pix] - _pixel[row_pix-1];
-            _pixel_gradX[row_pix+src.cols-1] = _pixel[row_pix+src.cols-1] - _pixel[row_pix+src.cols-2];
-        }
-        // Compute the gradint at the image border
-        size_t last_row_pix = (src.rows - 1) * src.cols;
-        #if ENABLE_OPENMP
-        #pragma omp parallel for // schedule(static) // schedule(dynamic)
-        #endif
-        for(int c=1; c < src.cols-1; ++c)
-        {
-            _pixel_gradY[c] = _pixel[c+src.cols] - _pixel[c];
-            _pixel_gradY[last_row_pix+c] = _pixel[last_row_pix+c] - _pixel[last_row_pix-src.cols+c];
-        }
-    }
-    else
-    {
-        for(size_t r=1; r < src.rows-1; ++r)
-        {
-            size_t row_pix = r*src.cols;
-            for(int c=1; c < src.cols-1; ++c)
-            {
-                // Efficient pointer-based gradient computation
-                //unsigned i = r*src.cols + c;
-                size_t i = row_pix + c;
-
-                if( (_pixel[i+1] > _pixel[i] && _pixel[i] > _pixel[i-1]) || (_pixel[i+1] < _pixel[i] && _pixel[i] < _pixel[i-1]) )
-                    _pixel_gradX[i] = 2.f * (_pixel[i+1] - _pixel[i]) * (_pixel[i] - _pixel[i-1]) / (_pixel[i+1] - _pixel[i-1]);
-
-                if( (_pixel[i+src.cols] > _pixel[i] && _pixel[i] > _pixel[i-src.cols]) || (_pixel[i+src.cols] < _pixel[i] && _pixel[i] < _pixel[i-src.cols]) )
-                    _pixel_gradY[i] = 2.f * (_pixel[i+src.cols] - _pixel[i]) * (_pixel[i] - _pixel[i-src.cols]) / (_pixel[i+src.cols] - _pixel[i-src.cols]);
-
-    //            if( (src.at<float>(r,c) > src.at<float>(r,c+1) && src.at<float>(r,c) < src.at<float>(r,c-1) ) ||
-    //                (src.at<float>(r,c) < src.at<float>(r,c+1) && src.at<float>(r,c) > src.at<float>(r,c-1) )   )//{
-    //                    gradX.at<float>(r,c) = 2.f * (src.at<float>(r,c+1)-src.at<float>(r,c)) * (src.at<float>(r,c)-src.at<float>(r,c-1)) / (src.at<float>(r,c+1)-src.at<float>(r,c-1));
-    //                    //cout << "GradX " << gradX.at<float>(r,c) << " " << gradX_.at<float>(r,c) << endl;}
-
-    //            if( (src.at<float>(r,c) > src.at<float>(r+1,c) && src.at<float>(r,c) < src.at<float>(r-1,c) ) ||
-    //                (src.at<float>(r,c) < src.at<float>(r+1,c) && src.at<float>(r,c) > src.at<float>(r-1,c) )   )
-    //                    gradY.at<float>(r,c) = 2.f * (src.at<float>(r+1,c)-src.at<float>(r,c)) * (src.at<float>(r,c)-src.at<float>(r-1,c)) / (src.at<float>(r+1,c)-src.at<float>(r-1,c));
-            }
-            // Compute the gradint at the image border
-            _pixel_gradX[row_pix] = _pixel[row_pix] - _pixel[row_pix-1];
-            _pixel_gradX[row_pix+src.cols-1] = _pixel[row_pix+src.cols-1] - _pixel[row_pix+src.cols-2];
-        }
-        // Compute the gradint at the image border
-        size_t last_row_pix = (src.rows - 1) * src.cols;
-        for(int c=1; c < src.cols-1; ++c)
-        {
-            _pixel_gradY[c] = _pixel[c+src.cols] - _pixel[c];
-            _pixel_gradY[last_row_pix+c] = _pixel[last_row_pix+c] - _pixel[last_row_pix-src.cols+c];
-        }
-    }
 #endif
 
 //    cv::imshow("DerY", gradY);
@@ -481,7 +680,7 @@ void RegisterDense::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << src.rows << "rows. RegisterDense::calcGradientXY " << (time_end - time_start)*1000 << " ms. \n";
+    cout << src.rows << "rows. RegisterDense::calcGradientXY _SSE3 " << _SSE3 << " " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
@@ -622,6 +821,7 @@ void RegisterDense::setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
 /*! Sets the source (Intensity+Depth) frame. Depth image is ignored*/
 void RegisterDense::setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
 {
+    cout << "RegisterDense::setTargetFrame() \n";
     #if PRINT_PROFILING
     double time_start = pcl::getTime();
     #endif
@@ -2039,6 +2239,7 @@ double RegisterDense::calcHessGrad_IC ( const int pyrLevel,
     {
         if( !use_bilinear_ || pyrLevel !=0 )
         {
+            cout << "ALL points - NN \n";
     #if ENABLE_OPENMP
     #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
     #endif
@@ -2140,6 +2341,7 @@ double RegisterDense::calcHessGrad_IC ( const int pyrLevel,
         }
         else
         {
+            cout << "ALL points - bilinear (on finest resolution) \n";
             #if ENABLE_OPENMP
             #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
             #endif
@@ -8876,7 +9078,7 @@ void RegisterDense::registerRGBD(const Eigen::Matrix4f pose_guess, const costFun
 //            tm.stop(); cout << "Iterations " << num_iters[pyrLevel] << " time = " << tm.getTimeSec() << " sec." << endl;
 //#endif
 
-            if(visualize_)
+            if(visualize_ && diff_error > 0)
             {
                 //cout << "visualize_\n";
                 if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
@@ -8888,8 +9090,10 @@ void RegisterDense::registerRGBD(const Eigen::Matrix4f pose_guess, const costFun
 
                     //cv::imshow("orig", grayTrgPyr[pyrLevel]);
                     //cv::imshow("src", graySrcPyr[pyrLevel]);
-                    cv::imshow("optimize::imgDiff", imgDiff);
+                    cv::imshow("Intensity Absolute Difference", imgDiff);
                     //cv::imshow("warp", warped_gray);
+                    cv::imwrite(mrpt::format("/home/efernand/pyr_intensity_AD_%d_%d.png", pyrLevel, num_iters[pyrLevel]), imgDiff);
+                    cv::imwrite(mrpt::format("/home/efernand/warped_intensity_AD_%d_%d.png", pyrLevel, num_iters[pyrLevel]), warped_gray);
 
 //                    cv::Mat DispImage = cv::Mat(2*grayTrgPyr[pyrLevel].rows+4, 2*grayTrgPyr[pyrLevel].cols+4, grayTrgPyr[pyrLevel].type(), cv::Scalar(255)); // cv::Scalar(100, 100, 200)
 //                    grayTrgPyr[pyrLevel].copyTo(DispImage(cv::Rect(0, 0, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
@@ -8904,7 +9108,17 @@ void RegisterDense::registerRGBD(const Eigen::Matrix4f pose_guess, const costFun
                     //cout << "sizes " << nRows << " " << nCols << " " << "sizes " << depthTrgPyr[pyrLevel].rows << " " << depthTrgPyr[pyrLevel].cols << " " << "sizes " << warped_depth.rows << " " << warped_depth.cols << " " << grayTrgPyr[pyrLevel].type() << endl;
                     cv::Mat depthDiff = cv::Mat::zeros(nRows,nCols,depthTrgPyr[pyrLevel].type());
                     cv::absdiff(depthTrgPyr[pyrLevel], warped_depth, depthDiff);
-                    cv::imshow("depthDiff", depthDiff);
+                    cv::imshow("Depth Absolute Difference", depthDiff);
+
+                    // Save Abs Diff image
+                    cv::Mat img_show;
+                    cv::Mat img255(depthDiff.rows, depthDiff.cols, CV_8U, 255);
+                    const float viz_factor_meters = 82.5;
+                    depthDiff.convertTo(img_show, CV_8U, viz_factor_meters);
+                    cv::Mat mask = img_show == 0;
+                    img_show = img255 - img_show;
+                    img_show.setTo(0, mask);
+                    cv::imwrite(mrpt::format("/home/efernand/pyr_depth_AD_%d_%d.png", pyrLevel, num_iters[pyrLevel]), img_show);
 
 //                    cv::Mat DispImage = cv::Mat(2*grayTrgPyr[pyrLevel].rows+4, 2*grayTrgPyr[pyrLevel].cols+4, grayTrgPyr[pyrLevel].type(), cv::Scalar(255)); // cv::Scalar(100, 100, 200)
 //                    depthTrgPyr[pyrLevel].copyTo(DispImage(cv::Rect(0, 0, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
@@ -9193,7 +9407,7 @@ void RegisterDense::registerRGBD_IC(const Eigen::Matrix4f pose_guess, const cost
         oy = cameraMatrix(1,2)*scaleFactor;
         inv_fx = 1.f/fx;
         inv_fy = 1.f/fy;
-        cout << "Calib " << fx << " " << fy << " " << ox << " " << oy << endl;
+        //cout << "Calib " << fx << " " << fy << " " << ox << " " << oy << endl;
 
         // Make LUT to store the values of the 3D points of the source image
         computePinholeXYZ(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
