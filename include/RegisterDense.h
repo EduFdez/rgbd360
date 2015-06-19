@@ -1047,6 +1047,7 @@ public:
         Eigen::Matrix<float,2,3> jacobianWarp;
         Eigen::Matrix<float,3,6> jacobianRt;
 
+        //computeJacobian23_warp_pinhole(xyz, jacobianWarp);
         computeJacobian23_warp_pinhole(xyz_transf, jacobianWarp);
         computeJacobian36_TTx_p(Rt.block(0,0,3,3), xyz, jacobianRt);
 
