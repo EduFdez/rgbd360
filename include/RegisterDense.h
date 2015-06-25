@@ -30,6 +30,7 @@
  */
 
 #include "Miscellaneous.h"
+#include "ProjectionModel.h"
 
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
@@ -41,7 +42,7 @@
  *  Refer to the last chapter of my thesis dissertation for more details:
  * "Contributions to metric-topological localization and mapping in mobile robotics" 2014. Eduardo Fernández-Moral.
  */
-class RegisterDense
+class RegisterDense : ProjectionModel
 {
 //public:
     /*! Camera matrix (intrinsic parameters). This is only required for pinhole perspective sensors */

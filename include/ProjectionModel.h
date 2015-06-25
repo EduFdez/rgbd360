@@ -30,7 +30,7 @@
  */
 
 //#include <Miscellaneous.h>
-#include <Saliency.h>
+//#include <Saliency.h>
 
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
@@ -41,7 +41,7 @@
 /*! This class encapsulates different projection models including both perspective and spherical.
  *  It implements the functionality to project and reproject from the image domain to 3D and viceversa.
  */
-class ProjectionModel : public Saliency
+class ProjectionModel
 {
 //public:
     /*! Camera matrix (intrinsic parameters). This is only required for pinhole perspective sensors */

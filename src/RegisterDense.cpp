@@ -72,9 +72,6 @@
 #if _SSE4_1
 #  include <smmintrin.h>
 #endif
-#if _AVX
-#  include <avxintrin.h>
-#endif
 
 #define ENABLE_OPENMP 0
 #define PRINT_PROFILING 1
@@ -465,6 +462,8 @@ void RegisterDense::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat
     float *_pixel_gradX = reinterpret_cast<float*>(gradX.data);
     float *_pixel_gradY = reinterpret_cast<float*>(gradY.data);
 
+    size_t img_size = src.rows * src.cols;
+
 #if !(_SSE3) // # ifdef __SSE3__
 
     if(img_size > 4*1e4) // Apply multicore only to the bigger images
@@ -551,10 +550,10 @@ void RegisterDense::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat
     }
 
 #else // Use _SSE3
+//#elif !(_AVX) //
+
     // Use SIMD instructions -> x4 performance
     assert( src.cols % 4 == 0);
-    //size_t img_size = src.rows * src.cols;
-    size_t img_size = src.rows * src.cols;
     size_t block_start = src.cols, block_end = img_size - src.cols;
     const __m128 scalar2 = _mm_set1_ps(2.f); //float f2 = 2.f;
     if(img_size > 4*1e4) // Apply multicore only to the bigger images
@@ -670,6 +669,149 @@ void RegisterDense::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat
             _pixel_gradY[last_row_pix+c] = _pixel[last_row_pix+c] - _pixel[last_row_pix-src.cols+c];
         }
     }
+
+//#else // Use _AVX
+
+//    cout << "calcGradientXY AVX \n";
+
+//    // Use SIMD instructions -> x4 performance
+//    assert( src.cols % 8 == 0);
+//    size_t block_start = src.cols, block_end = img_size - src.cols;
+//    const __m256 scalar2 = _mm256_set1_ps(2.f); //float f2 = 2.f;
+//    if(img_size > 8*1e4) // Apply multicore only to the bigger images
+//    {
+//        #if ENABLE_OPENMP
+//        #pragma omp parallel for // schedule(static) // schedule(dynamic)
+//        #endif
+//        for(size_t b=block_start; b < block_end; b+=8)
+//        {
+////            float *_block = _pixel+b;
+//            __m256 block_ = _mm256_load_ps(_pixel+b);
+//            __m256 block_x1 = _mm256_loadu_ps(_pixel+b+1);
+//            __m256 block_x_1 = _mm256_loadu_ps(_pixel+b-1);
+//            __m256 diff1 = _mm256_sub_ps(block_x1, block_);
+//            __m256 diff_1= _mm256_sub_ps(block_, block_x_1);
+//            __m256 den = _mm256_add_ps(diff1, diff_1);
+//            __m256 mul = _mm256_mul_ps(diff1, diff_1);
+//            __m256 num = _mm256_mul_ps(scalar2, mul);
+//            __m256 res = _mm256_div_ps(num, den);
+//            //__m256 res = _mm256_div_ps(_mm256_mul_ps(scalar2, mul), den);
+//            //_mm256_store_ps(_pixel_gradX+b, res);
+//            __m256 mask = _mm256_or_ps(
+//                                    _mm256_and_ps( _mm256_cmplt_ps(block_x_1, block_), _mm256_cmplt_ps(block_, block_x1) ),
+//                                    _mm256_and_ps( _mm256_cmplt_ps(block_x1, block_), _mm256_cmplt_ps(block_, block_x_1) ) );
+
+//            __m128 block_a_ = _mm_load_ps(_pixel+b);
+//            __m128 block_b_ = _mm_load_ps(_pixel+b+4);
+//            __m128 block_x1_a = _mm_loadu_ps(_pixel+b+1);
+//            __m128 block_x1_b = _mm_loadu_ps(_pixel+b+5);
+
+//            __m128 block_x_1 = _mm_loadu_ps(_pixel+b-1);
+//            __m128 diff1 = _mm_sub_ps(block_x1, block_);
+//            __m128 diff_1= _mm_sub_ps(block_, block_x_1);
+//            __m128 den = _mm_add_ps(diff1, diff_1);
+//            __m128 mul = _mm_mul_ps(diff1, diff_1);
+//            __m128 num = _mm_mul_ps(scalar2, mul);
+//            __m128 res = _mm_div_ps(num, den);
+//            //__m128 res = _mm_div_ps(_mm_mul_ps(scalar2, mul), den);
+//            //_mm_store_ps(_pixel_gradX+b, res);
+//            __m128 mask = _mm_or_ps(
+//                        _mm_and_ps( _mm_cmplt_ps(block_x_1, block_), _mm_cmplt_ps(block_, block_x1) ),
+
+
+
+//            //_mm256_maskstore_ps(_pixel_gradX+b, mask, res);
+//            __m256 gradX = _mm256_and_ps(mask, res);
+//            _mm256_store_ps(_pixel_gradX+b, gradX);
+
+//            __m256 block_y1 = _mm256_load_ps(_pixel+b+src.cols);
+//            __m256 block_y_1 = _mm256_load_ps(_pixel+b-src.cols);
+//            diff1 = _mm256_sub_ps(block_y1, block_);
+//            diff_1= _mm256_sub_ps(block_, block_y_1);
+//            den = _mm256_add_ps(diff1, diff_1);
+//            mul = _mm256_mul_ps(diff1, diff_1);
+//            num = _mm256_mul_ps(scalar2, mul);
+//            res = _mm256_div_ps(num, den);
+//            //res = _mm256_div_ps(_mm256_mul_ps(scalar2, mul), den);
+//            //_mm256_store_ps(_pixel_gradY+b, res);
+//            mask = _mm256_or_ps( _mm256_and_ps( _mm256_cmplt_ps(block_y_1, block_), _mm256_cmplt_ps(block_, block_y1) ),
+//                              _mm256_and_ps( _mm256_cmplt_ps(block_y1, block_), _mm256_cmplt_ps(block_, block_y_1) ) );
+//            //_mm256_maskstore_ps(_pixel_gradY+b, mask, res);
+//            __m256 gradY = _mm256_and_ps(mask, res);
+//            _mm256_store_ps(_pixel_gradY+b, gradY);
+//        }
+//        // Compute the gradint at the image border
+//        #if ENABLE_OPENMP
+//        #pragma omp parallel for // schedule(static) // schedule(dynamic)
+//        #endif
+//        for(int r=1; r < src.rows-1; ++r)
+//        {
+//            size_t row_pix = r*src.cols;
+//            _pixel_gradX[row_pix] = _pixel[row_pix] - _pixel[row_pix-1];
+//            _pixel_gradX[row_pix+src.cols-1] = _pixel[row_pix+src.cols-1] - _pixel[row_pix+src.cols-2];
+//        }
+//        size_t last_row_pix = (src.rows - 1) * src.cols;
+//        #if ENABLE_OPENMP
+//        #pragma omp parallel for // schedule(static) // schedule(dynamic)
+//        #endif
+//        for(int c=1; c < src.cols-1; ++c)
+//        {
+//            _pixel_gradY[c] = _pixel[c+src.cols] - _pixel[c];
+//            _pixel_gradY[last_row_pix+c] = _pixel[last_row_pix+c] - _pixel[last_row_pix-src.cols+c];
+//        }
+//    }
+//    else
+//    {
+//        for(size_t b=block_start; b < block_end; b+=4)
+//        {
+//            __m256 block_ = _mm256_load_ps(_pixel+b);
+//            __m256 block_x1 = _mm256_loadu_ps(_pixel+b+1);
+//            __m256 block_x_1 = _mm256_loadu_ps(_pixel+b-1);
+//            __m256 diff1 = _mm256_sub_ps(block_x1, block_);
+//            __m256 diff_1= _mm256_sub_ps(block_, block_x_1);
+//            __m256 den = _mm256_add_ps(diff1, diff_1);
+//            __m256 mul = _mm256_mul_ps(diff1, diff_1);
+//            __m256 num = _mm256_mul_ps(scalar2, mul);
+//            __m256 res = _mm256_div_ps(num, den);
+//            //__m256 res = _mm256_div_ps(_mm256_mul_ps(scalar2, mul), den);
+//            //_mm256_store_ps(_pixel_gradX+b, res);
+//            __m256 mask = _mm256_or_ps(
+//                        _mm256_and_ps( _mm256_cmplt_ps(block_x_1, block_), _mm256_cmplt_ps(block_, block_x1) ),
+//                        _mm256_and_ps( _mm256_cmplt_ps(block_x1, block_), _mm256_cmplt_ps(block_, block_x_1) ) );
+//            //_mm256_maskstore_ps(_pixel_gradX+b, mask, res);
+//            __m256 gradX = _mm256_and_ps(mask, res);
+//            _mm256_store_ps(_pixel_gradX+b, gradX);
+
+//            __m256 block_y1 = _mm256_load_ps(_pixel+b+src.cols);
+//            __m256 block_y_1 = _mm256_load_ps(_pixel+b-src.cols);
+//            diff1 = _mm256_sub_ps(block_y1, block_);
+//            diff_1= _mm256_sub_ps(block_, block_y_1);
+//            den = _mm256_add_ps(diff1, diff_1);
+//            mul = _mm256_mul_ps(diff1, diff_1);
+//            num = _mm256_mul_ps(scalar2, mul);
+//            res = _mm256_div_ps(num, den);
+//            //res = _mm256_div_ps(_mm256_mul_ps(scalar2, mul), den);
+//            //_mm256_store_ps(_pixel_gradY+b, res);
+//            mask = _mm256_or_ps( _mm256_and_ps( _mm256_cmplt_ps(block_y_1, block_), _mm256_cmplt_ps(block_, block_y1) ),
+//                              _mm256_and_ps( _mm256_cmplt_ps(block_y1, block_), _mm256_cmplt_ps(block_, block_y_1) ) );
+//            //_mm256_maskstore_ps(_pixel_gradY+b, mask, res);
+//            __m256 gradY = _mm256_and_ps(mask, res);
+//            _mm256_store_ps(_pixel_gradY+b, gradY);
+//        }
+//        // Compute the gradint at the image border
+//        for(int r=1; r < src.rows-1; ++r)
+//        {
+//            size_t row_pix = r*src.cols;
+//            _pixel_gradX[row_pix] = _pixel[row_pix] - _pixel[row_pix-1];
+//            _pixel_gradX[row_pix+src.cols-1] = _pixel[row_pix+src.cols-1] - _pixel[row_pix+src.cols-2];
+//        }
+//        size_t last_row_pix = (src.rows - 1) * src.cols;
+//        for(int c=1; c < src.cols-1; ++c)
+//        {
+//            _pixel_gradY[c] = _pixel[c+src.cols] - _pixel[c];
+//            _pixel_gradY[last_row_pix+c] = _pixel[last_row_pix+c] - _pixel[last_row_pix-src.cols+c];
+//        }
+//    }
 
 #endif
 
@@ -3452,7 +3594,7 @@ double RegisterDense::computeReprojError_spherical (  int pyrLevel,
                             //_visible_pixels[i] = 1;
                             ++numVisiblePts;
                             float theta = atan2(xyz(0),xyz(2));
-                            float transformed_c = half_width + theta*pixel_angle_inv; assert(transformed_c <= nCols_1); //transformed_c -= half_width;
+                            float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c <= nCols_1); //transformed_c -= half_width;
                             int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
                             size_t warped_i = transformed_r_int * nCols + transformed_c_int;
                             _warp_pixels[i] = warped_i;
@@ -3701,7 +3843,7 @@ double RegisterDense::computeReprojError_spherical (  int pyrLevel,
                             //_visible_pixels[i] = 1;
                             ++numVisiblePts;
                             float theta = atan2(xyz(0),xyz(2));
-                            float transformed_c = half_width + theta*pixel_angle_inv; assert(transformed_c <= nCols_1); //transformed_c -= half_width;
+                            float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c <= nCols_1); //transformed_c -= half_width;
                             int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
                             size_t warped_i = transformed_r_int * nCols + transformed_c_int;
                             _warp_pixels[i] = warped_i;
@@ -3985,7 +4127,7 @@ double RegisterDense::computeReprojError_spherical (  int pyrLevel,
                             //_visible_pixels[i] = 1;
                             ++numVisiblePts;
                             float theta = atan2(xyz(0),xyz(2));
-                            float transformed_c = half_width + theta*pixel_angle_inv; assert(transformed_c <= nCols_1); //transformed_c -= half_width;
+                            float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c <= nCols_1); //transformed_c -= half_width;
                             int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
                             size_t warped_i = transformed_r_int * nCols + transformed_c_int;
                             _warp_pixels[i] = warped_i;
@@ -4496,7 +4638,7 @@ double RegisterDense::errorDense_sphere ( int pyrLevel,
                         //visible_pixels_src(i) = 1;
                         ++numVisiblePts;
                         float theta = atan2(xyz(0),xyz(2));
-                        float transformed_c = half_width + theta*pixel_angle_inv; assert(transformed_c <= nCols_1); //transformed_c -= half_width;
+                        float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c <= nCols_1); //transformed_c -= half_width;
                         int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
                         size_t warped_i = transformed_r_int * nCols + transformed_c_int;
                         warp_pixels_src(i) = warped_i;
@@ -4977,7 +5119,7 @@ double RegisterDense::errorDenseWarp_sphere ( int pyrLevel,
                         //visible_pixels_src(i) = 1;
                         ++numVisiblePts;
                         float theta = atan2(xyz(0),xyz(2));
-                        float transformed_c = half_width + theta*pixel_angle_inv; assert(transformed_c <= nCols_1); //transformed_c -= half_width;
+                        float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c <= nCols_1); //transformed_c -= half_width;
                         int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
                         size_t warped_i = transformed_r_int * nCols + transformed_c_int;
                         warp_pixels_src(i) = warped_i;
@@ -5368,7 +5510,7 @@ double RegisterDense::errorDenseIC_sphere(int pyrLevel,
                         //visible_pixels_src(i) = 1;
                         ++numVisiblePts;
                         float theta = atan2(xyz(0),xyz(2));
-                        float transformed_c = half_width + theta*pixel_angle_inv; assert(transformed_c <= nCols_1); //transformed_c -= half_width;
+                        float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c <= nCols_1); //transformed_c -= half_width;
                         int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
                         size_t warped_i = transformed_r_int * nCols + transformed_c_int;
                         warp_pixels_src(i) = warped_i;
@@ -8227,7 +8369,7 @@ double RegisterDense::errorDenseInv_sphere ( int pyrLevel,
                     {
                         ++numVisiblePts;
                         float theta = atan2(xyz(0),xyz(2));
-                        float transformed_c = half_width + theta*pixel_angle_inv; assert(transformed_c <= nCols_1); //transformed_c -= half_width;
+                        float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c <= nCols_1); //transformed_c -= half_width;
                         int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
                         size_t warped_i = transformed_r_int * nCols + transformed_c_int;
                         warp_pixels_trg(i) = warped_i;
@@ -8401,7 +8543,7 @@ double RegisterDense::errorDenseInv_sphere ( int pyrLevel,
                     {
                         ++numVisiblePts;
                         float theta = atan2(xyz(0),xyz(2));
-                        float transformed_c = half_width + theta*pixel_angle_inv; assert(transformed_c <= nCols_1); //transformed_c -= half_width;
+                        float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c <= nCols_1); //transformed_c -= half_width;
                         int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
                         size_t warped_i = transformed_r_int * nCols + transformed_c_int;
                         warp_pixels_trg(i) = warped_i;
@@ -11120,9 +11262,7 @@ void RegisterDense::register360_IC(const Eigen::Matrix4f pose_guess, const costF
         }
         else
         {
-            //computePointsXYZ(depthSrcPyr[pyrLevel], LUT_xyz_source);
             computeSphereXYZ(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
-
             //computeSphereXYZ(depthTrgPyr[pyrLevel], LUT_xyz_target, validPixels_trg);
         }
 
@@ -12320,8 +12460,8 @@ void RegisterDense::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf 
                 validPixels(i) = 0;
         }
     }
-
-#elif !(_AVX) // # ifdef __AVX__
+#else
+//#elif !(_AVX) // # ifdef __AVX__
     cout << " computeSphereXYZ _SSE3 " << imgSize << " pts \n";
 
     assert(nCols % 4 == 0); // Make sure that the image columns are aligned
@@ -12511,8 +12651,8 @@ void RegisterDense::getSalientPoints_sphere(Eigen::MatrixXf & xyz, Eigen::Vector
     xyz.conservativeResize(valid_pixels_aligned,3);
     //validPixels = validPixels.block(0,0,count_valid_pixels,1);
     //xyz = xyz.block(0,0,count_valid_pixels,3);
-
-#elif !(_AVX) // # ifdef __AVX__
+#else
+//#elif !(_AVX) // # ifdef __AVX__
     cout << " getSalientPoints_sphere _SSE3 " << imgSize << " pts \n";
 
     //Compute the 3D coordinates of the pij of the source frame
@@ -12677,8 +12817,8 @@ void RegisterDense::computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf
 //            mrpt::system::pause();
         }
     }
-
-#elif !(_AVX)
+#else
+//#elif !(_AVX)
     cout << " computePinholeXYZ _SSE3 " << imgSize << " pts \n";
 
     assert(nCols % 4 == 0); // Make sure that the image columns are aligned
@@ -12733,7 +12873,10 @@ void RegisterDense::computePinholeXYZsalient_sse(Eigen::MatrixXf & xyz, Eigen::V
                                                 const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
                                                 const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY )
 {
-    assert(_SSE);
+    //assert(_SSE);
+    #if !(_SSE3)
+        assert(0);
+#endif
 
     // TODO: adapt the sse formulation
     const size_t nRows = depth_img.rows;

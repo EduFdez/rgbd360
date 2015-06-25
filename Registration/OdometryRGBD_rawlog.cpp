@@ -413,7 +413,7 @@ int main (int argc, char ** argv)
 {
     try
     {
-        if(argc != 3 || pcl::console::find_switch(argc, argv, "-h") || pcl::console::find_switch(argc, argv, "--help"))
+        if(argc < 2 || argc > 3 || pcl::console::find_switch(argc, argv, "-h") || pcl::console::find_switch(argc, argv, "--help"))
         {
             print_help(argv);
             return 0;
@@ -421,7 +421,10 @@ int main (int argc, char ** argv)
 
         const string RAWLOG_FILENAME = string( argv[1] );
         //string path_results = static_cast<string>(argv[2]);
-        int sampling = atoi(argv[2]);
+
+        int sampling = 1;
+        if(argc > 2)
+            sampling = atoi(argv[2]);
 
         cout << "Create OdometryRGBD object\n";
         OdometryRGBD OdometryRGBD;
