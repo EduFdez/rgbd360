@@ -58,6 +58,8 @@
 #include <CloudRGBD_Ext.h>
 #include <Frame360_Visualizer.h>
 
+#include <iostream>
+
 #define SAVE_TRAJECTORY 0
 #define SAVE_IMAGES 0
 #define VISUALIZE_POINT_CLOUD 1
@@ -66,6 +68,7 @@ typedef pcl::PointXYZRGBA PointT;
 using namespace std;
 using namespace mrpt::obs;
 using namespace mrpt::utils;
+using namespace mrpt::poses;
 using namespace cv;
 
 /*! This class' main function 'run' performs PbMap-based odometry with the input data of a stream of
@@ -77,17 +80,193 @@ private:
 
     RegisterDense registerer;
 
+    // Used to interpolate grountruth poses
+    bool groundtruth_ok;
+    bool last_groundtruth_ok;
+
+    double last_groundtruth;	//!< Timestamp of the last groundtruth read
+    double timestamp_obs;		//!< Timestamp of the last observation
+    double last_gt_data[7];		//!< Last ground truth read (x y z qx qy qz w)
+
+    /** Camera poses */
+    mrpt::poses::CPose3D cam_pose;		//!< Last camera pose
+    mrpt::poses::CPose3D cam_oldpose;	//!< Previous camera pose
+    mrpt::poses::CPose3D gt_pose;       //!< Groundtruth camera pose
+    mrpt::poses::CPose3D gt_oldpose;	//!< Groundtruth camera previous pose
+
+    std::ifstream		f_gt;
+    //std::ofstream		f_res;
+
+    bool first_pose;
+    bool dataset_finished;
+
 public:
 
     bool bVisualize;
     size_t skip_frames;
 
-    OdometryRGBD()
+    OdometryRGBD() :
+        first_pose(false),
+        dataset_finished(false),
+        bVisualize(false),
+        skip_frames(0)
     {
         registerer.useSaliency(true);
-        skip_frames = 0;
-        bVisualize = false;
     };
+
+    bool getGroundtruthPose(const double timestamp_obs)
+    {
+        //mrpt::poses::CPose3D gt_pose;
+
+        //Exit if there is no groundtruth at this time
+        if (last_groundtruth > timestamp_obs)
+        {
+            cout << "no groundtruth at this time \n";
+            groundtruth_ok = false;
+            return false;
+        }
+
+        //Search the corresponding groundtruth data and interpolate
+        bool new_data = 0;
+        last_groundtruth_ok = groundtruth_ok;
+        double timestamp_gt;
+        while (last_groundtruth < timestamp_obs - 0.01)
+        {
+            f_gt.ignore(100,'\n');
+            f_gt >> timestamp_gt;
+            last_groundtruth = timestamp_gt;
+            new_data = 1;
+
+            if (f_gt.eof())
+            {
+                dataset_finished = true;
+                return false;
+            }
+        }
+
+        //Read the inmediatly previous groundtruth
+        double x0,y0,z0,qx0,qy0,qz0,w0,t0;
+        if (new_data == 1)
+        {
+            f_gt >> x0; f_gt >> y0; f_gt >> z0;
+            f_gt >> qx0; f_gt >> qy0; f_gt >> qz0; f_gt >> w0;
+        }
+        else
+        {
+            x0 = last_gt_data[0]; y0 = last_gt_data[1]; z0 = last_gt_data[2];
+            qx0 = last_gt_data[3]; qy0 = last_gt_data[4]; qz0 = last_gt_data[5]; w0 = last_gt_data[6];
+        }
+
+        t0 = last_groundtruth;
+
+        //Read the inmediatly posterior groundtruth
+        f_gt.ignore(10,'\n');
+        f_gt >> timestamp_gt;
+        if (f_gt.eof())
+        {
+            dataset_finished = true;
+            return false;
+        }
+        last_groundtruth = timestamp_gt;
+
+        //last_gt_data = [x y z qx qy qz w]
+        f_gt >> last_gt_data[0]; f_gt >> last_gt_data[1]; f_gt >> last_gt_data[2];
+        f_gt >> last_gt_data[3]; f_gt >> last_gt_data[4]; f_gt >> last_gt_data[5]; f_gt >> last_gt_data[6];
+
+        if (last_groundtruth - timestamp_obs > 0.01)
+            groundtruth_ok = false;
+        else
+        {
+            gt_oldpose = gt_pose;
+
+            //							Update pose
+            //-----------------------------------------------------------------
+            const float incr_t0 = timestamp_obs - t0;
+            const float incr_t1 = last_groundtruth - timestamp_obs;
+            const float incr_t = incr_t0 + incr_t1;
+
+            if (incr_t == 0.f) //Deal with defects in the groundtruth files
+            {
+                groundtruth_ok = false;
+                return false;
+            }
+
+            //Sometimes the quaternion sign changes in the groundtruth
+            if (abs(qx0 + last_gt_data[3]) + abs(qy0 + last_gt_data[4]) + abs(qz0 + last_gt_data[5]) + abs(w0 + last_gt_data[6]) < 0.05)
+            {
+                qx0 = -qx0; qy0 = -qy0; qz0 = -qz0; w0 = -w0;
+            }
+
+            double x,y,z,qx,qy,qz,w;
+            x = (incr_t0*last_gt_data[0] + incr_t1*x0)/(incr_t);
+            y = (incr_t0*last_gt_data[1] + incr_t1*y0)/(incr_t);
+            z = (incr_t0*last_gt_data[2] + incr_t1*z0)/(incr_t);
+            qx = (incr_t0*last_gt_data[3] + incr_t1*qx0)/(incr_t);
+            qy = (incr_t0*last_gt_data[4] + incr_t1*qy0)/(incr_t);
+            qz = (incr_t0*last_gt_data[5] + incr_t1*qz0)/(incr_t);
+            w = (incr_t0*last_gt_data[6] + incr_t1*w0)/(incr_t);
+
+            mrpt::math::CMatrixDouble33 mat;
+            mat(0,0) = 1- 2*qy*qy - 2*qz*qz;
+            mat(0,1) = 2*(qx*qy - w*qz);
+            mat(0,2) = 2*(qx*qz + w*qy);
+            mat(1,0) = 2*(qx*qy + w*qz);
+            mat(1,1) = 1 - 2*qx*qx - 2*qz*qz;
+            mat(1,2) = 2*(qy*qz - w*qx);
+            mat(2,0) = 2*(qx*qz - w*qy);
+            mat(2,1) = 2*(qy*qz + w*qx);
+            mat(2,2) = 1 - 2*qx*qx - 2*qy*qy;
+
+            mrpt::poses::CPose3D gt, transf;
+            gt.setFromValues(x,y,z,0,0,0);
+            gt.setRotationMatrix(mat);
+            transf.setFromValues(0,0,0,0.5*M_PI, -0.5*M_PI, 0);
+            cout << "transf pose \n" << transf.getHomogeneousMatrixVal() << endl;
+
+            //Alternative - directly quaternions
+            //vector<float> quat;
+            //quat[0] = x, quat[1] = y; quat[2] = z;
+            //quat[3] = w, quat[4] = qx; quat[5] = qy; quat[6] = qz;
+            //gt.setFromXYZQ(quat);
+
+            //Set the initial pose (if appropiate)
+            if (first_pose == false)
+            {
+                cam_pose = gt + transf;
+                first_pose = true;
+            }
+
+            gt_pose = gt + transf;
+            groundtruth_ok = 1;
+        }
+
+        return true;
+    }
+
+    void writeTrajectoryFile()
+    {
+        //Don't take into account those iterations with consecutive equal depth images
+        if (abs(dt.sumAll()) > 0)
+        {
+            mrpt::math::CQuaternionDouble quat;
+            CPose3D auxpose, transf;
+            transf.setFromValues(0,0,0,0.5*M_PI, -0.5*M_PI, 0);
+
+            auxpose = cam_pose - transf;
+            auxpose.getAsQuaternion(quat);
+
+            char aux[24];
+            sprintf(aux,"%.04f", timestamp_obs);
+            f_res << aux << " ";
+            f_res << cam_pose[0] << " ";
+            f_res << cam_pose[1] << " ";
+            f_res << cam_pose[2] << " ";
+            f_res << quat(2) << " ";
+            f_res << quat(3) << " ";
+            f_res << -quat(1) << " ";
+            f_res << -quat(0) << endl;
+        }
+    }
 
     void run(const string &filename, const int &selectSample = 1) //const string &path_results,
     {
@@ -104,6 +283,28 @@ public:
         // Set external images directory:
         const string imgsPath = CRawlog::detectImagesDirectory(filename);
         CImage::IMAGES_PATH_BASE = imgsPath;
+
+
+        //					Load ground-truth
+        //=========================================================
+        string filename_gt = mrpt::system::extractFileDirectory(filename);
+        filename_gt.append("/groundtruth.txt");
+        f_gt.open(filename_gt.c_str());
+
+        if (f_gt.fail())
+            throw std::runtime_error("\nError finding the groundtruth file: it should be contained in the same folder than the rawlog file");
+
+        char aux[100];
+        f_gt.getline(aux, 100);
+        f_gt.getline(aux, 100);
+        f_gt.getline(aux, 100);
+        f_gt >> last_groundtruth;
+        f_gt >> last_gt_data[0]; f_gt >> last_gt_data[1]; f_gt >> last_gt_data[2];
+        f_gt >> last_gt_data[3]; f_gt >> last_gt_data[4]; f_gt >> last_gt_data[5]; f_gt >> last_gt_data[6];
+        last_groundtruth_ok = 1;
+        cout << "last_gt_data " << last_gt_data[0] << " " << last_gt_data[1] << " " << last_gt_data[2] << " " << last_gt_data[3] << " "
+                                 << last_gt_data[4] << " " << last_gt_data[5] << " " << last_gt_data[6] << endl;
+
 
 //        mrpt::utils::CFileGZInputStream dataset(filename);
 //        mrpt::obs::CActionCollectionPtr action;
@@ -192,6 +393,16 @@ public:
             obsRGBD = mrpt::obs::CObservation3DRangeScanPtr(observation);
             obsRGBD->load();
 
+            // Get ground-truth pose
+            timestamp_obs = mrpt::system::timestampTotime_t(obsRGBD->timestamp);
+            if( !getGroundtruthPose(timestamp_obs) )
+            {
+                obsRGBD->unload();
+                continue;
+            }
+
+            cout << "GT pose \n" << gt_pose.getHomogeneousMatrixVal() << endl;
+
 //            // Draw frame
 //            CloudRGBD_Ext cloud;
 //            cloud.setRGBImage( cv::Mat(obsRGBD->intensityImage.getAs<IplImage>()) );
@@ -218,9 +429,14 @@ public:
                 convertRange_mrpt2cvMat(obsRGBD->rangeImage, depth_src);
                 //registerRGBD.setSourceFrame(intensity_src, depth_src);
 
+                gt_oldpose = gt_pose;
                 bFirstFrame = false;
                 continue;
             }
+
+            mrpt::poses::CPose3D pose_diff = gt_pose - gt_oldpose;
+            cout << "pose_diff \n" << pose_diff.getHomogeneousMatrixVal() << endl;
+            cout << "pose_diff 2 \n" << gt_oldpose.getHomogeneousMatrixVal().inverse() * gt_pose.getHomogeneousMatrixVal() << endl;
 
             if(bGoodRegistration)
             {
@@ -373,6 +589,9 @@ public:
             currentPose = relativePose * currentPose;
             currentPoseIC = currentPoseIC * relativePoseIC;
             //            relativePose2 = relativePose2 * Rt_dense_photo;
+
+            gt_oldpose = gt_pose;
+
         };
 
 
