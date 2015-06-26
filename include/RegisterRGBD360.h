@@ -388,7 +388,7 @@ public:
 //        Eigen::Matrix<float,6,6> Hessian;
 //        Eigen::Matrix<float,6,1> Gradient;
 
-//        for(int pyramidLevel = alignSensorID[0].nPyrLevels-1; pyramidLevel >= 0; pyramidLevel--)
+//        for(int pyramidLevel = alignSensorID[0].nPyrLevels; pyramidLevel >= 0; pyramidLevel--)
 //        {
 //            int nRows = alignSensorID[0].graySrcPyr[pyramidLevel].rows;
 //            int nCols = alignSensorID[0].graySrcPyr[pyramidLevel].cols;

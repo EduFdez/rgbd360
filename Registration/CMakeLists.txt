@@ -84,6 +84,9 @@ IF(BUILD_REGISTRATION)
                                             ../include/Miscellaneous.h
                                             ../include/RegisterDense.h
                                             ../src/RegisterDense.cpp
+                                            ../include/MEstimator.h
+                                            ../include/ProjectionModel.h
+                                            ../src/ProjectionModel.cpp
                                             ../include/transformPts3D.h
                                             ../src/transformPts3D.cpp
         )

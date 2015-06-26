@@ -72,8 +72,7 @@ using namespace std;
 /*! Constructor for the SphericalStereo sensor (outdoor sensor) */
 Frame360::Frame360() :
     node(0),
-    sphereCloud(new pcl::PointCloud<PointT>()),
-    sensor_type(STEREO_OUTDOOR)
+    sphereCloud(new pcl::PointCloud<PointT>())
     //    bSphereCloudBuilt(false),
 {
 
@@ -83,7 +82,6 @@ Frame360::Frame360() :
 Frame360::Frame360(Calib360 *calib360) :
     node(0),
     sphereCloud(new pcl::PointCloud<PointT>()),
-    sensor_type(RGBD360_INDOOR),
     calib(calib360)
     //    bSphereCloudBuilt(false),
 {

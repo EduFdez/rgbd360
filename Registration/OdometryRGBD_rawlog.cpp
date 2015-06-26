@@ -135,7 +135,7 @@ public:
 
         // Initialize Dense registration
         RegisterDense registerRGBD; // Dense RGB-D alignment
-        registerRGBD.setSensorType( RegisterDense::KINECT ); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::register360 for more details)
+        registerRGBD.setSensorType( ProjectionModel::KINECT ); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::register360 for more details)
         registerRGBD.setNumPyr(5);
         registerRGBD.setMaxDepth(8.f);
 //        registerRGBD.useSaliency(true);

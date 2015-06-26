@@ -89,7 +89,7 @@ public:
         //    cout << "regsitrationCloud has " << registrationClouds[1]->size() << " Pts\n";
 
         RegisterDense align360; // Dense RGB-D alignment
-        align360.setSensorType(RegisterDense::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::register360 for more details)
+        align360.setSensorType(ProjectionModel::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::register360 for more details)
         align360.setNumPyr(6);
         align360.useSaliency(true);
 //        align360.setVisualization(true);

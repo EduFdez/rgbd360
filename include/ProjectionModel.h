@@ -29,7 +29,7 @@
  * Author: Eduardo Fernandez-Moral
  */
 
-//#include <Miscellaneous.h>
+#include <Miscellaneous.h>
 //#include <Saliency.h>
 
 #include <opencv2/opencv.hpp>
@@ -44,6 +44,8 @@
 class ProjectionModel
 {
 //public:
+protected:
+
     /*! Camera matrix (intrinsic parameters). This is only required for pinhole perspective sensors */
     Eigen::Matrix3f cameraMatrix;
 
@@ -54,14 +56,63 @@ class ProjectionModel
 //    /* Vertical field of view in the sphere (in) .*/
 //    float phi_FoV;
 
+    /*! Minimum allowed depth to consider a depth pixel valid.*/
+    float min_depth_;
+
+    /*! Maximum allowed depth to consider a depth pixel valid.*/
+    float max_depth_;
+
 public:
 
     enum sensorType
     {
         RGBD360_INDOOR = 0,
         STEREO_OUTDOOR,
-        KINECT,
+        KINECT // Same for Asus XPL
     } sensor_type;
+
+    ProjectionModel();
+
+    /*! Set the 3x3 matrix of (pinhole) camera intrinsic parameters used to obtain the 3D colored point cloud from the RGB and depth images.*/
+    inline void setCameraMatrix(const Eigen::Matrix3f & camMat)
+    {
+        cameraMatrix = camMat;
+    };
+
+    /*! Set the minimum depth distance (m) to consider a certain pixel valid.*/
+    inline void setMinDepth(const float minD)
+    {
+        min_depth_ = minD;
+    };
+
+    /*! Set the maximum depth distance (m) to consider a certain pixel valid.*/
+    inline void setMaxDepth(const float maxD)
+    {
+        max_depth_ = maxD;
+    };
+
+    /*! Compute the 3D points XYZ according to the pinhole camera model. */
+    void computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels);
+
+    void computePinholeXYZ_saliency ( Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+                                      const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
+                                      const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
+                                      const float thres_saliency_gray, const float thres_saliency_depth
+                                      );
+
+
+    /*! Compute the unit sphere for the given spherical image dimmensions. This serves as a LUT to speed-up calculations. */
+    void computeUnitSphere(const size_t nRows, const size_t nCols);
+
+    /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
+    void computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels);
+
+    /*! Get a list of salient points (pixels with hugh gradient) and compute their 3D position xyz */
+    void computeSphereXYZ_saliency(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+                                   const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
+                                   const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
+                                   const float thres_saliency_gray, const float thres_saliency_depth
+                                    ); // TODO extend this function to employ only depth
 
     /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y' */
 //    inline cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)
@@ -153,6 +204,109 @@ public:
 
         return interpDepth;
     }
+
+
+    ///*! Function to obtain a pixel value with bilinear interpolation. Unsafe function Unsafe (it does not check that the pixel is inside the image limits) */
+    //float getPixelBilinear(const float* img, float x, float y)
+    //{
+    //#if !(_SSE3) // # ifdef __SSE3__
+    //    int px = (int)x; // floor of x
+    //    int py = (int)y; // floor of y
+    //    const int stride = img->width;
+    //    const Pixel* p0 = img->data + px + py * stride; // pointer to first pixel
+
+    //    // load the four neighboring pixels
+    //    const Pixel& p1 = p0[0 + 0 * stride];
+    //    const Pixel& p2 = p0[1 + 0 * stride];
+    //    const Pixel& p3 = p0[0 + 1 * stride];
+    //    const Pixel& p4 = p0[1 + 1 * stride];
+
+    //    // Calculate the weights for each pixel
+    //    float fx = x - px;
+    //    float fy = y - py;
+    //    float fx1 = 1.0f - fx;
+    //    float fy1 = 1.0f - fy;
+
+    //    int w1 = fx1 * fy1 * 256.0f;
+    //    int w2 = fx  * fy1 * 256.0f;
+    //    int w3 = fx1 * fy  * 256.0f;
+    //    int w4 = fx  * fy  * 256.0f;
+
+    //    // Calculate the weighted sum of pixels (for each color channel)
+    //    int outr = p1.r * w1 + p2.r * w2 + p3.r * w3 + p4.r * w4;
+    //    int outg = p1.g * w1 + p2.g * w2 + p3.g * w3 + p4.g * w4;
+    //    int outb = p1.b * w1 + p2.b * w2 + p3.b * w3 + p4.b * w4;
+    //    int outa = p1.a * w1 + p2.a * w2 + p3.a * w3 + p4.a * w4;
+
+    //    return Pixel(outr >> 8, outg >> 8, outb >> 8, outa >> 8);
+
+    //#else // SSE optimzed
+    //    const int stride = img->width;
+    //    const Pixel* p0 = img->data + (int)x + (int)y * stride; // pointer to first pixel
+
+    //    // Load the data (2 pixels in one load)
+    //    __m128i p12 = _mm_loadl_epi64((const __m128i*)&p0[0 * stride]);
+    //    __m128i p34 = _mm_loadl_epi64((const __m128i*)&p0[1 * stride]);
+
+    //    __m128 weight = CalcWeights(x, y);
+
+    //    // convert RGBA RGBA RGBA RGAB to RRRR GGGG BBBB AAAA (AoS to SoA)
+    //    __m128i p1234 = _mm_unpacklo_epi8(p12, p34);
+    //    __m128i p34xx = _mm_unpackhi_epi64(p1234, _mm_setzero_si128());
+    //    __m128i p1234_8bit = _mm_unpacklo_epi8(p1234, p34xx);
+
+    //    // extend to 16bit
+    //    __m128i pRG = _mm_unpacklo_epi8(p1234_8bit, _mm_setzero_si128());
+    //    __m128i pBA = _mm_unpackhi_epi8(p1234_8bit, _mm_setzero_si128());
+
+    //    // convert weights to integer
+    //    weight = _mm_mul_ps(weight, CONST_256);
+    //    __m128i weighti = _mm_cvtps_epi32(weight); // w4 w3 w2 w1
+    //    weighti = _mm_packs_epi32(weighti, weighti); // 32->2x16bit
+
+    //    //outRG = [w1*R1 + w2*R2 | w3*R3 + w4*R4 | w1*G1 + w2*G2 | w3*G3 + w4*G4]
+    //    __m128i outRG = _mm_madd_epi16(pRG, weighti);
+    //    //outBA = [w1*B1 + w2*B2 | w3*B3 + w4*B4 | w1*A1 + w2*A2 | w3*A3 + w4*A4]
+    //    __m128i outBA = _mm_madd_epi16(pBA, weighti);
+
+    //    // horizontal add that will produce the output values (in 32bit)
+    //    __m128i out = _mm_hadd_epi32(outRG, outBA);
+    //    out = _mm_srli_epi32(out, 8); // divide by 256
+
+    //    // convert 32bit->8bit
+    //    out = _mm_packus_epi32(out, _mm_setzero_si128());
+    //    out = _mm_packus_epi16(out, _mm_setzero_si128());
+
+    //    // return
+    //    return _mm_cvtsi128_si32(out);
+    //#endif
+    //}
+
+
+    /*! Project pixel spherical */
+    inline void projectSphere(const int & nCols, const int & nRows, const float & phi_FoV, const int & c, const int & r, const float & depth, const Eigen::Matrix4f & poseGuess,
+                              int & transformed_r_int, int & transformed_c_int) // output parameters
+    {
+        float phi = r*(2*phi_FoV/nRows);
+        float theta = c*(2*PI/nCols);
+
+        //Compute the 3D coordinates of the pij of the source frame
+        Eigen::Vector4f point3D;
+        point3D(0) = depth*sin(phi);
+        point3D(1) = -depth*cos(phi)*sin(theta);
+        point3D(2) = -depth*cos(phi)*cos(theta);
+        point3D(3) = 1;
+
+        //Transform the 3D point using the transformation matrix Rt
+        Eigen::Vector4f xyz = poseGuess*point3D;
+        float depth_trg = sqrt(xyz(0)*xyz(0) + xyz(1)*xyz(1) + xyz(2)*xyz(2));
+
+        //Project the 3D point to the S2 sphere
+        float phi_trg = asin(xyz(2)/depth_trg);
+        float theta_trg = atan2(-xyz(1),-xyz(2));
+        transformed_r_int = round(phi_trg*nRows/phi_FoV + nRows/2);
+        transformed_c_int = round(theta_trg*nCols/(2*PI));
+    };
 
     /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
     inline void

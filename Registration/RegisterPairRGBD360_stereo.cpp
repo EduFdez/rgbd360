@@ -161,7 +161,7 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
 //  float angleOffset = 157.5;
 //  Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
   RegisterDense align360; // Dense RGB-D alignment
-  align360.setSensorType( RegisterDense::STEREO_OUTDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::register360 for more details)
+  align360.setSensorType( ProjectionModel::STEREO_OUTDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::register360 for more details)
   align360.setNumPyr(6);
   align360.setMinDepth(1.f);
   align360.setMaxDepth(15.f);

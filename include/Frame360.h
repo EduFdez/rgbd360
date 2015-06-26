@@ -108,12 +108,6 @@ class Frame360
     /*! PbMap of the spherical frame */
     mrpt::pbmap::PbMap planes;
 
-    enum sensorType
-    {
-        RGBD360_INDOOR = 0,
-        STEREO_OUTDOOR,
-    } sensor_type;
-
     /*! Calibration object */
     Calib360 *calib;
 

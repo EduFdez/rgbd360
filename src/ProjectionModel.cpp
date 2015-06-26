@@ -30,35 +30,7 @@
  */
 
 #include <ProjectionModel.h>
-
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/core/eigen.hpp>
-//#include <iostream>
-//#include <fstream>
-
 #include <pcl/common/time.h>
-#include <pcl/filters/filter.h>
-#include <pcl/registration/icp.h>
-#include <pcl/registration/icp_nl.h> //ICP LM
-#include <pcl/registration/gicp.h> //GICP
-#include <pcl/registration/warp_point_rigid.h>
-
-#include <mrpt/maps/CSimplePointsMap.h>
-#include <mrpt/obs/CObservation2DRangeScan.h>
-//#include <mrpt/slam/CSimplePointsMap.h>
-//#include <mrpt/slam/CObservation2DRangeScan.h>
-#include <mrpt/slam/CICP.h>
-#include <mrpt/poses/CPose2D.h>
-#include <mrpt/poses/CPosePDF.h>
-#include <mrpt/poses/CPosePDFGaussian.h>
-#include <mrpt/math/utils.h>
-#include <mrpt/system/os.h>
-
-// For SIMD performance
-//#include "cvalarray.hpp"
-//#include "veclib.h"
 
 #if _SSE2
     #include <emmintrin.h>
@@ -71,50 +43,27 @@
 #if _SSE4_1
 #  include <smmintrin.h>
 #endif
-#if _AVX
-#  include <avxintrin.h>
-#endif
 
 #define ENABLE_OPENMP 0
 #define PRINT_PROFILING 1
-#define ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS 1
 #define INVALID_POINT -10000
-#define SSE_AVAILABLE 1
 
 using namespace std;
 
-RegisterDense::RegisterDense() :
+ProjectionModel::ProjectionModel() :
     min_depth_(0.3f),
     max_depth_(20.f),
-    use_salient_pixels_(false),
-    compute_MAD_stdDev_(false),
-    use_bilinear_(false),
-    visualize_(false),
-    nPyrLevels(4)
+    sensor_type(STEREO_OUTDOOR) //RGBD360_INDOOR
 {
-    sensor_type = STEREO_OUTDOOR; //RGBD360_INDOOR
-
     // For sensor_type = KINECT
     cameraMatrix << 262.5, 0., 1.5950e+02,
                     0., 262.5, 1.1950e+02,
                     0., 0., 1.;
-
-    stdDevPhoto = 8./255;
-    varPhoto = stdDevPhoto*stdDevPhoto;
-
-    stdDevDepth = 0.01;
-    varDepth = stdDevDepth*stdDevDepth;
-
-    min_depth_Outliers = 2*stdDevDepth; // in meters
-    max_depth_Outliers = 1; // in meters
 }
 
 /*! Compute the unit sphere for the given spherical image dimmensions. This serves as a LUT to speed-up calculations. */
-void RegisterDense::computeUnitSphere()
+void ProjectionModel::computeUnitSphere(const size_t nRows, const size_t nCols)
 {
-    const size_t nRows = graySrc.rows;
-    const size_t nCols = graySrc.cols;
-
     // Make LUT to store the values of the 3D points of the source sphere
     Eigen::MatrixXf unit_sphere;
     unit_sphere.resize(nRows*nCols,3);
@@ -146,7 +95,7 @@ void RegisterDense::computeUnitSphere()
 
 
 /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
-void RegisterDense::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
+void ProjectionModel::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
 {
     const size_t nRows = depth_img.rows;
     const size_t nCols = depth_img.cols;
@@ -212,7 +161,8 @@ void RegisterDense::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf 
         }
     }
 
-#elif !(_AVX) // # ifdef __AVX__
+#else
+//#elif !(_AVX) // # ifdef __AVX__
     cout << " computeSphereXYZ _SSE3 " << imgSize << " pts \n";
 
     assert(nCols % 4 == 0); // Make sure that the image columns are aligned
@@ -318,14 +268,15 @@ void RegisterDense::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf 
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " RegisterDense::computeSphereXYZ_sse " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " ProjectionModel::computeSphereXYZ_sse " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
 /*! Get a list of salient points (pixels with hugh gradient) and compute their 3D position xyz */
-void RegisterDense::getSalientPoints_sphere(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+void ProjectionModel::computeSphereXYZ_saliency(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
                                             const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                            const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY
+                                            const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
+                                            const float thres_saliency_gray, const float thres_saliency_depth
                                             ) // TODO extend this function to employ only depth
 {
     const size_t nRows = depth_img.rows;
@@ -383,8 +334,8 @@ void RegisterDense::getSalientPoints_sphere(Eigen::MatrixXf & xyz, Eigen::Vector
         for(size_t c=0;c<nCols;c++,i++)
         {
             if(min_depth_ < _depth[i] && _depth[i] < max_depth_) //Compute the jacobian only for the valid points
-                if( fabs(_grayGradXPyr[i]) > thres_saliency_gray_ || fabs(_grayGradYPyr[i]) > thres_saliency_gray_ ||
-                    fabs(_depthGradXPyr[i]) > thres_saliency_depth_ || fabs(_depthGradYPyr[i]) > thres_saliency_depth_ )
+                if( fabs(_grayGradXPyr[i]) > thres_saliency_gray || fabs(_grayGradYPyr[i]) > thres_saliency_gray ||
+                    fabs(_depthGradXPyr[i]) > thres_saliency_depth || fabs(_depthGradYPyr[i]) > thres_saliency_depth )
                 {
                     validPixels(count_valid_pixels) = i;
                     //cout << " depth " << _depth[i] << " validPixels " << validPixels(count_valid_pixels) << " count_valid_pixels " << count_valid_pixels << endl;
@@ -403,8 +354,9 @@ void RegisterDense::getSalientPoints_sphere(Eigen::MatrixXf & xyz, Eigen::Vector
     //validPixels = validPixels.block(0,0,count_valid_pixels,1);
     //xyz = xyz.block(0,0,count_valid_pixels,3);
 
-#elif !(_AVX) // # ifdef __AVX__
-    cout << " getSalientPoints_sphere _SSE3 " << imgSize << " pts \n";
+#else
+//#elif !(_AVX) // # ifdef __AVX__
+    cout << " computeSphereXYZ _SSE3 " << imgSize << " pts \n";
 
     //Compute the 3D coordinates of the pij of the source frame
     Eigen::MatrixXf xyz_tmp(imgSize,3);
@@ -416,10 +368,10 @@ void RegisterDense::getSalientPoints_sphere(Eigen::MatrixXf & xyz, Eigen::Vector
     float *_valid_pt = reinterpret_cast<float*>(&validPixels_tmp(0));
     __m128 _min_depth_ = _mm_set1_ps(min_depth_);
     __m128 _max_depth_ = _mm_set1_ps(max_depth_);
-    __m128 _depth_saliency_ = _mm_set1_ps(thres_saliency_depth_);
-    __m128 _gray_saliency_ = _mm_set1_ps(thres_saliency_gray_);
-    __m128 _depth_saliency_neg = _mm_set1_ps(-thres_saliency_depth_);
-    __m128 _gray_saliency_neg = _mm_set1_ps(-thres_saliency_gray_);
+    __m128 _depth_saliency_ = _mm_set1_ps(thres_saliency_depth);
+    __m128 _gray_saliency_ = _mm_set1_ps(thres_saliency_gray);
+    __m128 _depth_saliency_neg = _mm_set1_ps(-thres_saliency_depth);
+    __m128 _gray_saliency_neg = _mm_set1_ps(-thres_saliency_gray);
 
     if(imgSize > 1e5)
     {
@@ -516,13 +468,13 @@ void RegisterDense::getSalientPoints_sphere(Eigen::MatrixXf & xyz, Eigen::Vector
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " RegisterDense::getSalientPoints_sphere " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " ProjectionModel::computeSphereXYZ " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
 
 /*! Compute the 3D points XYZ according to the pinhole camera model. */
-void RegisterDense::computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
+void ProjectionModel::computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
 {
     const size_t nRows = depth_img.rows;
     const size_t nCols = depth_img.cols;
@@ -569,7 +521,8 @@ void RegisterDense::computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf
         }
     }
 
-#elif !(_AVX)
+#else
+//#elif !(_AVX)
     cout << " computePinholeXYZ _SSE3 " << imgSize << " pts \n";
 
     assert(nCols % 4 == 0); // Make sure that the image columns are aligned
@@ -615,16 +568,19 @@ void RegisterDense::computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " RegisterDense::computePinholeXYZ " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " ProjectionModel::computePinholeXYZ " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
 /*! Compute the 3D points XYZ according to the pinhole camera model. */
-void RegisterDense::computePinholeXYZsalient_sse(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+void ProjectionModel::computePinholeXYZ_saliency(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
                                                 const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                                const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY )
+                                                const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
+                                                const float thres_saliency_gray, const float thres_saliency_depth)
 {
-    assert(_SSE);
+#if !(_SSE)
+    assert(0); // TODO: implement regular (non SSE)
+#endif
 
     // TODO: adapt the sse formulation
     const size_t nRows = depth_img.rows;
@@ -666,10 +622,10 @@ void RegisterDense::computePinholeXYZsalient_sse(Eigen::MatrixXf & xyz, Eigen::V
 
     __m128 _min_depth_ = _mm_set1_ps(min_depth_);
     __m128 _max_depth_ = _mm_set1_ps(max_depth_);
-    __m128 _depth_saliency_ = _mm_set1_ps(thres_saliency_depth_);
-    __m128 _gray_saliency_ = _mm_set1_ps(thres_saliency_gray_);
-    __m128 _depth_saliency_neg = _mm_set1_ps(-thres_saliency_depth_);
-    __m128 _gray_saliency_neg = _mm_set1_ps(-thres_saliency_gray_);
+    __m128 _depth_saliency_ = _mm_set1_ps(thres_saliency_depth);
+    __m128 _gray_saliency_ = _mm_set1_ps(thres_saliency_gray);
+    __m128 _depth_saliency_neg = _mm_set1_ps(-thres_saliency_depth);
+    __m128 _gray_saliency_neg = _mm_set1_ps(-thres_saliency_gray);
 
     for(size_t r=0; r < nRows; r++)
     {
@@ -701,6 +657,6 @@ void RegisterDense::computePinholeXYZsalient_sse(Eigen::MatrixXf & xyz, Eigen::V
     #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " RegisterDense::computePinholeXYZ_sse SALIENT " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " ProjectionModel::computePinholeXYZ_sse SALIENT " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
     #endif
 }

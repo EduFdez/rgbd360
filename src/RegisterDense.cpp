@@ -77,186 +77,15 @@
 #define PRINT_PROFILING 1
 #define ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS 1
 #define INVALID_POINT -10000
-#define SSE_AVAILABLE 1
 
 using namespace std;
 
-/*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y' */
-//    inline cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)
-//template <typename T>
-inline float RegisterDense::bilinearInterp(const cv::Mat & img, cv::Point2f pt)
-{
-    assert( img.type() == CV_32FC1 && !img.empty() );
-    cv::Mat patch;
-    cv::getRectSubPix(img, cv::Size(1,1), pt, patch);
-    return patch.at<float>(0,0);
-}
-
-/*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y'.
- * It takes into account NaN pixels and (<= 0 && > max_depth_) values to rule them out of the interpolation
- */
-inline float RegisterDense::bilinearInterp_depth(const cv::Mat& img, const cv::Point2f &pt)
-{
-    assert( img.type() == CV_32FC1 && !img.empty() );
-
-    float *_img = reinterpret_cast<float*>(img.data);
-
-    int x = (int)pt.x;
-    int y = (int)pt.y;
-
-    size_t x0_y0 = y * img.cols + x;
-    size_t x1_y0 = x0_y0 + 1;
-    size_t x0_y1 = x0_y0 + img.cols;
-    size_t x1_y1 = x0_y1 + 1;
-
-    float a = pt.x - (float)x;
-    float b = 1.f - a;
-    float c = pt.y - (float)y;
-    float d = 1.f - c;
-
-    float pt_y0;
-    if( _img[x0_y0] < max_depth_ && _img[x1_y0] < max_depth_ && _img[x0_y0] >= 0 && _img[x1_y0] >= 0 )
-        pt_y0 = _img[x0_y0] * b + _img[x1_y0] * a;
-    else if (_img[x0_y0] < max_depth_ && _img[x0_y0] >= 0 )
-        pt_y0 = _img[x0_y0];
-    else //if(_img[x0_y0] < max_depth_)
-        pt_y0 = _img[x1_y0];
-    // The NaN/OutOfDepth case (_img[x0_y0] > max_depth_ && _img[x1_y0] > max_depth_) is automatically assumed
-
-    float pt_y1;
-    if( _img[x0_y1] < max_depth_ && _img[x1_y1] < max_depth_ && _img[x0_y1] >= 0 && _img[x1_y1] >= 0 )
-        pt_y1 = _img[x0_y1] * b + _img[x1_y1] * a;
-    else if (_img[x0_y1] < max_depth_ && _img[x0_y1] >= 0)
-        pt_y1 = _img[x0_y1];
-    else //if(_img[x0_y1] < max_depth_)
-        pt_y1 = _img[x1_y1];
-
-    float interpDepth;
-    if( pt_y0 < max_depth_ && _img[x1_y1] < max_depth_ )
-        interpDepth = pt_y0 * d + pt_y1 * c;
-    else if (_img[x0_y1] < max_depth_)
-        interpDepth = pt_y0;
-    else
-        interpDepth = pt_y1;
-
-//        int x0 = cv::borderInterpolate(x,   img.cols, cv::BORDER_REFLECT_101);
-//        int x1 = cv::borderInterpolate(x+1, img.cols, cv::BORDER_REFLECT_101);
-//        int y0 = cv::borderInterpolate(y,   img.rows, cv::BORDER_REFLECT_101);
-//        int y1 = cv::borderInterpolate(y+1, img.rows, cv::BORDER_REFLECT_101);
-
-//        float pt_y0;
-//        if( img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x1) < max_depth_ && img.at<float>(y0, x0) >= 0 && img.at<float>(y0, x1) >= 0 )
-//            pt_y0 = img.at<float>(y0, x0) * b + img.at<float>(y0, x1) * a;
-//        else if (img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x0) >= 0 )
-//            pt_y0 = img.at<float>(y0, x0);
-//        else //if(img.at<float>(y0, x0) < max_depth_)
-//            pt_y0 = img.at<float>(y0, x1);
-//        // The NaN/OutOfDepth case (img.at<float>(y0, x0) > max_depth_ && img.at<float>(y0, x1) > max_depth_) is automatically assumed
-
-//        float pt_y1;
-//        if( img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x1) < max_depth_ && img.at<float>(y1, x0) >= 0 && img.at<float>(y1, x1) >= 0 )
-//            pt_y1 = img.at<float>(y1, x0) * b + img.at<float>(y1, x1) * a;
-//        else if (img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x0) >= 0)
-//            pt_y1 = img.at<float>(y1, x0);
-//        else //if(img.at<float>(y1, x0) < max_depth_)
-//            pt_y1 = img.at<float>(y1, x1);
-
-//        float interpDepth;
-//        if( pt_y0 < max_depth_ && img.at<float>(y1, x1) < max_depth_ )
-//            interpDepth = pt_y0 * d + pt_y1 * c;
-//        else if (img.at<float>(y1, x0) < max_depth_)
-//            interpDepth = pt_y0;
-//        else
-//            interpDepth = pt_y1;
-
-    return interpDepth;
-}
-
-///*! Function to obtain a pixel value with bilinear interpolation. Unsafe function Unsafe (it does not check that the pixel is inside the image limits) */
-//float getPixelBilinear(const float* img, float x, float y)
-//{
-//#if !(_SSE3) // # ifdef __SSE3__
-//    int px = (int)x; // floor of x
-//    int py = (int)y; // floor of y
-//    const int stride = img->width;
-//    const Pixel* p0 = img->data + px + py * stride; // pointer to first pixel
-
-//    // load the four neighboring pixels
-//    const Pixel& p1 = p0[0 + 0 * stride];
-//    const Pixel& p2 = p0[1 + 0 * stride];
-//    const Pixel& p3 = p0[0 + 1 * stride];
-//    const Pixel& p4 = p0[1 + 1 * stride];
-
-//    // Calculate the weights for each pixel
-//    float fx = x - px;
-//    float fy = y - py;
-//    float fx1 = 1.0f - fx;
-//    float fy1 = 1.0f - fy;
-
-//    int w1 = fx1 * fy1 * 256.0f;
-//    int w2 = fx  * fy1 * 256.0f;
-//    int w3 = fx1 * fy  * 256.0f;
-//    int w4 = fx  * fy  * 256.0f;
-
-//    // Calculate the weighted sum of pixels (for each color channel)
-//    int outr = p1.r * w1 + p2.r * w2 + p3.r * w3 + p4.r * w4;
-//    int outg = p1.g * w1 + p2.g * w2 + p3.g * w3 + p4.g * w4;
-//    int outb = p1.b * w1 + p2.b * w2 + p3.b * w3 + p4.b * w4;
-//    int outa = p1.a * w1 + p2.a * w2 + p3.a * w3 + p4.a * w4;
-
-//    return Pixel(outr >> 8, outg >> 8, outb >> 8, outa >> 8);
-
-//#else // SSE optimzed
-//    const int stride = img->width;
-//    const Pixel* p0 = img->data + (int)x + (int)y * stride; // pointer to first pixel
-
-//    // Load the data (2 pixels in one load)
-//    __m128i p12 = _mm_loadl_epi64((const __m128i*)&p0[0 * stride]);
-//    __m128i p34 = _mm_loadl_epi64((const __m128i*)&p0[1 * stride]);
-
-//    __m128 weight = CalcWeights(x, y);
-
-//    // convert RGBA RGBA RGBA RGAB to RRRR GGGG BBBB AAAA (AoS to SoA)
-//    __m128i p1234 = _mm_unpacklo_epi8(p12, p34);
-//    __m128i p34xx = _mm_unpackhi_epi64(p1234, _mm_setzero_si128());
-//    __m128i p1234_8bit = _mm_unpacklo_epi8(p1234, p34xx);
-
-//    // extend to 16bit
-//    __m128i pRG = _mm_unpacklo_epi8(p1234_8bit, _mm_setzero_si128());
-//    __m128i pBA = _mm_unpackhi_epi8(p1234_8bit, _mm_setzero_si128());
-
-//    // convert weights to integer
-//    weight = _mm_mul_ps(weight, CONST_256);
-//    __m128i weighti = _mm_cvtps_epi32(weight); // w4 w3 w2 w1
-//    weighti = _mm_packs_epi32(weighti, weighti); // 32->2x16bit
-
-//    //outRG = [w1*R1 + w2*R2 | w3*R3 + w4*R4 | w1*G1 + w2*G2 | w3*G3 + w4*G4]
-//    __m128i outRG = _mm_madd_epi16(pRG, weighti);
-//    //outBA = [w1*B1 + w2*B2 | w3*B3 + w4*B4 | w1*A1 + w2*A2 | w3*A3 + w4*A4]
-//    __m128i outBA = _mm_madd_epi16(pBA, weighti);
-
-//    // horizontal add that will produce the output values (in 32bit)
-//    __m128i out = _mm_hadd_epi32(outRG, outBA);
-//    out = _mm_srli_epi32(out, 8); // divide by 256
-
-//    // convert 32bit->8bit
-//    out = _mm_packus_epi32(out, _mm_setzero_si128());
-//    out = _mm_packus_epi16(out, _mm_setzero_si128());
-
-//    // return
-//    return _mm_cvtsi128_si32(out);
-//#endif
-//}
-
-
 RegisterDense::RegisterDense() :
-    min_depth_(0.3f),
-    max_depth_(20.f),
     use_salient_pixels_(false),
     compute_MAD_stdDev_(false),
     use_bilinear_(false),
     visualize_(false),
-    nPyrLevels(4)
+    nPyrLevels(0)
 {
     sensor_type = STEREO_OUTDOOR; //RGBD360_INDOOR
 
@@ -290,9 +119,9 @@ RegisterDense::RegisterDense() :
     registered_pose_ = Eigen::Matrix4f::Identity();
 }
 
-/*! Build a pyramid of nLevels of image resolutions from the input image.
+/*! Build a pyramid of nPyrLevels of image resolutions from the input image.
  * The resolution of each layer is 2x2 times the resolution of its image above.*/
-void RegisterDense::buildPyramid( const cv::Mat & img, std::vector<cv::Mat> & pyramid, const int nLevels)
+void RegisterDense::buildPyramid( const cv::Mat & img, std::vector<cv::Mat> & pyramid)
 {
 #if PRINT_PROFILING
     cout << "RegisterDense::buildPyramid... \n";
@@ -301,7 +130,7 @@ void RegisterDense::buildPyramid( const cv::Mat & img, std::vector<cv::Mat> & py
     {
 #endif
     //Create space for all the images // ??
-    pyramid.resize(nLevels);
+    pyramid.resize(nPyrLevels);
     pyramid[0] = img;
     //cout << "types " << pyramid[0].type() << " " << img.type() << endl;
 
@@ -311,7 +140,7 @@ void RegisterDense::buildPyramid( const cv::Mat & img, std::vector<cv::Mat> & py
 //    //cv::imshow("pyramid", img_show);
 //    //cv::waitKey(0);
 
-    for(int level=1; level < nLevels; level++)
+    for(int level=1; level < nPyrLevels; level++)
     {
         assert(pyramid[0].rows % 2 == 0 && pyramid[0].cols % 2 == 0 );
 
@@ -331,9 +160,9 @@ void RegisterDense::buildPyramid( const cv::Mat & img, std::vector<cv::Mat> & py
 #endif
 }
 
-/*! Build a pyramid of nLevels of image resolutions from the input image.
+/*! Build a pyramid of nPyrLevels of image resolutions from the input image.
      * The resolution of each layer is 2x2 times the resolution of its image above.*/
-void RegisterDense::buildPyramidRange( const cv::Mat & img, std::vector<cv::Mat> & pyramid, const int nLevels)
+void RegisterDense::buildPyramidRange(const cv::Mat & img, std::vector<cv::Mat> & pyramid)
 {
 #if PRINT_PROFILING
     cout << "RegisterDense::buildPyramidRange... \n";
@@ -342,7 +171,7 @@ void RegisterDense::buildPyramidRange( const cv::Mat & img, std::vector<cv::Mat>
     {
 #endif
     //Create space for all the images // ??
-    pyramid.resize(nLevels);
+    pyramid.resize(nPyrLevels);
     if(img.type() == CV_16U) // If the image is in milimetres, convert it to meters
         img.convertTo(pyramid[0], CV_32FC1, 0.001 );
     else
@@ -358,7 +187,7 @@ void RegisterDense::buildPyramidRange( const cv::Mat & img, std::vector<cv::Mat>
 //    img_show.setTo(0, mask);
 //    cv::imwrite(mrpt::format("/home/efernand/pyr_depth_%d.png",0), img_show);
 
-    for(int level=1; level < nLevels; level++)
+    for(int level=1; level < nPyrLevels; level++)
     {
         //Create an auxiliar image of factor times the size of the original image
         size_t nCols = pyramid[level-1].cols;
@@ -944,8 +773,8 @@ void RegisterDense::setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
     graySrc.convertTo(graySrc, CV_32FC1, 1./255 );
 
     //Compute image pyramids for the grayscale and depth images
-    buildPyramid(graySrc, graySrcPyr, nPyrLevels);
-    buildPyramidRange(imgDepth, depthSrcPyr, nPyrLevels);
+    buildPyramid(graySrc, graySrcPyr);
+    buildPyramidRange(imgDepth, depthSrcPyr);
 
     //Compute image pyramids for the gradients images
     buildGradientPyramids( graySrcPyr, graySrcGradXPyr, graySrcGradYPyr,
@@ -975,8 +804,8 @@ void RegisterDense::setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
     grayTrg.convertTo(grayTrg, CV_32FC1, 1./255 );
 
     //Compute image pyramids for the grayscale and depth images
-    buildPyramid(grayTrg, grayTrgPyr, nPyrLevels);
-    buildPyramidRange(imgDepth, depthTrgPyr, nPyrLevels);
+    buildPyramid(grayTrg, grayTrgPyr);
+    buildPyramidRange(imgDepth, depthTrgPyr);
 
     //Compute image pyramids for the gradients images
     buildGradientPyramids( grayTrgPyr, grayTrgGradXPyr, grayTrgGradYPyr,
@@ -10003,14 +9832,12 @@ void RegisterDense::register360(const Eigen::Matrix4f pose_guess, const costFunc
         // Make LUT to store the values of the 3D points of the source sphere
         if(use_salient_pixels_)
         {
-            getSalientPoints_sphere(LUT_xyz_source, validPixels_src,
+            computeSphereXYZ_saliency(LUT_xyz_source, validPixels_src,
                                     depthSrcPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], depthSrcGradYPyr[pyrLevel],
-                                    graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel]
+                                    graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel],
+                                    thres_saliency_gray_, thres_saliency_depth_
                                     ); // TODO extend this function to employ only depth
 
-//            getSalientPoints_sphere_sse(LUT_xyz_source, validPixels_src,
-//                                        depthSrcPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], depthSrcGradYPyr[pyrLevel],
-//                                        graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel] );
         }
         else
         {
@@ -10278,14 +10105,11 @@ void RegisterDense::register360_rot(const Eigen::Matrix4f pose_guess, const cost
         // Make LUT to store the values of the 3D points of the source sphere
         if(use_salient_pixels_)
         {
-            getSalientPoints_sphere(LUT_xyz_source, validPixels_src,
+            computeSphereXYZ_saliency(LUT_xyz_source, validPixels_src,
                                     depthSrcPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], depthSrcGradYPyr[pyrLevel],
-                                    graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel]
+                                    graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel],
+                                    thres_saliency_gray_, thres_saliency_depth_
                                     ); // TODO extend this function to employ only depth
-
-//            getSalientPoints_sphere_sse(LUT_xyz_source, validPixels_src,
-//                                        depthSrcPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], depthSrcGradYPyr[pyrLevel],
-//                                        graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel] );
         }
         else
         {
@@ -10518,14 +10342,11 @@ void RegisterDense::register360_warp(const Eigen::Matrix4f pose_guess, const cos
 //        // Make LUT to store the values of the 3D points of the source sphere
 //        if(use_salient_pixels_)
 //        {
-//            getSalientPoints_sphere(LUT_xyz_source, validPixels_src,
+//            computeSphereXYZ_saliency(LUT_xyz_source, validPixels_src,
 //                                    depthSrcPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], depthSrcGradYPyr[pyrLevel],
-//                                    graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel]
+//                                    graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel],
+//        thres_saliency_gray_, thres_saliency_depth_
 //                                    ); // TODO extend this function to employ only depth
-
-////            getSalientPoints_sphere_sse(LUT_xyz_source, validPixels_src,
-////                                        depthSrcPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], depthSrcGradYPyr[pyrLevel],
-////                                        graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel] );
 //        }
 //        else
         {
@@ -10729,14 +10550,11 @@ void RegisterDense::register360_side(const Eigen::Matrix4f pose_guess, const cos
         // Make LUT to store the values of the 3D points of the source sphere
         if(use_salient_pixels_)
         {
-            getSalientPoints_sphere(LUT_xyz_source, validPixels_src,
+            computeSphereXYZ_saliency(LUT_xyz_source, validPixels_src,
                                     depthSrcPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], depthSrcGradYPyr[pyrLevel],
-                                    graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel]
+                                    graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel],
+                                    thres_saliency_gray_, thres_saliency_depth_
                                     ); // TODO extend this function to employ only depth
-
-//            getSalientPoints_sphere_sse(LUT_xyz_source, validPixels_src,
-//                                        depthSrcPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], depthSrcGradYPyr[pyrLevel],
-//                                        graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel] );
         }
         else
         {
@@ -10930,15 +10748,11 @@ void RegisterDense::register360_salientJ(const Eigen::Matrix4f pose_guess, const
         // Make LUT to store the values of the 3D points of the source sphere
         if(use_salient_pixels_)
         {
-            getSalientPoints_sphere(LUT_xyz_source, validPixels_src,
+            computeSphereXYZ_saliency(LUT_xyz_source, validPixels_src,
                                     depthSrcPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], depthSrcGradYPyr[pyrLevel],
-                                    graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel]
+                                    graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel],
+                                    thres_saliency_gray_, thres_saliency_depth_
                                     ); // TODO extend this function to employ only depth
-
-//            getSalientPoints_sphere_sse(LUT_xyz_source, validPixels_src,
-//                                        depthSrcPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], depthSrcGradYPyr[pyrLevel],
-//                                        graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel]
-//                                        ); // TODO extend this function to employ only depth
         }
         else
         {
@@ -11245,20 +11059,11 @@ void RegisterDense::register360_IC(const Eigen::Matrix4f pose_guess, const costF
         // Make LUT to store the values of the 3D points of the source sphere
         if(use_salient_pixels_)
         {
-            getSalientPoints_sphere(LUT_xyz_source, validPixels_src,
+            computeSphereXYZ_saliency(LUT_xyz_source, validPixels_src,
                                     depthSrcPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], depthSrcGradYPyr[pyrLevel],
-                                    graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel]
+                                    graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel],
+                                    thres_saliency_gray_, thres_saliency_depth_
                                     ); // TODO extend this function to employ only depth
-
-//            getSalientPoints_sphere_sse(LUT_xyz_source, validPixels_src,
-//                                        depthSrcPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], depthSrcGradYPyr[pyrLevel],
-//                                        graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel]
-//                                        ); // TODO extend this function to employ only depth
-
-//            getSalientPoints_sphere(LUT_xyz_target, validPixels_trg,
-//                                    depthTrgPyr[pyrLevel], depthTrgGradXPyr[pyrLevel], depthTrgGradYPyr[pyrLevel],
-//                                    grayTrgPyr[pyrLevel], grayTrgGradXPyr[pyrLevel], grayTrgGradYPyr[pyrLevel]
-//                                    ); // TODO extend this function to employ only depth
         }
         else
         {
@@ -11549,9 +11354,10 @@ void RegisterDense::register360_inv(const Eigen::Matrix4f pose_guess, const cost
         // Make LUT to store the values of the 3D points of the source sphere
         if(use_salient_pixels_)
         {
-            getSalientPoints_sphere(LUT_xyz_target, validPixels_trg,
+            computeSphereXYZ_saliency(LUT_xyz_target, validPixels_trg,
                                     depthTrgPyr[pyrLevel], depthTrgGradXPyr[pyrLevel], depthTrgGradYPyr[pyrLevel],
-                                    grayTrgPyr[pyrLevel], grayTrgGradXPyr[pyrLevel], grayTrgGradYPyr[pyrLevel]
+                                    grayTrgPyr[pyrLevel], grayTrgGradXPyr[pyrLevel], grayTrgGradYPyr[pyrLevel],
+                                    thres_saliency_gray_, thres_saliency_depth_
                                     ); // TODO extend this function to employ only depth
         }
         else
@@ -12098,14 +11904,16 @@ void RegisterDense::register360_bidirectional(const Eigen::Matrix4f pose_guess, 
         // Make LUT to store the values of the 3D points of the source sphere
         if(use_salient_pixels_)
         {
-            getSalientPoints_sphere(LUT_xyz_source, validPixels_src,
+            computeSphereXYZ_saliency(LUT_xyz_source, validPixels_src,
                                     depthSrcPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], depthSrcGradYPyr[pyrLevel],
-                                    graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel]
+                                    graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradYPyr[pyrLevel],
+                                    thres_saliency_gray_, thres_saliency_depth_
                                     ); // TODO extend this function to employ only depth
 
-            getSalientPoints_sphere(LUT_xyz_target, validPixels_trg,
+            computeSphereXYZ_saliency(LUT_xyz_target, validPixels_trg,
                                     depthTrgPyr[pyrLevel], depthTrgGradXPyr[pyrLevel], depthTrgGradYPyr[pyrLevel],
-                                    grayTrgPyr[pyrLevel], grayTrgGradXPyr[pyrLevel], grayTrgGradYPyr[pyrLevel]
+                                    grayTrgPyr[pyrLevel], grayTrgGradXPyr[pyrLevel], grayTrgGradYPyr[pyrLevel],
+                                    thres_saliency_gray_, thres_saliency_depth_
                                     ); // TODO extend this function to employ only depth
         }
         else
@@ -12255,41 +12063,6 @@ void RegisterDense::register360_bidirectional(const Eigen::Matrix4f pose_guess, 
 //#endif
 }
 
-/*! Compute the unit sphere for the given spherical image dimmensions. This serves as a LUT to speed-up calculations. */
-void RegisterDense::computeUnitSphere()
-{
-    const size_t nRows = graySrc.rows;
-    const size_t nCols = graySrc.cols;
-
-    // Make LUT to store the values of the 3D points of the source sphere
-    Eigen::MatrixXf unit_sphere;
-    unit_sphere.resize(nRows*nCols,3);
-    const float pixel_angle = 2*PI/nCols;
-    std::vector<float> v_sinTheta(nCols);
-    std::vector<float> v_cosTheta(nCols);
-    for(size_t c=0; c < nCols; c++)
-    {
-        float theta = c*pixel_angle;
-        v_sinTheta[c] = sin(theta);
-        v_cosTheta[c] = cos(theta);
-    }
-    const float half_height = 0.5*nRows-0.5;
-    for(size_t r=0; r < nRows; r++)
-    {
-        float phi = (half_height-r)*pixel_angle;
-        float sin_phi = sin(phi);
-        float cos_phi = cos(phi);
-
-        for(size_t c=0;c<nCols;c++)
-        {
-            size_t i = r*nCols + c;
-            unit_sphere(i,0) = sin_phi;
-            unit_sphere(i,1) = -cos_phi*v_sinTheta[c];
-            unit_sphere(i,2) = -cos_phi*v_cosTheta[c];
-        }
-    }
-}
-
 /*! Align depth frames applying ICP in different pyramid scales. */
 double RegisterDense::alignPyramidICP(Eigen::Matrix4f poseGuess)
 {
@@ -12391,570 +12164,6 @@ double RegisterDense::alignPyramidICP(Eigen::Matrix4f poseGuess)
     registered_pose_ = poseGuess;
 
     return icp.getFitnessScore();
-}
-
-
-/*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
-void RegisterDense::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
-{
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
-
-#if PRINT_PROFILING
-    double time_start = pcl::getTime();
-    //for(size_t ii=0; ii<100; ii++)
-    {
-#endif
-
-    const float half_width = nCols/2;
-    const float pixel_angle = 2*PI/nCols;
-//    float phi_start;
-//    if(sensor_type == RGBD360_INDOOR)
-//        phi_start = -(0.5*nRows-0.5)*pixel_angle;
-//    else
-//        phi_start = float(174-512)/512 *PI/2 + 0.5*pixel_angle; // The images must be 640 pixels height to compute the pyramids efficiently (we substract 8 pixels from the top and 7 from the lower part)
-
-    xyz.resize(imgSize,3);
-
-#if !(_SSE3) // # ifdef __SSE3__
-    // Compute the Unit Sphere: store the values of the trigonometric functions
-    Eigen::VectorXf v_sinTheta(nCols);
-    Eigen::VectorXf v_cosTheta(nCols);
-    float *sinTheta = &v_sinTheta[0];
-    float *cosTheta = &v_cosTheta[0];
-    for(int col_theta=-half_width; col_theta < half_width; ++col_theta)
-    {
-        //float theta = col_theta*pixel_angle;
-        float theta = (col_theta+0.5f)*pixel_angle;
-        *(sinTheta++) = sin(theta);
-        *(cosTheta++) = cos(theta);
-        //cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << endl;
-    }
-    const size_t start_row = (nCols-nRows) / 2;
-    Eigen::VectorXf v_sinPhi( v_sinTheta.block(start_row,0,nRows,1) );
-    Eigen::VectorXf v_cosPhi( v_cosTheta.block(start_row,0,nRows,1) );
-
-    //Compute the 3D coordinates of the pij of the source frame
-    validPixels = Eigen::VectorXi::Ones(imgSize);
-    float *_depth_src = reinterpret_cast<float*>(depth_img.data);
-    #if ENABLE_OPENMP
-    #pragma omp parallel for
-    #endif
-    for(size_t r=0;r<nRows;r++)
-    {
-        size_t i = r*nCols;
-        for(size_t c=0;c<nCols;c++,i++)
-        {
-            float depth1 = _depth_src[i];
-            if(min_depth_ < depth1 && depth1 < max_depth_) //Compute the jacobian only for the valid points
-            {
-                //cout << " depth1 " << depth1 << " phi " << phi << " v_sinTheta[c] " << v_sinTheta[c] << endl;
-                xyz(i,0) = depth1 * v_cosPhi[r] * v_sinTheta[c];
-                xyz(i,1) = depth1 * v_sinPhi[r];
-                xyz(i,2) = depth1 * v_cosPhi[r] * v_cosTheta[c];
-                //cout << " xyz " << xyz [i].transpose() << " xyz_eigen " << xyz_eigen.block(c*nRows+r,0,1,3) << endl;
-                //mrpt::system::pause();
-            }
-            else
-                validPixels(i) = 0;
-        }
-    }
-#else
-//#elif !(_AVX) // # ifdef __AVX__
-    cout << " computeSphereXYZ _SSE3 " << imgSize << " pts \n";
-
-    assert(nCols % 4 == 0); // Make sure that the image columns are aligned
-    assert(nRows % 2 == 0);
-
-    validPixels = Eigen::VectorXi::Zero(imgSize);
-    //validPixels = Eigen::VectorXi::Ones(imgSize);
-
-    // Compute the Unit Sphere: store the values of the trigonometric functions
-    Eigen::VectorXf v_sinTheta(nCols);
-    Eigen::VectorXf v_cosTheta(nCols);
-    float *sinTheta = &v_sinTheta[0];
-    float *cosTheta = &v_cosTheta[0];
-    for(int col_theta=-half_width; col_theta < half_width; ++col_theta)
-    {
-        //float theta = col_theta*pixel_angle;
-        float theta = (col_theta+0.5f)*pixel_angle;
-        *(sinTheta++) = sin(theta);
-        *(cosTheta++) = cos(theta);
-        //cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << endl;
-    }
-    size_t start_row = (nCols-nRows) / 2;
-    Eigen::VectorXf v_sinPhi( v_sinTheta.block(start_row,0,nRows,1) );
-    Eigen::VectorXf v_cosPhi( v_cosTheta.block(start_row,0,nRows,1) );
-
-    //Compute the 3D coordinates of the pij of the source frame
-    float *_depth = reinterpret_cast<float*>(depth_img.data);
-    float *_x = &xyz(0,0);
-    float *_y = &xyz(0,1);
-    float *_z = &xyz(0,2);
-    float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
-    __m128 _min_depth_ = _mm_set1_ps(min_depth_);
-    __m128 _max_depth_ = _mm_set1_ps(max_depth_);
-    if(imgSize > 1e5)
-    {
-    #if ENABLE_OPENMP
-    #pragma omp parallel for
-    #endif
-        //for(size_t i=0; i < block_end; i++)
-        for(size_t r=0; r < nRows; r++)
-        {
-            __m128 sin_phi = _mm_set1_ps(v_sinPhi[r]);
-            __m128 cos_phi = _mm_set1_ps(v_cosPhi[r]);
-
-            size_t block_i = r*nCols;
-            for(size_t c=0; c < nCols; c+=4, block_i+=4)
-            {
-                __m128 block_depth = _mm_load_ps(_depth+block_i);
-                __m128 sin_theta = _mm_load_ps(&v_sinTheta[c]);
-                __m128 cos_theta = _mm_load_ps(&v_cosTheta[c]);
-
-                __m128 block_x = _mm_mul_ps( block_depth, _mm_mul_ps(cos_phi, sin_theta) );
-                __m128 block_y = _mm_mul_ps( block_depth, sin_phi );
-                __m128 block_z = _mm_mul_ps( block_depth, _mm_mul_ps(cos_phi, cos_theta) );
-                _mm_store_ps(_x+block_i, block_x);
-                _mm_store_ps(_y+block_i, block_y);
-                _mm_store_ps(_z+block_i, block_z);
-
-                //__m128 mask = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
-                //mi cmpeq_epi8(mi a,mi b)
-                _mm_store_ps(_valid_pt+block_i, _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) ) );
-                //_mm_stream_si128
-            }
-        }
-    }
-    else
-    {
-        for(size_t r=0; r < nRows; r++)
-        {
-            __m128 sin_phi = _mm_set1_ps(v_sinPhi[r]);
-            __m128 cos_phi = _mm_set1_ps(v_cosPhi[r]);
-
-            size_t block_i = r*nCols;
-            for(size_t c=0; c < nCols; c+=4, block_i+=4)
-            {
-                __m128 block_depth = _mm_load_ps(_depth+block_i);
-                __m128 sin_theta = _mm_load_ps(&v_sinTheta[c]);
-                __m128 cos_theta = _mm_load_ps(&v_cosTheta[c]);
-
-                __m128 block_x = _mm_mul_ps( block_depth, _mm_mul_ps(cos_phi, sin_theta) );
-                __m128 block_y = _mm_mul_ps( block_depth, sin_phi );
-                __m128 block_z = _mm_mul_ps( block_depth, _mm_mul_ps(cos_phi, cos_theta) );
-                _mm_store_ps(_x+block_i, block_x);
-                _mm_store_ps(_y+block_i, block_y);
-                _mm_store_ps(_z+block_i, block_z);
-
-                //__m128 mask = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
-                _mm_store_ps(_valid_pt+block_i, _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) ) );
-            }
-        }
-    }
-//    // Compute the transformation of those points which do not enter in a block
-//    const Eigen::Matrix3f rotation_transposed = Rt.block(0,0,3,3).transpose();
-//    const Eigen::Matrix<float,1,3> translation_transposed = Rt.block(0,3,3,1).transpose();
-//    for(int i=block_end; i < imgSize; i++)
-//    {
-//        ***********
-//        output_pts.block(i,0,1,3) = input_pts.block(i,0,1,3) * rotation_transposed + translation_transposed;
-//    }
-
-#endif
-
-#if PRINT_PROFILING
-    }
-    double time_end = pcl::getTime();
-    cout << " RegisterDense::computeSphereXYZ_sse " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
-#endif
-}
-
-/*! Get a list of salient points (pixels with hugh gradient) and compute their 3D position xyz */
-void RegisterDense::getSalientPoints_sphere(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                            const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                            const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY
-                                            ) // TODO extend this function to employ only depth
-{
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
-
-#if PRINT_PROFILING
-    double time_start = pcl::getTime();
-    //for(size_t ii=0; ii<100; ii++)
-    {
-#endif
-
-    const float half_width = nCols/2;
-    const float pixel_angle = 2*PI/nCols;
-
-//    float phi_start;
-//    if(sensor_type == RGBD360_INDOOR)
-//        phi_start = -(0.5*nRows-0.5)*pixel_angle;
-//    else
-//        phi_start = float(174-512)/512 *PI/2 + 0.5*pixel_angle; // The images must be 640 pixels height to compute the pyramids efficiently (we substract 8 pixels from the top and 7 from the lower part)
-
-    // Compute the Unit Sphere: store the values of the trigonometric functions
-    Eigen::VectorXf v_sinTheta(nCols);
-    Eigen::VectorXf v_cosTheta(nCols);
-    float *sinTheta = &v_sinTheta[0];
-    float *cosTheta = &v_cosTheta[0];
-    for(int col_theta=-half_width; col_theta < half_width; ++col_theta)
-    {
-        //float theta = col_theta*pixel_angle;
-        float theta = (col_theta+0.5f)*pixel_angle;
-        *(sinTheta++) = sin(theta);
-        *(cosTheta++) = cos(theta);
-        //cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << endl;
-    }
-    const size_t start_row = (nCols-nRows) / 2;
-    Eigen::VectorXf v_sinPhi( v_sinTheta.block(start_row,0,nRows,1) );
-    Eigen::VectorXf v_cosPhi( v_cosTheta.block(start_row,0,nRows,1) );
-
-    float *_depthGradXPyr = reinterpret_cast<float*>(depth_gradX.data);
-    float *_depthGradYPyr = reinterpret_cast<float*>(depth_gradY.data);
-    float *_grayGradXPyr = reinterpret_cast<float*>(intensity_gradX.data);
-    float *_grayGradYPyr = reinterpret_cast<float*>(intensity_gradY.data);
-
-    //Compute the 3D coordinates of the 3D points in source frame
-    validPixels.resize(imgSize);
-    xyz.resize(imgSize,3);
-    float *_depth = reinterpret_cast<float*>(depth_img.data);
-
-#if !(_SSE3) // # ifdef __SSE3__
-
-    size_t count_valid_pixels = 0;
-    for(size_t r=0;r<nRows;r++)
-    {
-        size_t i = r*nCols;
-        for(size_t c=0;c<nCols;c++,i++)
-        {
-            if(min_depth_ < _depth[i] && _depth[i] < max_depth_) //Compute the jacobian only for the valid points
-                if( fabs(_grayGradXPyr[i]) > thres_saliency_gray_ || fabs(_grayGradYPyr[i]) > thres_saliency_gray_ ||
-                    fabs(_depthGradXPyr[i]) > thres_saliency_depth_ || fabs(_depthGradYPyr[i]) > thres_saliency_depth_ )
-                {
-                    validPixels(count_valid_pixels) = i;
-                    //cout << " depth " << _depth[i] << " validPixels " << validPixels(count_valid_pixels) << " count_valid_pixels " << count_valid_pixels << endl;
-                    xyz(count_valid_pixels,0) = _depth[i] * v_cosPhi[r] * v_sinTheta[c];
-                    xyz(count_valid_pixels,1) = _depth[i] * v_sinPhi[r];
-                    xyz(count_valid_pixels,2) = _depth[i] * v_cosPhi[r] * v_cosTheta[c];
-                    //cout << " xyz " << xyz.block(count_valid_pixels,0,1,3) << endl;
-                    ++count_valid_pixels;
-                    //mrpt::system::pause();
-                }
-        }
-    }
-    size_t valid_pixels_aligned = count_valid_pixels - count_valid_pixels % 4;
-    validPixels.conservativeResize(valid_pixels_aligned);
-    xyz.conservativeResize(valid_pixels_aligned,3);
-    //validPixels = validPixels.block(0,0,count_valid_pixels,1);
-    //xyz = xyz.block(0,0,count_valid_pixels,3);
-#else
-//#elif !(_AVX) // # ifdef __AVX__
-    cout << " getSalientPoints_sphere _SSE3 " << imgSize << " pts \n";
-
-    //Compute the 3D coordinates of the pij of the source frame
-    Eigen::MatrixXf xyz_tmp(imgSize,3);
-    Eigen::VectorXi validPixels_tmp(imgSize);
-    float *_x = &xyz_tmp(0,0);
-    float *_y = &xyz_tmp(0,1);
-    float *_z = &xyz_tmp(0,2);
-
-    float *_valid_pt = reinterpret_cast<float*>(&validPixels_tmp(0));
-    __m128 _min_depth_ = _mm_set1_ps(min_depth_);
-    __m128 _max_depth_ = _mm_set1_ps(max_depth_);
-    __m128 _depth_saliency_ = _mm_set1_ps(thres_saliency_depth_);
-    __m128 _gray_saliency_ = _mm_set1_ps(thres_saliency_gray_);
-    __m128 _depth_saliency_neg = _mm_set1_ps(-thres_saliency_depth_);
-    __m128 _gray_saliency_neg = _mm_set1_ps(-thres_saliency_gray_);
-
-    if(imgSize > 1e5)
-    {
-    #if ENABLE_OPENMP
-    #pragma omp parallel for
-    #endif
-        //for(size_t i=0; i < block_end; i++)
-        for(size_t r=0; r < nRows; r++)
-        {
-            __m128 sin_phi = _mm_set1_ps(v_sinPhi[r]);
-            __m128 cos_phi = _mm_set1_ps(v_cosPhi[r]);
-
-            size_t block_i = r*nCols;
-            for(size_t c=0; c < nCols; c+=4, block_i+=4)
-            {
-                __m128 block_depth = _mm_load_ps(_depth+block_i);
-                __m128 sin_theta = _mm_load_ps(&v_sinTheta[c]);
-                __m128 cos_theta = _mm_load_ps(&v_cosTheta[c]);
-
-                __m128 block_x = _mm_mul_ps( block_depth, _mm_mul_ps(cos_phi, sin_theta) );
-                __m128 block_y = _mm_mul_ps( block_depth, sin_phi );
-                __m128 block_z = _mm_mul_ps( block_depth, _mm_mul_ps(cos_phi, cos_theta) );
-                _mm_store_ps(_x+block_i, block_x);
-                _mm_store_ps(_y+block_i, block_y);
-                _mm_store_ps(_z+block_i, block_z);
-
-                //__m128 mask = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
-                //mi cmpeq_epi8(mi a,mi b)
-
-                //_mm_store_ps(_valid_pt+block_i, _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) ) );
-                __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
-                __m128 block_gradDepthX = _mm_load_ps(_depthGradXPyr+block_i);
-                __m128 block_gradDepthY = _mm_load_ps(_depthGradYPyr+block_i);
-                __m128 block_gradGrayX = _mm_load_ps(_grayGradXPyr+block_i);
-                __m128 block_gradGrayY = _mm_load_ps(_grayGradYPyr+block_i);
-                __m128 salient_pts = _mm_or_ps( _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps(block_gradDepthX, _depth_saliency_), _mm_cmplt_ps(block_gradDepthX, _depth_saliency_neg) ), _mm_or_ps( _mm_cmpgt_ps(block_gradDepthY, _depth_saliency_), _mm_cmplt_ps(block_gradDepthY, _depth_saliency_neg) ) ),
-                                                _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( block_gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( block_gradGrayX, _gray_saliency_neg ) ), _mm_or_ps( _mm_cmpgt_ps( block_gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( block_gradGrayY, _gray_saliency_neg ) ) ) );
-                _mm_store_ps(_valid_pt+block_i, _mm_and_ps( valid_depth_pts, salient_pts ) );
-            }
-        }
-    }
-    else
-    {
-        for(size_t r=0; r < nRows; r++)
-        {
-            __m128 sin_phi = _mm_set1_ps(v_sinPhi[r]);
-            __m128 cos_phi = _mm_set1_ps(v_cosPhi[r]);
-
-            size_t block_i = r*nCols;
-            for(size_t c=0; c < nCols; c+=4, block_i+=4)
-            {
-                __m128 block_depth = _mm_load_ps(_depth+block_i);
-                __m128 sin_theta = _mm_load_ps(&v_sinTheta[c]);
-                __m128 cos_theta = _mm_load_ps(&v_cosTheta[c]);
-
-                __m128 block_x = _mm_mul_ps( block_depth, _mm_mul_ps(cos_phi, sin_theta) );
-                __m128 block_y = _mm_mul_ps( block_depth, sin_phi );
-                __m128 block_z = _mm_mul_ps( block_depth, _mm_mul_ps(cos_phi, cos_theta) );
-                _mm_store_ps(_x+block_i, block_x);
-                _mm_store_ps(_y+block_i, block_y);
-                _mm_store_ps(_z+block_i, block_z);
-
-                //_mm_store_ps(_valid_pt+block_i, _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) ) );
-                __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
-                __m128 block_gradDepthX = _mm_load_ps(_depthGradXPyr+block_i);
-                __m128 block_gradDepthY = _mm_load_ps(_depthGradYPyr+block_i);
-                __m128 block_gradGrayX = _mm_load_ps(_grayGradXPyr+block_i);
-                __m128 block_gradGrayY = _mm_load_ps(_grayGradYPyr+block_i);
-                __m128 salient_pts = _mm_or_ps( _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps(block_gradDepthX, _depth_saliency_), _mm_cmplt_ps(block_gradDepthX, _depth_saliency_neg) ), _mm_or_ps( _mm_cmpgt_ps(block_gradDepthY, _depth_saliency_), _mm_cmplt_ps(block_gradDepthY, _depth_saliency_neg) ) ),
-                                                _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( block_gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( block_gradGrayX, _gray_saliency_neg ) ), _mm_or_ps( _mm_cmpgt_ps( block_gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( block_gradGrayY, _gray_saliency_neg ) ) ) );
-                _mm_store_ps(_valid_pt+block_i, _mm_and_ps( valid_depth_pts, salient_pts ) );
-            }
-        }
-    }
-    // Select only the salient points
-    size_t count_valid_pixels = 0;
-    //cout << " " << LUT_xyz_source.rows() << " " << xyz_tmp.rows() << " size \n";
-    for(size_t i=0; i < imgSize; i++)
-    {
-        if( validPixels_tmp(i) )
-        {
-            validPixels(count_valid_pixels) = i;
-            xyz.block(count_valid_pixels,0,1,3) = xyz_tmp.block(i,0,1,3);
-            ++count_valid_pixels;
-        }
-    }
-    size_t salient_pixels_aligned = count_valid_pixels - count_valid_pixels % 4;
-    //cout << salient_pixels_aligned << " salient_pixels_aligned \n";
-    validPixels.conservativeResize(salient_pixels_aligned);
-    xyz.conservativeResize(salient_pixels_aligned,3);
-
-#endif
-
-#if PRINT_PROFILING
-    }
-    double time_end = pcl::getTime();
-    cout << " RegisterDense::getSalientPoints_sphere " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
-#endif
-}
-
-
-/*! Compute the 3D points XYZ according to the pinhole camera model. */
-void RegisterDense::computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
-{
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
-
-#if PRINT_PROFILING
-    double time_start = pcl::getTime();
-    //for(size_t ii=0; ii<100; ii++)
-    {
-#endif
-
-    // Make LUT to store the values of the 3D points of the source sphere
-    xyz.resize(imgSize,3);
-    float *_depth = reinterpret_cast<float*>(depth_img.data);
-
-#if !(_SSE3) // # ifdef !__SSE3__
-
-    validPixels = Eigen::VectorXi::Ones(imgSize);
-
-    #if ENABLE_OPENMP
-    #pragma omp parallel for
-    #endif
-    for(size_t r=0;r<nRows; r++)
-    {
-        size_t row_pix = r*nCols;
-        for(size_t c=0;c<nCols; c++)
-        {
-            int i = row_pix + c;
-            xyz(i,2) = _depth[i]; //xyz(i,2) = 0.001f*depthSrcPyr[pyrLevel].at<unsigned short>(r,c);
-
-            //Compute the 3D coordinates of the pij of the source frame
-            //cout << depthSrcPyr[pyrLevel].type() << " xyz " << i << " x " << xyz(i,2) << " thres " << min_depth_ << " " << max_depth_ << endl;
-            if(min_depth_ < xyz(i,2) && xyz(i,2) < max_depth_) //Compute the jacobian only for the valid points
-            {
-                xyz(i,0) = (c - ox) * xyz(i,2) * inv_fx;
-                xyz(i,1) = (r - oy) * xyz(i,2) * inv_fy;
-            }
-            else
-                validPixels(i) = 0;
-
-//            cout << i << " pt " << xyz.block(i,0,1,3) << " c " << c << " ox " << ox << " inv_fx " << inv_fx
-//                      << " min_depth_ " << min_depth_ << " max_depth_ " << max_depth_ << endl;
-//            mrpt::system::pause();
-        }
-    }
-#else
-//#elif !(_AVX)
-    cout << " computePinholeXYZ _SSE3 " << imgSize << " pts \n";
-
-    assert(nCols % 4 == 0); // Make sure that the image columns are aligned
-
-    float *_x = &xyz(0,0);
-    float *_y = &xyz(0,1);
-    float *_z = &xyz(0,2);
-
-    validPixels.resize(imgSize);
-    float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
-
-    std::vector<float> idx(nCols);
-    std::iota(idx.begin(), idx.end(), 0.f);
-    float *_idx = &idx[0];
-
-    __m128 _inv_fx = _mm_set1_ps(inv_fx);
-    __m128 _inv_fy = _mm_set1_ps(inv_fy);
-    __m128 _ox = _mm_set1_ps(ox);
-    __m128 _oy = _mm_set1_ps(oy);
-    __m128 _min_depth_ = _mm_set1_ps(min_depth_);
-    __m128 _max_depth_ = _mm_set1_ps(max_depth_);
-    for(size_t r=0; r < nRows; r++)
-    {
-        __m128 _r = _mm_set1_ps(r);
-        size_t block_i = r*nCols;
-        for(size_t c=0; c < nCols; c+=4, block_i+=4)
-        {
-            __m128 block_depth = _mm_load_ps(_depth+block_i);
-            __m128 block_c = _mm_load_ps(_idx+c);
-
-            __m128 block_x = _mm_mul_ps( block_depth, _mm_mul_ps(_inv_fx, _mm_sub_ps(block_c, _ox) ) );
-            __m128 block_y = _mm_mul_ps( block_depth, _mm_mul_ps(_inv_fy, _mm_sub_ps(_r, _oy) ) );
-            _mm_store_ps(_x+block_i, block_x);
-            _mm_store_ps(_y+block_i, block_y);
-            _mm_store_ps(_z+block_i, block_depth);
-
-            __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
-            _mm_store_ps(_valid_pt+block_i, valid_depth_pts );
-        }
-    }
-#endif
-
-#if PRINT_PROFILING
-    }
-    double time_end = pcl::getTime();
-    cout << " RegisterDense::computePinholeXYZ " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
-#endif
-}
-
-/*! Compute the 3D points XYZ according to the pinhole camera model. */
-void RegisterDense::computePinholeXYZsalient_sse(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                                const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                                const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY )
-{
-    //assert(_SSE);
-    #if !(_SSE3)
-        assert(0);
-#endif
-
-    // TODO: adapt the sse formulation
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
-
-#if PRINT_PROFILING
-    double time_start = pcl::getTime();
-    //for(size_t ii=0; ii<100; ii++)
-    {
-#endif
-
-    assert(nCols % 4 == 0); // Make sure that the image columns are aligned
-
-    float *_depth = reinterpret_cast<float*>(depth_img.data);
-    float *_depthGradXPyr = reinterpret_cast<float*>(depth_gradX.data);
-    float *_depthGradYPyr = reinterpret_cast<float*>(depth_gradY.data);
-    float *_grayGradXPyr = reinterpret_cast<float*>(intensity_gradX.data);
-    float *_grayGradYPyr = reinterpret_cast<float*>(intensity_gradY.data);
-
-    // Make LUT to store the values of the 3D points of the source sphere
-    xyz.resize(imgSize,3);
-    float *_x = &xyz(0,0);
-    float *_y = &xyz(0,1);
-    float *_z = &xyz(0,2);
-
-    //validPixels = Eigen::VectorXi::Ones(imgSize);
-    validPixels.resize(imgSize);
-    float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
-
-    std::vector<float> idx(nCols);
-    std::iota(idx.begin(), idx.end(), 0.f);
-    float *_idx = &idx[0];
-
-    __m128 _inv_fx = _mm_set1_ps(inv_fx);
-    __m128 _inv_fy = _mm_set1_ps(inv_fy);
-    __m128 _ox = _mm_set1_ps(ox);
-    __m128 _oy = _mm_set1_ps(oy);
-
-    __m128 _min_depth_ = _mm_set1_ps(min_depth_);
-    __m128 _max_depth_ = _mm_set1_ps(max_depth_);
-    __m128 _depth_saliency_ = _mm_set1_ps(thres_saliency_depth_);
-    __m128 _gray_saliency_ = _mm_set1_ps(thres_saliency_gray_);
-    __m128 _depth_saliency_neg = _mm_set1_ps(-thres_saliency_depth_);
-    __m128 _gray_saliency_neg = _mm_set1_ps(-thres_saliency_gray_);
-
-    for(size_t r=0; r < nRows; r++)
-    {
-        __m128 _r = _mm_set1_ps(r);
-        size_t block_i = r*nCols;
-        for(size_t c=0; c < nCols; c+=4, block_i+=4)
-        {
-            __m128 block_depth = _mm_load_ps(_depth+block_i);
-            __m128 block_c = _mm_load_ps(_idx+c);
-
-            __m128 block_x = _mm_mul_ps( block_depth, _mm_mul_ps(_inv_fx, _mm_sub_ps(block_c, _ox) ) );
-            __m128 block_y = _mm_mul_ps( block_depth, _mm_mul_ps(_inv_fy, _mm_sub_ps(_r, _oy) ) );
-            _mm_store_ps(_x+block_i, block_x);
-            _mm_store_ps(_y+block_i, block_y);
-            _mm_store_ps(_z+block_i, block_depth);
-
-            //_mm_store_ps(_valid_pt+block_i, _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) ) );
-            __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
-            __m128 block_gradDepthX = _mm_load_ps(_depthGradXPyr+block_i);
-            __m128 block_gradDepthY = _mm_load_ps(_depthGradYPyr+block_i);
-            __m128 block_gradGrayX = _mm_load_ps(_grayGradXPyr+block_i);
-            __m128 block_gradGrayY = _mm_load_ps(_grayGradYPyr+block_i);
-            __m128 salient_pts = _mm_or_ps( _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps(block_gradDepthX, _depth_saliency_), _mm_cmplt_ps(block_gradDepthX, _depth_saliency_neg) ), _mm_or_ps( _mm_cmpgt_ps(block_gradDepthY, _depth_saliency_), _mm_cmplt_ps(block_gradDepthY, _depth_saliency_neg) ) ),
-                                            _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( block_gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( block_gradGrayX, _gray_saliency_neg ) ), _mm_or_ps( _mm_cmpgt_ps( block_gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( block_gradGrayY, _gray_saliency_neg ) ) ) );
-            _mm_store_ps(_valid_pt+block_i, _mm_and_ps( valid_depth_pts, salient_pts ) );
-        }
-    }
-
-    #if PRINT_PROFILING
-    }
-    double time_end = pcl::getTime();
-    cout << " RegisterDense::computePinholeXYZ_sse SALIENT " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
-    #endif
 }
 
 

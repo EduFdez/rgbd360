@@ -31,6 +31,7 @@
 
 #include "Miscellaneous.h"
 #include "ProjectionModel.h"
+#include "MEstimator.h"
 
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
@@ -42,18 +43,9 @@
  *  Refer to the last chapter of my thesis dissertation for more details:
  * "Contributions to metric-topological localization and mapping in mobile robotics" 2014. Eduardo Fernández-Moral.
  */
-class RegisterDense : ProjectionModel
+class RegisterDense : public ProjectionModel, MEstimator
 {
 //public:
-    /*! Camera matrix (intrinsic parameters). This is only required for pinhole perspective sensors */
-    Eigen::Matrix3f cameraMatrix;
-
-    /*! Camera intrinsic parameters */
-    float fx, fy, ox, oy;
-    float inv_fx, inv_fy;
-
-//    /* Vertical field of view in the sphere (in) .*/
-//    float phi_FoV;
 
     /*! The reference intensity image */
     cv::Mat graySrc;
@@ -86,12 +78,6 @@ class RegisterDense : ProjectionModel
     float tol_update_rot_;
     float tol_update_trans_;
     double tol_residual_;
-
-    /*! Minimum allowed depth to consider a depth pixel valid.*/
-    float min_depth_;
-
-    /*! Maximum allowed depth to consider a depth pixel valid.*/
-    float max_depth_;
 
     /*! Minimum depth difference to filter the outliers.*/
     float min_depth_Outliers;
@@ -192,13 +178,6 @@ class RegisterDense : ProjectionModel
 
 public:
 
-    enum sensorType
-    {
-        RGBD360_INDOOR = 0,
-        STEREO_OUTDOOR,
-        KINECT,
-    } sensor_type;
-
     /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
     float SSO;
 
@@ -234,7 +213,7 @@ public:
     /*! Set the number of pyramid levels.*/
     inline void setNumPyr(const int Npyr)
     {
-        assert(Npyr > 0);
+        assert(Npyr >= 0);
         nPyrLevels = Npyr;
     };
 
@@ -242,18 +221,6 @@ public:
     inline void setBilinearInterp(const bool use_bilinear)
     {
         use_bilinear_ = use_bilinear;
-    };
-
-    /*! Set the minimum depth distance (m) to consider a certain pixel valid.*/
-    inline void setMinDepth(const float minD)
-    {
-        min_depth_ = minD;
-    };
-
-    /*! Set the maximum depth distance (m) to consider a certain pixel valid.*/
-    inline void setMaxDepth(const float maxD)
-    {
-        max_depth_ = maxD;
     };
 
     /*! Set the variance of the intensity.*/
@@ -310,12 +277,6 @@ public:
         tol_residual_ = tol_residual;
     };
 
-    /*! Set the 3x3 matrix of (pinhole) camera intrinsic parameters used to obtain the 3D colored point cloud from the RGB and depth images.*/
-    inline void setCameraMatrix(const Eigen::Matrix3f & camMat)
-    {
-        cameraMatrix = camMat;
-    };
-
     /*! Set the visualization of the optimization progress.*/
     inline void setVisualization(const bool viz)
     {
@@ -349,17 +310,17 @@ public:
 
     /*! Build a pyramid of nLevels of image resolutions from the input image.
      * The resolution of each layer is 2x2 times the resolution of its image above.*/
-    void buildPyramid( const cv::Mat & img, std::vector<cv::Mat> & pyramid, const int nLevels);
+    void buildPyramid(const cv::Mat & img, std::vector<cv::Mat> & pyramid);
 
     /*! Build a pyramid of nLevels of image resolutions from the input image.
      * The resolution of each layer is 2x2 times the resolution of its image above.*/
-    void buildPyramidRange( const cv::Mat & img, std::vector<cv::Mat> & pyramid, const int nLevels);
+    void buildPyramidRange( const cv::Mat & img, std::vector<cv::Mat> & pyramid);
 
     /*! Build the pyramid levels from the intensity images.*/
     inline void buildGrayPyramids()
     {
-        buildPyramid(graySrc, graySrcPyr, nPyrLevels);
-        buildPyramid(grayTrg, graySrcPyr, nPyrLevels);
+        buildPyramid(graySrc, graySrcPyr);
+        buildPyramid(grayTrg, graySrcPyr);
     };
 
     /*! Calculate the image gradients in X and Y. This gradientes are calculated through weighted first order approximation (as adviced by Mariano Jaimez). */
@@ -381,25 +342,6 @@ public:
     /*! Swap the source and target images */
     void swapSourceTarget();
 
-    /*! Compute the 3D points XYZ according to the pinhole camera model. */
-    void computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels);
-
-    void computePinholeXYZsalient_sse ( Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                        const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                        const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY );
-
-    /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
-    void computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels);
-
-    /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
-    void computeSphereXYZ_sse(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels);
-
-    /*! Get a list of salient points (pixels with hugh gradient) and compute their 3D position xyz */
-    void getSalientPoints_sphere(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                 const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                 const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY
-                                ); // TODO extend this function to employ only depth
-
     /*! Get a list of salient points from a list of Jacobians corresponding to a set of 3D points */
     void getSalientPts(const Eigen::MatrixXf & jacobians, std::vector<size_t> & salient_pixels, const float r_salient = 0.05f );
 
@@ -407,126 +349,6 @@ public:
                          Eigen::VectorXi & validPixelsPhoto, Eigen::VectorXi & validPixelsDepth,
                          costFuncType method,
                          std::vector<size_t> &salient_pixels, std::vector<size_t> &salient_pixels_photo, std::vector<size_t> &salient_pixels_depth);
-
-    /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
-    //void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts);
-
-    /*! Project pixel spherical */
-    inline void projectSphere(const int & nCols, const int & nRows, const float & phi_FoV, const int & c, const int & r, const float & depth, const Eigen::Matrix4f & poseGuess,
-                              int & transformed_r_int, int & transformed_c_int) // output parameters
-    {
-        float phi = r*(2*phi_FoV/nRows);
-        float theta = c*(2*PI/nCols);
-
-        //Compute the 3D coordinates of the pij of the source frame
-        Eigen::Vector4f point3D;
-        point3D(0) = depth*sin(phi);
-        point3D(1) = -depth*cos(phi)*sin(theta);
-        point3D(2) = -depth*cos(phi)*cos(theta);
-        point3D(3) = 1;
-
-        //Transform the 3D point using the transformation matrix Rt
-        Eigen::Vector4f xyz = poseGuess*point3D;
-        float depth_trg = sqrt(xyz(0)*xyz(0) + xyz(1)*xyz(1) + xyz(2)*xyz(2));
-
-        //Project the 3D point to the S2 sphere
-        float phi_trg = asin(xyz(2)/depth_trg);
-        float theta_trg = atan2(-xyz(1),-xyz(2));
-        transformed_r_int = round(phi_trg*nRows/phi_FoV + nRows/2);
-        transformed_c_int = round(theta_trg*nCols/(2*PI));
-    };
-
-    /*! Huber weight for robust estimation. */
-    template<typename T>
-    inline T weightHuber(const T & error)//, const T &scale)
-    {
-        //        assert(!std::isnan(error) && !std::isnan(scale))
-        T weight = (T)1;
-        const T scale = 1.345;
-        T error_abs = fabs(error);
-        if(error_abs < scale){//std::cout << "weight One\n";
-            return weight;}
-
-        weight = scale / error_abs;
-        //std::cout << "weight " << weight << "\n";
-        return weight;
-    }
-
-    /*! Huber weight for robust estimation. */
-    template<typename T>
-    inline T weightHuber_sqrt(const T & error)//, const T &scale)
-    {
-        //        assert(!std::isnan(error) && !std::isnan(scale))
-        T weight = (T)1;
-        const T scale = 1.345;
-        T error_abs = fabs(error);
-        if(error_abs < scale){//std::cout << "weight One\n";
-            return weight;}
-
-        weight = sqrt(scale / error_abs);
-        //std::cout << "weight " << weight << "\n";
-        return weight;
-    }
-
-    /*! Tukey weight for robust estimation. */
-    template<typename T>
-    inline T weightTukey(const T & error)//, const T &scale)
-    {
-        T weight = (T)0.;
-        const T scale = 4.685;
-        T error_abs = fabs(error);
-        if(error_abs > scale)
-            return weight;
-
-        T error_scale = error_abs/scale;
-        T w_aux = 1 - error_scale*error_scale;
-        weight = w_aux*w_aux;
-        return weight;
-    }
-
-    /*! T-distribution weight for robust estimation. This is computed following the paper: "Robust Odometry Estimation for RGB-D Cameras" Kerl et al. ICRA 2013 */
-    template<typename T>
-    inline T weightTDist(const T & error, const T & stdDev, const T & nu)//, const T &scale)
-    {
-        T err_std = error / stdDev;
-        T weight = nu+1 / (nu + err_std*err_std);
-        return weight;
-    }
-
-    /*! Compute the standard deviation of the T-distribution following the paper: "Robust Odometry Estimation for RGB-D Cameras" Kerl et al. ICRA 2013 */
-    template<typename T>
-    inline T stdDev_TDist(const std::vector<T> & v_error, const T & stdDev, const T & nu)//, const T &scale)
-    {
-        std::vector<T> &v_error2( v_error.size() );
-        for(size_t i=0; i < v_error.size(); ++i)
-            v_error2[i] = v_error[i]*v_error[i];
-
-        int it = 0;
-        int max_iterations = 5;
-        T diff_convergence = 1e-3;
-        T diff_var = 100;
-        T variance_prev = 10000;
-        while (diff_var > diff_convergence && it < max_iterations)
-        {
-            T variance = 0.f;
-            for(size_t i=0; i < v_error.size(); ++i)
-                variance += v_error2[i]*weightTDist(v_error[i]);
-            variance /= v_error.size();
-            diff_var = fabs(variance_prev - variance);
-            variance_prev = variance;
-            ++it;
-        }
-        return sqrt(variance_prev);
-    }
-
-    template<typename T>
-    inline T weightMEstimator( T error_scaled)
-    {
-        //std::cout << " error_scaled " << error_scaled << "weightHuber(error_scaled) " << weightHuber(error_scaled) << "\n";
-        return weightHuber(error_scaled);
-        //return weightTukey(error_scaled);
-        //return weightTDist(error_scaled,dev,5);
-    }
 
     /*! Re-project the source image onto the target one according to the input relative pose 'poseGuess' to compute the error.
      *  If the parameter 'direction' is -1, then the reprojection is computed from the target to the source images. */
@@ -730,9 +552,6 @@ public:
                                         costFuncType method = PHOTO_CONSISTENCY,
                                         const int occlusion = 0);
 
-    /*! Compute the unit sphere for the given spherical image dimmensions. This serves as a LUT to speed-up calculations. */
-    void computeUnitSphere();
-
     /*! Calculate entropy of the planar matching. This is the differential entropy of a multivariate normal distribution given
       by the matched planes. This is calculated with the formula used in the paper ["Dense Visual SLAM for RGB-D Cameras",
       by C. Kerl et al., in IROS 2013]. */
@@ -775,299 +594,6 @@ public:
 
     void updateGrad(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels);
 
-    /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y'.
-     * WARNING: this function can only be used by this class since it is defined inline in the cpp file. */
-//    inline cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)
-    //template <typename T>
-    inline float bilinearInterp(const cv::Mat & img, cv::Point2f pt);
-//    {
-//        assert( img.type() == CV_32FC1 && !img.empty() );
-//        cv::Mat patch;
-//        cv::getRectSubPix(img, cv::Size(1,1), pt, patch);
-//        return patch.at<float>(0,0);
-//    }
-
-    /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y'.
-     * It takes into account NaN pixels and (<= 0 && > max_depth_) values to rule them out of the interpolation.\
-     * WARNING: this function can only be used by this class since it is defined inline in the cpp file. */
-    inline float bilinearInterp_depth(const cv::Mat& img, const cv::Point2f &pt);
-//    {
-//        assert( img.type() == CV_32FC1 && !img.empty() );
-
-//        float *_img = reinterpret_cast<float*>(img.data);
-
-//        int x = (int)pt.x;
-//        int y = (int)pt.y;
-
-//        size_t x0_y0 = y * img.cols + x;
-//        size_t x1_y0 = x0_y0 + 1;
-//        size_t x0_y1 = x0_y0 + img.cols;
-//        size_t x1_y1 = x0_y1 + 1;
-
-//        float a = pt.x - (float)x;
-//        float b = 1.f - a;
-//        float c = pt.y - (float)y;
-//        float d = 1.f - c;
-
-//        float pt_y0;
-//        if( _img[x0_y0] < max_depth_ && _img[x1_y0] < max_depth_ && _img[x0_y0] >= 0 && _img[x1_y0] >= 0 )
-//            pt_y0 = _img[x0_y0] * b + _img[x1_y0] * a;
-//        else if (_img[x0_y0] < max_depth_ && _img[x0_y0] >= 0 )
-//            pt_y0 = _img[x0_y0];
-//        else //if(_img[x0_y0] < max_depth_)
-//            pt_y0 = _img[x1_y0];
-//        // The NaN/OutOfDepth case (_img[x0_y0] > max_depth_ && _img[x1_y0] > max_depth_) is automatically assumed
-
-//        float pt_y1;
-//        if( _img[x0_y1] < max_depth_ && _img[x1_y1] < max_depth_ && _img[x0_y1] >= 0 && _img[x1_y1] >= 0 )
-//            pt_y1 = _img[x0_y1] * b + _img[x1_y1] * a;
-//        else if (_img[x0_y1] < max_depth_ && _img[x0_y1] >= 0)
-//            pt_y1 = _img[x0_y1];
-//        else //if(_img[x0_y1] < max_depth_)
-//            pt_y1 = _img[x1_y1];
-
-//        float interpDepth;
-//        if( pt_y0 < max_depth_ && _img[x1_y1] < max_depth_ )
-//            interpDepth = pt_y0 * d + pt_y1 * c;
-//        else if (_img[x0_y1] < max_depth_)
-//            interpDepth = pt_y0;
-//        else
-//            interpDepth = pt_y1;
-
-////        int x0 = cv::borderInterpolate(x,   img.cols, cv::BORDER_REFLECT_101);
-////        int x1 = cv::borderInterpolate(x+1, img.cols, cv::BORDER_REFLECT_101);
-////        int y0 = cv::borderInterpolate(y,   img.rows, cv::BORDER_REFLECT_101);
-////        int y1 = cv::borderInterpolate(y+1, img.rows, cv::BORDER_REFLECT_101);
-
-////        float pt_y0;
-////        if( img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x1) < max_depth_ && img.at<float>(y0, x0) >= 0 && img.at<float>(y0, x1) >= 0 )
-////            pt_y0 = img.at<float>(y0, x0) * b + img.at<float>(y0, x1) * a;
-////        else if (img.at<float>(y0, x0) < max_depth_ && img.at<float>(y0, x0) >= 0 )
-////            pt_y0 = img.at<float>(y0, x0);
-////        else //if(img.at<float>(y0, x0) < max_depth_)
-////            pt_y0 = img.at<float>(y0, x1);
-////        // The NaN/OutOfDepth case (img.at<float>(y0, x0) > max_depth_ && img.at<float>(y0, x1) > max_depth_) is automatically assumed
-
-////        float pt_y1;
-////        if( img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x1) < max_depth_ && img.at<float>(y1, x0) >= 0 && img.at<float>(y1, x1) >= 0 )
-////            pt_y1 = img.at<float>(y1, x0) * b + img.at<float>(y1, x1) * a;
-////        else if (img.at<float>(y1, x0) < max_depth_ && img.at<float>(y1, x0) >= 0)
-////            pt_y1 = img.at<float>(y1, x0);
-////        else //if(img.at<float>(y1, x0) < max_depth_)
-////            pt_y1 = img.at<float>(y1, x1);
-
-////        float interpDepth;
-////        if( pt_y0 < max_depth_ && img.at<float>(y1, x1) < max_depth_ )
-////            interpDepth = pt_y0 * d + pt_y1 * c;
-////        else if (img.at<float>(y1, x0) < max_depth_)
-////            interpDepth = pt_y0;
-////        else
-////            interpDepth = pt_y1;
-
-//        return interpDepth;
-//    }
-
-    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
-    inline void
-    //Eigen::Matrix<float,2,6>
-    computeJacobian26_wT_sphere(const Eigen::Vector3f & xyz, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
-    {
-        //Eigen::Matrix<float,2,6> jacobianWarpRt;
-
-        float dist2 = dist * dist;
-        float x2_z2 = dist2 - xyz(1)*xyz(1);
-        float x2_z2_sqrt = sqrt(x2_z2);
-        float commonDer_c = pixel_angle_inv / x2_z2;
-        float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
-
-        jacobianWarpRt(0,0) = commonDer_c * xyz(2);
-        jacobianWarpRt(0,1) = 0.f;
-        jacobianWarpRt(0,2) = -commonDer_c * xyz(0);
-//        jacobianWarpRt(1,0) = commonDer_r * xyz(0) * xyz(1);
-        jacobianWarpRt(1,1) =-commonDer_r * x2_z2;
-//        jacobianWarpRt(1,2) = commonDer_r * xyz(2) * xyz(1);
-        float commonDer_r_y = commonDer_r * xyz(1);
-        jacobianWarpRt(1,0) = commonDer_r_y * xyz(0);
-        jacobianWarpRt(1,2) = commonDer_r_y * xyz(2);
-
-        jacobianWarpRt(0,3) = jacobianWarpRt(0,2) * xyz(1);
-        jacobianWarpRt(0,4) = jacobianWarpRt(0,0) * xyz(2) - jacobianWarpRt(0,2) * xyz(0);
-        jacobianWarpRt(0,5) =-jacobianWarpRt(0,0) * xyz(1);
-        jacobianWarpRt(1,3) =-jacobianWarpRt(1,1) * xyz(2) + jacobianWarpRt(1,2) * xyz(1);
-        jacobianWarpRt(1,4) = jacobianWarpRt(1,0) * xyz(2) - jacobianWarpRt(1,2) * xyz(0);
-        jacobianWarpRt(1,5) =-jacobianWarpRt(1,0) * xyz(1) + jacobianWarpRt(1,1) * xyz(0);
-
-        //return jacobianWarpRt;
-    }
-
-    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF of the inverse transformation */
-    inline void
-    //Eigen::Matrix<float,2,6>
-    computeJacobian26_wT_sphere_inv(const Eigen::Vector3f & xyz, const Eigen::Vector3f & xyz_orig, const Eigen::Matrix3f & rotation, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
-    {
-        //Eigen::Matrix<float,2,6> jacobianWarpRt;
-
-        // The Jacobian of the spherical projection
-        Eigen::Matrix<float,2,3> jacobianProj23;
-        float dist2 = dist * dist;
-        float x2_z2 = dist2 - xyz(1)*xyz(1);
-        float x2_z2_sqrt = sqrt(x2_z2);
-        float commonDer_c = pixel_angle_inv / x2_z2;
-        float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
-        jacobianProj23(0,0) = commonDer_c * xyz(2);
-        jacobianProj23(0,1) = 0;
-        jacobianProj23(0,2) =-commonDer_c * xyz(0);
-//        jacobianProj23(1,0) = commonDer_r * xyz(0) * xyz(1);
-        jacobianProj23(1,1) =-commonDer_r * x2_z2;
-//        jacobianProj23(1,2) = commonDer_r * xyz(2) * xyz(1);
-        float commonDer_r_y = commonDer_r * xyz(1);
-        jacobianProj23(1,0) = commonDer_r_y * xyz(0);
-        jacobianProj23(1,2) = commonDer_r_y * xyz(2);
-
-        // !!! NOTICE that the 3D points involved are those from the target frame, which are projected throught the inverse transformation into the reference frame!!!
-        Eigen::Matrix<float,3,6> jacobianT36_inv;
-        jacobianT36_inv.block(0,0,3,3) = -rotation.transpose();
-        jacobianT36_inv.block(0,3,3,1) = xyz_orig(2)*rotation.block(0,1,3,1) - xyz_orig(1)*rotation.block(0,2,3,1);
-        jacobianT36_inv.block(0,4,3,1) = xyz_orig(0)*rotation.block(0,2,3,1) - xyz_orig(2)*rotation.block(0,0,3,1);
-        jacobianT36_inv.block(0,5,3,1) = xyz_orig(1)*rotation.block(0,0,3,1) - xyz_orig(0)*rotation.block(0,1,3,1);
-
-        std::cout << "jacobianProj23 \n" << jacobianProj23 << "\n jacobianT36_inv \n" << jacobianT36_inv << std::endl;
-
-        jacobianWarpRt = jacobianProj23 * jacobianT36_inv;
-
-        //return jacobianWarpRt;
-    }
-
-    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
-    inline void
-    //Eigen::Matrix<float,2,6>
-    computeJacobian26_wT_pinhole(const Eigen::Vector3f & xyz, Eigen::Matrix<float,2,6> &jacobianWarpRt)
-    {
-        //Eigen::Matrix<float,2,6> jacobianWarpRt;
-
-        float inv_transf_z = 1.0/xyz(2);
-
-        //Derivative with respect to x
-        jacobianWarpRt(0,0)=fx*inv_transf_z;
-        jacobianWarpRt(1,0)=0.f;
-
-        //Derivative with respect to y
-        jacobianWarpRt(0,1)=0.f;
-        jacobianWarpRt(1,1)=fy*inv_transf_z;
-
-        //Derivative with respect to z
-        float inv_transf_z_2 = inv_transf_z*inv_transf_z;
-        jacobianWarpRt(0,2)=-fx*xyz(0)*inv_transf_z_2;
-        jacobianWarpRt(1,2)=-fy*xyz(1)*inv_transf_z_2;
-
-        //Derivative with respect to \w_x
-        jacobianWarpRt(0,3)=-fx*xyz(1)*xyz(0)*inv_transf_z_2;
-        jacobianWarpRt(1,3)=-fy*(1+xyz(1)*xyz(1)*inv_transf_z_2);
-
-        //Derivative with respect to \w_y
-        jacobianWarpRt(0,4)= fx*(1+xyz(0)*xyz(0)*inv_transf_z_2);
-        jacobianWarpRt(1,4)= fy*xyz(0)*xyz(1)*inv_transf_z_2;
-
-        //Derivative with respect to \w_z
-        jacobianWarpRt(0,5)=-fx*xyz(1)*inv_transf_z;
-        jacobianWarpRt(1,5)= fy*xyz(0)*inv_transf_z;
-
-        //return jacobianWarpRt;
-    }
-
-    /*! Compute the Jacobian of the warp */
-    inline void
-    computeJacobian23_warp_pinhole(const Eigen::Vector3f & xyz, Eigen::Matrix<float,2,3> &jacobianWarp)
-    {
-        float inv_transf_z = 1.0/xyz(2);
-
-        //Derivative with respect to x
-        jacobianWarp(0,0)=fx*inv_transf_z;
-        jacobianWarp(1,0)=0.f;
-
-        //Derivative with respect to y
-        jacobianWarp(0,1)=0.f;
-        jacobianWarp(1,1)=fy*inv_transf_z;
-
-        //Derivative with respect to z
-        float inv_transf_z_2 = inv_transf_z*inv_transf_z;
-        jacobianWarp(0,2)=-fx*xyz(0)*inv_transf_z_2;
-        jacobianWarp(1,2)=-fy*xyz(1)*inv_transf_z_2;
-    }
-
-    /*! Compute the Jacobian of the warp */
-    inline void
-    computeJacobian23_warp_sphere(const Eigen::Vector3f & xyz, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,3> &jacobianWarp)
-    {
-        // The Jacobian of the spherical projection
-        float dist2 = dist * dist;
-        float x2_z2 = dist2 - xyz(1)*xyz(1);
-        float x2_z2_sqrt = sqrt(x2_z2);
-        float commonDer_c = pixel_angle_inv / x2_z2;
-        float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
-        jacobianWarp(0,0) = commonDer_c * xyz(2);
-        jacobianWarp(0,1) = 0;
-        jacobianWarp(0,2) =-commonDer_c * xyz(0);
-//        jacobianWarp(1,0) = commonDer_r * xyz(0) * xyz(1);
-        jacobianWarp(1,1) =-commonDer_r * x2_z2;
-//        jacobianWarp(1,2) = commonDer_r * xyz(2) * xyz(1);
-        float commonDer_r_y = commonDer_r * xyz(1);
-        jacobianWarp(1,0) = commonDer_r_y * xyz(0);
-        jacobianWarp(1,2) = commonDer_r_y * xyz(2);
-    }
-
-    /*! Compute the Jacobian composition of the transformed point: T(x)Tp */
-    inline void
-    //Eigen::Matrix<float,3,6>
-    computeJacobian36_TxT_p(const Eigen::Vector3f & xyz, Eigen::Matrix<float,3,6> &jacobianRt)
-    {
-        //Eigen::Matrix<float,3,6> jacobianWarpRt;
-
-        jacobianRt.block(0,0,3,3) = Eigen::Matrix3f::Identity();
-        jacobianRt.block(0,3,3,3) = -skew(xyz);
-    }
-
-    /*! Compute the Jacobian composition of the transformed point: TT(x)p */
-    inline void
-    //Eigen::Matrix<float,3,6>
-    computeJacobian36_TTx_p(const Eigen::Matrix3f & rot, const Eigen::Vector3f & xyz, Eigen::Matrix<float,3,6> &jacobianRt)
-    {
-        //Eigen::Matrix<float,3,6> jacobianWarpRt;
-
-        jacobianRt.block(0,0,3,3) = Eigen::Matrix3f::Identity();
-        jacobianRt.block(0,3,3,3) = -skew(xyz);
-
-        jacobianRt = rot * jacobianRt;
-    }
-
-    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
-    inline void
-    //Eigen::Matrix<float,2,6>
-    computeJacobian26_wTTx_pinhole(const Eigen::Matrix4f & Rt, const Eigen::Vector3f & xyz, const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt)
-    {
-        Eigen::Matrix<float,2,3> jacobianWarp;
-        Eigen::Matrix<float,3,6> jacobianRt;
-
-        //computeJacobian23_warp_pinhole(xyz, jacobianWarp);
-        computeJacobian23_warp_pinhole(xyz_transf, jacobianWarp);
-        computeJacobian36_TTx_p(Rt.block(0,0,3,3), xyz, jacobianRt);
-
-        jacobianWarpRt = jacobianWarp * jacobianRt;
-    }
-
-    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
-    inline void
-    //Eigen::Matrix<float,2,6>
-    computeJacobian26_wTTx_sphere(const Eigen::Matrix4f & Rt, const Eigen::Vector3f & xyz, const float & dist, const float & pixel_angle_inv, const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt)
-    {
-        Eigen::Matrix<float,2,3> jacobianWarp;
-        Eigen::Matrix<float,3,6> jacobianRt;
-
-        computeJacobian23_warp_sphere(xyz_transf, dist, pixel_angle_inv, jacobianWarp);
-        computeJacobian36_TTx_p(Rt.block(0,0,3,3), xyz, jacobianRt);
-
-        jacobianWarpRt = jacobianWarp * jacobianRt;
-    }
 };
 
 #endif
