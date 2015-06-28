@@ -66,6 +66,7 @@
 
 typedef pcl::PointXYZRGBA PointT;
 using namespace std;
+using namespace mrpt;
 using namespace mrpt::obs;
 using namespace mrpt::utils;
 using namespace mrpt::poses;
@@ -95,7 +96,7 @@ private:
     mrpt::poses::CPose3D gt_oldpose;	//!< Groundtruth camera previous pose
 
     std::ifstream		f_gt;
-    //std::ofstream		f_res;
+    std::ofstream		f_res;
 
     bool first_pose;
     bool dataset_finished;
@@ -243,11 +244,40 @@ public:
         return true;
     }
 
+    void CreateResultsFile()
+    {
+        try
+        {
+            // Open file, find the first free file-name.
+            char	aux[100];
+            int     nFile = 0;
+            bool    free_name = false;
+
+            system::createDirectory("./difodo.results");
+
+            while (!free_name)
+            {
+                nFile++;
+                sprintf(aux, "./difodo.results/experiment_%03u.txt", nFile );
+                free_name = !system::fileExists(aux);
+            }
+
+            // Open log file:
+            f_res.open(aux);
+            printf(" Saving results to file: %s \n", aux);
+        }
+        catch (...)
+        {
+            printf("Exception found trying to create the 'results file' !!\n");
+        }
+
+    }
+
     void writeTrajectoryFile()
     {
-        //Don't take into account those iterations with consecutive equal depth images
-        if (abs(dt.sumAll()) > 0)
-        {
+//        //Don't take into account those iterations with consecutive equal depth images
+//        if (abs(dt.sumAll()) > 0)
+//        {
             mrpt::math::CQuaternionDouble quat;
             CPose3D auxpose, transf;
             transf.setFromValues(0,0,0,0.5*M_PI, -0.5*M_PI, 0);
@@ -265,7 +295,7 @@ public:
             f_res << quat(3) << " ";
             f_res << -quat(1) << " ";
             f_res << -quat(0) << endl;
-        }
+//        }
     }
 
     void run(const string &filename, const int &selectSample = 1) //const string &path_results,
@@ -310,7 +340,6 @@ public:
 //        mrpt::obs::CActionCollectionPtr action;
 //        mrpt::obs::CSensoryFramePtr observations;
         mrpt::obs::CObservationPtr observation;
-        size_t rawlogEntry=0;
         //bool end = false;
 
         mrpt::obs::CObservation3DRangeScanPtr obsRGBD;  // The RGBD observation
@@ -592,10 +621,12 @@ public:
 
             gt_oldpose = gt_pose;
 
+//            writeTrajectoryFile();
+
         };
 
 
-
+//        CreateResultsFile();
 //#if SAVE_TRAJECTORY
             // Rt.saveToTextFile(mrpt::format("%s/Rt_%d_%d.txt", path_results.c_str(), frameOrder-1, frameOrder).c_str());
             //          ofstream saveRt;

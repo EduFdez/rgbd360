@@ -185,21 +185,24 @@ void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & R
 
 //#else // _AVX
 //        cout << " transformPts3D _AVX " << n_pts << " pts \n";
-
-//        float *input_mat = (float*) _aligned_malloc(sizeof(float)*n_pts, 32);
-//        memcopy...
-//                operation
-//                test
-
 //        cout << " Alignment 8 " << n_pts % 8 << " pts \n";
+//        //cout << " Check " << !((int)(&input_pts(0,0)) & 0x3) << " \n";
+//        //cout << " Check " << (int)(&input_pts(0,0)) % 16 == 0 << " \n";
+
+//        // Eigen default ColMajor is assumed
+//        assert(input_pts.cols() == 3);
+//        assert(n_pts % 8 == 0);
+
+//        const size_t num_block256 = 3 * n_pts / 8;
+//        float *xyz_address = aligned_alloc(32, 3*n_pts*sizeof(float));
+
+//        // Check
 //        Eigen::MatrixXf input_xyz_transp = Eigen::MatrixXf::Ones(4,n_pts);
 //        input_xyz_transp.block(0,0,3,n_pts) = input_pts.block(0,0,n_pts,3).transpose();
 //        Eigen::MatrixXf aux = Rt * input_xyz_transp;
 //        Eigen::MatrixXf xyz_src_transf2 = aux.block(0,0,3,n_pts).transpose();
 
 //        // Eigen default ColMajor is assumed
-//        assert(input_pts.cols() == 3);
-//        assert(n_pts % 8 == 0);
 //        output_pts.resize( n_pts, input_pts.cols() );
 
 ////        cout << " transformPts3D_avx check 1 \n";
@@ -256,6 +259,12 @@ void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & R
 //            {
 //                cout << " transformPts3D_avx check 3a \n";
 
+////                __m256 block_x_in_ = _mm256_load_ps(input_mat_x+b);
+////                __m256 block_y_in_ = _mm256_load_ps(input_mat_y+b);
+////                __m256 block_z_in_ = _mm256_load_ps(input_mat_z+b);
+////                __m256 block_x_out_ = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r11, block_x_in_), _mm256_mul_ps(r12, block_y_in_) ), _mm256_mul_ps(r13, block_z_in_x) ), t1);
+////                _mm256_store_ps(output_x_+b, block_x_out);
+
 //                __m256 block_x_in = _mm256_load_ps(input_x+b);
 //                cout << " transformPts3D_avx check 3aa \n";
 
@@ -270,6 +279,7 @@ void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & R
 //                mrpt::system::pause();
 
 //                __m256 block_x_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r11, block_x_in), _mm256_mul_ps(r12, block_y_in) ), _mm256_mul_ps(r13, block_z_in) ), t1);
+//                cout << " operation _avx \n";
 //                __m256 block_y_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r21, block_x_in), _mm256_mul_ps(r22, block_y_in) ), _mm256_mul_ps(r23, block_z_in) ), t2);
 //                __m256 block_z_out = _mm256_add_ps( _mm256_add_ps( _mm256_add_ps( _mm256_mul_ps(r31, block_x_in), _mm256_mul_ps(r32, block_y_in) ), _mm256_mul_ps(r33, block_z_in) ), t3);
 

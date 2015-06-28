@@ -8954,13 +8954,7 @@ void RegisterDense::registerRGBD(const Eigen::Matrix4f pose_guess, const costFun
         const size_t imgSize = nRows*nCols;
 
         // Set the camera calibration parameters
-        const float scaleFactor = 1.0/pow(2,pyrLevel);
-        fx = cameraMatrix(0,0)*scaleFactor;
-        fy = cameraMatrix(1,1)*scaleFactor;
-        ox = cameraMatrix(0,2)*scaleFactor;
-        oy = cameraMatrix(1,2)*scaleFactor;
-        inv_fx = 1.f/fx;
-        inv_fy = 1.f/fy;
+        scaleCameraParams(1.0/pow(2,pyrLevel));
 
         // Make LUT to store the values of the 3D points of the source image
         computePinholeXYZ(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
@@ -9221,13 +9215,7 @@ void RegisterDense::registerRGBD_InvDepth(const Eigen::Matrix4f pose_guess, cons
         const size_t nCols = graySrcPyr[pyrLevel].cols;
 
         // Set the camera calibration parameters
-        const float scaleFactor = 1.0/pow(2,pyrLevel);
-        fx = cameraMatrix(0,0)*scaleFactor;
-        fy = cameraMatrix(1,1)*scaleFactor;
-        ox = cameraMatrix(0,2)*scaleFactor;
-        oy = cameraMatrix(1,2)*scaleFactor;
-        inv_fx = 1.f/fx;
-        inv_fy = 1.f/fy;
+        scaleCameraParams(1.0/pow(2,pyrLevel));
 
         // Make LUT to store the values of the 3D points of the source image
         computePinholeXYZ(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
@@ -9408,14 +9396,7 @@ void RegisterDense::registerRGBD_IC(const Eigen::Matrix4f pose_guess, const cost
 //        const size_t nCols = graySrcPyr[pyrLevel].cols;
 
         // Set the camera calibration parameters
-        const float scaleFactor = 1.0/pow(2,pyrLevel);
-        fx = cameraMatrix(0,0)*scaleFactor;
-        fy = cameraMatrix(1,1)*scaleFactor;
-        ox = cameraMatrix(0,2)*scaleFactor;
-        oy = cameraMatrix(1,2)*scaleFactor;
-        inv_fx = 1.f/fx;
-        inv_fy = 1.f/fy;
-        //cout << "Calib " << fx << " " << fy << " " << ox << " " << oy << endl;
+        scaleCameraParams(1.0/pow(2,pyrLevel));
 
         // Make LUT to store the values of the 3D points of the source image
         computePinholeXYZ(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);

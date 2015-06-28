@@ -31,6 +31,7 @@
 
 #include <ProjectionModel.h>
 #include <pcl/common/time.h>
+//#include "/usr/local/include/eigen3/Eigen/Core"
 
 #if _SSE2
     #include <emmintrin.h>
@@ -59,6 +60,17 @@ ProjectionModel::ProjectionModel() :
     cameraMatrix << 262.5, 0., 1.5950e+02,
                     0., 262.5, 1.1950e+02,
                     0., 0., 1.;
+}
+
+/*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
+void ProjectionModel::scaleCameraParams(const float scaleFactor)
+{
+    fx = cameraMatrix(0,0)*scaleFactor;
+    fy = cameraMatrix(1,1)*scaleFactor;
+    ox = cameraMatrix(0,2)*scaleFactor;
+    oy = cameraMatrix(1,2)*scaleFactor;
+    inv_fx = 1.f/fx;
+    inv_fy = 1.f/fy;
 }
 
 /*! Compute the unit sphere for the given spherical image dimmensions. This serves as a LUT to speed-up calculations. */
@@ -486,9 +498,10 @@ void ProjectionModel::computePinholeXYZ(const cv::Mat & depth_img, Eigen::Matrix
     {
 #endif
 
+    float *_depth = reinterpret_cast<float*>(depth_img.data);
+
     // Make LUT to store the values of the 3D points of the source sphere
     xyz.resize(imgSize,3);
-    float *_depth = reinterpret_cast<float*>(depth_img.data);
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
@@ -522,21 +535,26 @@ void ProjectionModel::computePinholeXYZ(const cv::Mat & depth_img, Eigen::Matrix
     }
 
 #else
-//#elif !(_AVX)
-    cout << " computePinholeXYZ _SSE3 " << imgSize << " pts \n";
 
-    assert(nCols % 4 == 0); // Make sure that the image columns are aligned
+    float a;
+    validPixels.resize(imgSize);
 
     float *_x = &xyz(0,0);
     float *_y = &xyz(0,1);
     float *_z = &xyz(0,2);
-
-    validPixels.resize(imgSize);
     float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
 
     std::vector<float> idx(nCols);
     std::iota(idx.begin(), idx.end(), 0.f);
     float *_idx = &idx[0];
+
+//#if !(_AVX) // Use _SSE3
+    cout << " computePinholeXYZ _SSE3 " << imgSize << " pts \n";
+    assert(nCols % 4 == 0); // Make sure that the image columns are aligned
+
+//    cout << " alignment 16 " << (((unsigned long)_x & 15) == 0) << " \n";
+//    cout << " alignment 16 " << (((unsigned long)_y & 15) == 0) << " \n";
+//    cout << " alignment 16 " << (((unsigned long)_z & 15) == 0) << " \n";
 
     __m128 _inv_fx = _mm_set1_ps(inv_fx);
     __m128 _inv_fy = _mm_set1_ps(inv_fy);
@@ -563,7 +581,197 @@ void ProjectionModel::computePinholeXYZ(const cv::Mat & depth_img, Eigen::Matrix
             _mm_store_ps(_valid_pt+block_i, valid_depth_pts );
         }
     }
-#endif
+
+//#else // Use _AVX
+//    cout << " computePinholeXYZ _AVX " << imgSize << " pts \n";
+//    assert(nCols % 8 == 0); // Make sure that the image columns are aligned
+
+//    // Hack for unaligned (32bytes). Eigen should have support for AVX soon
+//    bool b_depth_aligned = (((unsigned long)_depth & 31) == 0);
+//    size_t hack_padding_xyz = 0, hack_padding_validPixels = 0;
+//    bool b_xyz_aligned = (((unsigned long)_x & 31) == 0);
+//    if(!b_xyz_aligned)
+//    {
+//        xyz.resize(imgSize+8,3);
+//        hack_padding_xyz = 4;
+//    }
+//    bool b_validPixels_aligned = (((unsigned long)_valid_pt & 31) == 0);
+//    if(!b_validPixels_aligned)
+//    {
+//        validPixels.resize(imgSize+8);
+//        hack_padding_validPixels = 4;
+//    }
+
+//    cout << " alignment 32 depth " << (((unsigned long)_depth & 31) == 0) << " \n";
+//    cout << " alignment 32 x " << (((unsigned long)_x & 31) == 0) << " \n";
+//    cout << " alignment 32 y " << (((unsigned long)_y & 31) == 0) << " \n";
+//    cout << " alignment 32 z " << (((unsigned long)_z & 31) == 0) << " \n";
+//    cout << " alignment 32 validPixels " << (((unsigned long)_valid_pt & 31) == 0) << " \n";
+//    cout << " alignment 16 validPixels " << (((unsigned long)_valid_pt & 15) == 0) << " \n";
+////    cout << " alignment 64 " << (((unsigned long)_x & 63) == 0) << " \n";
+
+//    __m256 _inv_fx = _mm256_set1_ps(inv_fx);
+//    __m256 _inv_fy = _mm256_set1_ps(inv_fy);
+//    __m256 _ox = _mm256_set1_ps(ox);
+//    __m256 _oy = _mm256_set1_ps(oy);
+//    __m256 _min_depth_ = _mm256_set1_ps(min_depth_);
+//    __m256 _max_depth_ = _mm256_set1_ps(max_depth_);
+//    if(b_depth_aligned)
+//    {
+//        for(size_t r=0; r < nRows; r++)
+//        {
+//            __m256 _r = _mm256_set1_ps(r);
+////            cout << " Set _r \n";
+//            size_t block_i = r*nCols;
+//            size_t block_i_xyz = r*nCols + hack_padding_xyz;
+//            size_t block_i_valid = r*nCols + hack_padding_validPixels;
+//            for(size_t c=0; c < nCols; c+=8, block_i+=8, block_i_xyz+=8, block_i_valid+=8)
+//            {
+//                __m256 block_depth = _mm256_load_ps(_depth+block_i);
+//                __m256 block_c = _mm256_load_ps(_idx+c);
+////                cout << " Load depth \n";
+
+//                __m256 block_x = _mm256_mul_ps( block_depth, _mm256_mul_ps(_inv_fx, _mm256_sub_ps(block_c, _ox) ) );
+////                cout << " operation \n";
+//                __m256 block_y = _mm256_mul_ps( block_depth, _mm256_mul_ps(_inv_fy, _mm256_sub_ps(_r, _oy) ) );
+//                _mm256_store_ps(_x+block_i_xyz, block_x);
+////                cout << " store \n";
+////                cout << " alignment 32 " << (((unsigned long)(_x+block_i) & 31) == 0) << " \n";
+//                _mm256_store_ps(_y+block_i_xyz, block_y);
+//                _mm256_store_ps(_z+block_i_xyz, block_depth);
+
+////                cout << " calc valid_depth_pts \n";
+
+//                __m256 valid_depth_pts = _mm256_and_ps( _mm256_cmp_ps(_min_depth_, block_depth, _CMP_LT_OQ), _mm256_cmp_ps(block_depth, _max_depth_, _CMP_LT_OQ) );
+////                cout << " store valid_depth_pts \n";
+//                _mm256_store_ps(_valid_pt+block_i_valid, valid_depth_pts );
+////                cout << " cycle \n";
+//            }
+//        }
+//        if(!b_xyz_aligned)
+//            xyz = xyz.block(4,0,imgSize,3);
+//        if(!b_validPixels_aligned)
+//            validPixels = validPixels.block(4,0,imgSize,1);
+//    }
+//    else // !b_depth_aligned
+//    {
+//        assert(!b_xyz_aligned);
+
+//        for(size_t r=0; r < nRows; r++)
+//        {
+//            __m256 _r = _mm256_set1_ps(r);
+////            cout << " Set _r \n";
+//            size_t block_i = r*nCols+4;
+////            size_t block_i_xyz = r*nCols + hack_padding_xyz;
+//            size_t block_i_valid = r*nCols + hack_padding_validPixels;
+//            for(size_t c=4; c < nCols-4; c+=8, block_i+=8, block_i_valid+=8)//, block_i_xyz+=8)
+//            {
+//                __m256 block_depth = _mm256_load_ps(_depth+block_i);
+//                __m256 block_c = _mm256_load_ps(_idx+c);
+////                cout << " Load depth \n";
+
+//                __m256 block_x = _mm256_mul_ps( block_depth, _mm256_mul_ps(_inv_fx, _mm256_sub_ps(block_c, _ox) ) );
+////                cout << " operation \n";
+//                __m256 block_y = _mm256_mul_ps( block_depth, _mm256_mul_ps(_inv_fy, _mm256_sub_ps(_r, _oy) ) );
+//                _mm256_store_ps(_x+block_i, block_x);
+////                cout << " store \n";
+////                cout << " alignment 32 " << (((unsigned long)(_x+block_i) & 31) == 0) << " \n";
+//                _mm256_store_ps(_y+block_i, block_y);
+//                _mm256_store_ps(_z+block_i, block_depth);
+
+////                cout << " calc valid_depth_pts \n";
+
+//                __m256 valid_depth_pts = _mm256_and_ps( _mm256_cmp_ps(_min_depth_, block_depth, _CMP_LT_OQ), _mm256_cmp_ps(block_depth, _max_depth_, _CMP_LT_OQ) );
+////                cout << " store valid_depth_pts \n";
+//                _mm256_store_ps(_valid_pt+block_i_valid, valid_depth_pts );
+
+//                cout << " cycle " << block_i << " " << block_i_valid << "\n";
+
+////                if(block_i_valid==112)
+////                {
+////                    for(size_t i=0; i < 8; i++)
+////                        cout << i << " pt " << xyz.block(block_i_valid+i,0,1,3) << " valid " << validPixels(block_i_valid+i) << endl;
+
+////                    float *b_depth = reinterpret_cast<float*>(&block_depth);
+////                    int *b_valid = reinterpret_cast<int*>(&valid_depth_pts);
+////                    cout << "b_depth " << b_depth[0] << " " << b_depth[1] << " " << b_depth[2] << " " << b_depth[3] << " " << b_depth[4] << " " << b_depth[5] << " " << b_depth[6] << " " << b_depth[7] << " \n";
+////                    cout << "b_valid " << b_valid[0] << " " << b_valid[1] << " " << b_valid[2] << " " << b_valid[3] << " " << b_valid[4] << " " << b_valid[5] << " " << b_valid[6] << " " << b_valid[7] << " \n";
+////                    cout << "min_depth_ " << min_depth_ << " max_depth_ " << max_depth_ << " \n";
+////                }
+
+//                // Compute unaligned pixels
+//                size_t row_pix = r*nCols;
+//                for(size_t c=0;c<4; c++)
+//                {
+//                    int i = row_pix + c;
+//                    xyz(i,2) = _depth[i]; //xyz(i,2) = 0.001f*depthSrcPyr[pyrLevel].at<unsigned short>(r,c);
+
+//                    //Compute the 3D coordinates of the pij of the source frame
+//                    //cout << depthSrcPyr[pyrLevel].type() << " xyz " << i << " x " << xyz(i,2) << " thres " << min_depth_ << " " << max_depth_ << endl;
+//                    if(min_depth_ < xyz(i,2) && xyz(i,2) < max_depth_) //Compute the jacobian only for the valid points
+//                    {
+//                        xyz(i,0) = (c - ox) * xyz(i,2) * inv_fx;
+//                        xyz(i,1) = (r - oy) * xyz(i,2) * inv_fy;
+//                        validPixels(i) = -1;
+//                    }
+//                    else
+//                        validPixels(i) = 0;
+//                }
+//                for(size_t c=nCols-4;c<nCols; c++)
+//                {
+//                    int i = row_pix + c;
+//                    xyz(i,2) = _depth[i]; //xyz(i,2) = 0.001f*depthSrcPyr[pyrLevel].at<unsigned short>(r,c);
+
+//                    //Compute the 3D coordinates of the pij of the source frame
+//                    //cout << depthSrcPyr[pyrLevel].type() << " xyz " << i << " x " << xyz(i,2) << " thres " << min_depth_ << " " << max_depth_ << endl;
+//                    if(min_depth_ < xyz(i,2) && xyz(i,2) < max_depth_) //Compute the jacobian only for the valid points
+//                    {
+//                        xyz(i,0) = (c - ox) * xyz(i,2) * inv_fx;
+//                        xyz(i,1) = (r - oy) * xyz(i,2) * inv_fy;
+//                        validPixels(i) = -1;
+//                    }
+//                    else
+//                        validPixels(i) = 0;
+//                }
+
+//            }
+//        }
+//    }
+
+//    // Test the AVX result
+//    Eigen::MatrixXf xyz_2(imgSize,3);
+//    Eigen::VectorXf validPixels_2(imgSize);
+//    for(size_t r=0;r<nRows; r++)
+//    {
+//        size_t row_pix = r*nCols;
+//        for(size_t c=0;c<nCols; c++)
+//        {
+//            int i = row_pix + c;
+//            xyz_2(i,2) = _depth[i]; //xyz(i,2) = 0.001f*depthSrcPyr[pyrLevel].at<unsigned short>(r,c);
+
+//            //Compute the 3D coordinates of the pij of the source frame
+//            if(min_depth_ < xyz_2(i,2) && xyz_2(i,2) < max_depth_) //Compute the jacobian only for the valid points
+//            {
+//                xyz_2(i,0) = (c - ox) * xyz_2(i,2) * inv_fx;
+//                xyz_2(i,1) = (r - oy) * xyz_2(i,2) * inv_fy;
+//                validPixels_2(i) = -1;
+//            }
+//            else
+//                validPixels_2(i) = 0;
+
+//            cout << i << " pt " << xyz.block(i,0,1,3) << " vs " << xyz_2.block(i,0,1,3) << " valid " << validPixels(i) << " " << validPixels_2(i) << endl;
+////            assert(validPixels_2(i) == validPixels(i));
+////            if(validPixels(i))
+////            {
+////                //cout << i << " pt3D " << xyz.block(i,0,1,3) << " vs " << xyz_2.block(i,0,1,3) << " valid " << validPixels(i) << " " << validPixels_2(i) << endl;
+////                assert(xyz_2(i,0) - xyz(i,0) < 1e-6);
+////                assert(xyz_2(i,1) - xyz(i,1) < 1e-6);
+////                assert(xyz_2(i,2) - xyz(i,2) < 1e-6);
+////            }
+//        }
+//    }
+//#endif // endif vectorization options
+#endif // endif vectorization
 
 #if PRINT_PROFILING
     }

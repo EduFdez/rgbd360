@@ -33,7 +33,8 @@
 //#include <Saliency.h>
 
 #include <opencv2/opencv.hpp>
-#include <Eigen/Core>
+//#include <Eigen/Core>
+#include "/usr/local/include/eigen3/Eigen/Core"
 
 #ifndef PROJECTION_MODEL_H
 #define PROJECTION_MODEL_H
@@ -72,6 +73,9 @@ public:
     } sensor_type;
 
     ProjectionModel();
+
+    /*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
+    void scaleCameraParams(const float scaleFactor);
 
     /*! Set the 3x3 matrix of (pinhole) camera intrinsic parameters used to obtain the 3D colored point cloud from the RGB and depth images.*/
     inline void setCameraMatrix(const Eigen::Matrix3f & camMat)

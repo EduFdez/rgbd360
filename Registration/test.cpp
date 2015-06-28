@@ -14,6 +14,8 @@
 #include <iostream>     // std::cout
 #include <algorithm>    // std::sort
 #include <vector>       // std::vector
+//#include <Eigen/Core>
+#include "/usr/local/include/eigen3/Eigen/Core"
 
 using namespace std;
 
@@ -26,6 +28,30 @@ int main () {
 #if _AVX
     std::cout << " _AVX \n";
 #endif
+
+    const size_t n_pts = 1200;
+    Eigen::MatrixXf xyz = Eigen::MatrixXf::Ones(n_pts,3);
+    Eigen::MatrixXf xyz2;
+    xyz2.resize(xyz.rows(),xyz.cols());
+    __m256 _const2 = _mm256_set1_ps(2.f);
+
+    float *_x = &xyz(0,0);
+    float *_x_out = &xyz2(0,0);
+
+    cout << " alignment 32 x " << (((unsigned long)_x & 31) == 0) << " \n";
+    cout << " alignment 32 x " << (((unsigned long)_x_out & 31) == 0) << " \n";
+
+    for(size_t r=0;r<n_pts; r+=8)
+    {
+        __m256 block_xyz = _mm256_load_ps(_x+r);
+        __m256 block_x = _mm256_mul_ps( _const2, block_xyz );
+        _mm256_store_ps(_x_out+r, block_x);
+    }
+
+    for(size_t r=0;r<20; r++)
+    {
+        cout << "val " << xyz(r,0) << " " << xyz2(r,0) << endl;
+    }
 
   std::vector<float> v(4, 0.2f);
   v.push_back(0.3f);
