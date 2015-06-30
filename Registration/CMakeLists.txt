@@ -17,18 +17,14 @@ IF(BUILD_REGISTRATION)
                                                 ../src/Frame360.cpp
                                                 ../include/Map360_Visualizer.h
 						../include/RegisterRGBD360.h
-                                                ../include/RegisterDense.h
-                                                ../src/RegisterDense.cpp
-                                                ../include/transformPts3D.h
-                                                ../src/transformPts3D.cpp
 	)
 
-	TARGET_LINK_LIBRARIES(RegisterPairRGBD360
-					${MRPT_LIBS}
-					${OpenCV_LIBS}
-					${PCL_LIBRARIES}
-					${Boost_SERIALIZATION_LIBRARY}
-					   )
+	TARGET_LINK_LIBRARIES(RegisterPairRGBD360 DR
+							${MRPT_LIBS}
+							${OpenCV_LIBS}
+							${PCL_LIBRARIES}
+							${Boost_SERIALIZATION_LIBRARY}
+		   		)
 
 	# Declare the target (an executable)
 	ADD_EXECUTABLE(RegisterPairRGBD360_PbMap RegisterPairRGBD360_PbMap.cpp
@@ -40,18 +36,14 @@ IF(BUILD_REGISTRATION)
                                                 ../src/Frame360.cpp
                                                 ../include/Map360_Visualizer.h
 						../include/RegisterRGBD360.h
-                                                ../include/RegisterDense.h
-                                                ../src/RegisterDense.cpp
-                                                ../include/transformPts3D.h
-                                                ../src/transformPts3D.cpp
 	)
 
-	TARGET_LINK_LIBRARIES(RegisterPairRGBD360_PbMap
-					${MRPT_LIBS}
-					${OpenCV_LIBS}
-					${PCL_LIBRARIES}
-					${Boost_SERIALIZATION_LIBRARY}
-					   )
+	TARGET_LINK_LIBRARIES(RegisterPairRGBD360_PbMap DR
+							${MRPT_LIBS}
+							${OpenCV_LIBS}
+							${PCL_LIBRARIES}
+							${Boost_SERIALIZATION_LIBRARY}
+			   )
 
 	# Declare the target (an executable)
 	ADD_EXECUTABLE(RegisterPairRGBD360_stereo RegisterPairRGBD360_stereo.cpp
@@ -64,39 +56,27 @@ IF(BUILD_REGISTRATION)
 						../include/Frame360_stereo.h
 						../include/Map360_Visualizer.h
 						../include/RegisterRGBD360.h
-                                                ../include/RegisterDense.h
-                                                ../src/RegisterDense.cpp
-                                                ../include/transformPts3D.h
-                                                ../src/transformPts3D.cpp
 	)
 
-        TARGET_LINK_LIBRARIES(RegisterPairRGBD360_stereo
-					${MRPT_LIBS}
-					${OpenCV_LIBS}
-					${PCL_LIBRARIES}
-					${Boost_SERIALIZATION_LIBRARY}
-					   )
+        TARGET_LINK_LIBRARIES(RegisterPairRGBD360_stereo DR
+							${MRPT_LIBS}
+							${OpenCV_LIBS}
+							${PCL_LIBRARIES}
+							${Boost_SERIALIZATION_LIBRARY}
+			   )
 
         # Declare the target (an executable)
         ADD_EXECUTABLE(OdometryRGBD_rawlog OdometryRGBD_rawlog.cpp
                                             ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
                                             ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
-                                            ../include/Miscellaneous.h
-                                            ../include/RegisterDense.h
-                                            ../src/RegisterDense.cpp
-                                            ../include/MEstimator.h
-                                            ../include/ProjectionModel.h
-                                            ../src/ProjectionModel.cpp
-                                            ../include/transformPts3D.h
-                                            ../src/transformPts3D.cpp
         )
 
-        TARGET_LINK_LIBRARIES(OdometryRGBD_rawlog
-                                        ${MRPT_LIBS}
-                                        ${OpenCV_LIBS}
-                                        ${PCL_LIBRARIES}
-                                        ${Boost_SERIALIZATION_LIBRARY}
-                                           )
+        TARGET_LINK_LIBRARIES(OdometryRGBD_rawlog   DR
+                                                    ${MRPT_LIBS}
+                                                    ${OpenCV_LIBS}
+                                                    ${PCL_LIBRARIES}
+                                                    ${Boost_SERIALIZATION_LIBRARY}
+                                )
 
         # Declare the target (an executable)
         ADD_EXECUTABLE(OdometryRGBD360_stereo OdometryRGBD360_stereo.cpp
@@ -108,25 +88,22 @@ IF(BUILD_REGISTRATION)
                                                 ../src/Frame360.cpp
                                                 ../include/Map360_Visualizer.h
                                                 ../include/RegisterRGBD360.h
-                                                ../include/RegisterDense.h
-                                                ../src/RegisterDense.cpp
         )
 
-        TARGET_LINK_LIBRARIES(OdometryRGBD360_stereo
-                                        ${MRPT_LIBS}
-                                        ${OpenCV_LIBS}
-                                        ${PCL_LIBRARIES}
-                                        ${Boost_SERIALIZATION_LIBRARY}
-                                           )
+        TARGET_LINK_LIBRARIES(OdometryRGBD360_stereo 	DR
+				                        ${MRPT_LIBS}
+				                        ${OpenCV_LIBS}
+				                        ${PCL_LIBRARIES}
+				                        ${Boost_SERIALIZATION_LIBRARY}
+                           )
 
 #	# Declare the target (an executable)
 #	ADD_EXECUTABLE(RegisterRGBD_dataset RegisterRGBD_dataset.cpp
 #					../include/Miscellaneous.h
-#					../include/RegisterDense.h
 #					../third_party/cvShowManyImages.h
 #	)
 #
-#	TARGET_LINK_LIBRARIES(RegisterRGBD_dataset
+#	TARGET_LINK_LIBRARIES(RegisterRGBD_dataset DR
 #					${MRPT_LIBS}
 #					${OpenCV_LIBS}
 #					${PCL_LIBRARIES}
@@ -143,16 +120,14 @@ IF(BUILD_REGISTRATION)
                                                 ../src/Frame360.cpp
 						../include/Map360_Visualizer.h
 						../include/RegisterRGBD360.h
-                                                ../include/RegisterDense.h
-                                                ../src/RegisterDense.cpp
 	)
 
-	TARGET_LINK_LIBRARIES(MethodsRegisterRGBD360
-					${MRPT_LIBS}
-					${OpenCV_LIBS}
-					${PCL_LIBRARIES}
-					${Boost_SERIALIZATION_LIBRARY}
-					   )
+	TARGET_LINK_LIBRARIES(MethodsRegisterRGBD360 	DR
+							${MRPT_LIBS}
+							${OpenCV_LIBS}
+							${PCL_LIBRARIES}
+							${Boost_SERIALIZATION_LIBRARY}
+			   )
 
 	# Declare the target (an executable)
 	ADD_EXECUTABLE(OdometryRGBD360 OdometryRGBD360.cpp
@@ -164,16 +139,14 @@ IF(BUILD_REGISTRATION)
                                                 ../src/Frame360.cpp
 						../include/Map360.h
 						../include/RegisterRGBD360.h
-                                                ../include/RegisterDense.h
-                                                ../src/RegisterDense.cpp
 	)
 
-	TARGET_LINK_LIBRARIES(OdometryRGBD360
-					${MRPT_LIBS}
-					${OpenCV_LIBS}
-					${PCL_LIBRARIES}
-					${Boost_SERIALIZATION_LIBRARY}
-					   )
+	TARGET_LINK_LIBRARIES(OdometryRGBD360	DR
+						${MRPT_LIBS}
+						${OpenCV_LIBS}
+						${PCL_LIBRARIES}
+						${Boost_SERIALIZATION_LIBRARY}
+			   )
 
 	# Declare the target (an executable)
 	ADD_EXECUTABLE(OdometryKeyFrame360 OdometryKeyFrame360.cpp
@@ -185,16 +158,15 @@ IF(BUILD_REGISTRATION)
                                                 ../src/Frame360.cpp
 						../include/Map360.h
 						../include/RegisterRGBD360.h
-                                                ../include/RegisterDense.h
-                                                ../src/RegisterDense.cpp
 	)
 
-	TARGET_LINK_LIBRARIES(OdometryKeyFrame360
-					${MRPT_LIBS}
-					${OpenCV_LIBS}
-					${PCL_LIBRARIES}
-					${Boost_SERIALIZATION_LIBRARY}
-					   )
+	TARGET_LINK_LIBRARIES(OdometryKeyFrame360	DR
+							${MRPT_LIBS}
+							${OpenCV_LIBS}
+							${PCL_LIBRARIES}
+							${Boost_SERIALIZATION_LIBRARY}
+			   )
+
 
 
 #	# Declare the target (an executable)

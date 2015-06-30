@@ -33,8 +33,8 @@
 //#include <Saliency.h>
 
 #include <opencv2/opencv.hpp>
-//#include <Eigen/Core>
-#include "/usr/local/include/eigen3/Eigen/Core"
+#include <Eigen/Core>
+//#include "/usr/local/include/eigen3/Eigen/Core"
 
 #ifndef PROJECTION_MODEL_H
 #define PROJECTION_MODEL_H

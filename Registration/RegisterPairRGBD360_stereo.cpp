@@ -160,8 +160,8 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   // Dense registration
 //  float angleOffset = 157.5;
 //  Eigen::Matrix4f rotOffset = Eigen::Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
-  RegisterDense align360; // Dense RGB-D alignment
-  align360.setSensorType( ProjectionModel::STEREO_OUTDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::register360 for more details)
+  DirectRegistration align360; // Dense RGB-D alignment
+  align360.setSensorType( ProjectionModel::STEREO_OUTDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
   align360.setNumPyr(6);
   align360.setMinDepth(1.f);
   align360.setMaxDepth(15.f);
@@ -170,14 +170,14 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   align360.setGrayVariance(8.f/255);
   align360.setTargetFrame(frame360_1.sphereRGB, frame360_1.sphereDepth);
   align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
-  cout << "RegisterDense \n";
+  cout << "DirectRegistration \n";
   time_start = pcl::getTime();
 //  for(size_t i=0; i < 20; i++)
-  align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  align360.register360(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   time_end = pcl::getTime();
   std::cout << "register360 took " << double (time_end - time_start) << std::endl;
 //  Eigen::Matrix4f initTransf_dense = rotOffset * poseRegPbMap * rotOffset.inverse();
-//  align360.register360(initTransf_dense, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//  align360.register360(initTransf_dense, DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   Eigen::Matrix4f rigidTransf_dense_ref = align360.getOptimalPose();
 //  Eigen::Matrix4f rigidTransf_dense = rotOffset.inverse() * rigidTransf_dense_ref * rotOffset;
   cout << "Pose Dense \n" << rigidTransf_dense_ref << endl;
@@ -186,31 +186,31 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
   align360.useSaliency(true);
   align360.setSaliencyThreshodIntensity(0.04f);
   align360.setSaliencyThreshodDepth(0.04f);
-  align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  align360.register360(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   cout << "Pose Dense Saliency \n" << align360.getOptimalPose() << endl;
 
-  align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  align360.register360(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   std::cout << "Pose Dense PHOTO_CONSISTENCY \n" << align360.getOptimalPose() << std::endl;
 
-  align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  align360.register360(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   std::cout << "Pose Dense DEPTH_CONSISTENCY \n" << align360.getOptimalPose() << std::endl;
 
   align360.useSaliency(false);
-  align360.register360_inv(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  align360.register360_inv(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   cout << "Pose Dense Inv \n" << align360.getOptimalPose() << endl;
 
   align360.useSaliency(true);
-  align360.register360_inv(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  align360.register360_inv(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   cout << "Pose Dense Inv Saliency \n" << align360.getOptimalPose() << endl;
 
   align360.useSaliency(false);
-  align360.register360_bidirectional(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  align360.register360_bidirectional(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   cout << "Pose Dense Bidirectional \n" << align360.getOptimalPose() << endl;
 
   align360.useSaliency(true);
   align360.setSaliencyThreshodIntensity(0.08f);
   align360.setSaliencyThreshodDepth(0.06f);
-  align360.register360_bidirectional(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+  align360.register360_bidirectional(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
   cout << "Pose Dense Bidirectional Saliency \n" << align360.getOptimalPose() << endl;
 
 

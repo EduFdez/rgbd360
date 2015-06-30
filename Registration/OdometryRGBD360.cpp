@@ -88,8 +88,8 @@ public:
         frame360_2->getPlanes();
         //    cout << "regsitrationCloud has " << registrationClouds[1]->size() << " Pts\n";
 
-        RegisterDense align360; // Dense RGB-D alignment
-        align360.setSensorType(ProjectionModel::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::register360 for more details)
+        DirectRegistration align360; // Dense RGB-D alignment
+        align360.setSensorType(ProjectionModel::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
         align360.setNumPyr(6);
         align360.useSaliency(true);
 //        align360.setVisualization(true);
@@ -217,21 +217,21 @@ public:
                 //align360.setTargetFrame(frame360_1->sphereRGB, frame360_1->sphereDepth);
                 align360.setSourceFrame(frame360_2->sphereRGB, frame360_2->sphereDepth);
                 time_start += pcl::getTime();
-                align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-                //align360.register360(prev_motion, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-                //align360.register360(rigidTransf_dense, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                align360.register360(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                //align360.register360(prev_motion, DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                //align360.register360(rigidTransf_dense, DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
                 time_dense = pcl::getTime() - time_start;
                 rigidTransf_dense = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
                 cout << "Pose direct \n" << rigidTransf_dense << endl;
 
-                align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                align360.register360(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
                 cout << "Dense regist PHOTO_CONSISTENCY \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
 
-                align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                align360.register360(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
                 cout << "Dense regist DEPTH_CONSISTENCY \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
 
                 time_start = pcl::getTime();
-                align360.register360_inv(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                align360.register360_inv(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
                 time_dense_inv += pcl::getTime() - time_start;
                 rigidTransf_dense_inv = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
                 cout << "Pose direct Inv \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
@@ -241,7 +241,7 @@ public:
                 assert( diff_rot < diff_rot_threshold && diff_trans < diff_trans_threshold );
 
                 time_start += pcl::getTime();
-                align360.register360_bidirectional(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                align360.register360_bidirectional(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
                 time_dense_bidirectional = pcl::getTime() - time_start;
                 rigidTransf_dense_bidirectional = rot_offset.inverse() * align360.getOptimalPose() * rot_offset;
                 cout << "Pose direct Bidirectional \n" << rot_offset.inverse() * align360.getOptimalPose() * rot_offset << endl;
@@ -256,8 +256,8 @@ public:
 //            else
 //            {
 //                cout << "Align imgs " << endl;
-//                registerer.DenseRegistration(map_.vpSpheres[*compareSphereId], frame360, Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY, RegisterRGBD360::DEFAULT_6DoF);
-////                        registerer.DenseRegistration(map_.vpSpheres[*compareSphereId], frame360, rigidTransf, RegisterDense::PHOTO_CONSISTENCY, RegisterRGBD360::DEFAULT_6DoF);
+//                registerer.DenseRegistration(map_.vpSpheres[*compareSphereId], frame360, Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY, RegisterRGBD360::DEFAULT_6DoF);
+////                        registerer.DenseRegistration(map_.vpSpheres[*compareSphereId], frame360, rigidTransf, DirectRegistration::PHOTO_CONSISTENCY, RegisterRGBD360::DEFAULT_6DoF);
 //                rigidTransf = registerer.getPose();
 //            }
 

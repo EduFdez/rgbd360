@@ -44,7 +44,7 @@
 #include "CloudRGBD.h"
 //#include <SerializeFrameRGBD.h>
 #include <FilterPointCloud.h>
-#include <RegisterDense.h>
+#include <DirectRegistration.h>
 
 //#include <pcl/registration/icp.h>
 //#include <pcl/registration/icp_nl.h> //ICP LM
@@ -79,7 +79,7 @@ class OdometryRGBD
 {
 private:
 
-    RegisterDense registerer;
+    DirectRegistration registerer;
 
     // Used to interpolate grountruth poses
     bool groundtruth_ok;
@@ -364,9 +364,9 @@ public:
         bool bFirstFrame = true;
 
         // Initialize Dense registration
-        RegisterDense registerRGBD; // Dense RGB-D alignment
-        registerRGBD.setSensorType( ProjectionModel::KINECT ); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::register360 for more details)
-        registerRGBD.setNumPyr(5);
+        DirectRegistration registerRGBD; // Dense RGB-D alignment
+        registerRGBD.setSensorType( ProjectionModel::KINECT ); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
+        registerRGBD.setNumPyr(0);
         registerRGBD.setMaxDepth(8.f);
 //        registerRGBD.useSaliency(true);
 //        registerRGBD.thresSaliencyIntensity(0.f);
@@ -560,22 +560,22 @@ public:
 //                mrpt::system::pause();
 //            }
 
-            cout << "RegisterDense \n";
+            cout << "DirectRegistration \n";
 
             // Forward compositional
             //registerRGBD.swapSourceTarget();
             registerRGBD.setTargetFrame(intensity_trg, depth_trg);
             registerRGBD.setSourceFrame(intensity_src, depth_src);
 
-            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePose = registerRGBD.getOptimalPose();
             cout << "registerRGBD \n" << relativePose << endl;
 
-            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePose_photo = registerRGBD.getOptimalPose();
             cout << "registerRGBD Photo \n" << relativePose_photo << endl;
 
-            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePose_depth = registerRGBD.getOptimalPose();
             cout << "registerRGBD Depth \n" << relativePose_depth << endl;
 
@@ -583,15 +583,15 @@ public:
             //mrpt::system::pause();
 
             // Inverse compositional
-            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePoseIC = registerRGBD.getOptimalPose();
             cout << "registerRGBD IC \n" << relativePoseIC << endl;
 
-            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePoseIC_photo = registerRGBD.getOptimalPose();
             cout << "registerRGBD IC Photo \n" << relativePoseIC_photo << endl;
 
-            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), RegisterDense::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePoseIC_depth = registerRGBD.getOptimalPose();
             cout << "registerRGBD IC Depth \n" << relativePoseIC_depth << endl;
 

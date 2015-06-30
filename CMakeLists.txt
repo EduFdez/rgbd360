@@ -205,6 +205,32 @@ if(OPENMP_FOUND)
 endif()
 
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/include)
+INCLUDE_DIRECTORIES( ${OpenCV_INCLUDE_DIRS} )
+
+# Create the DR library (Direct Registration)
+ADD_LIBRARY(DR
+            ${PROJECT_SOURCE_DIR}/include/DirectRegistration.h
+            ${PROJECT_SOURCE_DIR}/src/DirectRegistration.cpp
+            ${PROJECT_SOURCE_DIR}/include/MEstimator.h
+            ${PROJECT_SOURCE_DIR}/include/ProjectionModel.h
+            ${PROJECT_SOURCE_DIR}/src/ProjectionModel.cpp
+            ${PROJECT_SOURCE_DIR}/include/Pyramid.h
+            ${PROJECT_SOURCE_DIR}/src/Pyramid.cpp
+            ${PROJECT_SOURCE_DIR}/include/transformPts3D.h
+            ${PROJECT_SOURCE_DIR}/src/transformPts3D.cpp
+            ${PROJECT_SOURCE_DIR}/include/Miscellaneous.h
+)
+
+TARGET_LINK_LIBRARIES(DR
+                        ${MRPT_LIBS}
+                        ${OpenCV_LIBS}
+                        ${PCL_LIBRARIES}
+                        ${Boost_SERIALIZATION_LIBRARY}
+)
+
+# Tell CMake that the linker language is C++
+SET_TARGET_PROPERTIES(DR PROPERTIES LINKER_LANGUAGE CXX)
+
 
 # Include the project 'OpenNI2_Grabber'
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/OpenNI2_Grabber/FrameRGBD)

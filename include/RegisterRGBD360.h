@@ -35,7 +35,7 @@
 
 #include "Frame360.h"
 #include "params_plane_segmentation.h"
-#include "RegisterDense.h"
+#include "DirectRegistration.h"
 
 #include <pcl/common/time.h>
 

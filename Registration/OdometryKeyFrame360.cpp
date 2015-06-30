@@ -114,8 +114,8 @@ public:
         frame360_1 = frame360_2;
         //    cout << "regsitrationCloud has " << registrationClouds[1]->size() << " Pts\n";
 
-        RegisterDense align360; // Dense RGB-D alignment
-        align360.setSensorType( ProjectionModel::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of RegisterDense::register360 for more details)
+        DirectRegistration align360; // Dense RGB-D alignment
+        align360.setSensorType( ProjectionModel::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
         align360.setNumPyr(6);
         align360.useSaliency(false);
 //        align360.setVisualization(true);
@@ -245,13 +245,13 @@ public:
                 double time_start_dense = pcl::getTime();
                 align360.setTargetFrame(frame360_1->sphereRGB, frame360_1->sphereDepth);
                 align360.setSourceFrame(frame360_2->sphereRGB, frame360_2->sphereDepth);
-//                align360.register360(Eigen::Matrix4f::Identity(), RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//                align360.register360(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
                 if(bGoodRegistration)
                     initTransf_dense = rotOffset * poseRegPbMap * rotOffset.inverse();
                 else
                     initTransf_dense = rotOffset * prevPose * rotOffset.inverse();
-                align360.register360(initTransf_dense, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//                align360.register360(rigidTransf_dense_ref, RegisterDense::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+                align360.register360(initTransf_dense, DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//                align360.register360(rigidTransf_dense_ref, DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
                 rigidTransf_dense_ref = align360.getOptimalPose();
                 rigidTransf_dense = rotOffset.inverse() * rigidTransf_dense_ref * rotOffset;
                 double time_end_dense = pcl::getTime();

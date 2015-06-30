@@ -29,21 +29,22 @@
  * Author: Eduardo Fernandez-Moral
  */
 
+#pragma once
+
 #include "Miscellaneous.h"
 #include "ProjectionModel.h"
+#include "Pyramid.h"
 #include "MEstimator.h"
 
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
 
-#ifndef REGISTER_PHOTO_ICP_H
-#define REGISTER_PHOTO_ICP_H
 
 /*! This class performs dense registration (also called direct registration) minimizing a cost function based on either intensity, depth or both.
  *  Refer to the last chapter of my thesis dissertation for more details:
  * "Contributions to metric-topological localization and mapping in mobile robotics" 2014. Eduardo Fernández-Moral.
  */
-class RegisterDense : public ProjectionModel, MEstimator
+class DirectRegistration : public ProjectionModel, Pyramid, MEstimator
 {
 //public:
 
@@ -202,7 +203,7 @@ public:
     std::vector<cv::Mat> graySrcGradXPyr, graySrcGradYPyr, depthSrcGradXPyr, depthSrcGradYPyr;
     std::vector<cv::Mat> colorSrcPyr;
 
-    RegisterDense();
+    DirectRegistration();
 
     /*! Set the number of pyramid levels.*/
     inline void setSensorType(const sensorType sensor)
@@ -308,36 +309,18 @@ public:
         return gradient;
     }
 
-    /*! Build a pyramid of nLevels of image resolutions from the input image.
-     * The resolution of each layer is 2x2 times the resolution of its image above.*/
-    void buildPyramid(const cv::Mat & img, std::vector<cv::Mat> & pyramid);
-
-    /*! Build a pyramid of nLevels of image resolutions from the input image.
-     * The resolution of each layer is 2x2 times the resolution of its image above.*/
-    void buildPyramidRange( const cv::Mat & img, std::vector<cv::Mat> & pyramid);
-
-    /*! Build the pyramid levels from the intensity images.*/
-    inline void buildGrayPyramids()
-    {
-        buildPyramid(graySrc, graySrcPyr);
-        buildPyramid(grayTrg, graySrcPyr);
-    };
-
-    /*! Calculate the image gradients in X and Y. This gradientes are calculated through weighted first order approximation (as adviced by Mariano Jaimez). */
-    void calcGradientXY( const cv::Mat & src, cv::Mat & gradX, cv::Mat & gradY);
-
-    /*! Calculate the image gradients in X and Y. This gradientes are calculated through weighted first order approximation (as adviced by Mariano Jaimez). */
-    void calcGradientXY_saliency( const cv::Mat & src, cv::Mat & gradX, cv::Mat & gradY, std::vector<int> & vSalientPixels_);
-
-    /*! Compute the gradient images for each pyramid level. */
-    void buildGradientPyramids( const std::vector<cv::Mat> & grayPyr, std::vector<cv::Mat> & grayGradXPyr, std::vector<cv::Mat> & grayGradYPyr,
-                                const std::vector<cv::Mat> & depthPyr, std::vector<cv::Mat> & depthGradXPyr, std::vector<cv::Mat> & depthGradYPyr);
-
     /*! Sets the source (Intensity+Depth) frame.*/
     void setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
 
     /*! Sets the source (Intensity+Depth) frame. Depth image is ignored*/
     void setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
+
+    /*! Build the pyramid levels from the intensity images.*/
+    inline void buildGrayPyramids()
+    {
+        buildPyramid(graySrc, graySrcPyr, nPyrLevels);
+        buildPyramid(grayTrg, graySrcPyr, nPyrLevels);
+    };
 
     /*! Swap the source and target images */
     void swapSourceTarget();
@@ -595,5 +578,3 @@ public:
     void updateGrad(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels);
 
 };
-
-#endif

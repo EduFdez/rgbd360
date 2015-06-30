@@ -29,7 +29,7 @@
  * Author: Eduardo Fernandez-Moral
  */
 
-#include <RegisterDense.h>
+#include <DirectRegistration.h>
 #include <transformPts3D.h>
 
 #include <opencv2/core/core.hpp>
@@ -80,7 +80,7 @@
 
 using namespace std;
 
-RegisterDense::RegisterDense() :
+DirectRegistration::DirectRegistration() :
     use_salient_pixels_(false),
     compute_MAD_stdDev_(false),
     use_bilinear_(false),
@@ -119,649 +119,8 @@ RegisterDense::RegisterDense() :
     registered_pose_ = Eigen::Matrix4f::Identity();
 }
 
-/*! Build a pyramid of nPyrLevels of image resolutions from the input image.
- * The resolution of each layer is 2x2 times the resolution of its image above.*/
-void RegisterDense::buildPyramid( const cv::Mat & img, std::vector<cv::Mat> & pyramid)
-{
-#if PRINT_PROFILING
-    cout << "RegisterDense::buildPyramid... \n";
-    double time_start = pcl::getTime();
-    //for(size_t i=0; i<1000; i++)
-    {
-#endif
-    //Create space for all the images // ??
-    pyramid.resize(nPyrLevels);
-    pyramid[0] = img;
-    //cout << "types " << pyramid[0].type() << " " << img.type() << endl;
-
-//    cv::Mat img_show;
-//    pyramid[0].convertTo(img_show, CV_8UC1, 255);
-//    cv::imwrite(mrpt::format("/home/efernand/pyr_gray_%d.png",0), img_show);
-//    //cv::imshow("pyramid", img_show);
-//    //cv::waitKey(0);
-
-    for(int level=1; level < nPyrLevels; level++)
-    {
-        assert(pyramid[0].rows % 2 == 0 && pyramid[0].cols % 2 == 0 );
-
-        // Assign the resized image to the current level of the pyramid
-        pyrDown( pyramid[level-1], pyramid[level], cv::Size( pyramid[level-1].cols/2, pyramid[level-1].rows/2 ) );
-
-//        cv::Mat img_show;
-//        pyramid[level].convertTo(img_show, CV_8UC1, 255);
-//        cv::imwrite(mrpt::format("/home/efernand/pyr_gray_%d.png",level), img_show);
-//        //cv::imshow("pyramid", pyramid[level]);
-//        //cv::waitKey(0);
-    }
-#if PRINT_PROFILING
-    }
-    double time_end = pcl::getTime();
-    cout << "RegisterDense::buildPyramid " << (time_end - time_start)*1000 << " ms. \n";
-#endif
-}
-
-/*! Build a pyramid of nPyrLevels of image resolutions from the input image.
-     * The resolution of each layer is 2x2 times the resolution of its image above.*/
-void RegisterDense::buildPyramidRange(const cv::Mat & img, std::vector<cv::Mat> & pyramid)
-{
-#if PRINT_PROFILING
-    cout << "RegisterDense::buildPyramidRange... \n";
-    double time_start = pcl::getTime();\
-    //for(size_t i=0; i<1000; i++)
-    {
-#endif
-    //Create space for all the images // ??
-    pyramid.resize(nPyrLevels);
-    if(img.type() == CV_16U) // If the image is in milimetres, convert it to meters
-        img.convertTo(pyramid[0], CV_32FC1, 0.001 );
-    else
-        pyramid[0] = img;
-    //    cout << "types " << pyramid[0].type() << " " << img.type() << endl;
-
-//    cv::Mat img_show;
-//    cv::Mat img255(pyramid[0].rows, pyramid[0].cols, CV_8U, 255);
-//    const float viz_factor_meters = 82.5;
-//    pyramid[0].convertTo(img_show, CV_8U, viz_factor_meters);
-//    cv::Mat mask = img_show == 0;
-//    img_show = img255 - img_show;
-//    img_show.setTo(0, mask);
-//    cv::imwrite(mrpt::format("/home/efernand/pyr_depth_%d.png",0), img_show);
-
-    for(int level=1; level < nPyrLevels; level++)
-    {
-        //Create an auxiliar image of factor times the size of the original image
-        size_t nCols = pyramid[level-1].cols;
-        size_t nRows = pyramid[level-1].rows;
-        size_t img_size = nRows * nCols;
-        pyramid[level] = cv::Mat::zeros(cv::Size( nCols/2, nRows/2 ), pyramid[0].type() );
-        //            cv::Mat imgAux = cv::Mat::zeros(cv::Size( nCols/2, pyramid[level-1].rows/2 ), pyramid[0].type() );
-        float *_z = reinterpret_cast<float*>(pyramid[level-1].data);
-        float *_z_sub = reinterpret_cast<float*>(pyramid[level].data);
-        if(img_size > 4*1e4) // Apply multicore only to the bigger images
-        {
-#if ENABLE_OPENMP
-#pragma omp parallel for
-#endif
-            for(size_t r=0; r < nRows; r+=2)
-            {
-                for(size_t c=0; c < nCols; c+=2)
-                {
-                    float avDepth = 0.f;
-                    unsigned nvalidPixels_src = 0;
-                    for(size_t i=0; i < 2; i++)
-                        for(size_t j=0; j < 2; j++)
-                        {
-                            size_t pixel = (r+i)*nCols + c + j;
-                            float z = _z[pixel];
-                            //                        float z = pyramid[level-1].at<float>(r+i,c+j);
-                            //cout << "z " << z << endl;
-                            if(z > min_depth_ && z < max_depth_)
-                            {
-                                avDepth += z;
-                                ++nvalidPixels_src;
-                            }
-                        }
-                    if(nvalidPixels_src > 0)
-                    {
-                        //pyramid[level].at<float>(r/2,c/2) = avDepth / nvalidPixels_src;
-                        size_t pixel_sub = r*nCols/4 + c/2;
-                        _z_sub[pixel_sub] = avDepth / nvalidPixels_src;
-                    }
-                }
-            }
-        }
-        else
-        {
-            for(size_t r=0; r < nRows; r+=2)
-                for(size_t c=0; c < nCols; c+=2)
-                {
-                    float avDepth = 0.f;
-                    unsigned nvalidPixels_src = 0;
-                    for(size_t i=0; i < 2; i++)
-                        for(size_t j=0; j < 2; j++)
-                        {
-                            size_t pixel = (r+i)*nCols + c + j;
-                            float z = _z[pixel];
-                            //                        float z = pyramid[level-1].at<float>(r+i,c+j);
-                            //cout << "z " << z << endl;
-                            if(z > min_depth_ && z < max_depth_)
-                            {
-                                avDepth += z;
-                                ++nvalidPixels_src;
-                            }
-                        }
-                    if(nvalidPixels_src > 0)
-                    {
-                        //pyramid[level].at<float>(r/2,c/2) = avDepth / nvalidPixels_src;
-                        size_t pixel_sub = r*nCols/4 + c/2;
-                        _z_sub[pixel_sub] = avDepth / nvalidPixels_src;
-                    }
-                }
-        }
-//        cv::Mat img_show;
-//        cv::Mat img255(pyramid[level].rows, pyramid[level].cols, CV_8U, 255);
-//        pyramid[level].convertTo(img_show, CV_8U, viz_factor_meters);
-//        cv::Mat mask = img_show == 0;
-//        img_show = img255 - img_show;
-//        img_show.setTo(0, mask);
-//        cv::imwrite(mrpt::format("/home/efernand/pyr_depth_%d.png",level), img_show);
-    }
-#if PRINT_PROFILING
-    }
-    double time_end = pcl::getTime();
-    cout << "RegisterDense::buildPyramidRange " << (time_end - time_start)*1000 << " ms. \n";
-#endif
-}
-
-
-/*! Calculate the image gradients in X and Y. This gradientes are calculated through weighted first order approximation (as adviced by Mariano Jaimez). */
-void RegisterDense::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gradY)
-{
-#if PRINT_PROFILING
-    double time_start = pcl::getTime();
-    //for(size_t i=0; i<1000; i++)
-    {
-#endif
-
-    //int dataType = src.type();
-    gradX = cv::Mat::zeros(cv::Size(src.cols, src.rows), src.type() );
-    gradY = cv::Mat::zeros(cv::Size(src.cols, src.rows), src.type() );
-
-    float *_pixel = reinterpret_cast<float*>(src.data);
-    float *_pixel_gradX = reinterpret_cast<float*>(gradX.data);
-    float *_pixel_gradY = reinterpret_cast<float*>(gradY.data);
-
-    size_t img_size = src.rows * src.cols;
-
-#if !(_SSE3) // # ifdef __SSE3__
-
-    if(img_size > 4*1e4) // Apply multicore only to the bigger images
-    {
-        #if ENABLE_OPENMP
-        #pragma omp parallel for // schedule(static) // schedule(dynamic)
-        #endif
-        for(size_t r=1; r < src.rows-1; ++r)
-        {
-            size_t row_pix = r*src.cols;
-            for(int c=1; c < src.cols-1; ++c)
-            {
-                // Efficient pointer-based gradient computation
-                //unsigned i = r*src.cols + c;
-                size_t i = row_pix + c;
-
-                if( (_pixel[i+1] > _pixel[i] && _pixel[i] > _pixel[i-1]) || (_pixel[i+1] < _pixel[i] && _pixel[i] < _pixel[i-1]) )
-                    _pixel_gradX[i] = 2.f * (_pixel[i+1] - _pixel[i]) * (_pixel[i] - _pixel[i-1]) / (_pixel[i+1] - _pixel[i-1]);
-
-                if( (_pixel[i+src.cols] > _pixel[i] && _pixel[i] > _pixel[i-src.cols]) || (_pixel[i+src.cols] < _pixel[i] && _pixel[i] < _pixel[i-src.cols]) )
-                    _pixel_gradY[i] = 2.f * (_pixel[i+src.cols] - _pixel[i]) * (_pixel[i] - _pixel[i-src.cols]) / (_pixel[i+src.cols] - _pixel[i-src.cols]);
-
-    //            if( (src.at<float>(r,c) > src.at<float>(r,c+1) && src.at<float>(r,c) < src.at<float>(r,c-1) ) ||
-    //                (src.at<float>(r,c) < src.at<float>(r,c+1) && src.at<float>(r,c) > src.at<float>(r,c-1) )   )//{
-    //                    gradX.at<float>(r,c) = 2.f * (src.at<float>(r,c+1)-src.at<float>(r,c)) * (src.at<float>(r,c)-src.at<float>(r,c-1)) / (src.at<float>(r,c+1)-src.at<float>(r,c-1));
-    //                    //cout << "GradX " << gradX.at<float>(r,c) << " " << gradX_.at<float>(r,c) << endl;}
-
-    //            if( (src.at<float>(r,c) > src.at<float>(r+1,c) && src.at<float>(r,c) < src.at<float>(r-1,c) ) ||
-    //                (src.at<float>(r,c) < src.at<float>(r+1,c) && src.at<float>(r,c) > src.at<float>(r-1,c) )   )
-    //                    gradY.at<float>(r,c) = 2.f * (src.at<float>(r+1,c)-src.at<float>(r,c)) * (src.at<float>(r,c)-src.at<float>(r-1,c)) / (src.at<float>(r+1,c)-src.at<float>(r-1,c));
-            }
-            // Compute the gradint at the image border
-            _pixel_gradX[row_pix] = _pixel[row_pix] - _pixel[row_pix-1];
-            _pixel_gradX[row_pix+src.cols-1] = _pixel[row_pix+src.cols-1] - _pixel[row_pix+src.cols-2];
-        }
-        // Compute the gradint at the image border
-        size_t last_row_pix = (src.rows - 1) * src.cols;
-        #if ENABLE_OPENMP
-        #pragma omp parallel for // schedule(static) // schedule(dynamic)
-        #endif
-        for(int c=1; c < src.cols-1; ++c)
-        {
-            _pixel_gradY[c] = _pixel[c+src.cols] - _pixel[c];
-            _pixel_gradY[last_row_pix+c] = _pixel[last_row_pix+c] - _pixel[last_row_pix-src.cols+c];
-        }
-    }
-    else
-    {
-        for(size_t r=1; r < src.rows-1; ++r)
-        {
-            size_t row_pix = r*src.cols;
-            for(int c=1; c < src.cols-1; ++c)
-            {
-                // Efficient pointer-based gradient computation
-                //unsigned i = r*src.cols + c;
-                size_t i = row_pix + c;
-
-                if( (_pixel[i+1] > _pixel[i] && _pixel[i] > _pixel[i-1]) || (_pixel[i+1] < _pixel[i] && _pixel[i] < _pixel[i-1]) )
-                    _pixel_gradX[i] = 2.f * (_pixel[i+1] - _pixel[i]) * (_pixel[i] - _pixel[i-1]) / (_pixel[i+1] - _pixel[i-1]);
-
-                if( (_pixel[i+src.cols] > _pixel[i] && _pixel[i] > _pixel[i-src.cols]) || (_pixel[i+src.cols] < _pixel[i] && _pixel[i] < _pixel[i-src.cols]) )
-                    _pixel_gradY[i] = 2.f * (_pixel[i+src.cols] - _pixel[i]) * (_pixel[i] - _pixel[i-src.cols]) / (_pixel[i+src.cols] - _pixel[i-src.cols]);
-
-    //            if( (src.at<float>(r,c) > src.at<float>(r,c+1) && src.at<float>(r,c) < src.at<float>(r,c-1) ) ||
-    //                (src.at<float>(r,c) < src.at<float>(r,c+1) && src.at<float>(r,c) > src.at<float>(r,c-1) )   )//{
-    //                    gradX.at<float>(r,c) = 2.f * (src.at<float>(r,c+1)-src.at<float>(r,c)) * (src.at<float>(r,c)-src.at<float>(r,c-1)) / (src.at<float>(r,c+1)-src.at<float>(r,c-1));
-    //                    //cout << "GradX " << gradX.at<float>(r,c) << " " << gradX_.at<float>(r,c) << endl;}
-
-    //            if( (src.at<float>(r,c) > src.at<float>(r+1,c) && src.at<float>(r,c) < src.at<float>(r-1,c) ) ||
-    //                (src.at<float>(r,c) < src.at<float>(r+1,c) && src.at<float>(r,c) > src.at<float>(r-1,c) )   )
-    //                    gradY.at<float>(r,c) = 2.f * (src.at<float>(r+1,c)-src.at<float>(r,c)) * (src.at<float>(r,c)-src.at<float>(r-1,c)) / (src.at<float>(r+1,c)-src.at<float>(r-1,c));
-            }
-            // Compute the gradint at the image border
-            _pixel_gradX[row_pix] = _pixel[row_pix] - _pixel[row_pix-1];
-            _pixel_gradX[row_pix+src.cols-1] = _pixel[row_pix+src.cols-1] - _pixel[row_pix+src.cols-2];
-        }
-        // Compute the gradint at the image border
-        size_t last_row_pix = (src.rows - 1) * src.cols;
-        for(int c=1; c < src.cols-1; ++c)
-        {
-            _pixel_gradY[c] = _pixel[c+src.cols] - _pixel[c];
-            _pixel_gradY[last_row_pix+c] = _pixel[last_row_pix+c] - _pixel[last_row_pix-src.cols+c];
-        }
-    }
-
-#else // Use _SSE3
-//#elif !(_AVX) //
-
-    // Use SIMD instructions -> x4 performance
-    assert( src.cols % 4 == 0);
-    size_t block_start = src.cols, block_end = img_size - src.cols;
-    const __m128 scalar2 = _mm_set1_ps(2.f); //float f2 = 2.f;
-    if(img_size > 4*1e4) // Apply multicore only to the bigger images
-    {
-        #if ENABLE_OPENMP
-        #pragma omp parallel for // schedule(static) // schedule(dynamic)
-        #endif
-        for(size_t b=block_start; b < block_end; b+=4)
-        {
-            __m128 block_ = _mm_load_ps(_pixel+b);
-            __m128 block_x1 = _mm_loadu_ps(_pixel+b+1);
-            __m128 block_x_1 = _mm_loadu_ps(_pixel+b-1);
-            __m128 diff1 = _mm_sub_ps(block_x1, block_);
-            __m128 diff_1= _mm_sub_ps(block_, block_x_1);
-            __m128 den = _mm_add_ps(diff1, diff_1);
-            __m128 mul = _mm_mul_ps(diff1, diff_1);
-            __m128 num = _mm_mul_ps(scalar2, mul);
-            __m128 res = _mm_div_ps(num, den);
-            //__m128 res = _mm_div_ps(_mm_mul_ps(scalar2, mul), den);
-            //_mm_store_ps(_pixel_gradX+b, res);
-            __m128 mask = _mm_or_ps(
-                                    _mm_and_ps( _mm_cmplt_ps(block_x_1, block_), _mm_cmplt_ps(block_, block_x1) ),
-                                    _mm_and_ps( _mm_cmplt_ps(block_x1, block_), _mm_cmplt_ps(block_, block_x_1) ) );
-            //_mm_maskstore_ps(_pixel_gradX+b, mask, res);
-            __m128 gradX = _mm_and_ps(mask, res);
-            _mm_store_ps(_pixel_gradX+b, gradX);
-
-            __m128 block_y1 = _mm_load_ps(_pixel+b+src.cols);
-            __m128 block_y_1 = _mm_load_ps(_pixel+b-src.cols);
-            diff1 = _mm_sub_ps(block_y1, block_);
-            diff_1= _mm_sub_ps(block_, block_y_1);
-            den = _mm_add_ps(diff1, diff_1);
-            mul = _mm_mul_ps(diff1, diff_1);
-            num = _mm_mul_ps(scalar2, mul);
-            res = _mm_div_ps(num, den);
-            //res = _mm_div_ps(_mm_mul_ps(scalar2, mul), den);
-            //_mm_store_ps(_pixel_gradY+b, res);
-            mask = _mm_or_ps( _mm_and_ps( _mm_cmplt_ps(block_y_1, block_), _mm_cmplt_ps(block_, block_y1) ),
-                              _mm_and_ps( _mm_cmplt_ps(block_y1, block_), _mm_cmplt_ps(block_, block_y_1) ) );
-            //_mm_maskstore_ps(_pixel_gradY+b, mask, res);
-            __m128 gradY = _mm_and_ps(mask, res);
-            _mm_store_ps(_pixel_gradY+b, gradY);
-        }
-        // Compute the gradint at the image border
-        #if ENABLE_OPENMP
-        #pragma omp parallel for // schedule(static) // schedule(dynamic)
-        #endif
-        for(int r=1; r < src.rows-1; ++r)
-        {
-            size_t row_pix = r*src.cols;
-            _pixel_gradX[row_pix] = _pixel[row_pix] - _pixel[row_pix-1];
-            _pixel_gradX[row_pix+src.cols-1] = _pixel[row_pix+src.cols-1] - _pixel[row_pix+src.cols-2];
-        }
-        size_t last_row_pix = (src.rows - 1) * src.cols;
-        #if ENABLE_OPENMP
-        #pragma omp parallel for // schedule(static) // schedule(dynamic)
-        #endif
-        for(int c=1; c < src.cols-1; ++c)
-        {
-            _pixel_gradY[c] = _pixel[c+src.cols] - _pixel[c];
-            _pixel_gradY[last_row_pix+c] = _pixel[last_row_pix+c] - _pixel[last_row_pix-src.cols+c];
-        }
-    }
-    else
-    {
-        for(size_t b=block_start; b < block_end; b+=4)
-        {
-            __m128 block_ = _mm_load_ps(_pixel+b);
-            __m128 block_x1 = _mm_loadu_ps(_pixel+b+1);
-            __m128 block_x_1 = _mm_loadu_ps(_pixel+b-1);
-            __m128 diff1 = _mm_sub_ps(block_x1, block_);
-            __m128 diff_1= _mm_sub_ps(block_, block_x_1);
-            __m128 den = _mm_add_ps(diff1, diff_1);
-            __m128 mul = _mm_mul_ps(diff1, diff_1);
-            __m128 num = _mm_mul_ps(scalar2, mul);
-            __m128 res = _mm_div_ps(num, den);
-            //__m128 res = _mm_div_ps(_mm_mul_ps(scalar2, mul), den);
-            //_mm_store_ps(_pixel_gradX+b, res);
-            __m128 mask = _mm_or_ps(
-                        _mm_and_ps( _mm_cmplt_ps(block_x_1, block_), _mm_cmplt_ps(block_, block_x1) ),
-                        _mm_and_ps( _mm_cmplt_ps(block_x1, block_), _mm_cmplt_ps(block_, block_x_1) ) );
-            //_mm_maskstore_ps(_pixel_gradX+b, mask, res);
-            __m128 gradX = _mm_and_ps(mask, res);
-            _mm_store_ps(_pixel_gradX+b, gradX);
-
-            __m128 block_y1 = _mm_load_ps(_pixel+b+src.cols);
-            __m128 block_y_1 = _mm_load_ps(_pixel+b-src.cols);
-            diff1 = _mm_sub_ps(block_y1, block_);
-            diff_1= _mm_sub_ps(block_, block_y_1);
-            den = _mm_add_ps(diff1, diff_1);
-            mul = _mm_mul_ps(diff1, diff_1);
-            num = _mm_mul_ps(scalar2, mul);
-            res = _mm_div_ps(num, den);
-            //res = _mm_div_ps(_mm_mul_ps(scalar2, mul), den);
-            //_mm_store_ps(_pixel_gradY+b, res);
-            mask = _mm_or_ps( _mm_and_ps( _mm_cmplt_ps(block_y_1, block_), _mm_cmplt_ps(block_, block_y1) ),
-                              _mm_and_ps( _mm_cmplt_ps(block_y1, block_), _mm_cmplt_ps(block_, block_y_1) ) );
-            //_mm_maskstore_ps(_pixel_gradY+b, mask, res);
-            __m128 gradY = _mm_and_ps(mask, res);
-            _mm_store_ps(_pixel_gradY+b, gradY);
-        }
-        // Compute the gradint at the image border
-        for(int r=1; r < src.rows-1; ++r)
-        {
-            size_t row_pix = r*src.cols;
-            _pixel_gradX[row_pix] = _pixel[row_pix] - _pixel[row_pix-1];
-            _pixel_gradX[row_pix+src.cols-1] = _pixel[row_pix+src.cols-1] - _pixel[row_pix+src.cols-2];
-        }
-        size_t last_row_pix = (src.rows - 1) * src.cols;
-        for(int c=1; c < src.cols-1; ++c)
-        {
-            _pixel_gradY[c] = _pixel[c+src.cols] - _pixel[c];
-            _pixel_gradY[last_row_pix+c] = _pixel[last_row_pix+c] - _pixel[last_row_pix-src.cols+c];
-        }
-    }
-
-//#else // Use _AVX
-
-//    cout << "calcGradientXY AVX \n";
-
-//    // Use SIMD instructions -> x4 performance
-//    assert( src.cols % 8 == 0);
-//    size_t block_start = src.cols, block_end = img_size - src.cols;
-//    const __m256 scalar2 = _mm256_set1_ps(2.f); //float f2 = 2.f;
-//    if(img_size > 8*1e4) // Apply multicore only to the bigger images
-//    {
-//        #if ENABLE_OPENMP
-//        #pragma omp parallel for // schedule(static) // schedule(dynamic)
-//        #endif
-//        for(size_t b=block_start; b < block_end; b+=8)
-//        {
-////            float *_block = _pixel+b;
-//            __m256 block_ = _mm256_load_ps(_pixel+b);
-//            __m256 block_x1 = _mm256_loadu_ps(_pixel+b+1);
-//            __m256 block_x_1 = _mm256_loadu_ps(_pixel+b-1);
-//            __m256 diff1 = _mm256_sub_ps(block_x1, block_);
-//            __m256 diff_1= _mm256_sub_ps(block_, block_x_1);
-//            __m256 den = _mm256_add_ps(diff1, diff_1);
-//            __m256 mul = _mm256_mul_ps(diff1, diff_1);
-//            __m256 num = _mm256_mul_ps(scalar2, mul);
-//            __m256 res = _mm256_div_ps(num, den);
-//            //__m256 res = _mm256_div_ps(_mm256_mul_ps(scalar2, mul), den);
-//            //_mm256_store_ps(_pixel_gradX+b, res);
-//            __m256 mask = _mm256_or_ps(
-//                                    _mm256_and_ps( _mm256_cmplt_ps(block_x_1, block_), _mm256_cmplt_ps(block_, block_x1) ),
-//                                    _mm256_and_ps( _mm256_cmplt_ps(block_x1, block_), _mm256_cmplt_ps(block_, block_x_1) ) );
-
-//            __m128 block_a_ = _mm_load_ps(_pixel+b);
-//            __m128 block_b_ = _mm_load_ps(_pixel+b+4);
-//            __m128 block_x1_a = _mm_loadu_ps(_pixel+b+1);
-//            __m128 block_x1_b = _mm_loadu_ps(_pixel+b+5);
-
-//            __m128 block_x_1 = _mm_loadu_ps(_pixel+b-1);
-//            __m128 diff1 = _mm_sub_ps(block_x1, block_);
-//            __m128 diff_1= _mm_sub_ps(block_, block_x_1);
-//            __m128 den = _mm_add_ps(diff1, diff_1);
-//            __m128 mul = _mm_mul_ps(diff1, diff_1);
-//            __m128 num = _mm_mul_ps(scalar2, mul);
-//            __m128 res = _mm_div_ps(num, den);
-//            //__m128 res = _mm_div_ps(_mm_mul_ps(scalar2, mul), den);
-//            //_mm_store_ps(_pixel_gradX+b, res);
-//            __m128 mask = _mm_or_ps(
-//                        _mm_and_ps( _mm_cmplt_ps(block_x_1, block_), _mm_cmplt_ps(block_, block_x1) ),
-
-
-
-//            //_mm256_maskstore_ps(_pixel_gradX+b, mask, res);
-//            __m256 gradX = _mm256_and_ps(mask, res);
-//            _mm256_store_ps(_pixel_gradX+b, gradX);
-
-//            __m256 block_y1 = _mm256_load_ps(_pixel+b+src.cols);
-//            __m256 block_y_1 = _mm256_load_ps(_pixel+b-src.cols);
-//            diff1 = _mm256_sub_ps(block_y1, block_);
-//            diff_1= _mm256_sub_ps(block_, block_y_1);
-//            den = _mm256_add_ps(diff1, diff_1);
-//            mul = _mm256_mul_ps(diff1, diff_1);
-//            num = _mm256_mul_ps(scalar2, mul);
-//            res = _mm256_div_ps(num, den);
-//            //res = _mm256_div_ps(_mm256_mul_ps(scalar2, mul), den);
-//            //_mm256_store_ps(_pixel_gradY+b, res);
-//            mask = _mm256_or_ps( _mm256_and_ps( _mm256_cmplt_ps(block_y_1, block_), _mm256_cmplt_ps(block_, block_y1) ),
-//                              _mm256_and_ps( _mm256_cmplt_ps(block_y1, block_), _mm256_cmplt_ps(block_, block_y_1) ) );
-//            //_mm256_maskstore_ps(_pixel_gradY+b, mask, res);
-//            __m256 gradY = _mm256_and_ps(mask, res);
-//            _mm256_store_ps(_pixel_gradY+b, gradY);
-//        }
-//        // Compute the gradint at the image border
-//        #if ENABLE_OPENMP
-//        #pragma omp parallel for // schedule(static) // schedule(dynamic)
-//        #endif
-//        for(int r=1; r < src.rows-1; ++r)
-//        {
-//            size_t row_pix = r*src.cols;
-//            _pixel_gradX[row_pix] = _pixel[row_pix] - _pixel[row_pix-1];
-//            _pixel_gradX[row_pix+src.cols-1] = _pixel[row_pix+src.cols-1] - _pixel[row_pix+src.cols-2];
-//        }
-//        size_t last_row_pix = (src.rows - 1) * src.cols;
-//        #if ENABLE_OPENMP
-//        #pragma omp parallel for // schedule(static) // schedule(dynamic)
-//        #endif
-//        for(int c=1; c < src.cols-1; ++c)
-//        {
-//            _pixel_gradY[c] = _pixel[c+src.cols] - _pixel[c];
-//            _pixel_gradY[last_row_pix+c] = _pixel[last_row_pix+c] - _pixel[last_row_pix-src.cols+c];
-//        }
-//    }
-//    else
-//    {
-//        for(size_t b=block_start; b < block_end; b+=4)
-//        {
-//            __m256 block_ = _mm256_load_ps(_pixel+b);
-//            __m256 block_x1 = _mm256_loadu_ps(_pixel+b+1);
-//            __m256 block_x_1 = _mm256_loadu_ps(_pixel+b-1);
-//            __m256 diff1 = _mm256_sub_ps(block_x1, block_);
-//            __m256 diff_1= _mm256_sub_ps(block_, block_x_1);
-//            __m256 den = _mm256_add_ps(diff1, diff_1);
-//            __m256 mul = _mm256_mul_ps(diff1, diff_1);
-//            __m256 num = _mm256_mul_ps(scalar2, mul);
-//            __m256 res = _mm256_div_ps(num, den);
-//            //__m256 res = _mm256_div_ps(_mm256_mul_ps(scalar2, mul), den);
-//            //_mm256_store_ps(_pixel_gradX+b, res);
-//            __m256 mask = _mm256_or_ps(
-//                        _mm256_and_ps( _mm256_cmplt_ps(block_x_1, block_), _mm256_cmplt_ps(block_, block_x1) ),
-//                        _mm256_and_ps( _mm256_cmplt_ps(block_x1, block_), _mm256_cmplt_ps(block_, block_x_1) ) );
-//            //_mm256_maskstore_ps(_pixel_gradX+b, mask, res);
-//            __m256 gradX = _mm256_and_ps(mask, res);
-//            _mm256_store_ps(_pixel_gradX+b, gradX);
-
-//            __m256 block_y1 = _mm256_load_ps(_pixel+b+src.cols);
-//            __m256 block_y_1 = _mm256_load_ps(_pixel+b-src.cols);
-//            diff1 = _mm256_sub_ps(block_y1, block_);
-//            diff_1= _mm256_sub_ps(block_, block_y_1);
-//            den = _mm256_add_ps(diff1, diff_1);
-//            mul = _mm256_mul_ps(diff1, diff_1);
-//            num = _mm256_mul_ps(scalar2, mul);
-//            res = _mm256_div_ps(num, den);
-//            //res = _mm256_div_ps(_mm256_mul_ps(scalar2, mul), den);
-//            //_mm256_store_ps(_pixel_gradY+b, res);
-//            mask = _mm256_or_ps( _mm256_and_ps( _mm256_cmplt_ps(block_y_1, block_), _mm256_cmplt_ps(block_, block_y1) ),
-//                              _mm256_and_ps( _mm256_cmplt_ps(block_y1, block_), _mm256_cmplt_ps(block_, block_y_1) ) );
-//            //_mm256_maskstore_ps(_pixel_gradY+b, mask, res);
-//            __m256 gradY = _mm256_and_ps(mask, res);
-//            _mm256_store_ps(_pixel_gradY+b, gradY);
-//        }
-//        // Compute the gradint at the image border
-//        for(int r=1; r < src.rows-1; ++r)
-//        {
-//            size_t row_pix = r*src.cols;
-//            _pixel_gradX[row_pix] = _pixel[row_pix] - _pixel[row_pix-1];
-//            _pixel_gradX[row_pix+src.cols-1] = _pixel[row_pix+src.cols-1] - _pixel[row_pix+src.cols-2];
-//        }
-//        size_t last_row_pix = (src.rows - 1) * src.cols;
-//        for(int c=1; c < src.cols-1; ++c)
-//        {
-//            _pixel_gradY[c] = _pixel[c+src.cols] - _pixel[c];
-//            _pixel_gradY[last_row_pix+c] = _pixel[last_row_pix+c] - _pixel[last_row_pix-src.cols+c];
-//        }
-//    }
-
-#endif
-
-//    cv::imshow("DerY", gradY);
-//    cv::imshow("DerX", gradX);
-//    cv::waitKey(0);
-
-#if PRINT_PROFILING
-    }
-    double time_end = pcl::getTime();
-    cout << src.rows << "rows. RegisterDense::calcGradientXY _SSE3 " << _SSE3 << " " << (time_end - time_start)*1000 << " ms. \n";
-#endif
-}
-
-/*! Calculate the image gradients in X and Y. This gradientes are calculated through weighted first order approximation (as adviced by Mariano Jaimez). */
-void RegisterDense::calcGradientXY_saliency(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gradY, std::vector<int> & vSalientPixels_)
-{
-    //int dataType = src.type();
-    gradX = cv::Mat::zeros(cv::Size(src.cols, src.rows), src.type() );
-    gradY = cv::Mat::zeros(cv::Size(src.cols, src.rows), src.type() );
-
-    for(int r=1; r < src.rows-1; r++)
-        for(int c=1; c < src.cols-1; c++)
-        {
-            if( (src.at<float>(r,c) > src.at<float>(r,c+1) && src.at<float>(r,c) < src.at<float>(r,c-1) ) ||
-                (src.at<float>(r,c) < src.at<float>(r,c+1) && src.at<float>(r,c) > src.at<float>(r,c-1) )   )
-                    gradX.at<float>(r,c) = 2.f / (1/(src.at<float>(r,c+1)-src.at<float>(r,c)) + 1/(src.at<float>(r,c)-src.at<float>(r,c-1)));
-
-            if( (src.at<float>(r,c) > src.at<float>(r+1,c) && src.at<float>(r,c) < src.at<float>(r-1,c) ) ||
-                (src.at<float>(r,c) < src.at<float>(r+1,c) && src.at<float>(r,c) > src.at<float>(r-1,c) )   )
-                    gradY.at<float>(r,c) = 2.f / (1/(src.at<float>(r+1,c)-src.at<float>(r,c)) + 1/(src.at<float>(r,c)-src.at<float>(r-1,c)));
-        }
-
-    vSalientPixels_.clear();
-    for(int r=1; r < src.rows-1; r++)
-        for(int c=1; c < src.cols-1; c++)
-            if( (fabs(gradX.at<float>(r,c)) > thresSaliency) || (fabs(gradY.at<float>(r,c)) > thresSaliency) )
-                vSalientPixels_.push_back(src.cols*r+c); //vector index
-}
-
-/*! Compute the gradient images for each pyramid level. */
-void RegisterDense::buildGradientPyramids(const std::vector<cv::Mat> & grayPyr, std::vector<cv::Mat> & grayGradXPyr, std::vector<cv::Mat> & grayGradYPyr,
-                                          const std::vector<cv::Mat> & depthPyr, std::vector<cv::Mat> & depthGradXPyr, std::vector<cv::Mat> & depthGradYPyr)
-{
-#if PRINT_PROFILING
-    double time_start = pcl::getTime();
-    //for(size_t i=0; i<1000; i++)
-#endif
-
-    //Compute image gradients
-    //double scale = 1./255;
-    //double delta = 0;
-    //int dataType = CV_32FC1; // grayPyr[level].type();
-
-    //Create space for all the derivatives images
-    grayGradXPyr.resize(grayPyr.size());
-    grayGradYPyr.resize(grayPyr.size());
-
-    depthGradXPyr.resize(grayPyr.size());
-    depthGradYPyr.resize(grayPyr.size());
-
-    for(int level=0; level < nPyrLevels; level++)
-    {
-        //double time_start_ = pcl::getTime();
-
-        calcGradientXY(grayPyr[level], grayGradXPyr[level], grayGradYPyr[level]);
-
-//#if PRINT_PROFILING
-//        double time_end_ = pcl::getTime();
-//        cout << level << " PyramidPhoto " << (time_end_ - time_start_) << endl;
-
-//        time_start_ = pcl::getTime();
-//#endif
-
-        calcGradientXY(depthPyr[level], depthGradXPyr[level], depthGradYPyr[level]);
-
-//#if PRINT_PROFILING
-//        time_end_ = pcl::getTime();
-//        cout << level << " PyramidDepth " << (time_end_ - time_start_) << endl;
-//#endif
-
-
-        //time_start_ = pcl::getTime();
-
-        // Compute the gradient in x
-        //grayGradXPyr[level] = cv::Mat(cv::Size( grayPyr[level].cols, grayPyr[level].rows), grayPyr[level].type() );
-        //cv::Scharr( grayPyr[level], grayGradXPyr[level], dataType, 1, 0, scale, delta, cv::BORDER_DEFAULT );
-        //cv::Sobel( grayPyr[level], grayGradXPyr[level], dataType, 1, 0, 3, scale, delta, cv::BORDER_DEFAULT );
-
-        // Compute the gradient in y
-        //grayGradYPyr[level] = cv::Mat(cv::Size( grayPyr[level].cols, grayPyr[level].rows), grayPyr[level].type() );
-        //cv::Scharr( grayPyr[level], grayGradYPyr[level], dataType, 0, 1, scale, delta, cv::BORDER_DEFAULT );
-        //cv::Sobel( grayPyr[level], grayGradYPyr[level], dataType, 0, 1, 3, scale, delta, cv::BORDER_DEFAULT );
-
-        //double time_end_ = pcl::getTime();
-        //cout << level << " PyramidPhoto " << (time_end_ - time_start_) << endl;
-
-        //            cv::Mat imgNormalizedDepth;
-        //            imagePyramid[level].convertTo(imgNormalizedDepth, CV_32FC1,1./max_depth_);
-
-        // Compute the gradient in x
-        //            cv::Scharr( depthPyr[level], depthGradXPyr[level], dataType, 1, 0, scale, delta, cv::BORDER_DEFAULT );
-
-        // Compute the gradient in y
-        //            cv::Scharr( depthPyr[level], depthGradYPyr[level], dataType, 0, 1, scale, delta, cv::BORDER_DEFAULT );
-
-        //            cv::imshow("DerX", grayGradXPyr[level]);
-        //            cv::imshow("DerY", grayGradYPyr[level]);
-        //            cv::waitKey(0);
-        //            cv::imwrite(mrpt::format("/home/edu/gradX_%d.png",level), grayGradXPyr[level]);
-        //            cv::imwrite(mrpt::format("/home/edu/gray_%d.png",level), grayPyr[level]);
-    }
-
-#if PRINT_PROFILING
-    double time_end = pcl::getTime();
-    cout << "RegisterDense::buildGradientPyramids " << (time_end - time_start)*1000 << " ms. \n";
-#endif
-}
-
 /*! Sets the source (Intensity+Depth) frame.*/
-void RegisterDense::setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
+void DirectRegistration::setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
 {
     #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -773,26 +132,28 @@ void RegisterDense::setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
     graySrc.convertTo(graySrc, CV_32FC1, 1./255 );
 
     //Compute image pyramids for the grayscale and depth images
-    buildPyramid(graySrc, graySrcPyr);
-    buildPyramidRange(imgDepth, depthSrcPyr);
+    buildPyramid(graySrc, graySrcPyr, nPyrLevels);
+    buildPyramidRange(imgDepth, depthSrcPyr, nPyrLevels);
 
     //Compute image pyramids for the gradients images
     buildGradientPyramids( graySrcPyr, graySrcGradXPyr, graySrcGradYPyr,
-                           depthSrcPyr, depthSrcGradXPyr, depthSrcGradYPyr );
+                           depthSrcPyr, depthSrcGradXPyr, depthSrcGradYPyr,
+                           nPyrLevels );
+
 //    // This is intended to show occlussions
 //    rgbSrc = imgRGB;
 //    buildPyramid(rgbSrc, colorSrcPyr, nPyrLevels);
 
     #if PRINT_PROFILING
     double time_end = pcl::getTime();
-    cout << "RegisterDense::setSourceFrame construction " << (time_end - time_start)*1000 << " ms. \n";
+    cout << "DirectRegistration::setSourceFrame construction " << (time_end - time_start)*1000 << " ms. \n";
     #endif
 }
 
 /*! Sets the source (Intensity+Depth) frame. Depth image is ignored*/
-void RegisterDense::setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
+void DirectRegistration::setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
 {
-    cout << "RegisterDense::setTargetFrame() \n";
+    cout << "DirectRegistration::setTargetFrame() \n";
     #if PRINT_PROFILING
     double time_start = pcl::getTime();
     #endif
@@ -804,16 +165,17 @@ void RegisterDense::setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
     grayTrg.convertTo(grayTrg, CV_32FC1, 1./255 );
 
     //Compute image pyramids for the grayscale and depth images
-    buildPyramid(grayTrg, grayTrgPyr);
-    buildPyramidRange(imgDepth, depthTrgPyr);
+    buildPyramid(grayTrg, grayTrgPyr, nPyrLevels);
+    buildPyramidRange(imgDepth, depthTrgPyr, nPyrLevels);
 
     //Compute image pyramids for the gradients images
     buildGradientPyramids( grayTrgPyr, grayTrgGradXPyr, grayTrgGradYPyr,
-                           depthTrgPyr, depthTrgGradXPyr, depthTrgGradYPyr );
+                           depthTrgPyr, depthTrgGradXPyr, depthTrgGradYPyr,
+                           nPyrLevels );
 
-    //        cv::imwrite("/home/efernand/test.png", grayTrgGradXPyr[nPyrLevels-1]);
-    //        cv::imshow("GradX_pyr ", grayTrgGradXPyr[nPyrLevels-1]);
-    //        cv::imshow("GradY_pyr ", grayTrgGradYPyr[nPyrLevels-1]);
+    //        cv::imwrite("/home/efernand/test.png", grayTrgGradXPyr[nPyrLevels]);
+    //        cv::imshow("GradX_pyr ", grayTrgGradXPyr[nPyrLevels]);
+    //        cv::imshow("GradY_pyr ", grayTrgGradYPyr[nPyrLevels]);
     //        cv::imshow("GradX ", grayTrgGradXPyr[0]);
     //        cv::imshow("GradY ", grayTrgGradYPyr[0]);
     //        cv::imshow("GradX_d ", depthTrgGradXPyr[0]);
@@ -821,12 +183,12 @@ void RegisterDense::setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
 
 #if PRINT_PROFILING
     double time_end = pcl::getTime();
-    cout << "RegisterDense::setTargetFrame construction " << (time_end - time_start)*1000 << " ms. \n";
+    cout << "DirectRegistration::setTargetFrame construction " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
 /*! Swap the source and target images */
-void RegisterDense::swapSourceTarget()
+void DirectRegistration::swapSourceTarget()
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -875,7 +237,7 @@ void RegisterDense::swapSourceTarget()
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << "RegisterDense::swapSourceTarget took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << "DirectRegistration::swapSourceTarget took " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
@@ -883,9 +245,9 @@ void RegisterDense::swapSourceTarget()
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::errorDense( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method )
+double DirectRegistration::errorDense( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method )
 {
-    //cout << " RegisterDense::errorDense \n";
+    //cout << " DirectRegistration::errorDense \n";
     double error2 = 0.0;
     double error2_photo = 0.0;
     double error2_depth = 0.0;
@@ -1291,9 +653,9 @@ double RegisterDense::errorDense( const int pyrLevel, const Eigen::Matrix4f & po
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::errorDense_IC( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method )
+double DirectRegistration::errorDense_IC( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method )
 {
-    //cout << " RegisterDense::errorDense \n";
+    //cout << " DirectRegistration::errorDense \n";
     double error2 = 0.0;
     double error2_photo = 0.0;
     double error2_depth = 0.0;
@@ -1643,7 +1005,7 @@ double RegisterDense::errorDense_IC( const int pyrLevel, const Eigen::Matrix4f &
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-void RegisterDense::calcHessGrad(int pyrLevel,
+void DirectRegistration::calcHessGrad(int pyrLevel,
                                 const costFuncType method )
 {
 #if PRINT_PROFILING
@@ -1959,11 +1321,11 @@ void RegisterDense::calcHessGrad(int pyrLevel,
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::calcHessGrad_IC ( const int pyrLevel,
+double DirectRegistration::calcHessGrad_IC ( const int pyrLevel,
                                         const Eigen::Matrix4f & poseGuess,
                                         const costFuncType method )
 {
-    cout << " RegisterDense::calcHessGrad_IC() method " << method << " use_bilinear " << use_bilinear_ << " n_pts " << LUT_xyz_source.rows() << " " << validPixels_src.rows() << endl;
+    cout << " DirectRegistration::calcHessGrad_IC() method " << method << " use_bilinear " << use_bilinear_ << " n_pts " << LUT_xyz_source.rows() << " " << validPixels_src.rows() << endl;
 
     // WARNING: The negative Jacobians are computed, thus it is not necesary to invert the construction of the SE3 pose update
     double error2 = 0.0;
@@ -1992,7 +1354,7 @@ double RegisterDense::calcHessGrad_IC ( const int pyrLevel,
     wEstimPhoto_src.resize(n_pts);
     wEstimDepth_src.resize(n_pts);
 
-    float *_depthSrcPyr = reinterpret_cast<float*>(depthSrcPyr[pyrLevel].data);
+    //float *_depthSrcPyr = reinterpret_cast<float*>(depthSrcPyr[pyrLevel].data);
     float *_depthTrgPyr = reinterpret_cast<float*>(depthTrgPyr[pyrLevel].data);
     float *_graySrcPyr = reinterpret_cast<float*>(graySrcPyr[pyrLevel].data);
     float *_grayTrgPyr = reinterpret_cast<float*>(grayTrgPyr[pyrLevel].data);
@@ -2479,9 +1841,9 @@ double RegisterDense::calcHessGrad_IC ( const int pyrLevel,
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::errorDense_inv( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method )
+double DirectRegistration::errorDense_inv( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method )
 {
-    //cout << " RegisterDense::errorDense \n";
+    //cout << " DirectRegistration::errorDense \n";
     double error2 = 0.0;
     double error2_photo = 0.0;
     double error2_depth = 0.0;
@@ -2709,7 +2071,7 @@ double RegisterDense::errorDense_inv( const int pyrLevel, const Eigen::Matrix4f 
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-void RegisterDense::calcHessGrad_inv(const int pyrLevel,
+void DirectRegistration::calcHessGrad_inv(const int pyrLevel,
                                     const Eigen::Matrix4f & poseGuess,
                                     const costFuncType method )
 {
@@ -2883,11 +2245,11 @@ void RegisterDense::calcHessGrad_inv(const int pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-void RegisterDense::warpImage(int pyrLevel,
+void DirectRegistration::warpImage(int pyrLevel,
                               const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                               const costFuncType method ) //,  const bool use_bilinear )
 {
-    cout << " RegisterDense::warpImage \n";
+    cout << " DirectRegistration::warpImage \n";
 
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -3021,12 +2383,12 @@ void RegisterDense::warpImage(int pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::computeReprojError_spherical (  int pyrLevel,
+double DirectRegistration::computeReprojError_spherical (  int pyrLevel,
                                                       const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                                       const costFuncType method,
                                                       const int direction ) //,  const bool use_bilinear )
 {
-    //cout << " RegisterDense::errorDense_sphere \n";
+    //cout << " DirectRegistration::errorDense_sphere \n";
     double error2 = 0.0;
     double error2_photo = 0.0;
     double error2_depth = 0.0;
@@ -4031,11 +3393,11 @@ double RegisterDense::computeReprojError_spherical (  int pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::errorDense_sphere ( int pyrLevel,
+double DirectRegistration::errorDense_sphere ( int pyrLevel,
                                           const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                           const costFuncType method ) //,  const bool use_bilinear )
 {
-    //cout << " RegisterDense::errorDense_sphere \n";
+    //cout << " DirectRegistration::errorDense_sphere \n";
     double error2 = 0.0;
     double error2_photo = 0.0;
     double error2_depth = 0.0;
@@ -4601,11 +3963,11 @@ double RegisterDense::errorDense_sphere ( int pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::errorDenseWarp_sphere ( int pyrLevel,
+double DirectRegistration::errorDenseWarp_sphere ( int pyrLevel,
                                               const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                               const costFuncType method ) //,  const bool use_bilinear )
 {
-    //cout << " RegisterDense::errorDense_sphere \n";
+    //cout << " DirectRegistration::errorDense_sphere \n";
     double error2 = 0.0;
     double error2_photo = 0.0;
     double error2_depth = 0.0;
@@ -5034,11 +4396,11 @@ double RegisterDense::errorDenseWarp_sphere ( int pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::errorDenseIC_sphere(int pyrLevel,
+double DirectRegistration::errorDenseIC_sphere(int pyrLevel,
                                           const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                           const costFuncType method ) //,  const bool use_bilinear )
 {
-    //cout << " RegisterDense::errorDense_sphere \n";
+    //cout << " DirectRegistration::errorDense_sphere \n";
     double error2 = 0.0;
     double error2_photo = 0.0;
     double error2_depth = 0.0;
@@ -5410,7 +4772,7 @@ double RegisterDense::errorDenseIC_sphere(int pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::computeJacobian_sphere(const int pyrLevel,
+double DirectRegistration::computeJacobian_sphere(const int pyrLevel,
                                             const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
                                             const costFuncType method ) //,const bool use_bilinear )
 {
@@ -5419,7 +4781,7 @@ double RegisterDense::computeJacobian_sphere(const int pyrLevel,
     double error2_depth = 0.0;
     size_t numVisiblePts = 0;
 
-    // cout << " RegisterDense::calcHessGrad_sphere() method " << method << " use_bilinear " << use_bilinear_ << endl;
+    // cout << " DirectRegistration::calcHessGrad_sphere() method " << method << " use_bilinear " << use_bilinear_ << endl;
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -5880,7 +5242,7 @@ double RegisterDense::computeJacobian_sphere(const int pyrLevel,
 }
 
 /*! Compute the averaged squared error of the salient points. */
-double RegisterDense::computeErrorHessGrad_salient(std::vector<size_t> & salient_pixels, const costFuncType method ) //,const bool use_bilinear )
+double DirectRegistration::computeErrorHessGrad_salient(std::vector<size_t> & salient_pixels, const costFuncType method ) //,const bool use_bilinear )
 {
     double error2 = 0.0;
     double error2_photo = 0.0;
@@ -5959,11 +5321,11 @@ double RegisterDense::computeErrorHessGrad_salient(std::vector<size_t> & salient
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-void RegisterDense::calcHessGrad_sphere(const int pyrLevel,
+void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
                                         const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
                                         const costFuncType method ) //,const bool use_bilinear )
 {
-    // cout << " RegisterDense::calcHessGrad_sphere() method " << method << " use_bilinear " << use_bilinear_ << endl;
+    // cout << " DirectRegistration::calcHessGrad_sphere() method " << method << " use_bilinear " << use_bilinear_ << endl;
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -6338,11 +5700,11 @@ void RegisterDense::calcHessGrad_sphere(const int pyrLevel,
 #endif
 }
 
-void RegisterDense::calcHessGrad_warp_sphere(const int pyrLevel,
+void DirectRegistration::calcHessGrad_warp_sphere(const int pyrLevel,
                                             const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
                                             const costFuncType method ) //,const bool use_bilinear )
 {
-    // cout << " RegisterDense::calcHessGrad_sphere() method " << method << " use_bilinear " << use_bilinear_ << endl;
+    // cout << " DirectRegistration::calcHessGrad_sphere() method " << method << " use_bilinear " << use_bilinear_ << endl;
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -6691,12 +6053,12 @@ void RegisterDense::calcHessGrad_warp_sphere(const int pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-void RegisterDense::calcHessGrad_side_sphere(const int pyrLevel,
+void DirectRegistration::calcHessGrad_side_sphere(const int pyrLevel,
                                              const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
                                              const costFuncType method,
                                              const int side) // side is an aproximation parameter, 0 -> optimization starts at the identity and gradients are computed at the source; 1 at the target
 {
-    // cout << " RegisterDense::calcHessGrad_sphere() method " << method << " use_bilinear " << use_bilinear_ << endl;
+    // cout << " DirectRegistration::calcHessGrad_sphere() method " << method << " use_bilinear " << use_bilinear_ << endl;
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -7109,11 +6471,11 @@ void RegisterDense::calcHessGrad_side_sphere(const int pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-void RegisterDense::calcHessGradRot_sphere(const int pyrLevel,
+void DirectRegistration::calcHessGradRot_sphere(const int pyrLevel,
                                         const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
                                         const costFuncType method ) //,const bool use_bilinear )
 {
-    // cout << " RegisterDense::calcHessGrad_sphere() method " << method << " use_bilinear " << use_bilinear_ << endl;
+    // cout << " DirectRegistration::calcHessGrad_sphere() method " << method << " use_bilinear " << use_bilinear_ << endl;
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -7479,7 +6841,7 @@ void RegisterDense::calcHessGradRot_sphere(const int pyrLevel,
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-double RegisterDense::calcHessGradIC_sphere(const int pyrLevel,
+double DirectRegistration::calcHessGradIC_sphere(const int pyrLevel,
                                             const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
                                             const costFuncType method ) //,const bool use_bilinear )
 {
@@ -7489,7 +6851,7 @@ double RegisterDense::calcHessGradIC_sphere(const int pyrLevel,
     double error2_depth = 0.0;
     size_t numVisiblePts = 0;
 
-    // cout << " RegisterDense::calcHessGrad_sphere() method " << method << " use_bilinear " << use_bilinear_ << endl;
+    // cout << " DirectRegistration::calcHessGrad_sphere() method " << method << " use_bilinear " << use_bilinear_ << endl;
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -8019,7 +7381,7 @@ double RegisterDense::calcHessGradIC_sphere(const int pyrLevel,
 }
 
 /*! Compute the residuals of the target image projected onto the source one. */
-double RegisterDense::errorDenseInv_sphere ( int pyrLevel,
+double DirectRegistration::errorDenseInv_sphere ( int pyrLevel,
                                               const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
                                               const costFuncType method )//,const bool use_bilinear )
 {
@@ -8465,7 +7827,7 @@ double RegisterDense::errorDenseInv_sphere ( int pyrLevel,
 }
 
 /*! Compute the residuals and the jacobians corresponding to the target image projected onto the source one. */
-void RegisterDense::calcHessGradInv_sphere( const int pyrLevel,
+void DirectRegistration::calcHessGradInv_sphere( const int pyrLevel,
                                             const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
                                             const costFuncType method )//,const bool use_bilinear )
 {
@@ -8929,9 +8291,9 @@ void RegisterDense::calcHessGradInv_sphere( const int pyrLevel,
  *  This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
  *  between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
  */
-void RegisterDense::registerRGBD(const Eigen::Matrix4f pose_guess, const costFuncType method, const int occlusion )
+void DirectRegistration::registerRGBD(const Eigen::Matrix4f pose_guess, const costFuncType method, const int occlusion )
 {
-    //cout << " RegisterDense::register \n";
+    //cout << " DirectRegistration::register \n";
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
@@ -8944,10 +8306,10 @@ void RegisterDense::registerRGBD(const Eigen::Matrix4f pose_guess, const costFun
 //        thresDepthOutliers = max_depth_Outliers;
 //    }
 
-    num_iters.resize(nPyrLevels); // Store the number of iterations
+    num_iters.resize(nPyrLevels+1); // Store the number of iterations
     std::fill(num_iters.begin(), num_iters.end(), 0);
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
     {
         const size_t nRows = graySrcPyr[pyrLevel].rows;
         const size_t nCols = graySrcPyr[pyrLevel].cols;
@@ -9173,7 +8535,7 @@ void RegisterDense::registerRGBD(const Eigen::Matrix4f pose_guess, const costFun
 
     //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
     cout << "Iterations: ";
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
         cout << num_iters[pyrLevel] << " ";
     cout << endl;
     //#endif
@@ -9191,9 +8553,9 @@ void RegisterDense::registerRGBD(const Eigen::Matrix4f pose_guess, const costFun
  *  This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
  *  between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
  */
-void RegisterDense::registerRGBD_InvDepth(const Eigen::Matrix4f pose_guess, const costFuncType method, const int occlusion )
+void DirectRegistration::registerRGBD_InvDepth(const Eigen::Matrix4f pose_guess, const costFuncType method, const int occlusion )
 {
-    //cout << " RegisterDense::register \n";
+    //cout << " DirectRegistration::register \n";
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
@@ -9206,10 +8568,10 @@ void RegisterDense::registerRGBD_InvDepth(const Eigen::Matrix4f pose_guess, cons
 //        thresDepthOutliers = max_depth_Outliers;
 //    }
 
-    num_iters.resize(nPyrLevels); // Store the number of iterations
+    num_iters.resize(nPyrLevels+1); // Store the number of iterations
     std::fill(num_iters.begin(), num_iters.end(), 0);
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
     {
         const size_t nRows = graySrcPyr[pyrLevel].rows;
         const size_t nCols = graySrcPyr[pyrLevel].cols;
@@ -9354,7 +8716,7 @@ void RegisterDense::registerRGBD_InvDepth(const Eigen::Matrix4f pose_guess, cons
 
     //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
     cout << "Iterations: ";
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
         cout << num_iters[pyrLevel] << " ";
     cout << endl;
     //#endif
@@ -9372,9 +8734,9 @@ void RegisterDense::registerRGBD_InvDepth(const Eigen::Matrix4f pose_guess, cons
  *  This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
  *  between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
  */
-void RegisterDense::registerRGBD_IC(const Eigen::Matrix4f pose_guess, const costFuncType method, const int occlusion )
+void DirectRegistration::registerRGBD_IC(const Eigen::Matrix4f pose_guess, const costFuncType method, const int occlusion )
 {
-    //cout << " RegisterDense::register \n";
+    //cout << " DirectRegistration::register \n";
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
@@ -9387,10 +8749,10 @@ void RegisterDense::registerRGBD_IC(const Eigen::Matrix4f pose_guess, const cost
         thresDepthOutliers = max_depth_Outliers;
     }
 
-    num_iters.resize(nPyrLevels); // Store the number of iterations
+    num_iters.resize(nPyrLevels+1); // Store the number of iterations
     std::fill(num_iters.begin(), num_iters.end(), 0);
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
     {
 //        const size_t nRows = graySrcPyr[pyrLevel].rows;
 //        const size_t nCols = graySrcPyr[pyrLevel].cols;
@@ -9472,7 +8834,7 @@ void RegisterDense::registerRGBD_IC(const Eigen::Matrix4f pose_guess, const cost
 
     //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
     cout << "Iterations: ";
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
         cout << num_iters[pyrLevel] << " ";
     cout << endl;
     //#endif
@@ -9490,9 +8852,9 @@ void RegisterDense::registerRGBD_IC(const Eigen::Matrix4f pose_guess, const cost
  *  This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
  *  between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
  */
-void RegisterDense::registerRGBD_bidirectional(const Eigen::Matrix4f pose_guess, const costFuncType method, const int occlusion )
+void DirectRegistration::registerRGBD_bidirectional(const Eigen::Matrix4f pose_guess, const costFuncType method, const int occlusion )
 {
-    //cout << " RegisterDense::register \n";
+    //cout << " DirectRegistration::register \n";
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
@@ -9505,10 +8867,10 @@ void RegisterDense::registerRGBD_bidirectional(const Eigen::Matrix4f pose_guess,
         thresDepthOutliers = max_depth_Outliers;
     }
 
-    num_iters.resize(nPyrLevels); // Store the number of iterations
+    num_iters.resize(nPyrLevels+1); // Store the number of iterations
     std::fill(num_iters.begin(), num_iters.end(), 0);
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
     {
         const size_t nRows = graySrcPyr[pyrLevel].rows;
         const size_t nCols = graySrcPyr[pyrLevel].cols;
@@ -9739,7 +9101,7 @@ void RegisterDense::registerRGBD_bidirectional(const Eigen::Matrix4f pose_guess,
 
     //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
     cout << "Iterations: ";
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
         cout << num_iters[pyrLevel] << " ";
     cout << endl;
     //#endif
@@ -9758,9 +9120,9 @@ void RegisterDense::registerRGBD_bidirectional(const Eigen::Matrix4f pose_guess,
  * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
  * The input parameter occlusion stands for: (0->Regular dense registration, 1->Occlusion1, 2->Occlusion2)
  */
-void RegisterDense::register360(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
+void DirectRegistration::register360(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
 {
-    //    cout << "RegisterDense::register360 " << endl;
+    //    cout << "DirectRegistration::register360 " << endl;
 //#if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -9769,9 +9131,9 @@ void RegisterDense::register360(const Eigen::Matrix4f pose_guess, const costFunc
 
     double error;
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
-    num_iters.resize(nPyrLevels); // Store the number of iterations
+    num_iters.resize(nPyrLevels+1); // Store the number of iterations
     std::fill(num_iters.begin(), num_iters.end(), 0);
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
     {
         const size_t nRows = graySrcPyr[pyrLevel].rows;
         const size_t nCols = graySrcPyr[pyrLevel].cols;
@@ -10013,7 +9375,7 @@ void RegisterDense::register360(const Eigen::Matrix4f pose_guess, const costFunc
 
     //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
     cout << "Iterations: "; //<< endl;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
         cout << num_iters[pyrLevel] << " ";
     cout << endl;
     //#endif
@@ -10032,9 +9394,9 @@ void RegisterDense::register360(const Eigen::Matrix4f pose_guess, const costFunc
  * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
  * The input parameter occlusion stands for: (0->Regular dense registration, 1->Occlusion1, 2->Occlusion2)
  */
-void RegisterDense::register360_rot(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
+void DirectRegistration::register360_rot(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
 {
-    cout << "RegisterDense::register360_rot " << endl;
+    cout << "DirectRegistration::register360_rot " << endl;
 //#if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -10043,9 +9405,9 @@ void RegisterDense::register360_rot(const Eigen::Matrix4f pose_guess, const cost
 
     double error;
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
-    num_iters.resize(nPyrLevels); // Store the number of iterations
+    num_iters.resize(nPyrLevels+1); // Store the number of iterations
     std::fill(num_iters.begin(), num_iters.end(), 0);
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
     {
         const size_t nRows = graySrcPyr[pyrLevel].rows;
         const size_t nCols = graySrcPyr[pyrLevel].cols;
@@ -10250,7 +9612,7 @@ void RegisterDense::register360_rot(const Eigen::Matrix4f pose_guess, const cost
 
     //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
     cout << "Iterations: "; //<< endl;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
         cout << num_iters[pyrLevel] << " ";
     cout << endl;
     //#endif
@@ -10269,9 +9631,9 @@ void RegisterDense::register360_rot(const Eigen::Matrix4f pose_guess, const cost
  * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
  * The input parameter occlusion stands for: (0->Regular dense registration, 1->Occlusion1, 2->Occlusion2)
  */
-void RegisterDense::register360_warp(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
+void DirectRegistration::register360_warp(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
 {
-    //    cout << "RegisterDense::register360 " << endl;
+    //    cout << "DirectRegistration::register360 " << endl;
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -10280,9 +9642,9 @@ void RegisterDense::register360_warp(const Eigen::Matrix4f pose_guess, const cos
 
     double error;
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
-    num_iters.resize(nPyrLevels); // Store the number of iterations
+    num_iters.resize(nPyrLevels+1); // Store the number of iterations
     std::fill(num_iters.begin(), num_iters.end(), 0);
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
     {
         const size_t nRows = graySrcPyr[pyrLevel].rows;
         const size_t nCols = graySrcPyr[pyrLevel].cols;
@@ -10457,7 +9819,7 @@ void RegisterDense::register360_warp(const Eigen::Matrix4f pose_guess, const cos
 
     //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
     cout << "Iterations: "; //<< endl;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
         cout << num_iters[pyrLevel] << " ";
     cout << endl;
     //#endif
@@ -10476,9 +9838,9 @@ void RegisterDense::register360_warp(const Eigen::Matrix4f pose_guess, const cos
  * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
  * The input parameter occlusion stands for: (0->Regular dense registration, 1->Occlusion1, 2->Occlusion2)
  */
-void RegisterDense::register360_side(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
+void DirectRegistration::register360_side(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
 {
-    //    cout << "RegisterDense::register360 " << endl;
+    //    cout << "DirectRegistration::register360 " << endl;
 //#if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -10488,9 +9850,9 @@ void RegisterDense::register360_side(const Eigen::Matrix4f pose_guess, const cos
     double error;
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
     int side = 0;
-    num_iters.resize(nPyrLevels); // Store the number of iterations
+    num_iters.resize(nPyrLevels+1); // Store the number of iterations
     std::fill(num_iters.begin(), num_iters.end(), 0);
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
     {
         const size_t nRows = graySrcPyr[pyrLevel].rows;
         const size_t nCols = graySrcPyr[pyrLevel].cols;
@@ -10656,7 +10018,7 @@ void RegisterDense::register360_side(const Eigen::Matrix4f pose_guess, const cos
 
     //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
     cout << "Iterations: "; //<< endl;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
         cout << num_iters[pyrLevel] << " ";
     cout << endl;
     //#endif
@@ -10675,9 +10037,9 @@ void RegisterDense::register360_side(const Eigen::Matrix4f pose_guess, const cos
  * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
  * The input parameter occlusion stands for: (0->Regular dense registration, 1->Occlusion1, 2->Occlusion2)
  */
-void RegisterDense::register360_salientJ(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
+void DirectRegistration::register360_salientJ(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
 {
-    //    cout << "RegisterDense::register360 " << endl;
+    //    cout << "DirectRegistration::register360 " << endl;
 //#if PRINT_PROFILING
     double time_start = pcl::getTime();\
     //for(size_t ii=0; ii<100; ii++)
@@ -10686,9 +10048,9 @@ void RegisterDense::register360_salientJ(const Eigen::Matrix4f pose_guess, const
 
     double error;
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
-    num_iters.resize(nPyrLevels); // Store the number of iterations
+    num_iters.resize(nPyrLevels+1); // Store the number of iterations
     std::fill(num_iters.begin(), num_iters.end(), 0);
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
     {
         const size_t nRows = graySrcPyr[pyrLevel].rows;
         const size_t nCols = graySrcPyr[pyrLevel].cols;
@@ -10972,7 +10334,7 @@ void RegisterDense::register360_salientJ(const Eigen::Matrix4f pose_guess, const
 
     //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
     cout << "Iterations: "; //<< endl;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
         cout << num_iters[pyrLevel] << " ";
     cout << endl;
     //#endif
@@ -10991,9 +10353,9 @@ void RegisterDense::register360_salientJ(const Eigen::Matrix4f pose_guess, const
  * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
  * The input parameter occlusion stands for: (0->Regular dense registration, 1->Occlusion1, 2->Occlusion2)
  */
-void RegisterDense::register360_IC(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
+void DirectRegistration::register360_IC(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
 {
-    //    cout << "RegisterDense::register360_IC " << endl;
+    //    cout << "DirectRegistration::register360_IC " << endl;
 //#if PRINT_PROFILING
     double time_start = pcl::getTime();\
     //for(size_t ii=0; ii<100; ii++)
@@ -11002,9 +10364,9 @@ void RegisterDense::register360_IC(const Eigen::Matrix4f pose_guess, const costF
 
     double error;
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
-    num_iters.resize(nPyrLevels); // Store the number of iterations
+    num_iters.resize(nPyrLevels+1); // Store the number of iterations
     std::fill(num_iters.begin(), num_iters.end(), 0);
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
     {
         const size_t nRows = graySrcPyr[pyrLevel].rows;
         const size_t nCols = graySrcPyr[pyrLevel].cols;
@@ -11124,7 +10486,7 @@ void RegisterDense::register360_IC(const Eigen::Matrix4f pose_guess, const costF
 
     //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
     cout << "Iterations: "; //<< endl;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
         cout << num_iters[pyrLevel] << " ";
     cout << endl;
     //#endif
@@ -11138,7 +10500,7 @@ void RegisterDense::register360_IC(const Eigen::Matrix4f pose_guess, const costF
 #endif
 }
 
-void RegisterDense::register360_depthPyr(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
+void DirectRegistration::register360_depthPyr(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
 {
     //    cout << "register360_depthPyr " << endl;
 //#if PRINT_PROFILING
@@ -11149,8 +10511,8 @@ void RegisterDense::register360_depthPyr(const Eigen::Matrix4f pose_guess, const
 
     double error;
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
-    num_iters.resize(nPyrLevels); // Store the number of iterations
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    num_iters.resize(nPyrLevels+1); // Store the number of iterations
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
     {
         const size_t nRows = graySrcPyr[pyrLevel].rows;
         const size_t nCols = graySrcPyr[pyrLevel].cols;
@@ -11263,7 +10625,7 @@ void RegisterDense::register360_depthPyr(const Eigen::Matrix4f pose_guess, const
 
     //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
     cout << "Iterations: "; //<< endl;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
         cout << num_iters[pyrLevel] << " ";
     cout << endl;
     //#endif
@@ -11282,7 +10644,7 @@ void RegisterDense::register360_depthPyr(const Eigen::Matrix4f pose_guess, const
  * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
  * The input parameter occlusion stands for: (0->Regular dense registration, 1->Occlusion1, 2->Occlusion2)
  */
-void RegisterDense::register360_inv(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
+void DirectRegistration::register360_inv(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
 {
     //    cout << "register360 " << endl;
 //#if PRINT_PROFILING
@@ -11293,10 +10655,10 @@ void RegisterDense::register360_inv(const Eigen::Matrix4f pose_guess, const cost
 
     thresDepthOutliers = 0.3;
 
-    num_iters.resize(nPyrLevels); // Store the number of iterations
+    num_iters.resize(nPyrLevels+1); // Store the number of iterations
     std::fill(num_iters.begin(), num_iters.end(), 0);
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
     {
         const size_t nRows = graySrcPyr[pyrLevel].rows;
         const size_t nCols = graySrcPyr[pyrLevel].cols;
@@ -11472,7 +10834,7 @@ void RegisterDense::register360_inv(const Eigen::Matrix4f pose_guess, const cost
 
     //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
     cout << "Iterations: "; //<< endl;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
         cout << num_iters[pyrLevel] << " ";
     cout << endl;
     //#endif
@@ -11488,7 +10850,7 @@ void RegisterDense::register360_inv(const Eigen::Matrix4f pose_guess, const cost
 
 
 /*! Compute the residuals and the jacobians corresponding to the target image projected onto the source one. */
-void RegisterDense::calcHessGrad_sphere_bidirectional( const int pyrLevel,
+void DirectRegistration::calcHessGrad_sphere_bidirectional( const int pyrLevel,
                                                         const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
                                                         const costFuncType method )//,const bool use_bilinear )
 {
@@ -11830,7 +11192,7 @@ void RegisterDense::calcHessGrad_sphere_bidirectional( const int pyrLevel,
  * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
  * The input parameter occlusion stands for: (0->Regular dense registration, 1->Occlusion1, 2->Occlusion2)
  */
-void RegisterDense::register360_bidirectional(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
+void DirectRegistration::register360_bidirectional(const Eigen::Matrix4f pose_guess, const costFuncType method , const int occlusion )
 {
     //    cout << "register360_bidirectional " << endl;
 //#if PRINT_PROFILING
@@ -11841,10 +11203,10 @@ void RegisterDense::register360_bidirectional(const Eigen::Matrix4f pose_guess, 
 
     thresDepthOutliers = 0.3;
 
-    num_iters.resize(nPyrLevels); // Store the number of iterations
+    num_iters.resize(nPyrLevels+1); // Store the number of iterations
     std::fill(num_iters.begin(), num_iters.end(), 0);
     Eigen::Matrix4f pose_estim_temp, pose_estim = pose_guess;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
     {
         const size_t nRows = graySrcPyr[pyrLevel].rows;
         const size_t nCols = graySrcPyr[pyrLevel].cols;
@@ -12030,7 +11392,7 @@ void RegisterDense::register360_bidirectional(const Eigen::Matrix4f pose_guess, 
 
     //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
     cout << "Iterations: "; //<< endl;
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
         cout << num_iters[pyrLevel] << " ";
     cout << endl;
     //#endif
@@ -12045,7 +11407,7 @@ void RegisterDense::register360_bidirectional(const Eigen::Matrix4f pose_guess, 
 }
 
 /*! Align depth frames applying ICP in different pyramid scales. */
-double RegisterDense::alignPyramidICP(Eigen::Matrix4f poseGuess)
+double DirectRegistration::alignPyramidICP(Eigen::Matrix4f poseGuess)
 {
     //        vector<pcl::PointCloud<PointT> > pyrCloudSrc(nPyrLevels);
     //        vector<pcl::PointCloud<PointT> > pyrCloudTrg(nPyrLevels);
@@ -12059,7 +11421,7 @@ double RegisterDense::alignPyramidICP(Eigen::Matrix4f poseGuess)
     //  icp.setEuclideanFitnessEpsilon (1);
     icp.setRANSACOutlierRejectionThreshold (0.1);
 
-    for(int pyrLevel = nPyrLevels-1; pyrLevel >= 0; pyrLevel--)
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
     {
         const size_t height = depthSrcPyr[pyrLevel].rows;
         const size_t width = depthSrcPyr[pyrLevel].cols;
@@ -12164,7 +11526,7 @@ double RegisterDense::alignPyramidICP(Eigen::Matrix4f poseGuess)
 //                            }
 
 /*! Update the Hessian and the Gradient from a list of jacobians and residuals. */
-void RegisterDense::updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels)
+void DirectRegistration::updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels)
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -12304,12 +11666,12 @@ void RegisterDense::updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacob
     #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " RegisterDense::updateHessianAndGradient " << pixel_jacobians.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " DirectRegistration::updateHessianAndGradient " << pixel_jacobians.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
     #endif
 }
 
 /*! Update the Hessian and the Gradient from a list of jacobians and residuals. */
-void RegisterDense::updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXf & pixel_weights, const Eigen::MatrixXi & valid_pixels)
+void DirectRegistration::updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXf & pixel_weights, const Eigen::MatrixXi & valid_pixels)
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -12409,11 +11771,11 @@ void RegisterDense::updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacob
     #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " RegisterDense::updateHessianAndGradient " << pixel_jacobians.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " DirectRegistration::updateHessianAndGradient " << pixel_jacobians.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
     #endif
 }
 
-//void RegisterDense::updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & warp_pixels)
+//void DirectRegistration::updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & warp_pixels)
 //{
 //#if PRINT_PROFILING
 //    double time_start = pcl::getTime();
@@ -12513,11 +11875,11 @@ void RegisterDense::updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacob
 //    #if PRINT_PROFILING
 //    }
 //    double time_end = pcl::getTime();
-//    cout << " RegisterDense::updateHessianAndGradient " << pixel_jacobians.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
+//    cout << " DirectRegistration::updateHessianAndGradient " << pixel_jacobians.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
 //    #endif
 //}
 
-void RegisterDense::updateGrad(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels)
+void DirectRegistration::updateGrad(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels)
 {
     #if PRINT_PROFILING
         double time_start = pcl::getTime();
@@ -12557,14 +11919,14 @@ void RegisterDense::updateGrad(const Eigen::MatrixXf & pixel_jacobians, const Ei
     #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " RegisterDense::updateGrad " << pixel_jacobians.rows() << " pts took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " DirectRegistration::updateGrad " << pixel_jacobians.rows() << " pts took " << (time_end - time_start)*1000 << " ms. \n";
     #endif
 }
 
 ///*! Get a list of salient points from a list of Jacobians corresponding to a set of 3D points */
-//void RegisterDense::getSalientPts(const Eigen::MatrixXf & jacobians, std::vector<size_t> & salient_pixels, const float r_salient )
+//void DirectRegistration::getSalientPts(const Eigen::MatrixXf & jacobians, std::vector<size_t> & salient_pixels, const float r_salient )
 //{
-//    //cout << " RegisterDense::getSalientPts " << input_pts.rows() << " pts \n";
+//    //cout << " DirectRegistration::getSalientPts " << input_pts.rows() << " pts \n";
 //#if PRINT_PROFILING
 //    double time_start = pcl::getTime();
 //    //for(size_t ii=0; ii<100; ii++)
@@ -12720,7 +12082,7 @@ void RegisterDense::updateGrad(const Eigen::MatrixXf & pixel_jacobians, const Ei
 //    #if PRINT_PROFILING
 //    }
 //    double time_end = pcl::getTime();
-//    cout << " RegisterDense::getSalientPts " << jacobians.rows() << " pts took " << (time_end - time_start)*1000 << " ms. \n";
+//    cout << " DirectRegistration::getSalientPts " << jacobians.rows() << " pts took " << (time_end - time_start)*1000 << " ms. \n";
 //    #endif
 //}
 
@@ -12780,9 +12142,9 @@ float histogram_value_from_idx(const int idx,min_max &scale)
 }
 
 /*! Get a list of salient points from a list of Jacobians corresponding to a set of 3D points */
-void RegisterDense::getSalientPts(const Eigen::MatrixXf & jacobians, std::vector<size_t> & salient_pixels, const float r_salient )
+void DirectRegistration::getSalientPts(const Eigen::MatrixXf & jacobians, std::vector<size_t> & salient_pixels, const float r_salient )
 {
-    //cout << " RegisterDense::getSalientPts " << input_pts.rows() << " pts \n";
+    //cout << " DirectRegistration::getSalientPts " << input_pts.rows() << " pts \n";
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -12854,23 +12216,23 @@ void RegisterDense::getSalientPts(const Eigen::MatrixXf & jacobians, std::vector
    #if PRINT_PROFILING
    }
    double time_end = pcl::getTime();
-   cout << " RegisterDense::getSalientPts HISTOGRAM APPROXIMATION " << jacobians.rows() << " pts took " << (time_end - time_start)*1000 << " ms. \n";
+   cout << " DirectRegistration::getSalientPts HISTOGRAM APPROXIMATION " << jacobians.rows() << " pts took " << (time_end - time_start)*1000 << " ms. \n";
    #endif
 }
 
-void RegisterDense::trimValidPoints(Eigen::MatrixXf & LUT_xyz, Eigen::VectorXi & validPixels, Eigen::MatrixXf & xyz_transf,
+void DirectRegistration::trimValidPoints(Eigen::MatrixXf & LUT_xyz, Eigen::VectorXi & validPixels, Eigen::MatrixXf & xyz_transf,
                                     Eigen::VectorXi & validPixelsPhoto, Eigen::VectorXi & validPixelsDepth,
                                     const costFuncType method,
                                     std::vector<size_t> &salient_pixels, std::vector<size_t> &salient_pixels_photo, std::vector<size_t> &salient_pixels_depth)
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
-    //cout << " RegisterDense::trimValidPoints pts " << LUT_xyz.rows() << " pts " << validPixelsPhoto.rows() << " pts "<< salient_pixels_photo.size()<< " - " << salient_pixels_depth.size() << endl;
+    //cout << " DirectRegistration::trimValidPoints pts " << LUT_xyz.rows() << " pts " << validPixelsPhoto.rows() << " pts "<< salient_pixels_photo.size()<< " - " << salient_pixels_depth.size() << endl;
     //for(size_t ii=0; ii<100; ii++)
     {
 #endif
 
-    if( salient_pixels_photo.empty() && salient_pixels_depth.empty() ){ cout << " RegisterDense::trimValidPoints EMPTY set of salient points \n";
+    if( salient_pixels_photo.empty() && salient_pixels_depth.empty() ){ cout << " DirectRegistration::trimValidPoints EMPTY set of salient points \n";
         return;}
 
     // Arrange all the list of points and indices, by now this is done outside this function
@@ -12966,6 +12328,6 @@ void RegisterDense::trimValidPoints(Eigen::MatrixXf & LUT_xyz, Eigen::VectorXi &
     #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " RegisterDense::trimValidPoints took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " DirectRegistration::trimValidPoints took " << (time_end - time_start)*1000 << " ms. \n";
     #endif
 }
