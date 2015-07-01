@@ -41,20 +41,13 @@
 //#include <mrpt/slam/CActionCollection.h>
 //#include <mrpt/slam/CSensoryFrame.h>
 
-#include "CloudRGBD.h"
-//#include <SerializeFrameRGBD.h>
-#include <FilterPointCloud.h>
-#include <DirectRegistration.h>
-
-//#include <pcl/registration/icp.h>
-//#include <pcl/registration/icp_nl.h> //ICP LM
 #include <pcl/registration/gicp.h> //GICP
-
 #include <pcl/console/parse.h>
 
 #include <opencv2/opencv.hpp>
-//#include <opencv2/core/eigen.hpp>
 
+#include <FilterPointCloud.h>
+#include <DirectRegistration.h>
 #include <CloudRGBD_Ext.h>
 #include <Frame360_Visualizer.h>
 
