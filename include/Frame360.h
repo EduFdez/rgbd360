@@ -125,12 +125,12 @@ class Frame360
     /*! This function segments planes from the point cloud corresponding to the sensor 'sensor_id',
       in its local frame of reference
     */
-    void getLocalPlanesInFrame(int sensor_id);
+    void segmentPlanesLocalCam(int sensor_id);
 
     /*! This function segments planes from the point cloud corresponding to the sensor 'sensor_id',
       in the frame of reference of the omnidirectional camera
     */
-    void getPlanesSensor(int sensor_id);
+    void segmentPlanesSensor(int sensor_id);
 
     /*! Undistort the depth image corresponding to the sensor 'sensor_id' */
     void undistortDepthSensor(int sensor_id);
@@ -262,10 +262,10 @@ public:
     void buildSphereCloud_old();
 
     /*! Create the PbMap of the spherical point cloud */
-    void getPlanes();
+    void segmentPlanes();
 
     /*! Segment planes in each of the separate point clouds correspondint to each Asus XPL */
-    void getLocalPlanes();
+    void segmentPlanesLocal();
 
     /*! Merge the planar patches that correspond to the same surface in the sphere */
     void mergePlanes();

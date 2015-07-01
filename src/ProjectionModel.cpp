@@ -106,7 +106,12 @@ void ProjectionModel::computeUnitSphere(const size_t nRows, const size_t nCols)
 }
 
 
-/*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
+/*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image.
+ * X -> Left
+ * Z -> Up
+ * Z -> Forward
+ * In spherical coordinates Theata is in the range [-pi,pi) and Phi in [-pi/2,pi/2)
+ */
 void ProjectionModel::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
 {
     const size_t nRows = depth_img.rows;
@@ -536,13 +541,12 @@ void ProjectionModel::computePinholeXYZ(const cv::Mat & depth_img, Eigen::Matrix
 
 #else
 
-    float a;
     validPixels.resize(imgSize);
+    float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
 
     float *_x = &xyz(0,0);
     float *_y = &xyz(0,1);
     float *_z = &xyz(0,2);
-    float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
 
     std::vector<float> idx(nCols);
     std::iota(idx.begin(), idx.end(), 0.f);

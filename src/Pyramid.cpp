@@ -662,20 +662,20 @@ void Pyramid::buildGradientPyramids(const std::vector<cv::Mat> & grayPyr, std::v
 //#endif
 
 
-       double time_start_ = pcl::getTime();
+        //double time_start_ = pcl::getTime();
 
         // Compute the gradient in x
         //grayGradXPyr[level] = cv::Mat(cv::Size( grayPyr[level].cols, grayPyr[level].rows), grayPyr[level].type() );
-        cv::Scharr( grayPyr[level], grayGradXPyr[level], grayPyr[level].type(), 1, 0);//, scale, delta, cv::BORDER_DEFAULT );
+        //cv::Scharr( grayPyr[level], grayGradXPyr[level], grayPyr[level].type(), 1, 0);//, scale, delta, cv::BORDER_DEFAULT );
         //cv::Sobel( grayPyr[level], grayGradXPyr[level], dataType, 1, 0, 3, scale, delta, cv::BORDER_DEFAULT );
 
         // Compute the gradient in y
         //grayGradYPyr[level] = cv::Mat(cv::Size( grayPyr[level].cols, grayPyr[level].rows), grayPyr[level].type() );
-        cv::Scharr( grayPyr[level], grayGradYPyr[level], grayPyr[level].type(), 0, 1);//, scale, delta, cv::BORDER_DEFAULT );
+        //cv::Scharr( grayPyr[level], grayGradYPyr[level], grayPyr[level].type(), 0, 1);//, scale, delta, cv::BORDER_DEFAULT );
         //cv::Sobel( grayPyr[level], grayGradYPyr[level], dataType, 0, 1, 3, scale, delta, cv::BORDER_DEFAULT );
 
-        double time_end_ = pcl::getTime();
-        cout << "Pyramid::Scharr derivatives " << (time_end_ - time_start_)*1000 << " ms. \n";
+        //double time_end_ = pcl::getTime();
+        //cout << "Pyramid::Scharr derivatives " << (time_end_ - time_start_)*1000 << " ms. \n";
 
         //            cv::Mat imgNormalizedDepth;
         //            imagePyramid[level].convertTo(imgNormalizedDepth, CV_32FC1,1./max_depth_);

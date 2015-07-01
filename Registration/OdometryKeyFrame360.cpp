@@ -110,7 +110,7 @@ public:
         frame360_2->undistort();
         frame360_2->stitchSphericalImage();
         frame360_2->buildSphereCloud_rgbd360();
-        frame360_2->getPlanes();
+        frame360_2->segmentPlanes();
         frame360_1 = frame360_2;
         //    cout << "regsitrationCloud has " << registrationClouds[1]->size() << " Pts\n";
 
@@ -194,7 +194,7 @@ public:
             frame360_2->undistort();
             frame360_2->stitchSphericalImage();
             frame360_2->buildSphereCloud_rgbd360();
-            frame360_2->getPlanes();
+            frame360_2->segmentPlanes();
 
 #if SAVE_IMAGES
             frame360_2->stitchSphericalImage();

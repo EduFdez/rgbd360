@@ -122,18 +122,27 @@ class Calib360
   /*! Load the extrinsic calibration matrices (relative poses) corresponding to each Asus XPL */
   void loadExtrinsicCalibration(std::string pathToExtrinsicModel = "")
   {
-    // Apply offset so that the sensor 4 looks forward
-    //float angleOffset = 135;
-    //Eigen::Matrix4f rotOffset = Matrix4f::Identity(); rotOffset(1,1) = rotOffset(2,2) = cos(angleOffset*PI/180); rotOffset(1,2) = -sin(angleOffset*PI/180); rotOffset(2,1) = -rotOffset(1,2);
+      // Apply offset so that the sensor 4 looks forward
+      float pi = 3.14159265359;
+      float angle_offset_90 = -90; // X -> right
+      Eigen::Matrix4f rot_offset_90 = Eigen::Matrix4f::Identity(); rot_offset_90(0,0) = rot_offset_90(1,1) = cos(angle_offset_90*pi/180); rot_offset_90(0,1) = -sin(angle_offset_90*pi/180); rot_offset_90(1,0) = -rot_offset_90(0,1);
+      float angle_offset = 45; //0; //-22.5; //45;
+      Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(1,1) = rot_offset(2,2) = cos(angle_offset*pi/180); rot_offset(1,2) = -sin(angle_offset*pi/180); rot_offset(2,1) = -rot_offset(1,2);
+      rot_offset = rot_offset_90 * rot_offset;
+      //std::cout << "rot_offset \n" << rot_offset << std::endl;
 
-    if(pathToExtrinsicModel == "")
-      pathToExtrinsicModel = mrpt::format("%s/Calibration/Extrinsics", PROJECT_SOURCE_PATH);
-    for(unsigned sensor_id=0; sensor_id < NUM_ASUS_SENSORS; ++sensor_id)
-    {
-      Rt_[sensor_id].loadFromTextFile(mrpt::format("%s/Rt_0%u.txt", pathToExtrinsicModel.c_str(), sensor_id+1));
-      //Rt_[sensor_id] = rotOffset * Rt_[sensor_id];
-      Rt_inv[sensor_id] = Rt_[sensor_id].inverse();
-    }
+      if(pathToExtrinsicModel == "")
+          pathToExtrinsicModel = mrpt::format("%s/Calibration/Extrinsics", PROJECT_SOURCE_PATH);
+      for(unsigned sensor_id=0; sensor_id < NUM_ASUS_SENSORS; ++sensor_id)
+      {
+          Rt_[sensor_id].loadFromTextFile(mrpt::format("%s/Rt_0%u.txt", pathToExtrinsicModel.c_str(), sensor_id+1));
+          Rt_inv[sensor_id] = Rt_[sensor_id].inverse();
+
+          // TODO: use the same reference system in every code!
+          // We change the reference system to make it coincide with that used in our matlab program
+          Rt_[sensor_id] = rot_offset * Rt_[sensor_id];
+          //std::cout << sensor_id << " Rt_ \n" << Rt_[sensor_id] << std::endl;
+      }
   }
 };
 

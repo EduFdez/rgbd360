@@ -366,7 +366,9 @@ public:
         // Initialize Dense registration
         DirectRegistration registerRGBD; // Dense RGB-D alignment
         registerRGBD.setSensorType( ProjectionModel::KINECT ); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
-        registerRGBD.setNumPyr(0);
+        //registerRGBD.setNumPyr(0);
+        registerRGBD.setNumPyr(5);
+        registerRGBD.setMaxIterations(5);
         registerRGBD.setMaxDepth(8.f);
 //        registerRGBD.useSaliency(true);
 //        registerRGBD.thresSaliencyIntensity(0.f);
@@ -571,9 +573,9 @@ public:
             relativePose = registerRGBD.getOptimalPose();
             cout << "registerRGBD \n" << relativePose << endl;
 
-            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            relativePose_photo = registerRGBD.getOptimalPose();
-            cout << "registerRGBD Photo \n" << relativePose_photo << endl;
+//            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//            relativePose_photo = registerRGBD.getOptimalPose();
+//            cout << "registerRGBD Photo \n" << relativePose_photo << endl;
 
             registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePose_depth = registerRGBD.getOptimalPose();
@@ -582,18 +584,23 @@ public:
             cout << "\n\n\n";
             //mrpt::system::pause();
 
-            // Inverse compositional
-            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            relativePoseIC = registerRGBD.getOptimalPose();
-            cout << "registerRGBD IC \n" << relativePoseIC << endl;
+//            // Inverse compositional
+//            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//            relativePoseIC = registerRGBD.getOptimalPose();
+//            cout << "registerRGBD IC \n" << relativePoseIC << endl;
 
-            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            relativePoseIC_photo = registerRGBD.getOptimalPose();
-            cout << "registerRGBD IC Photo \n" << relativePoseIC_photo << endl;
+//            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//            relativePoseIC_photo = registerRGBD.getOptimalPose();
+//            cout << "registerRGBD IC Photo \n" << relativePoseIC_photo << endl;
 
             registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePoseIC_depth = registerRGBD.getOptimalPose();
             cout << "registerRGBD IC Depth \n" << relativePoseIC_depth << endl;
+
+
+            registerRGBD.useSaliency(true);
+            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            cout << "registerRGBD IC Depth Saliency \n" << registerRGBD.getOptimalPose() << endl;
 
             mrpt::system::pause();
 

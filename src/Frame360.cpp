@@ -412,16 +412,20 @@ void Frame360::buildSphereCloud_rgbd360()
 #endif
 
         //pcl::transformPointCloud(*frameRGBD_[sensor_id].getPointCloud(),*cloud_[sensor_id],calib->getRt_id(sensor_id));
-        float angle_offset = 0; //-22.5; //45
-        Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(1,1) = rot_offset(2,2) = cos(angle_offset*PI/180); rot_offset(1,2) = -sin(angle_offset*PI/180); rot_offset(2,1) = -rot_offset(1,2);
-        Eigen::Matrix4f Rt = rot_offset * calib->getRt_id(sensor_id);
+//        float angle_offset_90 = -90; // X -> right
+//        Eigen::Matrix4f rot_offset_90 = Eigen::Matrix4f::Identity(); rot_offset_90(0,0) = rot_offset_90(1,1) = cos(angle_offset_90*PI/180); rot_offset_90(0,1) = -sin(angle_offset_90*PI/180); rot_offset_90(1,0) = -rot_offset_90(0,1);
+//        float angle_offset = 45; //0; //-22.5; //45;
+//        Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(1,1) = rot_offset(2,2) = cos(angle_offset*PI/180); rot_offset(1,2) = -sin(angle_offset*PI/180); rot_offset(2,1) = -rot_offset(1,2);
+//        rot_offset = angle_offset_90 * rot_offset;
+//        Eigen::Matrix4f Rt = rot_offset * calib->getRt_id(sensor_id);
 //        cout << "Transforms \n" << calib->getRt_id(sensor_id) << "\n\n"
 //                                    << rot_offset * calib->getRt_id(sensor_id) << "\n\n"
 //                                    << calib->getRt_id(sensor_id) * rot_offset << "\n\n"
 //                                    << rot_offset.inverse() * calib->getRt_id(sensor_id) << "\n\n"
 //                                    << rot_offset * calib->getRt_id(sensor_id) * rot_offset.inverse() << "\n\n"
 //                                    << rot_offset.inverse() * calib->getRt_id(sensor_id) * rot_offset << "\n\n";
-        pcl::transformPointCloud( *frameRGBD_[sensor_id].getPointCloud(), *cloud_[sensor_id], Rt );
+//        pcl::transformPointCloud( *frameRGBD_[sensor_id].getPointCloud(), *cloud_[sensor_id], Rt );
+        pcl::transformPointCloud( *frameRGBD_[sensor_id].getPointCloud(), *cloud_[sensor_id], calib->getRt_id(sensor_id) );
     }
 
     *sphereCloud = *cloud_[0];
@@ -699,9 +703,9 @@ void Frame360::buildSphereCloud_old()
 }
 
 /*! Create the PbMap of the spherical point cloud */
-void Frame360::getPlanes()
+void Frame360::segmentPlanes()
 {
-    cout << "Frame360.getPlanes()\n";
+    cout << "Frame360.segmentPlanes()\n";
 
 #if _DEBUG_MSG
     double time_start = pcl::getTime();
@@ -715,7 +719,7 @@ void Frame360::getPlanes()
     for(int sensor_id = 0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
     {
 #endif
-        getPlanesSensor(sensor_id);
+        segmentPlanesSensor(sensor_id);
     }
 
 #if _DEBUG_MSG
@@ -735,16 +739,16 @@ void Frame360::getPlanes()
 }
 
 /*! Segment planes in each of the separate point clouds correspondint to each Asus XPL */
-void Frame360::getLocalPlanes()
+void Frame360::segmentPlanesLocal()
 {
     //double time_start = pcl::getTime();
-    cout << "getLocalPlanes() " << NUM_ASUS_SENSORS << endl;
+    cout << "segmentPlanesLocal() " << NUM_ASUS_SENSORS << endl;
 
     //    #pragma omp parallel num_threads(NUM_ASUS_SENSORS)
     for(unsigned sensor_id=0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
     {
         //      int sensor_id = omp_get_thread_num();
-        getLocalPlanesInFrame(sensor_id);
+        segmentPlanesLocalCam(sensor_id);
     }
 
     //    double time_end = pcl::getTime();
@@ -934,10 +938,10 @@ void Frame360::groupPlanes()
 /*! This function segments planes from the point cloud corresponding to the sensor 'sensor_id',
       in its local frame of reference
   */
-void Frame360::getLocalPlanesInFrame(int sensor_id)
+void Frame360::segmentPlanesLocalCam(int sensor_id)
 {
     // Segment planes
-    //cout << sensor_id << " getLocalPlanesInFrame \n";
+    //cout << sensor_id << " segmentPlanesLocalCam \n";
     //double extractPlanes_start = pcl::getTime();
 
     pcl::IntegralImageNormalEstimation<PointT, pcl::Normal> ne;
@@ -1039,7 +1043,7 @@ void Frame360::getLocalPlanesInFrame(int sensor_id)
 /*! This function segments planes from the point cloud corresponding to the sensor 'sensor_id',
       in the frame of reference of the omnidirectional camera
   */
-void Frame360::getPlanesSensor(int sensor_id)
+void Frame360::segmentPlanesSensor(int sensor_id)
 {
     // Segment planes
     //    cout << "extractPlaneFeatures, size " << frameRGBD_[sensor_id].getPointCloud()->size() << "\n";
@@ -1193,7 +1197,7 @@ void Frame360::getPlanesSensor(int sensor_id)
     }
 #if _DEBUG_MSG
     double extractPlanes_end = pcl::getTime();
-    cout << "getPlanesInFrame in " << (extractPlanes_end - time_start)*1000 << " ms\n";
+    cout << "segmentPlanesInFrame in " << (extractPlanes_end - time_start)*1000 << " ms\n";
 #endif
 
 }
@@ -1543,7 +1547,7 @@ void Frame360::segmentPlanesStereo()
     }
 #if _DEBUG_MSG
     double extractPlanes_end = pcl::getTime();
-    cout << "getPlanesInFrame in " << (extractPlanes_end - time_start)*1000 << " ms\n";
+    cout << "segmentPlanesInFrame in " << (extractPlanes_end - time_start)*1000 << " ms\n";
 #endif
     cout << "Planes " << planes.vPlanes.size() << " \n";
 
@@ -1661,7 +1665,7 @@ void Frame360::segmentPlanesStereoRANSAC()
     }
 #if _DEBUG_MSG
     double extractPlanes_end = pcl::getTime();
-    cout << "getPlanesRANSAC took " << (extractPlanes_end - time_start)*1000 << " ms\n";
+    cout << "segmentPlanesRANSAC took " << (extractPlanes_end - time_start)*1000 << " ms\n";
 #endif
     cout << "Planes " << planes.vPlanes.size() << " \n";
 

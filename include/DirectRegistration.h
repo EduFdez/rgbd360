@@ -249,31 +249,31 @@ public:
     };
 
     /*! Set optimization tolerance parameter. */
-    void setOptMaxIterations(const int max_iters)
+    void setMaxIterations(const int max_iters)
     {
         max_iters_ = max_iters;
     };
 
     /*! Set optimization tolerance parameter. */
-    void setOptToleranceUpdate(const float tol_update)
+    void setToleranceUpdate(const float tol_update)
     {
         tol_update_ = tol_update;
     };
 
     /*! Set optimization tolerance parameter. */
-    void setOptToleranceUpdateRot(const float tol_update_rot)
+    void setToleranceUpdateRot(const float tol_update_rot)
     {
         tol_update_rot_ = tol_update_rot;
     };
 
     /*! Set optimization tolerance parameter. */
-    void setOptToleranceUpdateTrans(const float tol_update_trans)
+    void setToleranceUpdateTrans(const float tol_update_trans)
     {
         tol_update_trans_ = tol_update_trans;
     };
 
     /*! Set optimization tolerance parameter. */
-    void setOptToleranceRes(const double tol_residual)
+    void setToleranceRes(const double tol_residual)
     {
         tol_residual_ = tol_residual;
     };

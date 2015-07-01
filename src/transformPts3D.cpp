@@ -50,7 +50,7 @@
 #endif
 
 #define ENABLE_OPENMP 0
-#define PRINT_PROFILING 1
+#define PRINT_PROFILING 0
 
 using namespace std;
 
@@ -66,7 +66,7 @@ void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & R
         size_t n_pts = input_pts.rows();
 
 #if !(_SSE3) // # ifdef __SSE3__
-        cout << " transformPts3D " << input_pts.rows() << " pts \n";
+        //cout << " transformPts3D " << input_pts.rows() << " pts \n";
 
         Eigen::MatrixXf input_xyz_transp = Eigen::MatrixXf::Ones(4,n_pts);
         input_xyz_transp.block(0,0,3,n_pts) = input_pts.block(0,0,n_pts,3).transpose();
@@ -77,9 +77,9 @@ void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & R
 //        Eigen::MatrixXf aux = Rt.block(0,0,3,3) * input_xyz_transp + repmat(1, t);
 //        output_pts = aux.block(0,0,3,n_pts).transpose();
 
-//#else // _SSE3
-#elif !(_AVX) // # ifdef __AVX__
-        cout << " transformPts3D _SSE3 " << n_pts << " pts \n";
+#else // _SSE3
+//#elif !(_AVX) // # ifdef __AVX__
+        //cout << " transformPts3D _SSE3 " << n_pts << " pts \n";
 
         // Eigen default ColMajor is assumed
         assert(input_pts.cols() == 3);

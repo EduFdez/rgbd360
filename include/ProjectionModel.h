@@ -288,8 +288,9 @@ public:
 
 
     /*! Project pixel spherical */
-    inline void projectSphere(const int & nCols, const int & nRows, const float & phi_FoV, const int & c, const int & r, const float & depth, const Eigen::Matrix4f & poseGuess,
-                              int & transformed_r_int, int & transformed_c_int) // output parameters
+    inline void projectSphere(const int nCols, const int nRows, const float phi_FoV, const int c, const int r, const float depth,
+                              const Eigen::Matrix4f & poseGuess,
+                              int transformed_r_int, int transformed_c_int) // output parameters
     {
         float phi = r*(2*phi_FoV/nRows);
         float theta = c*(2*PI/nCols);
@@ -315,7 +316,7 @@ public:
     /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
     inline void
     //Eigen::Matrix<float,2,6>
-    computeJacobian26_wT_sphere(const Eigen::Vector3f & xyz, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    computeJacobian26_wT_sphere(const Eigen::Vector3f & xyz, const float dist, const float pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
     {
         //Eigen::Matrix<float,2,6> jacobianWarpRt;
 
@@ -442,7 +443,7 @@ public:
 
     /*! Compute the Jacobian of the warp */
     inline void
-    computeJacobian23_warp_sphere(const Eigen::Vector3f & xyz, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,3> &jacobianWarp)
+    computeJacobian23_warp_sphere(const Eigen::Vector3f & xyz, const float dist, const float pixel_angle_inv, Eigen::Matrix<float,2,3> &jacobianWarp)
     {
         // The Jacobian of the spherical projection
         float dist2 = dist * dist;
