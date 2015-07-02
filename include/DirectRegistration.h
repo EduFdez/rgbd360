@@ -150,6 +150,7 @@ class DirectRegistration : public ProjectionModel, Pyramid, MEstimator
     Eigen::VectorXi warp_pixels_src;
     Eigen::VectorXf residualsPhoto_src;
     Eigen::VectorXf residualsDepth_src;
+    Eigen::MatrixXf residualsDepth3D_src;
     Eigen::MatrixXf jacobiansPhoto;
     Eigen::MatrixXf jacobiansDepth;
     Eigen::VectorXf stdDevError_inv_src;
@@ -572,6 +573,8 @@ public:
     /*! Update the Hessian and the Gradient from a list of jacobians and residuals. */
     void updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels);
     void updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXf & pixel_weights, const Eigen::MatrixXi & valid_pixels);
+    void updateHessianAndGradient3D(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals_3D, const Eigen::MatrixXi & valid_pixels);
+    void updateHessianAndGradient3D(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals_3D, const Eigen::MatrixXf & pixel_weights, const Eigen::MatrixXi & valid_pixels);
 
 //    void updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi &warp_pixels);
 

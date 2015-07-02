@@ -591,9 +591,9 @@ public:
             cout << "registerRGBD IC Depth \n" << relativePoseIC_depth << endl;
 
 
-            registerRGBD.useSaliency(true);
-            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            cout << "registerRGBD IC Depth Saliency \n" << registerRGBD.getOptimalPose() << endl;
+//            registerRGBD.useSaliency(true);
+//            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//            cout << "registerRGBD IC Depth Saliency \n" << registerRGBD.getOptimalPose() << endl;
 
             mrpt::system::pause();
 

@@ -316,32 +316,32 @@ public:
     /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
     inline void
     //Eigen::Matrix<float,2,6>
-    computeJacobian26_wT_sphere(const Eigen::Vector3f & xyz, const float dist, const float pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    computeJacobian26_wT_sphere(const Eigen::Vector3f & xyz_transf, const float dist, const float pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
     {
         //Eigen::Matrix<float,2,6> jacobianWarpRt;
 
         float dist2 = dist * dist;
-        float x2_z2 = dist2 - xyz(1)*xyz(1);
+        float x2_z2 = dist2 - xyz_transf(1)*xyz_transf(1);
         float x2_z2_sqrt = sqrt(x2_z2);
         float commonDer_c = pixel_angle_inv / x2_z2;
         float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
 
-        jacobianWarpRt(0,0) = commonDer_c * xyz(2);
+        jacobianWarpRt(0,0) = commonDer_c * xyz_transf(2);
         jacobianWarpRt(0,1) = 0.f;
-        jacobianWarpRt(0,2) = -commonDer_c * xyz(0);
-//        jacobianWarpRt(1,0) = commonDer_r * xyz(0) * xyz(1);
+        jacobianWarpRt(0,2) = -commonDer_c * xyz_transf(0);
+//        jacobianWarpRt(1,0) = commonDer_r * xyz_transf(0) * xyz_transf(1);
         jacobianWarpRt(1,1) =-commonDer_r * x2_z2;
-//        jacobianWarpRt(1,2) = commonDer_r * xyz(2) * xyz(1);
-        float commonDer_r_y = commonDer_r * xyz(1);
-        jacobianWarpRt(1,0) = commonDer_r_y * xyz(0);
-        jacobianWarpRt(1,2) = commonDer_r_y * xyz(2);
+//        jacobianWarpRt(1,2) = commonDer_r * xyz_transf(2) * xyz_transf(1);
+        float commonDer_r_y = commonDer_r * xyz_transf(1);
+        jacobianWarpRt(1,0) = commonDer_r_y * xyz_transf(0);
+        jacobianWarpRt(1,2) = commonDer_r_y * xyz_transf(2);
 
-        jacobianWarpRt(0,3) = jacobianWarpRt(0,2) * xyz(1);
-        jacobianWarpRt(0,4) = jacobianWarpRt(0,0) * xyz(2) - jacobianWarpRt(0,2) * xyz(0);
-        jacobianWarpRt(0,5) =-jacobianWarpRt(0,0) * xyz(1);
-        jacobianWarpRt(1,3) =-jacobianWarpRt(1,1) * xyz(2) + jacobianWarpRt(1,2) * xyz(1);
-        jacobianWarpRt(1,4) = jacobianWarpRt(1,0) * xyz(2) - jacobianWarpRt(1,2) * xyz(0);
-        jacobianWarpRt(1,5) =-jacobianWarpRt(1,0) * xyz(1) + jacobianWarpRt(1,1) * xyz(0);
+        jacobianWarpRt(0,3) = jacobianWarpRt(0,2) * xyz_transf(1);
+        jacobianWarpRt(0,4) = jacobianWarpRt(0,0) * xyz_transf(2) - jacobianWarpRt(0,2) * xyz_transf(0);
+        jacobianWarpRt(0,5) =-jacobianWarpRt(0,0) * xyz_transf(1);
+        jacobianWarpRt(1,3) =-jacobianWarpRt(1,1) * xyz_transf(2) + jacobianWarpRt(1,2) * xyz_transf(1);
+        jacobianWarpRt(1,4) = jacobianWarpRt(1,0) * xyz_transf(2) - jacobianWarpRt(1,2) * xyz_transf(0);
+        jacobianWarpRt(1,5) =-jacobianWarpRt(1,0) * xyz_transf(1) + jacobianWarpRt(1,1) * xyz_transf(0);
 
         //return jacobianWarpRt;
     }
@@ -349,26 +349,26 @@ public:
     /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF of the inverse transformation */
     inline void
     //Eigen::Matrix<float,2,6>
-    computeJacobian26_wT_sphere_inv(const Eigen::Vector3f & xyz, const Eigen::Vector3f & xyz_orig, const Eigen::Matrix3f & rotation, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    computeJacobian26_wT_sphere_inv(const Eigen::Vector3f & xyz_transf, const Eigen::Vector3f & xyz_orig, const Eigen::Matrix3f & rotation, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
     {
         //Eigen::Matrix<float,2,6> jacobianWarpRt;
 
         // The Jacobian of the spherical projection
         Eigen::Matrix<float,2,3> jacobianProj23;
         float dist2 = dist * dist;
-        float x2_z2 = dist2 - xyz(1)*xyz(1);
+        float x2_z2 = dist2 - xyz_transf(1)*xyz_transf(1);
         float x2_z2_sqrt = sqrt(x2_z2);
         float commonDer_c = pixel_angle_inv / x2_z2;
         float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
-        jacobianProj23(0,0) = commonDer_c * xyz(2);
+        jacobianProj23(0,0) = commonDer_c * xyz_transf(2);
         jacobianProj23(0,1) = 0;
-        jacobianProj23(0,2) =-commonDer_c * xyz(0);
-//        jacobianProj23(1,0) = commonDer_r * xyz(0) * xyz(1);
+        jacobianProj23(0,2) =-commonDer_c * xyz_transf(0);
+//        jacobianProj23(1,0) = commonDer_r * xyz_transf(0) * xyz_transf(1);
         jacobianProj23(1,1) =-commonDer_r * x2_z2;
-//        jacobianProj23(1,2) = commonDer_r * xyz(2) * xyz(1);
-        float commonDer_r_y = commonDer_r * xyz(1);
-        jacobianProj23(1,0) = commonDer_r_y * xyz(0);
-        jacobianProj23(1,2) = commonDer_r_y * xyz(2);
+//        jacobianProj23(1,2) = commonDer_r * xyz_transf(2) * xyz_transf(1);
+        float commonDer_r_y = commonDer_r * xyz_transf(1);
+        jacobianProj23(1,0) = commonDer_r_y * xyz_transf(0);
+        jacobianProj23(1,2) = commonDer_r_y * xyz_transf(2);
 
         // !!! NOTICE that the 3D points involved are those from the target frame, which are projected throught the inverse transformation into the reference frame!!!
         Eigen::Matrix<float,3,6> jacobianT36_inv;
@@ -387,11 +387,11 @@ public:
     /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
     inline void
     //Eigen::Matrix<float,2,6>
-    computeJacobian26_wT_pinhole(const Eigen::Vector3f & xyz, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    computeJacobian26_wT_pinhole(const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt)
     {
         //Eigen::Matrix<float,2,6> jacobianWarpRt;
 
-        float inv_transf_z = 1.0/xyz(2);
+        float inv_transf_z = 1.0/xyz_transf(2);
 
         //Derivative with respect to x
         jacobianWarpRt(0,0)=fx*inv_transf_z;
@@ -403,20 +403,20 @@ public:
 
         //Derivative with respect to z
         float inv_transf_z_2 = inv_transf_z*inv_transf_z;
-        jacobianWarpRt(0,2)=-fx*xyz(0)*inv_transf_z_2;
-        jacobianWarpRt(1,2)=-fy*xyz(1)*inv_transf_z_2;
+        jacobianWarpRt(0,2)=-fx*xyz_transf(0)*inv_transf_z_2;
+        jacobianWarpRt(1,2)=-fy*xyz_transf(1)*inv_transf_z_2;
 
         //Derivative with respect to \w_x
-        jacobianWarpRt(0,3)=-fx*xyz(1)*xyz(0)*inv_transf_z_2;
-        jacobianWarpRt(1,3)=-fy*(1+xyz(1)*xyz(1)*inv_transf_z_2);
+        jacobianWarpRt(0,3)=-fx*xyz_transf(1)*xyz_transf(0)*inv_transf_z_2;
+        jacobianWarpRt(1,3)=-fy*(1+xyz_transf(1)*xyz_transf(1)*inv_transf_z_2);
 
         //Derivative with respect to \w_y
-        jacobianWarpRt(0,4)= fx*(1+xyz(0)*xyz(0)*inv_transf_z_2);
-        jacobianWarpRt(1,4)= fy*xyz(0)*xyz(1)*inv_transf_z_2;
+        jacobianWarpRt(0,4)= fx*(1+xyz_transf(0)*xyz_transf(0)*inv_transf_z_2);
+        jacobianWarpRt(1,4)= fy*xyz_transf(0)*xyz_transf(1)*inv_transf_z_2;
 
         //Derivative with respect to \w_z
-        jacobianWarpRt(0,5)=-fx*xyz(1)*inv_transf_z;
-        jacobianWarpRt(1,5)= fy*xyz(0)*inv_transf_z;
+        jacobianWarpRt(0,5)=-fx*xyz_transf(1)*inv_transf_z;
+        jacobianWarpRt(1,5)= fy*xyz_transf(0)*inv_transf_z;
 
         //return jacobianWarpRt;
     }
@@ -443,23 +443,23 @@ public:
 
     /*! Compute the Jacobian of the warp */
     inline void
-    computeJacobian23_warp_sphere(const Eigen::Vector3f & xyz, const float dist, const float pixel_angle_inv, Eigen::Matrix<float,2,3> &jacobianWarp)
+    computeJacobian23_warp_sphere(const Eigen::Vector3f & xyz_transf, const float dist, const float pixel_angle_inv, Eigen::Matrix<float,2,3> &jacobianWarp)
     {
         // The Jacobian of the spherical projection
         float dist2 = dist * dist;
-        float x2_z2 = dist2 - xyz(1)*xyz(1);
+        float x2_z2 = dist2 - xyz_transf(1)*xyz_transf(1);
         float x2_z2_sqrt = sqrt(x2_z2);
         float commonDer_c = pixel_angle_inv / x2_z2;
         float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
-        jacobianWarp(0,0) = commonDer_c * xyz(2);
+        jacobianWarp(0,0) = commonDer_c * xyz_transf(2);
         jacobianWarp(0,1) = 0;
-        jacobianWarp(0,2) =-commonDer_c * xyz(0);
-//        jacobianWarp(1,0) = commonDer_r * xyz(0) * xyz(1);
+        jacobianWarp(0,2) =-commonDer_c * xyz_transf(0);
+//        jacobianWarp(1,0) = commonDer_r * xyz_transf(0) * xyz_transf(1);
         jacobianWarp(1,1) =-commonDer_r * x2_z2;
-//        jacobianWarp(1,2) = commonDer_r * xyz(2) * xyz(1);
-        float commonDer_r_y = commonDer_r * xyz(1);
-        jacobianWarp(1,0) = commonDer_r_y * xyz(0);
-        jacobianWarp(1,2) = commonDer_r_y * xyz(2);
+//        jacobianWarp(1,2) = commonDer_r * xyz_transf(2) * xyz_transf(1);
+        float commonDer_r_y = commonDer_r * xyz_transf(1);
+        jacobianWarp(1,0) = commonDer_r_y * xyz_transf(0);
+        jacobianWarp(1,2) = commonDer_r_y * xyz_transf(2);
     }
 
     /*! Compute the Jacobian composition of the transformed point: T(x)Tp */

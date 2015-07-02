@@ -553,7 +553,7 @@ void ProjectionModel::computePinholeXYZ(const cv::Mat & depth_img, Eigen::Matrix
     float *_idx = &idx[0];
 
 //#if !(_AVX) // Use _SSE3
-    cout << " computePinholeXYZ _SSE3 " << imgSize << " pts \n";
+    cout << " computePinholeXYZ _SSE3 " << nRows << "x" << nCols << " = " << imgSize << " pts \n";
     assert(nCols % 4 == 0); // Make sure that the image columns are aligned
 
 //    cout << " alignment 16 " << (((unsigned long)_x & 15) == 0) << " \n";
