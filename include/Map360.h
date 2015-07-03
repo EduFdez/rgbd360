@@ -52,6 +52,7 @@ struct Map360
 
     /*! Vector of the global SE3 poses optimized with graphSLAM (or pose-graph SLAM)*/
     std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > vOptimizedPoses;
+    std::vector<std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > > vOptimizedPoses2;
 
     /*! Vector storing the euclidean distance between of each stored keyframe with respect to the previous one (the first element of the vector is neglected) */
     std::vector<float> vTrajectoryIncrements;

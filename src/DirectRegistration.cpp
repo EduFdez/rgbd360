@@ -273,6 +273,7 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
     //warp_img_src.resize( n_pts, 2 );
     residualsPhoto_src = VectorXf::Zero(n_pts);
     residualsDepth_src = VectorXf::Zero(n_pts);
+    //residualsDepth_src = VectorXf::Zero(3*n_pts);
     stdDevError_inv_src = VectorXf::Zero(n_pts);
     wEstimPhoto_src = VectorXf::Zero(n_pts);
     wEstimDepth_src = VectorXf::Zero(n_pts);
@@ -515,6 +516,13 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
                                     error2_depth += wEstimDepth_src(i) * residualsDepth_src(i) * residualsDepth_src(i);
 //                                     cout << i << " error2_depth " << error2_depth << " wDepthError " << residualsDepth_src(i)
 //                                               << " weight_estim " << wEstimDepth_src(i) << " diff " << (depth - xyz(2)) << " " << depth << " " << xyz(2) << endl;
+
+//                                    Vector3f xyz_trg = LUT_xyz_target.block(warped_i,0,1,3).transpose();
+//                                    //Vector3f residual3D = (xyz_trg - xyz) * stdDevError_inv_src(i);
+//                                    Vector3f residual3D = (xyz - xyz_trg) * stdDevError_inv_src(i);
+//                                    residualsDepth_src.block(3*i,0,3,1) = residual3D;
+//                                    wEstimDepth_src(i) = sqrt(weightMEstimator(residual3D.norm())); // Apply M-estimator weighting // The weight computed by an M-estimator
+//                                    error2_depth += residualsDepth_src.block(3*i,0,3,1).norm();
                                 }
                             }
                         }
@@ -751,7 +759,7 @@ double DirectRegistration::errorDense_IC( const int pyrLevel, const Matrix4f & p
                             if(dist_trg > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                                 //if(dist_trg > min_depth_ && _depthSrcGradXPyr[validPixels_src(i)] < _max_depth_grad && _depthSrcGradYPyr[validPixels_src(i)] < _max_depth_grad) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                             {
-                                float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                                float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                                 Vector3f xyz_trg = LUT_xyz_target.block(warped_i,0,1,3).transpose();
                                 //float residual = (poseGuess_inv.block(2,0,1,3)*xyz_trg + poseGuess_inv(2,3) - _depthSrcPyr[validPixels_src(i)]) * stdDevError_inv;
                                 //cout << "check Depth source " << _depthSrcPyr[validPixels_src(i)] << " " << LUT_xyz_source(i,2) << endl;
@@ -813,7 +821,7 @@ double DirectRegistration::errorDense_IC( const int pyrLevel, const Matrix4f & p
                             float dist_trg = bilinearInterp_depth( grayTrgPyr[pyrLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
                             if(dist_trg > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                             {
-                                float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                                float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                                 Vector3f xyz_trg;// = LUT_xyz_target.block(warped_i,0,1,3).transpose();
                                 xyz_trg(0) = (transformed_c - ox) * dist_trg * inv_fx;
                                 xyz_trg(1) = (transformed_r - oy) * dist_trg * inv_fy;
@@ -885,7 +893,7 @@ double DirectRegistration::errorDense_IC( const int pyrLevel, const Matrix4f & p
                             if(dist_trg > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                                 //if(dist_trg > min_depth_ && _depthSrcGradXPyr[i] < _max_depth_grad && _depthSrcGradYPyr[i] < _max_depth_grad) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                             {
-                                float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                                float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                                 Vector3f xyz_trg = LUT_xyz_target.block(warped_i,0,1,3).transpose();
 //                                //float residual = (poseGuess_inv.block(2,0,1,3)*xyz_trg + poseGuess_inv(2,3) - xyz_src(2)) * stdDevError_inv;
 //                                //cout << "check Depth source " << _depthSrcPyr[i] << " " << xyz_src(2) << endl;
@@ -954,7 +962,7 @@ double DirectRegistration::errorDense_IC( const int pyrLevel, const Matrix4f & p
                             float dist_trg = bilinearInterp_depth( grayTrgPyr[pyrLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
                             if(dist_trg > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                             {
-                                float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                                float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                                 Vector3f xyz_trg;// = LUT_xyz_target.block(warped_i,0,1,3).transpose();
                                 xyz_trg(0) = (transformed_c - ox) * dist_trg * inv_fx;
                                 xyz_trg(1) = (transformed_r - oy) * dist_trg * inv_fy;
@@ -974,17 +982,12 @@ double DirectRegistration::errorDense_IC( const int pyrLevel, const Matrix4f & p
     }
 
     SSO = (float)numVisiblePts / n_pts;
-    //        cout << "numVisiblePixels " << numVisiblePixels << " imgSize " << imgSize << " sso " << SSO << endl;
-
     error2 = (error2_photo + error2_depth) / numVisiblePts;
 
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << "Level " << pyrLevel << " errorDense took " << double (time_end - time_start)*1000 << " ms. \n";
-#endif
-
-#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
     cout << "error2 " << error2 << " error2_photo " << error2_photo << " error2_depth " << error2_depth << " numVisiblePts " << numVisiblePts << endl;
 #endif
 
@@ -996,8 +999,8 @@ double DirectRegistration::errorDense_IC( const int pyrLevel, const Matrix4f & p
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-void DirectRegistration::calcHessGrad(int pyrLevel,
-                                const costFuncType method )
+void DirectRegistration::calcHessGrad ( int pyrLevel,
+                                        const costFuncType method )
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -1013,6 +1016,7 @@ void DirectRegistration::calcHessGrad(int pyrLevel,
 
     jacobiansPhoto = MatrixXf::Zero(n_pts,6);
     jacobiansDepth = MatrixXf::Zero(n_pts,6);
+    //jacobiansDepth = MatrixXf::Zero(3*n_pts,6);
 
     float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
     float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
@@ -1222,6 +1226,12 @@ void DirectRegistration::calcHessGrad(int pyrLevel,
                         jacobiansDepth.block(i,0,1,6) = weight_estim_sqrt * stdDevError_inv_src(i) * (depth_gradient*jacobianWarpRt - jacobian16_depthT);
                         residualsDepth_src(i) *= weight_estim_sqrt;
                         // cout << "jacobianDepth " << jacobiansDepth.block(i,0,1,6) << "residualsDepth_src " << residualsDepth_src(i) << endl;
+
+//                        Matrix<float,3,6> jacobianRt;
+//                        computeJacobian36_xT_p(xyz, jacobianRt);
+//                        float weight_estim_sqrt = sqrt(wEstimDepth_src(i));
+//                        jacobiansDepth.block(3*i,0,3,6) = weight_estim_sqrt * stdDevError_inv_src(i) * jacobianRt;
+//                        residualsDepth_src(i) *= weight_estim_sqrt;
                     }
                 }
             }
@@ -1298,6 +1308,7 @@ void DirectRegistration::calcHessGrad(int pyrLevel,
         updateHessianAndGradient(jacobiansPhoto, residualsPhoto_src, validPixelsPhoto_src);
     if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
         updateHessianAndGradient(jacobiansDepth, residualsDepth_src, validPixelsDepth_src);
+        //updateHessianAndGradient3D(jacobiansDepth, residualsDepth_src, validPixelsDepth_src);
     //cout << "hessian \n" << hessian << endl;
     //cout << "gradient \n" << gradient.transpose() << endl;
 
@@ -1434,7 +1445,7 @@ double DirectRegistration::calcHessGrad_IC ( const int pyrLevel,
                                 //if(dist_trg > min_depth_ && _depthSrcGradXPyr[validPixels_src(i)] < _max_depth_grad && _depthSrcGradYPyr[validPixels_src(i)] < _max_depth_grad) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                             {
                                 validPixelsDepth_src(i) = 1;
-                                float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                                float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                                 Vector3f xyz_trg = LUT_xyz_target.block(warped_i,0,1,3).transpose();
                                 //float residual = (poseGuess_inv.block(2,0,1,3)*xyz_trg + poseGuess_inv(2,3) - xyz_src(2)) * stdDevError_inv;
                                 float residual = (poseGuess_inv(2,0)*xyz_trg(0)+poseGuess_inv(2,1)*xyz_trg(1)+poseGuess_inv(2,2)*xyz_trg(2) + poseGuess_inv(2,3) - xyz_src(2)) * stdDevError_inv;
@@ -1532,7 +1543,7 @@ double DirectRegistration::calcHessGrad_IC ( const int pyrLevel,
                             if(dist_trg > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                             {
                                 validPixelsDepth_src(i) = 1;
-                                float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                                float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                                 Vector3f xyz_trg;// = LUT_xyz_target.block(warped_i,0,1,3).transpose();
                                 xyz_trg(0) = (transformed_c - ox) * dist_trg * inv_fx;
                                 xyz_trg(1) = (transformed_r - oy) * dist_trg * inv_fy;
@@ -1614,7 +1625,7 @@ double DirectRegistration::calcHessGrad_IC ( const int pyrLevel,
                         //                    Matrix<float,2,3> jacobianWarp;
                         //                    Matrix<float,3,6> jacobianRt;
                         //                    computeJacobian23_warp_pinhole(xyz_src, jacobianWarp);
-                        //                    computeJacobian36_TxT_p(xyz_src, jacobianRt);
+                        //                    computeJacobian36_xT_p(xyz_src, jacobianRt);
                         //                    jacobianWarpRt = jacobianWarp * jacobianRt;
                         //                    if(poseGuess != Matrix4f::Identity())
                         //                    {
@@ -1662,7 +1673,7 @@ double DirectRegistration::calcHessGrad_IC ( const int pyrLevel,
                                     {
                                         //cout << "dist_trg " << dist_trg << " min_depth_ " << min_depth_ << endl;
                                         validPixelsDepth_src(i) = 1;
-                                        float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                                        float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                                         Vector3f xyz_trg = LUT_xyz_target.block(warped_i,0,1,3).transpose();
 
 //                                        //float residual = (poseGuess_inv.block(2,0,1,3)*xyz_trg + poseGuess_inv(2,3) - xyz_src(2)) * stdDevError_inv;
@@ -1686,8 +1697,8 @@ double DirectRegistration::calcHessGrad_IC ( const int pyrLevel,
                                         residualsDepth_src.block(3*i,0,3,1) = wEstimDepth_src(i) * residual3D;
                                         error2_depth += residualsDepth_src.block(3*i,0,3,1).norm();
                                         Matrix<float,3,6> jacobianRt;
-                                        computeJacobian36_TxT_p(xyz_src, jacobianRt);
-                                        jacobiansDepth.block(3*i,0,3,6) = jacobianRt;
+                                        computeJacobian36_xT_p(xyz_src, jacobianRt);
+                                        jacobiansDepth.block(3*i,0,3,6) = stdDevError_inv * jacobianRt;
                                         //cout << "residual3D  " << residual3D.transpose() << endl;
                                         //mrpt::system::pause();
 
@@ -1783,7 +1794,7 @@ double DirectRegistration::calcHessGrad_IC ( const int pyrLevel,
                                     if(dist_trg > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                                     {
                                         validPixelsDepth_src(i) = 1;
-                                        float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                                        float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                                         Vector3f xyz_trg;// = LUT_xyz_target.block(warped_i,0,1,3).transpose();
                                         xyz_trg(0) = (transformed_c - ox) * dist_trg * inv_fx;
                                         xyz_trg(1) = (transformed_r - oy) * dist_trg * inv_fy;
@@ -1825,10 +1836,10 @@ double DirectRegistration::calcHessGrad_IC ( const int pyrLevel,
     //hessian.setZero();
     //gradient.setZero();
     //cout << "rows " << jacobiansPhoto.rows() << " " << residualsPhoto_src.rows() << " " << validPixelsPhoto_src.rows()  << endl;
-    if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
-        updateHessianAndGradient(jacobiansPhoto, residualsPhoto_src, validPixelsPhoto_src);
-    if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
-        updateHessianAndGradient(jacobiansDepth, residualsDepth_src, validPixelsDepth_src);
+//    if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+//        updateHessianAndGradient(jacobiansPhoto, residualsPhoto_src, validPixelsPhoto_src);
+//    if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+//        updateHessianAndGradient(jacobiansDepth, residualsDepth_src, validPixelsDepth_src);
     //cout << "hessian \n" << hessian << endl;
     //cout << "gradient \n" << gradient.transpose() << endl;
 
@@ -3441,11 +3452,11 @@ double DirectRegistration::errorDense_sphere ( int pyrLevel,
 
     warp_pixels_src = VectorXi::Constant(n_pts,-1);
     residualsPhoto_src.resize(n_pts);
-    residualsDepth_src.resize(n_pts);
+    //residualsDepth_src.resize(n_pts);
+    residualsDepth_src.resize(3*n_pts);
     stdDevError_inv_src.resize(n_pts);
     wEstimPhoto_src.resize(n_pts);
     wEstimDepth_src.resize(n_pts);
-    //visible_pixels_src = VectorXi::Zero(n_pts);
     validPixelsPhoto_src = VectorXi::Zero(n_pts);
     validPixelsDepth_src = VectorXi::Zero(n_pts);
 
@@ -3544,7 +3555,7 @@ double DirectRegistration::errorDense_sphere ( int pyrLevel,
                             //if( fabs(_depthSrcGradXPyr[validPixels_src(i)]) > thres_saliency_depth_ || fabs(_depthSrcGradYPyr[validPixels_src(i)]) > thres_saliency_depth_)
                             {
                                 validPixelsDepth_src(i) = 1;
-                                stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*dist*dist, stdDevDepth);
                                 residualsDepth_src(i) = (depth - dist) * stdDevError_inv_src(i);
                                 wEstimDepth_src(i) = weightMEstimator(residualsDepth_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
                                 error2_depth += wEstimDepth_src(i) * residualsDepth_src(i) * residualsDepth_src(i);
@@ -3605,7 +3616,7 @@ double DirectRegistration::errorDense_sphere ( int pyrLevel,
 //                            //if( fabs(_depthSrcGradXPyr[validPixels_src(i)]) > thres_saliency_depth_ || fabs(_depthSrcGradYPyr[validPixels_src(i)]) > thres_saliency_depth_)
 //                            {
 //                                validPixelsDepth_src(i) = 1;
-//                                stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+//                                stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*dist*dist, stdDevDepth);
 //                                residualsDepth_src(i) = (depth - dist) * stdDevError_inv_src(i);
 //                                wEstimDepth_src(i) = weightMEstimator(residualsDepth_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
 //                                error2_depth += wEstimDepth_src(i) * residualsDepth_src(i) * residualsDepth_src(i);
@@ -3691,7 +3702,7 @@ double DirectRegistration::errorDense_sphere ( int pyrLevel,
                             {
                                 //Obtain the depth values that will be used to the compute the depth residual
                                 validPixelsDepth_src(i) = 1;
-                                stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*dist*dist, stdDevDepth);
                                 residualsDepth_src(i) = (depth - dist) * stdDevError_inv_src(i);
                                 wEstimDepth_src(i) = weightMEstimator(residualsDepth_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
                                 error2_depth += wEstimDepth_src(i) * residualsDepth_src(i) * residualsDepth_src(i);
@@ -3704,7 +3715,7 @@ double DirectRegistration::errorDense_sphere ( int pyrLevel,
             }
         }
     }
-    else
+    else // All points
     {
 //        thres_saliency_gray_ = 0.0f;
 //        thres_saliency_depth_ = 0.0f;
@@ -3782,15 +3793,16 @@ double DirectRegistration::errorDense_sphere ( int pyrLevel,
                             {
                                 //if( fabs(_depthTrgGradXPyr[warped_i]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warped_i]) > thres_saliency_depth_)
                                 //if( fabs(_depthSrcGradXPyr[i]) > thres_saliency_depth_ || fabs(_depthSrcGradYPyr[i]) > thres_saliency_depth_)
-                                if( fabs(_depthSrcGradXPyr[i]) > 0.f || fabs(_depthSrcGradYPyr[i]) > 0.f )
+                                //if( fabs(_depthSrcGradXPyr[i]) > 0.f || fabs(_depthSrcGradYPyr[i]) > 0.f )
+                                if( fabs(depth - dist) < 0.4f )
                                 {
-                                    //Obtain the depth values that will be used to the compute the depth residual
+//                                    //Obtain the depth values that will be used to the compute the depth residual
                                     validPixelsDepth_src(i) = 1;
-                                    stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
-                                    residualsDepth_src(i) = (depth - dist) * stdDevError_inv_src(i);
-                                    wEstimDepth_src(i) = weightMEstimator(residualsDepth_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
-                                    error2_depth += wEstimDepth_src(i) * residualsDepth_src(i) * residualsDepth_src(i);
-                                    // cout << i << " error2 " << error2 << " wDepthError " << weightedError << " weight_estim " << weight_estim << " diff " << diff << " " << stdDevError << endl;
+                                    stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*dist*dist, stdDevDepth);
+//                                    residualsDepth_src(i) = (depth - dist) * stdDevError_inv_src(i);
+//                                    wEstimDepth_src(i) = weightMEstimator(residualsDepth_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
+//                                    error2_depth += wEstimDepth_src(i) * residualsDepth_src(i) * residualsDepth_src(i);
+//                                    // cout << i << " error2 " << error2 << " wDepthError " << weightedError << " weight_estim " << weight_estim << " diff " << diff << " " << stdDevError << endl;
 
                                     //                            _validPixelsDepth_src(n_ptsDepth) = i;
                                     //                            _stdDevError_inv_src(n_ptsDepth) = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
@@ -3798,6 +3810,17 @@ double DirectRegistration::errorDense_sphere ( int pyrLevel,
                                     //                            _wEstimDepth_src(n_ptsDepth) = weightMEstimator(_residualsDepth_src(n_ptsDepth)); // Apply M-estimator weighting // The weight computed by an M-estimator
                                     //                            error2 += _wEstimDepth_src(n_ptsDepth) * _residualsDepth_src(n_ptsDepth) * _residualsDepth_src(n_ptsDepth);
                                     //++n_ptsDepth;
+
+                                    Vector3f xyz_trg = LUT_xyz_target.block(warped_i,0,1,3).transpose();
+                                    Vector3f residual3D = (xyz_trg - xyz) * stdDevError_inv_src(i);
+                                    //Vector3f residual3D = (xyz - xyz_trg) * stdDevError_inv_src(i);
+                                    residualsDepth_src.block(3*i,0,3,1) = residual3D;
+                                    wEstimDepth_src(i) = sqrt(weightMEstimator(residual3D.norm())); // Apply M-estimator weighting // The weight computed by an M-estimator
+                                    error2_depth += residualsDepth_src.block(3*i,0,3,1).norm();
+//                                    cout << i << " error2 " << error2_depth << " residual3D " << residual3D.transpose() << " weight_estim " << wEstimDepth_src(i) << " stdDev " << stdDevError_inv_src(i) << endl;
+//                                    cout << " depth diff " << depth << " " << dist << endl;
+//                                    cout << " pts diff " << xyz_trg.transpose() << " vs " << xyz.transpose() << endl;
+//                                    mrpt::system::pause();
                                 }
                             }
                         }
@@ -3876,7 +3899,7 @@ double DirectRegistration::errorDense_sphere ( int pyrLevel,
                                 {
                                     //Obtain the depth values that will be used to the compute the depth residual
                                     validPixelsDepth_src(i) = 1;
-                                    stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                    stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*dist*dist, stdDevDepth);
                                     residualsDepth_src(i) = (depth - dist) * stdDevError_inv_src(i);
                                     wEstimDepth_src(i) = weightMEstimator(residualsDepth_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
                                     error2_depth += wEstimDepth_src(i) * residualsDepth_src(i) * residualsDepth_src(i);
@@ -4111,7 +4134,7 @@ double DirectRegistration::errorDenseWarp_sphere ( int pyrLevel,
                             //if( fabs(_depthSrcGradXPyr[validPixels_src(i)]) > thres_saliency_depth_ || fabs(_depthSrcGradYPyr[validPixels_src(i)]) > thres_saliency_depth_)
                             {
                                 validPixelsDepth_src(i) = 1;
-                                stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*dist*dist, stdDevDepth);
                                 residualsDepth_src(i) = (depth - dist) * stdDevError_inv_src(i);
                                 wEstimDepth_src(i) = weightMEstimator(residualsDepth_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
                                 error2_depth += wEstimDepth_src(i) * residualsDepth_src(i) * residualsDepth_src(i);
@@ -4194,7 +4217,7 @@ double DirectRegistration::errorDenseWarp_sphere ( int pyrLevel,
                             {
                                 //Obtain the depth values that will be used to the compute the depth residual
                                 validPixelsDepth_src(i) = 1;
-                                stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*dist*dist, stdDevDepth);
                                 residualsDepth_src(i) = (depth - dist) * stdDevError_inv_src(i);
                                 wEstimDepth_src(i) = weightMEstimator(residualsDepth_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
                                 error2_depth += wEstimDepth_src(i) * residualsDepth_src(i) * residualsDepth_src(i);
@@ -4273,7 +4296,7 @@ double DirectRegistration::errorDenseWarp_sphere ( int pyrLevel,
                                 //if( fabs(_depthSrcGradXPyr[validPixels_src(i)]) > thres_saliency_depth_ || fabs(_depthSrcGradYPyr[validPixels_src(i)]) > thres_saliency_depth_)
                                 {
                                     validPixelsDepth_src(i) = 1;
-                                    stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                    stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*dist*dist, stdDevDepth);
                                     residualsDepth_src(i) = (depth - dist) * stdDevError_inv_src(i);
                                     wEstimDepth_src(i) = weightMEstimator(residualsDepth_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
                                     error2_depth += wEstimDepth_src(i) * residualsDepth_src(i) * residualsDepth_src(i);
@@ -4359,7 +4382,7 @@ double DirectRegistration::errorDenseWarp_sphere ( int pyrLevel,
                                 {
                                     //Obtain the depth values that will be used to the compute the depth residual
                                     validPixelsDepth_src(i) = 1;
-                                    stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                    stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*dist*dist, stdDevDepth);
                                     residualsDepth_src(i) = (depth - dist) * stdDevError_inv_src(i);
                                     wEstimDepth_src(i) = weightMEstimator(residualsDepth_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
                                     error2_depth += wEstimDepth_src(i) * residualsDepth_src(i) * residualsDepth_src(i);
@@ -4511,7 +4534,7 @@ double DirectRegistration::errorDenseIC_sphere(int pyrLevel,
                         if(dist_trg > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                             //if(dist_trg > min_depth_ && _depthSrcGradXPyr[validPixels_src(i)] < _max_depth_grad && _depthSrcGradYPyr[validPixels_src(i)] < _max_depth_grad) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                         {
-                            float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                            float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                             Vector3f xyz_src = LUT_xyz_source.block(i,0,1,3).transpose();
                             float dist_src = _depthSrcPyr[validPixels_src(i)];
                             Vector3f xyz_trg = LUT_xyz_target.block(warped_i,0,1,3).transpose();
@@ -4582,7 +4605,7 @@ double DirectRegistration::errorDenseIC_sphere(int pyrLevel,
                         if(dist_trg > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                             //if(dist_trg > min_depth_ && _depthSrcGradXPyr[validPixels_src(i)] < _max_depth_grad && _depthSrcGradYPyr[validPixels_src(i)] < _max_depth_grad) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                         {
-                            float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                            float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                             Vector3f xyz_src = LUT_xyz_source.block(i,0,1,3).transpose();
                             float dist_src = _depthSrcPyr[validPixels_src(i)];
                             Vector3f xyz_trg;// = LUT_xyz_target.block(warped_i,0,1,3).transpose();
@@ -4655,7 +4678,7 @@ double DirectRegistration::errorDenseIC_sphere(int pyrLevel,
                             if(dist_trg > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                                 //if(dist_trg > min_depth_ && _depthSrcGradXPyr[i] < _max_depth_grad && _depthSrcGradYPyr[i] < _max_depth_grad) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                             {
-                                float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                                float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                                 Vector3f xyz_src = LUT_xyz_source.block(i,0,1,3).transpose();
                                 float dist_src = _depthSrcPyr[i];
                                 Vector3f xyz_trg = LUT_xyz_target.block(warped_i,0,1,3).transpose();
@@ -4735,7 +4758,7 @@ double DirectRegistration::errorDenseIC_sphere(int pyrLevel,
                             if(dist_trg > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                                 //if(dist_trg > min_depth_ && _depthSrcGradXPyr[i] < _max_depth_grad && _depthSrcGradYPyr[i] < _max_depth_grad) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                             {
-                                float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                                float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                                 Vector3f xyz_src = LUT_xyz_source.block(i,0,1,3).transpose();
                                 float dist_src = _depthSrcPyr[i];
                                 Vector3f xyz_trg;// = LUT_xyz_target.block(warped_i,0,1,3).transpose();
@@ -4903,7 +4926,7 @@ double DirectRegistration::computeJacobian_sphere(const int pyrLevel,
                     {
                         validPixelsDepth_src(i) = 1;
                         float depth = _depthTrgPyr[warped_i];
-                        stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                        stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*dist*dist, stdDevDepth);
                         residualsDepth_src(i) = (depth - dist) * stdDevError_inv_src(i);
                         wEstimDepth_src(i) = weightMEstimator(residualsDepth_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
 
@@ -5012,7 +5035,7 @@ double DirectRegistration::computeJacobian_sphere(const int pyrLevel,
 
                                 //Obtain the depth values that will be used to the compute the depth residual
                                 validPixelsDepth_src(i) = 1;
-                                stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*dist*dist, stdDevDepth);
                                 residualsDepth_src(i) = (depth - dist) * stdDevError_inv_src(i);
                                 wEstimDepth_src(i) = weightMEstimator(residualsDepth_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
 
@@ -5099,7 +5122,7 @@ double DirectRegistration::computeJacobian_sphere(const int pyrLevel,
                         {
                             validPixelsDepth_src(i) = 1;
                             float depth = _depthTrgPyr[warped_i];
-                            stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                            stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*dist*dist, stdDevDepth);
                             residualsDepth_src(i) = (depth - dist) * stdDevError_inv_src(i);
                             wEstimDepth_src(i) = weightMEstimator(residualsDepth_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
 
@@ -5210,7 +5233,7 @@ double DirectRegistration::computeJacobian_sphere(const int pyrLevel,
 
                                 //Obtain the depth values that will be used to the compute the depth residual
                                 validPixelsDepth_src(i) = 1;
-                                stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(dist*dist+depth*depth), 2*stdDevDepth);
+                                stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*dist*dist, stdDevDepth);
                                 residualsDepth_src(i) = (depth - dist) * stdDevError_inv_src(i);
                                 wEstimDepth_src(i) = weightMEstimator(residualsDepth_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
 
@@ -5346,7 +5369,8 @@ void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
     const float pixel_angle_inv = 1/pixel_angle;
 
     jacobiansPhoto = MatrixXf::Zero(n_pts,6);
-    jacobiansDepth = MatrixXf::Zero(n_pts,6);
+    //jacobiansDepth = MatrixXf::Zero(n_pts,6);
+    jacobiansDepth = MatrixXf::Zero(3*n_pts,6);
 
     const float stdDevPhoto_inv = 1./stdDevPhoto;
 
@@ -5392,7 +5416,7 @@ void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
                     Matrix<float,2,6> jacobianWarpRt;
                     computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
 
-                    if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                    //if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                     if( validPixelsPhoto_src(i) )
                     {
                         if(visualize_)
@@ -5418,7 +5442,7 @@ void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
                         //cout << img_gradient(0,0) << " " << img_gradient(0,1) << " salient jacobianPhoto " << jacobiansPhoto.block(i,0,1,6) << " \t weightedErrorPhoto " << residualsPhoto_src(i) << endl;
                         //mrpt::system::pause();
                     }
-                    if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                    //if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
                     if( validPixelsDepth_src(i) )
                     {
                         if(visualize_)
@@ -5494,8 +5518,8 @@ void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
                     computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
 
                     cv::Point2f warped_pixel(warp_img_src(0,0), warp_img_src(0,1));
-                    if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
-                        if( validPixelsPhoto_src(i) )
+                    //if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                    if( validPixelsPhoto_src(i) )
                     {
                         if(visualize_)
                             warped_gray.at<float>(warp_pixels_src(i)) = graySrcPyr[pyrLevel].at<float>(validPixels_src(i));
@@ -5514,8 +5538,8 @@ void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
                         // cout << "jacobianPhoto " << jacobianPhoto << " weightedErrorPhoto " << weightedErrorPhoto << endl;
                         // mrpt::system::pause();
                     }
-                    if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
-                        if( validPixelsDepth_src(i) )
+                    //if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                    if( validPixelsDepth_src(i) )
                     {
                         if(visualize_)
                             warped_depth.at<float>(warp_pixels_src(i)) = dist;
@@ -5539,7 +5563,7 @@ void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
             }
         }
     }
-    else
+    else // All pts
     {
         if( !use_bilinear_ || pyrLevel !=0 )
         {
@@ -5562,7 +5586,7 @@ void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
                     Matrix<float,2,6> jacobianWarpRt;
                     computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
 
-                    if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                    //if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                         if( validPixelsPhoto_src(i) )
                         {
                             if(visualize_)
@@ -5588,32 +5612,38 @@ void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
                             //cout << img_gradient(0,0) << " " << img_gradient(0,1) << " salient jacobianPhoto " << jacobiansPhoto.block(i,0,1,6) << " \t weightedErrorPhoto " << residualsPhoto_src(i) << endl;
                             //mrpt::system::pause();
                         }
-                    if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                    //if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
                         if( validPixelsDepth_src(i) )
                         {
                             if(visualize_)
                                 warped_depth.at<float>(warp_pixels_src(i)) = dist;
 
-                            Matrix<float,1,2> depth_gradient; // This is an approximation of the gradient of the warped image
-                            //depth_gradient(0,0) = _depthTrgGradXPyr[warp_pixels_src(i)];
-                            //depth_gradient(0,1) = _depthTrgGradYPyr[warp_pixels_src(i)];
-                            depth_gradient(0,0) = _depthSrcGradXPyr[i];
-                            depth_gradient(0,1) = _depthSrcGradYPyr[i];
-                            //                    depth_gradient(0,0) = _depthTrgGradXPyr[warp_pixels_src(i)] + _depthSrcGradXPyr[i]; // ESM
-                            //                    depth_gradient(0,1) = _depthTrgGradYPyr[warp_pixels_src(i)] + _depthSrcGradYPyr[i];
-                            //                    depth_gradient(0,0) = 0.5f*(_depthTrgGradXPyr[warp_pixels_src(i)] + _depthSrcGradXPyr[i]); // ESM
-                            //                    depth_gradient(0,1) = 0.5f*(_depthTrgGradYPyr[warp_pixels_src(i)] + _depthSrcGradYPyr[i]);
-                            // cout << "depth_gradient \n " << depth_gradient << endl;
+//                            Matrix<float,1,2> depth_gradient; // This is an approximation of the gradient of the warped image
+//                            //depth_gradient(0,0) = _depthTrgGradXPyr[warp_pixels_src(i)];
+//                            //depth_gradient(0,1) = _depthTrgGradYPyr[warp_pixels_src(i)];
+//                            depth_gradient(0,0) = _depthSrcGradXPyr[i];
+//                            depth_gradient(0,1) = _depthSrcGradYPyr[i];
+//                            //                    depth_gradient(0,0) = _depthTrgGradXPyr[warp_pixels_src(i)] + _depthSrcGradXPyr[i]; // ESM
+//                            //                    depth_gradient(0,1) = _depthTrgGradYPyr[warp_pixels_src(i)] + _depthSrcGradYPyr[i];
+//                            //                    depth_gradient(0,0) = 0.5f*(_depthTrgGradXPyr[warp_pixels_src(i)] + _depthSrcGradXPyr[i]); // ESM
+//                            //                    depth_gradient(0,1) = 0.5f*(_depthTrgGradYPyr[warp_pixels_src(i)] + _depthSrcGradYPyr[i]);
+//                            // cout << "depth_gradient \n " << depth_gradient << endl;
 
-                            //Depth jacobian:
-                            //Apply the chain rule to compound the depth gradients with the projective+RigidTransform jacobians
-                            Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
-                            jacobian16_depthT.block(0,0,1,3) = (1 / dist) * xyz.transpose();
+//                            //Depth jacobian:
+//                            //Apply the chain rule to compound the depth gradients with the projective+RigidTransform jacobians
+//                            Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
+//                            jacobian16_depthT.block(0,0,1,3) = (1 / dist) * xyz.transpose();
+//                            float weight_estim_sqrt = sqrt(wEstimDepth_src(i));
+//                            jacobiansDepth.block(i,0,1,6) = weight_estim_sqrt * stdDevError_inv_src(i) * (depth_gradient*jacobianWarpRt - jacobian16_depthT);
+//                            //jacobiansDepth.block(i,0,1,6).noalias() = weight_estim_sqrt * stdDevError_inv_src(i) * (depth_gradient*jacobianWarpRt - jacobian16_depthT);
+//                            residualsDepth_src(i) *= weight_estim_sqrt;
+//                            //cout << "jacobianDepth " << jacobiansDepth.block(i,0,1,6) << " \t residualsDepth_src " << residualsDepth_src(i) << endl;
+
+                            Matrix<float,3,6> jacobianRt;
+                            computeJacobian36_xT_p(xyz, jacobianRt);
                             float weight_estim_sqrt = sqrt(wEstimDepth_src(i));
-                            jacobiansDepth.block(i,0,1,6) = weight_estim_sqrt * stdDevError_inv_src(i) * (depth_gradient*jacobianWarpRt - jacobian16_depthT);
-                            //jacobiansDepth.block(i,0,1,6).noalias() = weight_estim_sqrt * stdDevError_inv_src(i) * (depth_gradient*jacobianWarpRt - jacobian16_depthT);
+                            jacobiansDepth.block(3*i,0,3,6) = weight_estim_sqrt * stdDevError_inv_src(i) * jacobianRt;
                             residualsDepth_src(i) *= weight_estim_sqrt;
-                            //cout << "jacobianDepth " << jacobiansDepth.block(i,0,1,6) << " \t residualsDepth_src " << residualsDepth_src(i) << endl;
                         }
                 }
             }
@@ -5642,7 +5672,7 @@ void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
                     computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
 
                     cv::Point2f warped_pixel(warp_img_src(0,0), warp_img_src(0,1));
-                    if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                    //if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                         if( validPixelsPhoto_src(i) )
                         {
                             if(visualize_)
@@ -5662,7 +5692,7 @@ void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
                             // cout << "jacobianPhoto " << jacobianPhoto << " weightedErrorPhoto " << weightedErrorPhoto << endl;
                             // mrpt::system::pause();
                         }
-                    if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                    //if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
                         if( validPixelsDepth_src(i) )
                         {
                             if(visualize_)
@@ -6973,7 +7003,7 @@ double DirectRegistration::calcHessGradIC_sphere(const int pyrLevel,
                                 //if(dist_trg > min_depth_ && _depthSrcGradXPyr[validPixels_src(i)] < _max_depth_grad && _depthSrcGradYPyr[validPixels_src(i)] < _max_depth_grad) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                             {
                                 validPixelsDepth_src(i) = 1;
-                                float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                                float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                                 Vector3f xyz_trg = LUT_xyz_target.block(warped_i,0,1,3).transpose();
                                 float residual = (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
                                 wEstimDepth_src(i) = sqrt(weightMEstimator(residual)); // Apply M-estimator weighting // The weight computed by an M-estimator
@@ -7083,7 +7113,7 @@ double DirectRegistration::calcHessGradIC_sphere(const int pyrLevel,
                                 //if(dist_trg > min_depth_ && _depthSrcGradXPyr[validPixels_src(i)] < _max_depth_grad && _depthSrcGradYPyr[validPixels_src(i)] < _max_depth_grad) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                             {
                                 validPixelsDepth_src(i) = 1;
-                                float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                                float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                                 Vector3f xyz_trg;// = LUT_xyz_target.block(warped_i,0,1,3).transpose();
                                 float theta = (transformed_r - half_width)*pixel_angle;
                                 float phi = transformed_r * pixel_angle + phi_start;
@@ -7200,7 +7230,7 @@ double DirectRegistration::calcHessGradIC_sphere(const int pyrLevel,
                             {
                                 //cout << "validPixelsDepth_src " << endl;
                                 validPixelsDepth_src(i) = 1;
-                                float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                                float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                                 Vector3f xyz_trg = LUT_xyz_target.block(warped_i,0,1,3).transpose();
 //                                float residual = (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
 //                                wEstimDepth_src(i) = sqrt(weightMEstimator(residual)); // Apply M-estimator weighting // The weight computed by an M-estimator
@@ -7210,10 +7240,6 @@ double DirectRegistration::calcHessGradIC_sphere(const int pyrLevel,
 //                                //Vector3f reprojectedPt = poseGuess_inv.block(0,0,3,3) * xyz_trg + poseGuess_inv.block(0,3,3,1);
 //                                //float residual2 = (reprojectedPt.norm() - dist_src) * stdDevError_inv;
 //                                //cout << " residual2 depth " << residual2 << endl;
-
-////                                Vector3f residual = poseGuess_inv.block(0,0,3,3) * xyz_trg + poseGuess_inv.block(0,3,3,1) - xyz_src;
-////                                wEstimDepth_src(i) = sqrt(weightMEstimator(residual.norm())); // Apply M-estimator weighting // The weight computed by an M-estimator
-////                                error2_depth += residualsDepth_src.block(3*i,0,3,1).norm();
 
 //                                Matrix<float,1,2> depth_gradient; // This is an approximation of the gradient of the warped image
 //                                depth_gradient(0,0) = _depthSrcGradXPyr[i];
@@ -7246,8 +7272,8 @@ double DirectRegistration::calcHessGradIC_sphere(const int pyrLevel,
                                 residualsDepth_src.block(3*i,0,3,1) = wEstimDepth_src(i) * residual3D;
                                 error2_depth += residualsDepth_src.block(3*i,0,3,1).norm();
                                 Matrix<float,3,6> jacobianRt;
-                                computeJacobian36_TxT_p(xyz_src, jacobianRt);
-                                jacobiansDepth.block(3*i,0,3,6) = jacobianRt;
+                                computeJacobian36_xT_p(xyz_src, jacobianRt);
+                                jacobiansDepth.block(3*i,0,3,6) = stdDevError_inv * jacobianRt;
                             }
                         }
                     }
@@ -7324,7 +7350,7 @@ double DirectRegistration::calcHessGradIC_sphere(const int pyrLevel,
                         if(dist_trg > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                         {
                             validPixelsDepth_src(i) = 1;
-                            float stdDevError_inv = 1 / std::max (stdDevDepth*(dist*dist+dist_trg*dist_trg), 2*stdDevDepth);
+                            float stdDevError_inv = 1 / std::max (stdDevDepth*dist*dist,stdDevDepth);
                             Vector3f xyz_trg;// = LUT_xyz_target.block(warped_i,0,1,3).transpose();
                             float theta = (transformed_r - half_width)*pixel_angle;
                             float phi = transformed_r * pixel_angle + phi_start;
@@ -7368,10 +7394,10 @@ double DirectRegistration::calcHessGradIC_sphere(const int pyrLevel,
     // Update the Hessian and the Gradient
     //hessian.setZero();
     //gradient.setZero();
-    if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
-        updateHessianAndGradient(jacobiansPhoto, residualsPhoto_src, validPixelsPhoto_src);
-    if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
-        updateHessianAndGradient(jacobiansDepth, residualsDepth_src, validPixelsDepth_src);
+//    if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+//        updateHessianAndGradient(jacobiansPhoto, residualsPhoto_src, validPixelsPhoto_src);
+//    if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+//        updateHessianAndGradient(jacobiansDepth, residualsDepth_src, validPixelsDepth_src);
     //cout << "hessian \n" << hessian << endl;
     //cout << "gradient \n" << gradient.transpose() << endl;
 
@@ -8775,6 +8801,7 @@ void DirectRegistration::registerRGBD_IC(const Matrix4f pose_guess, const costFu
         Matrix<float,6,1> update_pose; update_pose << 1, 1, 1, 1, 1, 1;
         //double error = errorDense_IC(pyrLevel, pose_estim, method);
         double error = calcHessGrad_IC(pyrLevel, pose_estim, method);
+        cout << "calcHessGrad_IC error " << error << endl;
 
         double diff_error = error;
         while(num_iters[pyrLevel] < max_iters_ && update_pose.norm() > tol_update_ && diff_error > tol_residual_) // The LM optimization stops either when the max iterations is reached, or when the alignment converges (error or pose do not change)
@@ -8788,6 +8815,7 @@ void DirectRegistration::registerRGBD_IC(const Matrix4f pose_guess, const costFu
             if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
                 //updateHessianAndGradient(jacobiansDepth, residualsDepth_src, wEstimDepth_src, validPixelsDepth_src);
                 updateHessianAndGradient3D(jacobiansDepth, residualsDepth_src, wEstimDepth_src, validPixelsDepth_src);
+            //cout << "Iterations " << num_iters[pyrLevel] << endl;
             //cout << "hessian \n" << hessian.transpose() << endl << "gradient \n" << gradient.transpose() << endl;
 
             //                assert(hessian.rank() == 6); // Make sure that the problem is observable
@@ -9181,6 +9209,7 @@ void DirectRegistration::register360(const Matrix4f pose_guess, const costFuncTy
         {
             //computePointsXYZ(depthSrcPyr[pyrLevel], LUT_xyz_source);
             computeSphereXYZ(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
+            computeSphereXYZ(depthTrgPyr[pyrLevel], LUT_xyz_target, validPixels_trg);
         }
         //cout << LUT_xyz_source.rows() << " pts LUT_xyz_source \n";
 
@@ -10422,7 +10451,7 @@ void DirectRegistration::register360_IC(const Matrix4f pose_guess, const costFun
             if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                 updateHessianAndGradient(jacobiansPhoto, residualsPhoto_src, wEstimPhoto_src, validPixelsPhoto_src);
             if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
-                updateHessianAndGradient(jacobiansDepth, residualsDepth_src, wEstimDepth_src, validPixelsDepth_src);
+                //updateHessianAndGradient(jacobiansDepth, residualsDepth_src, wEstimDepth_src, validPixelsDepth_src);
                 updateHessianAndGradient3D(jacobiansDepth, residualsDepth_src, wEstimDepth_src, validPixelsDepth_src);
             //cout << "hessian \n" << hessian.transpose() << endl << "gradient \n" << gradient.transpose() << endl;
 
@@ -11851,8 +11880,14 @@ void DirectRegistration::updateHessianAndGradient(const MatrixXf & pixel_jacobia
 //    #endif
 //}
 
-void DirectRegistration::updateHessianAndGradient3D(const MatrixXf & pixel_jacobians, const MatrixXf & pixel_residuals_3D, const MatrixXi & valid_pixels)
+void DirectRegistration::updateHessianAndGradient3D(const MatrixXf & pixel_jacobians, const MatrixXf & pixel_residuals, const MatrixXi & valid_pixels)
 {
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t ii=0; ii<100; ii++)
+    {
+#endif
+
     assert( 3*valid_pixels.rows() == pixel_jacobians.rows() );
 
     for(int i=0; i < valid_pixels.rows(); i++)
@@ -11860,21 +11895,41 @@ void DirectRegistration::updateHessianAndGradient3D(const MatrixXf & pixel_jacob
         {
             MatrixXf jacobian = pixel_jacobians.block(i*3,0,3,6);
             hessian += jacobian.transpose() * jacobian;
-            gradient += jacobian.transpose() * pixel_residuals_3D.block(0,i,3,1);
+            gradient += jacobian.transpose() * pixel_residuals.block(i*3,0,3,1);
         }
+
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    cout << " DirectRegistration::updateHessianAndGradient3D " << valid_pixels.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
+#endif
 }
 
-void DirectRegistration::updateHessianAndGradient3D(const MatrixXf & pixel_jacobians, const MatrixXf & pixel_residuals_3D, const MatrixXf & pixel_weights, const MatrixXi & valid_pixels)
+void DirectRegistration::updateHessianAndGradient3D(const MatrixXf & pixel_jacobians, const MatrixXf & pixel_residuals, const MatrixXf & pixel_weights, const MatrixXi & valid_pixels)
 {
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t ii=0; ii<100; ii++)
+    {
+#endif
+
     assert( 3*valid_pixels.rows() == pixel_jacobians.rows() );
 
+    //cout << "INIT hessian \n" << hessian.transpose() << endl << "gradient \n" << gradient.transpose() << endl;
     for(int i=0; i < valid_pixels.rows(); i++)
         if(valid_pixels(i))
         {
             MatrixXf jacobian = pixel_weights(i) * pixel_jacobians.block(i*3,0,3,6);
             hessian += jacobian.transpose() * jacobian;
-            gradient += jacobian.transpose() * pixel_residuals_3D.block(0,i,3,1);
+            gradient += jacobian.transpose() * pixel_residuals.block(i*3,0,3,1);
+            //cout << i << " hessian \n" << hessian.transpose() << endl << "gradient \n" << gradient.transpose() << endl;
         }
+
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    cout << " DirectRegistration::updateHessianAndGradient3D " << valid_pixels.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
+#endif
 }
 
 void DirectRegistration::updateGrad(const MatrixXf & pixel_jacobians, const MatrixXf & pixel_residuals, const MatrixXi & valid_pixels)

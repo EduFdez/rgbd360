@@ -43,6 +43,9 @@
 
 #include <pcl/registration/gicp.h> //GICP
 #include <pcl/console/parse.h>
+#include <pcl/common/time.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/registration/gicp.h> //GICP
 
 #include <opencv2/opencv.hpp>
 
@@ -87,6 +90,7 @@ private:
     mrpt::poses::CPose3D cam_oldpose;	//!< Previous camera pose
     mrpt::poses::CPose3D gt_pose;       //!< Groundtruth camera pose
     mrpt::poses::CPose3D gt_oldpose;	//!< Groundtruth camera previous pose
+    mrpt::poses::CPose3D transf;        //!< Transformation between reference systems (TUM RGBD -> edu)
 
     std::ifstream		f_gt;
     std::ofstream		f_res;
@@ -211,11 +215,10 @@ public:
             mat(2,1) = 2*(qy*qz + w*qx);
             mat(2,2) = 1 - 2*qx*qx - 2*qy*qy;
 
-            mrpt::poses::CPose3D gt, transf;
+            mrpt::poses::CPose3D gt;
             gt.setFromValues(x,y,z,0,0,0);
             gt.setRotationMatrix(mat);
-            transf.setFromValues(0,0,0,0.5*M_PI, -0.5*M_PI, 0);
-            cout << "transf pose \n" << transf.getHomogeneousMatrixVal() << endl;
+
 
             //Alternative - directly quaternions
             //vector<float> quat;
@@ -226,6 +229,14 @@ public:
             //Set the initial pose (if appropiate)
             if (first_pose == false)
             {
+                transf.setFromValues(0,0,0,0.5*M_PI, -0.5*M_PI, 0);
+                //cout << "transf pose \n" << transf.getHomogeneousMatrixVal() << endl;
+                mrpt::poses::CPose3D ref_mrpt_edu;
+//                ref_mrpt_edu.setFromValues(0,0,0,M_PI,0,0);
+                ref_mrpt_edu.setFromValues(0,0,0,0,-0.5*M_PI,0.5*M_PI);
+                cout << "ref_mrpt_edu \n" << ref_mrpt_edu.getHomogeneousMatrixVal() << endl;
+                transf = transf - ref_mrpt_edu;
+
                 cam_pose = gt + transf;
                 first_pose = true;
             }
@@ -328,6 +339,8 @@ public:
         cout << "last_gt_data " << last_gt_data[0] << " " << last_gt_data[1] << " " << last_gt_data[2] << " " << last_gt_data[3] << " "
                                  << last_gt_data[4] << " " << last_gt_data[5] << " " << last_gt_data[6] << endl;
 
+        mrpt::poses::CPose3D gt_firstPose;	//!< Groundtruth camera first pose
+        mrpt::poses::CPose3D gt_prevPose;	//!< Groundtruth camera previous pose
 
 //        mrpt::utils::CFileGZInputStream dataset(filename);
 //        mrpt::obs::CActionCollectionPtr action;
@@ -341,6 +354,8 @@ public:
 
         bool bGoodRegistration = true;
         Eigen::Matrix4f currentPose = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f currentPose_photo = Eigen::Matrix4f::Identity();
+        Eigen::Matrix4f currentPose_depth = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f currentPoseIC = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f relativePose = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f relativePose_photo = Eigen::Matrix4f::Identity();
@@ -370,15 +385,15 @@ public:
 //        registerRGBD.setVisualization(true);
         registerRGBD.setGrayVariance(8.f/255);
 
-        //        // Initialize ICP
-        //        pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
-        //        icp.setMaxCorrespondenceDistance (0.4);
-        //        icp.setMaximumIterations (10);
-        //        icp.setTransformationEpsilon (1e-9);
-        //        icp.setRANSACOutlierRejectionThreshold (0.1);
-        //        pcl::PointCloud<PointT>::Ptr cloud_dense_trg(new pcl::PointCloud<PointT>);
-        //        pcl::PointCloud<PointT>::Ptr cloud_dense_src(new pcl::PointCloud<PointT>);
-
+        // Initialize ICP
+        pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
+        icp.setMaxCorrespondenceDistance (0.4);
+        icp.setMaximumIterations (10);
+        icp.setTransformationEpsilon (1e-9);
+        icp.setRANSACOutlierRejectionThreshold (0.1);
+//        pcl::PointCloud<PointT>::Ptr cloud_dense_trg(new pcl::PointCloud<PointT>);
+//        pcl::PointCloud<PointT>::Ptr cloud_dense_src(new pcl::PointCloud<PointT>);
+        CloudRGBD src, trg;
 
         //        // Filter the spherical point cloud
         //        // ICP -> Filter the point clouds and remove nan points
@@ -418,9 +433,12 @@ public:
             obsRGBD->load();
 
             // Get ground-truth pose
+            gt_prevPose = gt_pose;
             timestamp_obs = mrpt::system::timestampTotime_t(obsRGBD->timestamp);
             if( !getGroundtruthPose(timestamp_obs) )
             {
+                cout << " SKIP FRAME: no groundtruth pose \n";
+                mrpt::system::pause();
                 obsRGBD->unload();
                 continue;
             }
@@ -453,14 +471,14 @@ public:
                 convertRange_mrpt2cvMat(obsRGBD->rangeImage, depth_src);
                 //registerRGBD.setSourceFrame(intensity_src, depth_src);
 
-                gt_oldpose = gt_pose;
+                src.setRGBImage(intensity_src);
+                src.setDepthImage(depth_src);
+                src.getPointCloud();
+
+                gt_firstPose = gt_pose;
                 bFirstFrame = false;
                 continue;
             }
-
-            mrpt::poses::CPose3D pose_diff = gt_pose - gt_oldpose;
-            cout << "pose_diff \n" << pose_diff.getHomogeneousMatrixVal() << endl;
-            cout << "pose_diff 2 \n" << gt_oldpose.getHomogeneousMatrixVal().inverse() * gt_pose.getHomogeneousMatrixVal() << endl;
 
             if(bGoodRegistration)
             {
@@ -471,6 +489,12 @@ public:
                 intensity_src = cv::Mat(obsRGBD->intensityImage.getAs<IplImage>());
                 depth_src = cv::Mat(depth_trg.rows, depth_trg.cols, CV_32FC1);
                 convertRange_mrpt2cvMat(obsRGBD->rangeImage, depth_src);
+
+                trg = src;
+                src.setRGBImage(intensity_src);
+                src.setDepthImage(depth_src);
+                src.getPointCloud();
+
 //                cv::Mat new_depth;
 //                convertRange_mrpt2cvMat(obsRGBD->rangeImage, new_depth);
 //                depth_src = new_depth;
@@ -566,9 +590,9 @@ public:
             relativePose = registerRGBD.getOptimalPose();
             cout << "registerRGBD \n" << relativePose << endl;
 
-//            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-//            relativePose_photo = registerRGBD.getOptimalPose();
-//            cout << "registerRGBD Photo \n" << relativePose_photo << endl;
+            registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            relativePose_photo = registerRGBD.getOptimalPose();
+            cout << "registerRGBD Photo \n" << relativePose_photo << endl;
 
             registerRGBD.registerRGBD(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePose_depth = registerRGBD.getOptimalPose();
@@ -586,40 +610,68 @@ public:
 //            relativePoseIC_photo = registerRGBD.getOptimalPose();
 //            cout << "registerRGBD IC Photo \n" << relativePoseIC_photo << endl;
 
-            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            relativePoseIC_depth = registerRGBD.getOptimalPose();
-            cout << "registerRGBD IC Depth \n" << relativePoseIC_depth << endl;
+//            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//            relativePoseIC_depth = registerRGBD.getOptimalPose();
+//            cout << "registerRGBD IC Depth \n" << relativePoseIC_depth << endl;
 
 
 //            registerRGBD.useSaliency(true);
 //            registerRGBD.registerRGBD_IC(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //            cout << "registerRGBD IC Depth Saliency \n" << registerRGBD.getOptimalPose() << endl;
 
-            mrpt::system::pause();
+            //mrpt::system::pause();
 
-            //            double time_start = pcl::getTime();
+//            // Visualize point cloud
+//            pcl::visualization::CloudViewer cloud_viewer("cloud");
+//            cloud_viewer.showCloud (trg.getPointCloud());
+//            while (!cloud_viewer.wasStopped ())
+//                boost::this_thread::sleep (boost::posix_time::milliseconds (10));
 
-            //            icp.setInputTarget(cloud_dense_trg);
-            //            filter.filterVoxel(frame_src_fused->getSphereCloud(), cloud_dense_src);
-            //            icp.setInputSource(cloud_dense_src);
-            //            pcl::PointCloud<PointT>::Ptr alignedICP(new pcl::PointCloud<PointT>);
-            //          //  Eigen::Matrix4d initRt = registerer.getPose();
-            //            Eigen::Matrix4f initRt = Eigen::Matrix4f::Identity();
-            //            icp.align(*alignedICP, initRt);
+//            cout << "ICP \n";
+//            double time_start = pcl::getTime();
+////            icp.setInputTarget(trg.getPointCloud());
+////            icp.setInputSource(src.getPointCloud());
+//            pcl::PointCloud<PointT>::Ptr cloud_dense_trg = trg.getPointCloud();
+//            pcl::PointCloud<PointT>::Ptr cloud_dense_src = src.getPointCloud();
+//            icp.setInputTarget(cloud_dense_trg);
+//            icp.setInputSource(cloud_dense_src);
+//            //filter.filterVoxel(frame_src_fused->getSphereCloud(), cloud_dense_src);
+//            pcl::PointCloud<PointT>::Ptr cloudAlignedICP(new pcl::PointCloud<PointT>);
+//          //  Eigen::Matrix4d initRt = registerer.getPose();
+//            Eigen::Matrix4f initRt = Eigen::Matrix4f::Identity();
+//            icp.align(*cloudAlignedICP, initRt);
 
-            //            double time_end = pcl::getTime();
-            //            std::cout << "ICP took " << double (time_end - time_start) << std::endl;
-
-            //            //std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
-            //            Rt_icp = icp.getFinalTransformation(); //.cast<double>();
+//            double time_end = pcl::getTime();
+//            std::cout << "ICP took " << double (time_end - time_start) << std::endl;
+            //std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
+            //Rt_icp = icp.getFinalTransformation(); //.cast<double>();
 
 
             // Update relativePose
-            currentPose = relativePose * currentPose;
-            currentPoseIC = currentPoseIC * relativePoseIC;
+            currentPose = currentPose * relativePose;
+            currentPose_photo = currentPose_photo * relativePose_photo;
+            currentPose_depth = currentPose_depth * relativePose_depth;
+
+            //currentPoseIC = currentPoseIC * relativePoseIC;
             //            relativePose2 = relativePose2 * Rt_dense_photo;
 
-            gt_oldpose = gt_pose;
+            std::cout << "currentPose \n " << currentPose << std::endl;
+            std::cout << "currentPose_photo \n " << currentPose_photo << std::endl;
+            std::cout << "currentPose_depth \n " << currentPose_depth << std::endl;
+
+            mrpt::poses::CPose3D path = -gt_firstPose + gt_pose;
+            cout << "GT path \n" << path.getHomogeneousMatrixVal() << endl;
+            //cout << "GT path " << path << endl;
+//            mrpt::poses::CPose3D path_ref0 = path + ref_mrpt_edu;
+//            cout << "GT path_ref0 \n" << path_ref0.getHomogeneousMatrixVal() << endl;
+
+            std::cout << "relativePose \n " << relativePose_photo << std::endl;
+
+            mrpt::poses::CPose3D pose_diff = -gt_prevPose + gt_pose ;
+            cout << "GT pose increment \n" << pose_diff.getHomogeneousMatrixVal() << endl;
+            //cout << "NUmericalErrors pose_diff 2 \n" << gt_oldpose.getHomogeneousMatrixVal().inverse() * gt_pose.getHomogeneousMatrixVal() << endl;
+
+            mrpt::system::pause();
 
 //            writeTrajectoryFile();
 

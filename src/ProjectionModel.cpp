@@ -285,7 +285,7 @@ void ProjectionModel::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixX
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " ProjectionModel::computeSphereXYZ_sse " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " ProjectionModel::computeSphereXYZ " << imgSize << " (" << nRows << "x" << nCols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
@@ -485,7 +485,7 @@ void ProjectionModel::computeSphereXYZ_saliency(Eigen::MatrixXf & xyz, Eigen::Ve
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " ProjectionModel::computeSphereXYZ " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " ProjectionModel::computeSphereXYZ " << imgSize << " (" << nRows << "x" << nCols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
@@ -780,7 +780,7 @@ void ProjectionModel::computePinholeXYZ(const cv::Mat & depth_img, Eigen::Matrix
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " ProjectionModel::computePinholeXYZ " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " ProjectionModel::computePinholeXYZ " << imgSize << " (" << nRows << "x" << nCols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
@@ -869,6 +869,6 @@ void ProjectionModel::computePinholeXYZ_saliency(Eigen::MatrixXf & xyz, Eigen::V
     #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " ProjectionModel::computePinholeXYZ_sse SALIENT " << imgSize << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " ProjectionModel::computePinholeXYZ_sse SALIENT " << imgSize << " (" << nRows << "x" << nCols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
     #endif
 }

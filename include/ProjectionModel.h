@@ -465,18 +465,29 @@ public:
     /*! Compute the Jacobian composition of the transformed point: T(x)Tp */
     inline void
     //Eigen::Matrix<float,3,6>
-    computeJacobian36_TxT_p(const Eigen::Vector3f & xyz, Eigen::Matrix<float,3,6> &jacobianRt)
+    computeJacobian36_xT_p(const Eigen::Vector3f & xyz, Eigen::Matrix<float,3,6> &jacobianRt)
     {
         //Eigen::Matrix<float,3,6> jacobianWarpRt;
 
         jacobianRt.block(0,0,3,3) = Eigen::Matrix3f::Identity();
         jacobianRt.block(0,3,3,3) = -skew(xyz);
+
+//        jacobianRt = Eigen::Matrix<float,3,6>::Zero();
+//        jacobianRt(0,0) = 1.f;
+//        jacobianRt(1,1) = 1.f;
+//        jacobianRt(2,2) = 1.f;
+//        jacobianRt(0,4) = xyz(2);
+//        jacobianRt(1,3) = -xyz(2);
+//        jacobianRt(0,5) = -xyz(1);
+//        jacobianRt(2,3) = xyz(1);
+//        jacobianRt(1,5) = xyz(0);
+//        jacobianRt(2,4) = -xyz(0);
     }
 
     /*! Compute the Jacobian composition of the transformed point: TT(x)p */
     inline void
     //Eigen::Matrix<float,3,6>
-    computeJacobian36_TTx_p(const Eigen::Matrix3f & rot, const Eigen::Vector3f & xyz, Eigen::Matrix<float,3,6> &jacobianRt)
+    computeJacobian36_Tx_p(const Eigen::Matrix3f & rot, const Eigen::Vector3f & xyz, Eigen::Matrix<float,3,6> &jacobianRt)
     {
         //Eigen::Matrix<float,3,6> jacobianWarpRt;
 
@@ -495,7 +506,7 @@ public:
         Eigen::Matrix<float,3,6> jacobianRt;
 
         computeJacobian23_warp_pinhole(xyz_transf, jacobianWarp);
-        computeJacobian36_TTx_p(Rt.block(0,0,3,3), xyz, jacobianRt);
+        computeJacobian36_Tx_p(Rt.block(0,0,3,3), xyz, jacobianRt);
 
         jacobianWarpRt = jacobianWarp * jacobianRt;
     }
@@ -509,7 +520,7 @@ public:
         Eigen::Matrix<float,3,6> jacobianRt;
 
         computeJacobian23_warp_sphere(xyz_transf, dist, pixel_angle_inv, jacobianWarp);
-        computeJacobian36_TTx_p(Rt.block(0,0,3,3), xyz, jacobianRt);
+        computeJacobian36_Tx_p(Rt.block(0,0,3,3), xyz, jacobianRt);
 
         jacobianWarpRt = jacobianWarp * jacobianRt;
     }
