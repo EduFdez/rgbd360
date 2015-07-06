@@ -101,6 +101,9 @@ protected:
     /*! Project 3D points to 1D image pixels using nearest neighbor interpolation. */
     void (*projectNN)(Eigen::MatrixXf &, Eigen::MatrixXi &, Eigen::MatrixXi &);
 
+    /*! Compute the 2x6 jacobian matrices of the composition (warping+rigidTransformation). */
+    void (*computeJacobians)(Eigen::MatrixXf &, Eigen::MatrixXf &);
+
     // TODO separate between depth/intensity
 
 public:
@@ -119,6 +122,7 @@ public:
             isInImage = &isInImage_pinhole<int>;
             reconstruct3D = &reconstruct3D_pinhole;
             reconstruct3D_saliency = &reconstruct3D_pinhole_saliency;
+            computeJacobians = &computeJacobians_pinhole;
         }
         else // SPHERICAL
         {
@@ -128,6 +132,7 @@ public:
             isInImage = &isInImage_spherical<int>;
             reconstruct3D = &reconstruct3D_spherical;
             reconstruct3D_saliency = &reconstruct3D_pinhole_spherical;
+            computeJacobians = &computeJacobians_spherical;
         }
     };
 
@@ -638,5 +643,69 @@ public:
     //void warpImage ( const int pyrLevel, const Eigen::Matrix4f &poseGuess, costFuncType method );
 
 };
+
+/*! Compute the 2x6 jacobian matrices of the composition (warping+rigidTransformation) using the pinhole camera model. */
+void computeJacobians26_pinhole(Eigen::MatrixXf & xyz_tf, Eigen::MatrixXf & jacobians_aligned);
+
+/*! Compute the 2x6 jacobian matrices of the composition (warping+rigidTransformation) using the spherical camera model. */
+void computeJacobians26_spherical(Eigen::MatrixXf & xyz_tf, Eigen::MatrixXf & jacobians_aligned);
+
+inline void getJacobian_pinhole(Eigen::MatrixXf & jacobians_aligned, const int i, Eigen::Matrix<float,2,6> & jacobianWarpRt)
+{
+    jacobianWarpRt(0,0) = jacobians_aligned(i,0);
+    jacobianWarpRt(1,0) = 0.f;
+    jacobianWarpRt(0,1) = 0.f;
+    jacobianWarpRt(1,1) = jacobians_aligned(i,1);
+    jacobianWarpRt(0,2) = jacobians_aligned(i,2);
+    jacobianWarpRt(1,2) = jacobians_aligned(i,3);
+    jacobianWarpRt(0,3) = jacobians_aligned(i,4);
+    jacobianWarpRt(1,3) = jacobians_aligned(i,5);
+    jacobianWarpRt(0,4) = jacobians_aligned(i,6);
+    jacobianWarpRt(1,4) = jacobians_aligned(i,7);
+    jacobianWarpRt(0,5) = jacobians_aligned(i,8);
+    jacobianWarpRt(1,5) = jacobians_aligned(i,9);
+}
+
+inline void getJacobian_spherical(Eigen::MatrixXf & jacobians_aligned, const int i, Eigen::Matrix<float,2,6> & jacobianWarpRt)
+{
+    jacobianWarpRt(0,0) = jacobians_aligned(i,0);
+    jacobianWarpRt(1,0) = jacobians_aligned(i,1);
+    jacobianWarpRt(0,1) = 0.f;
+    jacobianWarpRt(1,1) = jacobians_aligned(i,2);
+    jacobianWarpRt(0,2) = jacobians_aligned(i,3);
+    jacobianWarpRt(1,2) = jacobians_aligned(i,4);
+    jacobianWarpRt(0,3) = jacobians_aligned(i,5);
+    jacobianWarpRt(1,3) = jacobians_aligned(i,6);
+    jacobianWarpRt(0,4) = jacobians_aligned(i,7);
+    jacobianWarpRt(1,4) = jacobians_aligned(i,8);
+    jacobianWarpRt(0,5) = jacobians_aligned(i,9);
+    jacobianWarpRt(1,5) = jacobians_aligned(i,10);
+}
+
+/*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
+void computeJacobiansPhoto_pinhole(Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, Eigen::VectorXf & wEstimDepth, Eigen::MatrixXf & jacobians, float *_gradX, float *_gradY);
+
+/*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
+void computeJacobiansPhoto_spherical(Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, Eigen::VectorXf & wEstimDepth, Eigen::MatrixXf & jacobians, float *_gradX, float *_gradY);
+
+/*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
+void computeJacobiansDepth_pinhole(Eigen::MatrixXf & xyz_tf, Eigen::VectorXf & stdDevError_inv, Eigen::VectorXf & wEstimDepth, Eigen::MatrixXf & jacobians, float *_gradDepthX, float *_gradDepthY);
+
+/*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
+void computeJacobiansDepth_spherical(Eigen::MatrixXf & xyz_tf, Eigen::VectorXf & stdDevError_inv, Eigen::VectorXf & wEstimDepth, Eigen::MatrixXf & jacobians, float *_gradDepthX, float *_gradDepthY);
+
+/*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
+void computeJacobiansPhotoDepth_pinhole(Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, Eigen::VectorXf & stdDevError_inv, Eigen::VectorXf & weights,
+                                        Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY);
+
+/*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
+void computeJacobiansPhotoDepth_spherical ( Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, Eigen::VectorXf & stdDevError_inv, Eigen::VectorXf & weights,
+                                            Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY);
+
+///*! Compute the 3Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
+//void computeJacobiansICP_pinhole(Eigen::MatrixXf & xyz_tf, Eigen::VectorXf & stdDevError_inv, Eigen::VectorXf & wEstimDepth, Eigen::MatrixXf & jacobians);
+
+///*! Compute the 3Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
+//void computeJacobiansICP_spherical(Eigen::MatrixXf & xyz_tf, Eigen::VectorXf & stdDevError_inv, Eigen::VectorXf & wEstimDepth, Eigen::MatrixXf & jacobians);
 
 #endif
