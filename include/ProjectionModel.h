@@ -101,8 +101,23 @@ protected:
     /*! Project 3D points to 1D image pixels using nearest neighbor interpolation. */
     void (*projectNN)(Eigen::MatrixXf &, Eigen::MatrixXi &, Eigen::MatrixXi &);
 
+    /*! Return the depth value of the 3D point projected on the image.*/
+    inline float (*getDepth)(const Eigen::Vector3f &);
+
+    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
+    void (*computeJacobian26_wT)(const Eigen::Vector3f & , Eigen::Matrix<float,2,6> &);
+
     /*! Compute the 2x6 jacobian matrices of the composition (warping+rigidTransformation). */
     void (*computeJacobians)(Eigen::MatrixXf &, Eigen::MatrixXf &);
+
+    void (*computeJacobiansPhoto)(Eigen::MatrixXf &, const float, Eigen::VectorXf &, Eigen::MatrixXf &, float *, float *);
+
+    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
+    void (*computeJacobiansDepth)(Eigen::MatrixXf &, Eigen::VectorXf &, Eigen::VectorXf &, Eigen::MatrixXf &, float *, float *);
+
+    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
+    void (*computeJacobiansPhotoDepth)( Eigen::MatrixXf &, const float, Eigen::VectorXf &, Eigen::VectorXf &,
+                                        Eigen::MatrixXf &, Eigen::MatrixXf &, float *, float *, float *, float *);
 
     // TODO separate between depth/intensity
 
@@ -119,20 +134,30 @@ public:
             project = &project_pinhole;
             project2Image = &project2Image_pinhole;
             projectNN = &projectNN_pinhole;
+            getDepth = &getDepth_pinhole;
             isInImage = &isInImage_pinhole<int>;
             reconstruct3D = &reconstruct3D_pinhole;
             reconstruct3D_saliency = &reconstruct3D_pinhole_saliency;
+            computeJacobian26_wT = &computeJacobian26_wT_pinhole;
             computeJacobians = &computeJacobians_pinhole;
+            computeJacobiansPhoto = &computeJacobiansPhoto_pinhole;
+            computeJacobiansDepth = &computeJacobiansDepth_pinhole;
+            computeJacobiansPhotoDepth = &computeJacobiansPhotoDepth_pinhole;
         }
         else // SPHERICAL
         {
             project = &project_spherical;
             project2Image = &project2Image_spherical;
             projectNN = &projectNN_spherical;
+            getDepth = &getDepth_spherical;
             isInImage = &isInImage_spherical<int>;
             reconstruct3D = &reconstruct3D_spherical;
             reconstruct3D_saliency = &reconstruct3D_pinhole_spherical;
+            computeJacobian26_wT = &computeJacobian26_wT_sphere;
             computeJacobians = &computeJacobians_spherical;
+            computeJacobiansPhoto = &computeJacobiansPhoto_spherical;
+            computeJacobiansDepth = &computeJacobiansDepth_spherical;
+            computeJacobiansPhotoDepth = &computeJacobiansPhotoDepth_spherical;
         }
     };
 
@@ -153,6 +178,18 @@ public:
     {
         max_depth_ = maxD;
     };
+
+    /*! Return the depth value of the 3D point projected on the image.*/
+    inline float getDepth_pinhole(const Eigen::Vector3f &xyz)
+    {
+        return xyz(2);
+    }
+
+    /*! Return the depth value of the 3D point projected on the image.*/
+    inline float getDepth_spherical(const Eigen::Vector3f &xyz)
+    {
+        return xyz.norm();
+    }
 
     /*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
     void scaleCameraParams(const float scaleFactor);
@@ -430,10 +467,11 @@ public:
     /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
     inline void
     //Eigen::Matrix<float,2,6>
-    computeJacobian26_wT_sphere(const Eigen::Vector3f & xyz_transf, const float dist, const float pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    computeJacobian26_wT_sphere(const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt)
     {
         //Eigen::Matrix<float,2,6> jacobianWarpRt;
 
+        const float dist = xyz_transf.norm();
         float dist2 = dist * dist;
         float x2_z2 = dist2 - xyz_transf(1)*xyz_transf(1);
         float x2_z2_sqrt = sqrt(x2_z2);
