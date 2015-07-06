@@ -47,12 +47,32 @@ class ProjectionModel
 //public:
 protected:
 
+    /*! Projection's mathematical model */
+    enum projectionType
+    {
+        PINHOLE,
+        SPHERICAL
+        //,CYLINRICAL
+    } projection_model;
+
     /*! Camera matrix (intrinsic parameters). This is only required for pinhole perspective sensors */
     Eigen::Matrix3f cameraMatrix;
+
+    /*! Image's height and width */
+    int nRows, nCols;
+
+    /*! Image's size (number of pixels) */
+    size_t imgSize;
 
     /*! Camera intrinsic parameters */
     float fx, fy, ox, oy;
     float inv_fx, inv_fy;
+
+    /*! Spherical model parameters */
+    float pixel_angle;
+    float pixel_angle_inv;
+    float half_width;
+    float phi_start;
 
 //    /* Vertical field of view in the sphere (in) .*/
 //    float phi_FoV;
@@ -63,19 +83,53 @@ protected:
     /*! Maximum allowed depth to consider a depth pixel valid.*/
     float max_depth_;
 
-public:
+    /*! Pointer to reconstruct3D function .*/
+    void (*reconstruct3D)(cv::Mat &, Eigen::MatrixXf &, Eigen::VectorXi &);
 
-    enum sensorType
-    {
-        RGBD360_INDOOR = 0,
-        STEREO_OUTDOOR,
-        KINECT // Same for Asus XPL
-    } sensor_type;
+    /*! Pointer to reconstruct3D function using saliency .*/
+    void (*reconstruct3D_saliency) (Eigen::MatrixXf &, Eigen::VectorXi &, const cv::Mat &, const cv::Mat &, const cv::Mat &, const cv::Mat &, const cv::Mat &, const cv::Mat &, const float, const float);
+
+    /*! Project 3D points XYZ according to the pinhole camera model. */
+    cv::Point2f (*project2Image)(Eigen::Vector3f &);
+
+    /*! Check if a pixel is within the image limits. */
+    bool (*isInImage)(const int, const int);
+
+    /*! Project 3D points to 2D image coordinates. */
+    void (*project)(Eigen::MatrixXf &, Eigen::MatrixXf &);
+
+    /*! Project 3D points to 1D image pixels using nearest neighbor interpolation. */
+    void (*projectNN)(Eigen::MatrixXf &, Eigen::MatrixXi &, Eigen::MatrixXi &);
+
+    // TODO separate between depth/intensity
+
+public:
 
     ProjectionModel();
 
-    /*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
-    void scaleCameraParams(const float scaleFactor);
+    /*! Set Projection Model .*/
+    inline void setProjectionModel(const projectionType proj)
+    {
+        projection_model = proj;
+        if(projection_model == PINHOLE)
+        {
+            project = &project_pinhole;
+            project2Image = &project2Image_pinhole;
+            projectNN = &projectNN_pinhole;
+            isInImage = &isInImage_pinhole<int>;
+            reconstruct3D = &reconstruct3D_pinhole;
+            reconstruct3D_saliency = &reconstruct3D_pinhole_saliency;
+        }
+        else // SPHERICAL
+        {
+            project = &project_spherical;
+            project2Image = &project2Image_spherical;
+            projectNN = &projectNN_spherical;
+            isInImage = &isInImage_spherical<int>;
+            reconstruct3D = &reconstruct3D_spherical;
+            reconstruct3D_saliency = &reconstruct3D_pinhole_spherical;
+        }
+    };
 
     /*! Set the 3x3 matrix of (pinhole) camera intrinsic parameters used to obtain the 3D colored point cloud from the RGB and depth images.*/
     inline void setCameraMatrix(const Eigen::Matrix3f & camMat)
@@ -95,28 +149,83 @@ public:
         max_depth_ = maxD;
     };
 
+    /*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
+    void scaleCameraParams(const float scaleFactor);
+
+    template<typename T>
+    inline bool isInImage_pinhole(const T x, const T y)
+    {
+        return ( y >= 0 && y < nRows && x >= 0 && x < nCols );
+    };
+
+    /*! Check if a pixel is within the image limits. */
+    template<typename T>
+    inline bool isInImage_spherical(const T x, const T y)
+    {
+        return ( y >= 0 && y < nRows );
+    };
+
+    /*! Project 3D points XYZ according to the pinhole camera model. */
+    inline cv::Point2f project2Image_pinhole(Eigen::Vector3f & xyz)
+    {
+        //Project the 3D point to the 2D plane
+        float inv_transf_z = 1.f/xyz(2);
+        // 2D coordinates of the transformed pixel(r,c) of frame 1
+        float transformed_c = (xyz(0) * fx)*inv_transf_z + ox; //transformed x (2D)
+        float transformed_r = (xyz(1) * fy)*inv_transf_z + oy; //transformed y (2D)
+        cv::Point2f pixel(transformed_r, transformed_c);
+        return pixel;
+    };
+
+    /*! Project 3D points XYZ according to the pinhole camera model. */
+    inline cv::Point2f project2Image_spherical(Eigen::Vector3f & xyz)
+    {
+        //Project the 3D point to the 2D plane
+        float dist = xyz.norm();
+        float dist_inv = 1.f / dist;
+        float phi = asin(xyz(1)*dist_inv);
+        float theta = atan2(xyz(0),xyz(2));
+        //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
+        int transformed_r = (phi-phi_start)*pixel_angle_inv;
+        int transformed_c = (half_width + theta*pixel_angle_inv) % nCols; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
+
+        cv::Point2f pixel(transformed_r, transformed_c);
+        return pixel;
+    };
+
+    /*! Project 3D points XYZ according to the pinhole camera model (3D -> 2D). */
+    void project_pinhole(Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels);
+
+    /*! Project 3D points XYZ according to the spherical camera model (3D -> 2D). */
+    void project_spherical(Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels);
+
+    /*! Project 3D points XYZ according to the pinhole camera model (3D -> 1D nearest neighbor). */
+    void projectNN_pinhole(Eigen::MatrixXf & xyz, Eigen::MatrixXi & pixels, Eigen::MatrixXi &visible);
+
+    /*! Project 3D points XYZ according to the spherical camera model (3D -> 1D nearest neighbor). */
+    void projectNN_spherical(Eigen::MatrixXf & xyz, Eigen::MatrixXi & pixels, Eigen::MatrixXi &visible);
+
     /*! Compute the 3D points XYZ according to the pinhole camera model. */
-    void computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels);
+    void reconstruct3D_pinhole(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels);
 
-    void computePinholeXYZ_saliency ( Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                      const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                      const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
-                                      const float thres_saliency_gray, const float thres_saliency_depth
-                                      );
-
+    void reconstruct3D_pinhole_saliency ( Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+                                          const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
+                                          const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
+                                          const float thres_saliency_gray, const float thres_saliency_depth
+                                        );
 
     /*! Compute the unit sphere for the given spherical image dimmensions. This serves as a LUT to speed-up calculations. */
-    void computeUnitSphere(const size_t nRows, const size_t nCols);
+    void reconstruct3D_unitSphere();
 
     /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
-    void computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels);
+    void reconstruct3D_spherical(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels);
 
     /*! Get a list of salient points (pixels with hugh gradient) and compute their 3D position xyz */
-    void computeSphereXYZ_saliency(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                   const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                   const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
-                                   const float thres_saliency_gray, const float thres_saliency_depth
-                                    ); // TODO extend this function to employ only depth
+    void reconstruct3D_spherical_saliency( Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+                                           const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
+                                           const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
+                                           const float thres_saliency_gray, const float thres_saliency_depth
+                                         ); // TODO extend this function to employ only depth
 
     /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y' */
 //    inline cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)
@@ -524,6 +633,10 @@ public:
 
         jacobianWarpRt = jacobianWarp * jacobianRt;
     }
+
+    /*! Warp the image according to a given geometric transformation. */
+    //void warpImage ( const int pyrLevel, const Eigen::Matrix4f &poseGuess, costFuncType method );
+
 };
 
 #endif

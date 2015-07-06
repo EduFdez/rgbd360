@@ -180,6 +180,23 @@ class DirectRegistration : public ProjectionModel, Pyramid, MEstimator
 
 public:
 
+    /*! Sensor */
+    enum sensorType
+    {
+        RGBD360_INDOOR = 0,
+        STEREO_OUTDOOR,
+        KINECT // Same for Asus XPL
+    } sensor_type;
+
+    /*! Optimization method (cost function). The options are: 0=Photoconsistency, 1=Depth consistency (ICP like), 2= A combination of photo-depth consistency */
+    enum costFuncType
+    {
+        PHOTO_DEPTH,
+        PHOTO_CONSISTENCY,
+        DEPTH_CONSISTENCY,
+        DEPTH_ICP
+    } method;
+
     /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
     float SSO;
 
@@ -195,16 +212,13 @@ public:
     /*! Number of pyramid levels.*/
     int nPyrLevels;
 
-    /*! Optimization method (cost function). The options are: 0=Photoconsistency, 1=Depth consistency (ICP like), 2= A combination of photo-depth consistency */
-    enum costFuncType {PHOTO_CONSISTENCY, DEPTH_CONSISTENCY, PHOTO_DEPTH} method;
-
     /*! Intensity (gray), depth and gradient image pyramids. Each pyramid has 'numpyramidLevels' levels.*/
     std::vector<cv::Mat> graySrcPyr, grayTrgPyr, depthSrcPyr, depthTrgPyr;
     std::vector<cv::Mat> grayTrgGradXPyr, grayTrgGradYPyr, depthTrgGradXPyr, depthTrgGradYPyr;
     std::vector<cv::Mat> graySrcGradXPyr, graySrcGradYPyr, depthSrcGradXPyr, depthSrcGradYPyr;
     std::vector<cv::Mat> colorSrcPyr;
 
-    DirectRegistration();
+    DirectRegistration(projectionType proj = PINHOLE, sensorType sensor = KINECT);
 
     /*! Set the number of pyramid levels.*/
     inline void setSensorType(const sensorType sensor)
@@ -343,6 +357,7 @@ public:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
     double errorDense( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
+    double errorDense2( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
 
     double errorDense_IC( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
 
@@ -378,8 +393,6 @@ public:
     void calcHessGrad_inv( const int pyrLevel,
                            const Eigen::Matrix4f & poseGuess,
                            const costFuncType method = PHOTO_CONSISTENCY );
-
-    void warpImage ( const int pyrLevel, const Eigen::Matrix4f &poseGuess, costFuncType method );
 
     /*! Re-project the source image onto the target one according to the input relative pose 'poseGuess' to compute the error.
      *  If the parameter 'direction' is -1, then the reprojection is computed from the target to the source images. */

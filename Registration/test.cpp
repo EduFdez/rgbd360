@@ -29,17 +29,22 @@ int main () {
     std::cout << " _AVX \n";
 #endif
 
+
     const size_t n_pts = 1200;
     Eigen::MatrixXf xyz = Eigen::MatrixXf::Ones(n_pts,3);
     Eigen::MatrixXf xyz2;
     xyz2.resize(xyz.rows(),xyz.cols());
     __m256 _const2 = _mm256_set1_ps(2.f);
+    std::vector<int> idx_(n_pts);
 
     float *_x = &xyz(0,0);
     float *_x_out = &xyz2(0,0);
+    int *_ind = &idx_[0];
 
     cout << " alignment 32 x " << (((unsigned long)_x & 31) == 0) << " \n";
     cout << " alignment 32 x " << (((unsigned long)_x_out & 31) == 0) << " \n";
+    cout << " alignment 16 ind " << (((unsigned long)_ind & 15) == 0) << " \n";
+    cout << " alignment 32 ind " << (((unsigned long)_ind & 31) == 0) << " \n";
 
     for(size_t r=0;r<n_pts; r+=8)
     {

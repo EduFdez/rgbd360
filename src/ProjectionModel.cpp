@@ -47,15 +47,20 @@
 
 #define ENABLE_OPENMP 0
 #define PRINT_PROFILING 1
-#define INVALID_POINT -10000
 
 using namespace std;
 
 ProjectionModel::ProjectionModel() :
+    projection_model(PINHOLE),  // SPHERICAL
     min_depth_(0.3f),
-    max_depth_(20.f),
-    sensor_type(STEREO_OUTDOOR) //RGBD360_INDOOR
+    max_depth_(20.f)
 {
+    project = &project_pinhole;
+    project2Image = &project2Image_pinhole;
+    isInImage = &isInImage_pinhole;
+    reconstruct3D = &reconstruct3D_pinhole;
+    reconstruct3D_saliency = &reconstruct3D_pinhole_saliency;
+
     // For sensor_type = KINECT
     cameraMatrix << 262.5, 0., 1.5950e+02,
                     0., 262.5, 1.1950e+02,
@@ -74,7 +79,7 @@ void ProjectionModel::scaleCameraParams(const float scaleFactor)
 }
 
 /*! Compute the unit sphere for the given spherical image dimmensions. This serves as a LUT to speed-up calculations. */
-void ProjectionModel::computeUnitSphere(const size_t nRows, const size_t nCols)
+void ProjectionModel::reconstruct3D_unitSphere()
 {
     // Make LUT to store the values of the 3D points of the source sphere
     Eigen::MatrixXf unit_sphere;
@@ -112,17 +117,22 @@ void ProjectionModel::computeUnitSphere(const size_t nRows, const size_t nCols)
  * Z -> Forward
  * In spherical coordinates Theata is in the range [-pi,pi) and Phi in [-pi/2,pi/2)
  */
-void ProjectionModel::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
+void ProjectionModel::reconstruct3D_spherical(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels) // , std::vector<int> & validPixels)
 {
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
-
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
 #endif
+
+    nRows = depth_img.rows;
+    nCols = depth_img.cols;
+    imgSize = nRows*nCols;
+
+    pixel_angle = 2*PI/nCols;
+    pixel_angle_inv = 1/pixel_angle;
+    half_width = nCols/2 - 0.5f;
+    phi_start = -(0.5f*nRows-0.5f)*pixel_angle;
 
     const float half_width = nCols/2;
     const float pixel_angle = 2*PI/nCols;
@@ -132,61 +142,18 @@ void ProjectionModel::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixX
 //    else
 //        phi_start = float(174-512)/512 *PI/2 + 0.5*pixel_angle; // The images must be 640 pixels height to compute the pyramids efficiently (we substract 8 pixels from the top and 7 from the lower part)
 
+    float *_depth = reinterpret_cast<float*>(depth_img.data);
+
     xyz.resize(imgSize,3);
+    float *_x = &xyz(0,0);
+    float *_y = &xyz(0,1);
+    float *_z = &xyz(0,2);
 
-#if !(_SSE3) // # ifdef __SSE3__
-    // Compute the Unit Sphere: store the values of the trigonometric functions
-    Eigen::VectorXf v_sinTheta(nCols);
-    Eigen::VectorXf v_cosTheta(nCols);
-    float *sinTheta = &v_sinTheta[0];
-    float *cosTheta = &v_cosTheta[0];
-    for(int col_theta=-half_width; col_theta < half_width; ++col_theta)
-    {
-        //float theta = col_theta*pixel_angle;
-        float theta = (col_theta+0.5f)*pixel_angle;
-        *(sinTheta++) = sin(theta);
-        *(cosTheta++) = cos(theta);
-        //cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << endl;
-    }
-    const size_t start_row = (nCols-nRows) / 2;
-    Eigen::VectorXf v_sinPhi( v_sinTheta.block(start_row,0,nRows,1) );
-    Eigen::VectorXf v_cosPhi( v_cosTheta.block(start_row,0,nRows,1) );
-
-    //Compute the 3D coordinates of the pij of the source frame
-    validPixels = Eigen::VectorXi::Ones(imgSize);
-    float *_depth_src = reinterpret_cast<float*>(depth_img.data);
-    #if ENABLE_OPENMP
-    #pragma omp parallel for
-    #endif
-    for(size_t r=0;r<nRows;r++)
-    {
-        size_t i = r*nCols;
-        for(size_t c=0;c<nCols;c++,i++)
-        {
-            float depth1 = _depth_src[i];
-            if(min_depth_ < depth1 && depth1 < max_depth_) //Compute the jacobian only for the valid points
-            {
-                //cout << " depth1 " << depth1 << " phi " << phi << " v_sinTheta[c] " << v_sinTheta[c] << endl;
-                xyz(i,0) = depth1 * v_cosPhi[r] * v_sinTheta[c];
-                xyz(i,1) = depth1 * v_sinPhi[r];
-                xyz(i,2) = depth1 * v_cosPhi[r] * v_cosTheta[c];
-                //cout << " xyz " << xyz [i].transpose() << " xyz_eigen " << xyz_eigen.block(c*nRows+r,0,1,3) << endl;
-                //mrpt::system::pause();
-            }
-            else
-                validPixels(i) = 0;
-        }
-    }
-
-#else
-//#elif !(_AVX) // # ifdef __AVX__
-    cout << " computeSphereXYZ _SSE3 " << imgSize << " pts \n";
-
-    assert(nCols % 4 == 0); // Make sure that the image columns are aligned
-    assert(nRows % 2 == 0);
-
-    validPixels = Eigen::VectorXi::Zero(imgSize);
-    //validPixels = Eigen::VectorXi::Ones(imgSize);
+    validPixels.resize(imgSize);
+    int *_valid_pt = reinterpret_cast<int*>(&validPixels(0));
+    for(int i=0; i < imgSize; i++, _valid_pt++)
+        _valid_pt[i] = i;  // *(_valid_pt++) = i;
+    int *_valid_pt = reinterpret_cast<int*>(&validPixels(0));
 
     // Compute the Unit Sphere: store the values of the trigonometric functions
     Eigen::VectorXf v_sinTheta(nCols);
@@ -205,12 +172,43 @@ void ProjectionModel::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixX
     Eigen::VectorXf v_sinPhi( v_sinTheta.block(start_row,0,nRows,1) );
     Eigen::VectorXf v_cosPhi( v_cosTheta.block(start_row,0,nRows,1) );
 
-    //Compute the 3D coordinates of the pij of the source frame
-    float *_depth = reinterpret_cast<float*>(depth_img.data);
-    float *_x = &xyz(0,0);
-    float *_y = &xyz(0,1);
-    float *_z = &xyz(0,2);
-    float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
+//Compute the 3D coordinates of the depth image
+#if !(_SSE3) // # ifdef __SSE3__
+
+    #if ENABLE_OPENMP
+    #pragma omp parallel for
+    #endif
+    for(size_t r=0;r<nRows;r++)
+    {
+        size_t i = r*nCols;
+        for(size_t c=0;c<nCols;c++,i++)
+        {
+            float depth1 = _depth[i];
+            if(min_depth_ < depth1 && depth1 < max_depth_) //Compute the jacobian only for the valid points
+            {
+                //cout << " depth1 " << depth1 << " phi " << phi << " v_sinTheta[c] " << v_sinTheta[c] << endl;
+                xyz(i,0) = depth1 * v_cosPhi[r] * v_sinTheta[c];
+                xyz(i,1) = depth1 * v_sinPhi[r];
+                xyz(i,2) = depth1 * v_cosPhi[r] * v_cosTheta[c];
+//                _x[i] = depth1 * v_cosPhi[r] * v_sinTheta[c];
+//                _y[i] = depth1 * v_sinPhi[r];
+//                _z[i] = depth1 * v_cosPhi[r] * v_cosTheta[c];
+                //cout << " xyz " << xyz [i].transpose() << " xyz_eigen " << xyz_eigen.block(c*nRows+r,0,1,3) << endl;
+                //mrpt::system::pause();
+            }
+            else
+                validPixels(i) = -1;
+                //_valid_pt[i] = -1;
+        }
+    }
+
+#else
+//#elif !(_AVX) // # ifdef __AVX__
+    cout << " reconstruct3D_spherical _SSE3 " << imgSize << " pts \n";
+
+    assert(nCols % 4 == 0); // Make sure that the image columns are aligned
+    assert(nRows % 2 == 0);
+
     __m128 _min_depth_ = _mm_set1_ps(min_depth_);
     __m128 _max_depth_ = _mm_set1_ps(max_depth_);
     if(imgSize > 1e5)
@@ -238,10 +236,9 @@ void ProjectionModel::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixX
                 _mm_store_ps(_y+block_i, block_y);
                 _mm_store_ps(_z+block_i, block_z);
 
-                //__m128 mask = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
-                //mi cmpeq_epi8(mi a,mi b)
-                _mm_store_ps(_valid_pt+block_i, _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) ) );
-                //_mm_stream_si128
+                __m128 block_valid = _mm_load_ps(_valid_pt+block_i);
+                _mm_store_ps(_valid_pt+block_i, _mm_and_ps( block_valid, _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) ) ) );
+                //_mm_store_ps(_valid_pt+block_i, _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) ) );
             }
         }
     }
@@ -266,8 +263,9 @@ void ProjectionModel::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixX
                 _mm_store_ps(_y+block_i, block_y);
                 _mm_store_ps(_z+block_i, block_z);
 
-                //__m128 mask = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
-                _mm_store_ps(_valid_pt+block_i, _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) ) );
+                __m128 block_valid = _mm_load_ps(_valid_pt+block_i);
+                _mm_store_ps(_valid_pt+block_i, _mm_and_ps( block_valid, _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) ) ) );
+                //_mm_store_ps(_valid_pt+block_i, _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) ) );
             }
         }
     }
@@ -282,29 +280,38 @@ void ProjectionModel::computeSphereXYZ(const cv::Mat & depth_img, Eigen::MatrixX
 
 #endif
 
+    for(size_t i=0; i < imgSize; i++)
+        cout << _valid_pt[i] << " ";
+    assert(0);
+
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " ProjectionModel::computeSphereXYZ " << imgSize << " (" << nRows << "x" << nCols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " ProjectionModel::reconstruct3D_spherical " << depth_img.rows*depth_img.cols << " (" << depth_img.rows << "x" << depth_img.cols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
 /*! Get a list of salient points (pixels with hugh gradient) and compute their 3D position xyz */
-void ProjectionModel::computeSphereXYZ_saliency(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+void ProjectionModel::reconstruct3D_spherical_saliency(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
                                             const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
                                             const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
                                             const float thres_saliency_gray, const float thres_saliency_depth
                                             ) // TODO extend this function to employ only depth
 {
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
-
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
 #endif
+
+    nRows = depth_img.rows;
+    nCols = depth_img.cols;
+    imgSize = nRows*nCols;
+
+    pixel_angle = 2*PI/nCols;
+    pixel_angle_inv = 1/pixel_angle;
+    half_width = nCols/2 - 0.5f;
+    phi_start = -(0.5f*nRows-0.5f)*pixel_angle;
 
     const float half_width = nCols/2;
     const float pixel_angle = 2*PI/nCols;
@@ -373,7 +380,7 @@ void ProjectionModel::computeSphereXYZ_saliency(Eigen::MatrixXf & xyz, Eigen::Ve
 
 #else
 //#elif !(_AVX) // # ifdef __AVX__
-    cout << " computeSphereXYZ _SSE3 " << imgSize << " pts \n";
+    cout << " reconstruct3D_spherical _SSE3 " << imgSize << " pts \n";
 
     //Compute the 3D coordinates of the pij of the source frame
     Eigen::MatrixXf xyz_tmp(imgSize,3);
@@ -424,8 +431,10 @@ void ProjectionModel::computeSphereXYZ_saliency(Eigen::MatrixXf & xyz, Eigen::Ve
                 __m128 block_gradDepthY = _mm_load_ps(_depthGradYPyr+block_i);
                 __m128 block_gradGrayX = _mm_load_ps(_grayGradXPyr+block_i);
                 __m128 block_gradGrayY = _mm_load_ps(_grayGradYPyr+block_i);
-                __m128 salient_pts = _mm_or_ps( _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps(block_gradDepthX, _depth_saliency_), _mm_cmplt_ps(block_gradDepthX, _depth_saliency_neg) ), _mm_or_ps( _mm_cmpgt_ps(block_gradDepthY, _depth_saliency_), _mm_cmplt_ps(block_gradDepthY, _depth_saliency_neg) ) ),
-                                                _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( block_gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( block_gradGrayX, _gray_saliency_neg ) ), _mm_or_ps( _mm_cmpgt_ps( block_gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( block_gradGrayY, _gray_saliency_neg ) ) ) );
+                __m128 salient_pts = _mm_or_ps( _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps(block_gradDepthX, _depth_saliency_), _mm_cmplt_ps(block_gradDepthX, _depth_saliency_neg) ),
+                                                           _mm_or_ps( _mm_cmpgt_ps(block_gradDepthY, _depth_saliency_), _mm_cmplt_ps(block_gradDepthY, _depth_saliency_neg) ) ),
+                                                _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( block_gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( block_gradGrayX, _gray_saliency_neg ) ),
+                                                           _mm_or_ps( _mm_cmpgt_ps( block_gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( block_gradGrayY, _gray_saliency_neg ) ) ) );
                 _mm_store_ps(_valid_pt+block_i, _mm_and_ps( valid_depth_pts, salient_pts ) );
             }
         }
@@ -485,32 +494,38 @@ void ProjectionModel::computeSphereXYZ_saliency(Eigen::MatrixXf & xyz, Eigen::Ve
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " ProjectionModel::computeSphereXYZ " << imgSize << " (" << nRows << "x" << nCols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " ProjectionModel::reconstruct3D_spherical " << depth_img.rows*depth_img.cols << " (" << depth_img.rows << "x" << depth_img.cols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
-
 /*! Compute the 3D points XYZ according to the pinhole camera model. */
-void ProjectionModel::computePinholeXYZ(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
+void ProjectionModel::reconstruct3D_pinhole(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
 {
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
-
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
 #endif
 
+    nRows = depth_img.rows;
+    nCols = depth_img.cols;
+    imgSize = nRows*nCols;
+
     float *_depth = reinterpret_cast<float*>(depth_img.data);
 
     // Make LUT to store the values of the 3D points of the source sphere
     xyz.resize(imgSize,3);
+    float *_x = &xyz(0,0);
+    float *_y = &xyz(0,1);
+    float *_z = &xyz(0,2);
+
+    validPixels.resize(imgSize);
+    int *_valid_pt = reinterpret_cast<int*>(&validPixels(0));
+    for(int i=0; i < imgSize; i++, _valid_pt++)
+        _valid_pt[i] = i;  // *(_valid_pt++) = i;
+    int *_valid_pt = reinterpret_cast<int*>(&validPixels(0));
 
 #if !(_SSE3) // # ifdef !__SSE3__
-
-    validPixels = Eigen::VectorXi::Ones(imgSize);
 
     #if ENABLE_OPENMP
     #pragma omp parallel for
@@ -531,7 +546,7 @@ void ProjectionModel::computePinholeXYZ(const cv::Mat & depth_img, Eigen::Matrix
                 xyz(i,1) = (r - oy) * xyz(i,2) * inv_fy;
             }
             else
-                validPixels(i) = 0;
+                validPixels(i) = -1;
 
 //            cout << i << " pt " << xyz.block(i,0,1,3) << " c " << c << " ox " << ox << " inv_fx " << inv_fx
 //                      << " min_depth_ " << min_depth_ << " max_depth_ " << max_depth_ << endl;
@@ -541,19 +556,12 @@ void ProjectionModel::computePinholeXYZ(const cv::Mat & depth_img, Eigen::Matrix
 
 #else
 
-    validPixels.resize(imgSize);
-    float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
-
-    float *_x = &xyz(0,0);
-    float *_y = &xyz(0,1);
-    float *_z = &xyz(0,2);
-
     std::vector<float> idx(nCols);
     std::iota(idx.begin(), idx.end(), 0.f);
     float *_idx = &idx[0];
 
 //#if !(_AVX) // Use _SSE3
-    cout << " computePinholeXYZ _SSE3 " << nRows << "x" << nCols << " = " << imgSize << " pts \n";
+    cout << " reconstruct3D_pinhole _SSE3 " << nRows << "x" << nCols << " = " << imgSize << " pts \n";
     assert(nCols % 4 == 0); // Make sure that the image columns are aligned
 
 //    cout << " alignment 16 " << (((unsigned long)_x & 15) == 0) << " \n";
@@ -582,12 +590,14 @@ void ProjectionModel::computePinholeXYZ(const cv::Mat & depth_img, Eigen::Matrix
             _mm_store_ps(_z+block_i, block_depth);
 
             __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
-            _mm_store_ps(_valid_pt+block_i, valid_depth_pts );
+            //_mm_store_ps(_valid_pt+block_i, valid_depth_pts );
+            __m128 block_valid = _mm_load_ps(_valid_pt+block_i);
+            _mm_store_ps(_valid_pt+block_i, _mm_and_ps(block_valid, valid_depth_pts) );
         }
     }
 
 //#else // Use _AVX
-//    cout << " computePinholeXYZ _AVX " << imgSize << " pts \n";
+//    cout << " reconstruct3D_pinhole _AVX " << imgSize << " pts \n";
 //    assert(nCols % 8 == 0); // Make sure that the image columns are aligned
 
 //    // Hack for unaligned (32bytes). Eigen should have support for AVX soon
@@ -780,12 +790,12 @@ void ProjectionModel::computePinholeXYZ(const cv::Mat & depth_img, Eigen::Matrix
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " ProjectionModel::computePinholeXYZ " << imgSize << " (" << nRows << "x" << nCols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " ProjectionModel::reconstruct3D_pinhole " << depth_img.rows*depth_img.cols << " (" << depth_img.rows << "x" << depth_img.cols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
 /*! Compute the 3D points XYZ according to the pinhole camera model. */
-void ProjectionModel::computePinholeXYZ_saliency(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+void ProjectionModel::reconstruct3D_pinhole_saliency(Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
                                                 const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
                                                 const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
                                                 const float thres_saliency_gray, const float thres_saliency_depth)
@@ -794,17 +804,16 @@ void ProjectionModel::computePinholeXYZ_saliency(Eigen::MatrixXf & xyz, Eigen::V
     assert(0); // TODO: implement regular (non SSE)
 #endif
 
-    // TODO: adapt the sse formulation
-    const size_t nRows = depth_img.rows;
-    const size_t nCols = depth_img.cols;
-    const size_t imgSize = nRows*nCols;
-
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
 #endif
 
+    // TODO: adapt the sse formulation
+    nRows = depth_img.rows;
+    nCols = depth_img.cols;
+    imgSize = nRows*nCols;
     assert(nCols % 4 == 0); // Make sure that the image columns are aligned
 
     float *_depth = reinterpret_cast<float*>(depth_img.data);
@@ -869,6 +878,378 @@ void ProjectionModel::computePinholeXYZ_saliency(Eigen::MatrixXf & xyz, Eigen::V
     #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " ProjectionModel::computePinholeXYZ_sse SALIENT " << imgSize << " (" << nRows << "x" << nCols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " ProjectionModel::reconstruct3D_pinhole_sse SALIENT " << depth_img.rows*depth_img.cols << " (" << depth_img.rows << "x" << depth_img.cols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
     #endif
 }
+
+/*! Project 3D points XYZ according to the pinhole camera model. */
+void ProjectionModel::project_pinhole(Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels)
+{
+    pixels.resize(xyz.rows(),2);
+    float *_r = &pixels(0,0);
+    float *_c = &pixels(0,1);
+
+    float *_x = &xyz(0,0);
+    float *_y = &xyz(0,1);
+    float *_z = &xyz(0,2);
+
+#if !(_SSE3) // # ifdef !__SSE3__
+
+//    #if ENABLE_OPENMP
+//    #pragma omp parallel for
+//    #endif
+    for(size_t i=0; i < pixels.size(); i++)
+    {
+        Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
+        cv::Point2f warped_pixel = project2Image_pinhole(pt_xyz);
+        pixels(i,0) = warped_pixel.y;
+        pixels(i,1) = warped_pixel.x;
+    }
+
+#else
+
+    __m128 _fx = _mm_set1_ps(fx);
+    __m128 _fy = _mm_set1_ps(fy);
+    __m128 _ox = _mm_set1_ps(ox);
+    __m128 _oy = _mm_set1_ps(oy);
+    for(size_t i=0; i < pixels.size(); i+=4)
+    {
+        __m128 block_x = _mm_load_ps(_x+i);
+        __m128 block_y = _mm_load_ps(_y+i);
+        __m128 block_z = _mm_load_ps(_z+i);
+
+        __m128 block_r = _mm_sum_ps( _mm_div_ps( _mm_mul_ps(_fy, block_y ), block_z ), _oy );
+        __m128 block_c = _mm_sum_ps( _mm_div_ps( _mm_mul_ps(_fx, block_x ), block_z ), _ox );
+
+        _mm_store_ps(_r+i, block_r);
+        _mm_store_ps(_c+i, block_c);
+    }
+#endif
+};
+
+/*! Project 3D points XYZ according to the spherical camera model. */
+void ProjectionModel::project_spherical(Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels)
+{
+    pixels.resize(xyz.rows(),2);
+    float *_r = &pixels(0,0);
+    float *_c = &pixels(0,1);
+
+    float *_x = &xyz(0,0);
+    float *_y = &xyz(0,1);
+    float *_z = &xyz(0,2);
+
+#if !(_SSE3) // # ifdef !__SSE3__
+
+//    #if ENABLE_OPENMP
+//    #pragma omp parallel for
+//    #endif
+    for(size_t i=0; i < pixels.size(); i++)
+    {
+        Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
+        cv::Point2f warped_pixel = project2Image_spherical(pt_xyz);
+        pixels(i,0) = warped_pixel.y;
+        pixels(i,1) = warped_pixel.x;
+    }
+
+#else
+
+    assert(__SSE4_1__); // For _mm_extract_epi32
+
+    __m128 _nCols = _mm_set1_ps(nCols);
+    __m128 _phi_start = _mm_set1_ps(phi_start);
+    __m128 _half_width = _mm_set1_ps(half_width);
+    __m128 _pixel_angle_inv = _mm_set1_ps(pixel_angle_inv);
+    for(size_t i=0; i < pixels.size(); i+=4)
+    {
+        //__m128 block_x = _mm_load_ps(_x+i);
+        __m128 block_y = _mm_load_ps(_y+i);
+        __m128 block_z = _mm_load_ps(_z+i);
+
+        __m128 _y_z = _mm_div_ps( block_y, block_z );
+        //float *x_z = reinterpret_cast<float*>(&_x_z);
+        float theta[4];
+        float phi[4];
+        for(size_t j=0; j < 4; j++)
+        {
+            phi[j] = asin( _mm_extract_epi32(_y_z,j) );
+            theta[j] = atan2(_x[i+j], _z[i+j]);
+        }
+        __m128 _phi = _mm_load_ps(phi);
+        __m128 _theta = _mm_load_ps(theta);
+
+        __m128 block_r = _mm_mul_ps( _mm_sub_ps(_phi, _phi_start ), _pixel_angle_inv );
+        __m128 block_c = _mm_sum_ps( _mm_mul_ps(_theta, _pixel_angle_inv ), _half_width );
+
+        _mm_store_ps(_r+i, block_r);
+        _mm_store_ps(_c+i, block_c);
+    }
+
+    for(size_t i=0; i < pixels.size(); i++)
+        assert(pixels(i,1) < nCols);
+
+#endif
+};
+
+/*! Project 3D points XYZ according to the pinhole camera model. */
+void ProjectionModel::projectNN_pinhole(Eigen::MatrixXf & xyz, Eigen::MatrixXi & pixels, Eigen::MatrixXi & visible)
+{
+    pixels.resize(xyz.rows(),1);
+    visible.resize(xyz.rows(),1);
+    float *_p = &pixels(0);
+    int *_v = &visible(0);
+
+    float *_x = &xyz(0,0);
+    float *_y = &xyz(0,1);
+    float *_z = &xyz(0,2);
+
+#if !(_SSE3) // # ifdef !__SSE3__
+
+//    #if ENABLE_OPENMP
+//    #pragma omp parallel for
+//    #endif
+    for(size_t i=0; i < pixels.size(); i++)
+    {
+        Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
+        cv::Point2f warped_pixel = project2Image_pinhole(pt_xyz);
+
+        int r_transf = round(warped_pixel.y);
+        int c_transf = round(warped_pixel.x);
+        // cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << endl;
+        pixels(i) = r_transf * nCols + c_transf;
+        visible(i) = isInImage_pinhole(r_transf, c_transf) ? 1 : 0;
+    }
+
+#else
+
+    __m128 _fx = _mm_set1_ps(fx);
+    __m128 _fy = _mm_set1_ps(fy);
+    __m128 _ox = _mm_set1_ps(ox);
+    __m128 _oy = _mm_set1_ps(oy);
+    __m128 _nCols = _mm_set1_ps(nCols);
+    __m128 _nRows = _mm_set1_ps(nRows);
+    __m128 _nzero = _mm_set1_ps(0.f);
+    for(size_t i=0; i < pixels.size(); i+=4)
+    {
+        __m128 block_x = _mm_load_ps(_x+i);
+        __m128 block_y = _mm_load_ps(_y+i);
+        __m128 block_z = _mm_load_ps(_z+i);
+
+        __m128 block_r = _mm_sum_ps( _mm_div_ps( _mm_mul_ps(_fy, block_y ), block_z ), _oy );
+        __m128 block_c = _mm_sum_ps( _mm_div_ps( _mm_mul_ps(_fx, block_x ), block_z ), _ox );
+        __m128 block_p = _mm_sum_ps( _mm_mul_ps(_nCols, block_r ), block_c);
+
+        __m128 block_v =_mm_and_ps( _mm_and_ps( _mm_cmplt_ps(_nzero, block_r), _mm_cmplt_ps(block_r, _nRows) ),
+                                    _mm_and_ps( _mm_cmplt_ps(_nzero, block_c), _mm_cmplt_ps(block_c, _nCols) ) );
+
+        _mm_store_ps(_p+i, block_p);
+        _mm_store_ps(_v+i, block_v);
+    }
+#endif
+};
+
+/*! Project 3D points XYZ according to the spherical camera model. */
+void ProjectionModel::projectNN_spherical(Eigen::MatrixXf & xyz, Eigen::MatrixXi & pixels, Eigen::MatrixXi & visible)
+{
+    pixels.resize(xyz.rows(),1);
+    visible.resize(xyz.rows(),1);
+    float *_p = &pixels(0);
+    int *_v = &visible(0);
+
+    float *_x = &xyz(0,0);
+    float *_y = &xyz(0,1);
+    float *_z = &xyz(0,2);
+
+#if !(_SSE3) // # ifdef !__SSE3__
+
+//    #if ENABLE_OPENMP
+//    #pragma omp parallel for
+//    #endif
+    for(size_t i=0; i < pixels.size(); i++)
+    {
+        Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
+        cv::Point2f warped_pixel = project2Image_spherical(pt_xyz);
+        int r_transf = round(warped_pixel.y);
+        int c_transf = round(warped_pixel.x);
+        // cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << endl;
+        pixels(i) = r_transf * nCols + c_transf;
+        visible(i) = isInImage_pinhole(r_transf, c_transf) ? 1 : 0;
+    }
+
+#else
+
+    assert(__SSE4_1__); // For _mm_extract_epi32
+
+    __m128 _nCols = _mm_set1_ps(nCols);
+    __m128 _phi_start = _mm_set1_ps(phi_start);
+    __m128 _half_width = _mm_set1_ps(half_width);
+    __m128 _pixel_angle_inv = _mm_set1_ps(pixel_angle_inv);
+    for(size_t i=0; i < pixels.size(); i+=4)
+    {
+        //__m128 block_x = _mm_load_ps(_x+i);
+        __m128 block_y = _mm_load_ps(_y+i);
+        __m128 block_z = _mm_load_ps(_z+i);
+
+        __m128 _y_z = _mm_div_ps( block_y, block_z );
+        //float *x_z = reinterpret_cast<float*>(&_x_z);
+        float theta[4];
+        float phi[4];
+        for(size_t j=0; j < 4; j++)
+        {
+            phi[j] = asin( _mm_extract_epi32(_y_z,j) );
+            theta[j] = atan2(_x[i+j], _z[i+j]);
+        }
+        __m128 _phi = _mm_load_ps(phi);
+        __m128 _theta = _mm_load_ps(theta);
+
+        __m128 block_r = _mm_mul_ps( _mm_sub_ps(_phi, _phi_start ), _pixel_angle_inv );
+        __m128 block_c = _mm_sum_ps( _mm_mul_ps(_theta, _pixel_angle_inv ), _half_width );
+        __m128 block_p = _mm_sum_ps( _mm_mul_ps(_nCols, block_r ), block_c);
+
+        __m128 block_v =_mm_and_ps( _mm_and_ps( _mm_cmplt_ps(_nzero, block_r), _mm_cmplt_ps(block_r, _nRows) ) );
+                                    //,_mm_and_ps( _mm_cmplt_ps(_nzero, block_c), _mm_cmplt_ps(block_c, _nCols) ) );
+
+        _mm_store_ps(_p+i, block_p);
+        _mm_store_ps(_v+i, block_v);
+    }
+
+    for(size_t i=0; i < pixels.size(); i++)
+        assert(pixels(i,1) < nCols);
+
+#endif
+};
+
+
+///*! Warp the image according to a given geometric transformation. */
+//void ProjectionModel::warpImage(cv::Mat img,                // The original image
+//                                const Matrix4f & Rt,        // The relative pose of the robot between the two frames
+//                                const costFuncType method ) //,  const bool use_bilinear )
+//{
+//    cout << " ProjectionModel::warpImage \n";
+
+//#if PRINT_PROFILING
+//    double time_start = pcl::getTime();
+//    //for(size_t i=0; i<1000; i++)
+//    {
+//#endif
+
+//    nRows = graySrcPyr[pyrLevel].rows;
+//    nRows = graySrcPyr[pyrLevel].cols;
+//    imgSize = graySrcPyr[pyrLevel].size().area();
+//    const float pixel_angle = 2*PI/nCols;
+//    const float pixel_angle_inv = 1/pixel_angle;
+//    const float half_width = nCols/2 - 0.5f;
+
+//    float phi_start = -(0.5f*nRows-0.5f)*pixel_angle;
+////    float phi_start;
+////    if(sensor_type == RGBD360_INDOOR)
+////        phi_start = -(0.5f*nRows-0.5f)*pixel_angle;
+////    else
+////        phi_start = float(174-512)/512 *PI/2 + 0.5f*pixel_angle; // The images must be 640 pixels height to compute the pyramids efficiently (we substract 8 pixels from the top and 7 from the lower part)
+
+//    // depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
+
+//    //reconstruct3D_spherical(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
+//    transformPts3D(LUT_xyz_source, Rt, xyz_src_transf);
+
+//    //float *_depthTrgPyr = reinterpret_cast<float*>(depthTrgPyr[pyrLevel].data);
+//    float *_graySrcPyr = reinterpret_cast<float*>(graySrcPyr[pyrLevel].data);
+//    //float *_grayTrgPyr = reinterpret_cast<float*>(grayTrgPyr[pyrLevel].data);
+
+//    //    float *_depthTrgGradXPyr = reinterpret_cast<float*>(depthTrgGradXPyr[pyrLevel].data);
+//    //    float *_depthTrgGradYPyr = reinterpret_cast<float*>(depthTrgGradYPyr[pyrLevel].data);
+//    //    float *_grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyrLevel].data);
+//    //    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
+
+//    //float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
+//    //float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
+//    //float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
+//    //float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
+
+//    if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+//        //warped_gray = cv::Mat::zeros(nRows,nCols,graySrcPyr[pyrLevel].type());
+//        warped_gray = cv::Mat(nRows,nCols,graySrcPyr[pyrLevel].type(),-1000);
+//    if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+//        //warped_depth = cv::Mat::zeros(nRows,nCols,depthSrcPyr[pyrLevel].type());
+//        warped_depth = cv::Mat(nRows,nCols,depthSrcPyr[pyrLevel].type(),-1000);
+
+//    float *_warpedGray = reinterpret_cast<float*>(warped_gray.data);
+//    float *_warpedDepth = reinterpret_cast<float*>(warped_depth.data);
+
+////    if( use_bilinear_ )
+////    {
+////         cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << endl;
+////#if ENABLE_OPENMP
+////#pragma omp parallel for
+////#endif
+////        for(size_t i=0; i < imgSize; i++)
+////        {
+////            //Transform the 3D point using the transformation matrix Rt
+////            Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
+////            // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << xyz_src_transf.block(i,0,1,3) << endl;
+
+////            //Project the 3D point to the S2 sphere
+////            float dist = xyz.norm();
+////            float dist_inv = 1.f / dist;
+////            float phi = asin(xyz(1)*dist_inv);
+////            float transformed_r = (phi-phi_start)*pixel_angle_inv;
+////            int transformed_r_int = round(transformed_r);
+////            // cout << "Pixel transform " << i << " transformed_r_int " << transformed_r_int << " " << nRows << endl;
+////            //Asign the intensity value to the warped image and compute the difference between the transformed
+////            //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+////            if( transformed_r_int>=0 && transformed_r_int < nRows) // && transformed_c_int < nCols )
+////            {
+////                //visible_pixels_src(i) = 1;
+////                float theta = atan2(xyz(0),xyz(2));
+////                float transformed_c = half_width + theta*pixel_angle_inv; assert(transformed_c <= nCols_1); //transformed_c -= half_width;
+////                int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
+////                cv::Point2f warped_pixel(transformed_r, transformed_c);
+
+////                size_t warped_i = transformed_r_int * nCols + transformed_c_int;
+////                if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+////                    _warpedGray[warped_i] = bilinearInterp( grayTrgPyr[pyrLevel], warped_pixel );
+////                if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+////                    _warpedDepth[warped_i] = dist;
+////            }
+////        }
+////    }
+////    else
+//    {
+//         cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << endl;
+//#if ENABLE_OPENMP
+//#pragma omp parallel for
+//#endif
+//        for(size_t i=0; i < imgSize; i++)
+//        {
+//            //Transform the 3D point using the transformation matrix Rt
+//            Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
+//            // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << xyz_src_transf.block(i,0,1,3) << endl;
+
+//            //Project the 3D point to the S2 sphere
+//            float dist = xyz.norm();
+//            float dist_inv = 1.f / dist;
+//            float phi = asin(xyz(1)*dist_inv);
+//            //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
+//            int transformed_r_int = int(round((phi-phi_start)*pixel_angle_inv));
+//            // cout << "Pixel transform " << i << " transformed_r_int " << transformed_r_int << " " << nRows << endl;
+//            //Asign the intensity value to the warped image and compute the difference between the transformed
+//            //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+//            if( transformed_r_int>=0 && transformed_r_int < nRows) // && transformed_c_int < nCols )
+//            {
+//                //visible_pixels_src(i) = 1;
+//                float theta = atan2(xyz(0),xyz(2));
+//                int transformed_c_int = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
+//                size_t warped_i = transformed_r_int * nCols + transformed_c_int;
+//                if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+//                    _warpedGray[warped_i] = _graySrcPyr[i];
+//                if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+//                    _warpedDepth[warped_i] = dist;
+//            }
+//        }
+//    }
+
+//#if PRINT_PROFILING
+//    }
+//    double time_end = pcl::getTime();
+//    cout << pyrLevel << " ProjectionModel::warpImage took " << double (time_end - time_start)*1000 << " ms. \n";
+//#endif
+//}
