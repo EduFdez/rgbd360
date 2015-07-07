@@ -33,6 +33,8 @@
 
 #include "Miscellaneous.h"
 #include "ProjectionModel.h"
+#include "PinholeModel.h"
+#include "SphericalModel.h"
 #include "Pyramid.h"
 #include "MEstimator.h"
 
@@ -55,6 +57,10 @@ class DirectRegistration : public ProjectionModel, Pyramid, MEstimator
         STEREO_OUTDOOR,
         KINECT // Same for Asus XPL
     } sensor_type;
+
+//    PinholeModel pinhole_model;
+//    SphericalModel spherical_model;
+    ProjectionModel *ProjModel;
 
     /*! Optimization method (cost function). The options are: 0=Photoconsistency, 1=Depth consistency (ICP like), 2= A combination of photo-depth consistency */
     enum costFuncType

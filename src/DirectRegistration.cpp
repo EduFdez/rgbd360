@@ -86,9 +86,9 @@ DirectRegistration::DirectRegistration(sensorType sensor) :
     nPyrLevels(0)
 {
     if(sensor_type == KINECT)
-        setProjectionModel(PINHOLE);
+        ProjModel = new PinholeModel;
     else //RGBD360_INDOOR, STEREO_OUTDOOR
-        setProjectionModel(PINHOLE);
+        ProjModel = new SphericalModel;
 
     stdDevPhoto = 8./255;
     varPhoto = stdDevPhoto*stdDevPhoto;
@@ -317,7 +317,7 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
 
         // Warp the image
         VectorXi visible_pixels;
-        (ProjectionModel::projectNN)(xyz_src_transf, warp_pixels_src, visible_pixels);
+        ProjModel->projectNN(xyz_src_transf, warp_pixels_src, visible_pixels);
 
         if(method == PHOTO_DEPTH)
         {            
@@ -693,15 +693,15 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //    else
     if(method == PHOTO_DEPTH)
     {
-        (*computeJacobiansPhotoDepth)(xyz_src_transf, stdDevPhoto_inv, stdDevError_inv_src, wEstimDepth_src, jacobiansPhoto, jacobiansDepth, _depthSrcGradXPyr, _depthSrcGradYPyr, _graySrcGradXPyr, _graySrcGradYPyr);
+        ProjModel->computeJacobiansPhotoDepth(xyz_src_transf, stdDevPhoto_inv, stdDevError_inv_src, wEstimDepth_src, jacobiansPhoto, jacobiansDepth, _depthSrcGradXPyr, _depthSrcGradYPyr, _graySrcGradXPyr, _graySrcGradYPyr);
     }
     else if(method == PHOTO_CONSISTENCY)
     {
-        (*computeJacobiansPhoto)(xyz_src_transf, stdDevPhoto_inv,, wEstimDepth_src, jacobiansPhoto, _graySrcGradXPyr, _graySrcGradYPyr);
+        ProjModel->computeJacobiansPhoto(xyz_src_transf, stdDevPhoto_inv,, wEstimDepth_src, jacobiansPhoto, _graySrcGradXPyr, _graySrcGradYPyr);
     }
     else if(method == DEPTH_CONSISTENCY)
     {
-        (*computeJacobiansDepth)(xyz_src_transf, stdDevError_inv_src, wEstimDepth_src, jacobiansDepth, _depthSrcGradXPyr, _depthSrcGradYPyr);
+        ProjModel->computeJacobiansDepth(xyz_src_transf, stdDevError_inv_src, wEstimDepth_src, jacobiansDepth, _depthSrcGradXPyr, _depthSrcGradYPyr);
     }
 
 //    if( !use_bilinear_ || pyrLevel !=0 )
