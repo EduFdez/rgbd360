@@ -48,6 +48,23 @@ class DirectRegistration : public ProjectionModel, Pyramid, MEstimator
 {
 //public:
 
+    /*! Sensor */
+    enum sensorType
+    {
+        RGBD360_INDOOR = 0,
+        STEREO_OUTDOOR,
+        KINECT // Same for Asus XPL
+    } sensor_type;
+
+    /*! Optimization method (cost function). The options are: 0=Photoconsistency, 1=Depth consistency (ICP like), 2= A combination of photo-depth consistency */
+    enum costFuncType
+    {
+        PHOTO_DEPTH,
+        PHOTO_CONSISTENCY,
+        DEPTH_CONSISTENCY,
+        DEPTH_ICP
+    } method;
+
     /*! The reference intensity image */
     cv::Mat graySrc;
     cv::Mat rgbSrc;
@@ -178,28 +195,6 @@ class DirectRegistration : public ProjectionModel, Pyramid, MEstimator
     /*! Number of iterations in each pyramid level.*/
     std::vector<int> num_iters;
 
-public:
-
-    /*! Sensor */
-    enum sensorType
-    {
-        RGBD360_INDOOR = 0,
-        STEREO_OUTDOOR,
-        KINECT // Same for Asus XPL
-    } sensor_type;
-
-    /*! Optimization method (cost function). The options are: 0=Photoconsistency, 1=Depth consistency (ICP like), 2= A combination of photo-depth consistency */
-    enum costFuncType
-    {
-        PHOTO_DEPTH,
-        PHOTO_CONSISTENCY,
-        DEPTH_CONSISTENCY,
-        DEPTH_ICP
-    } method;
-
-    /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
-    float SSO;
-
 //    /*! The average residual per pixel of photo/depth consistency.*/
 //    float avResidual;
 
@@ -212,13 +207,18 @@ public:
     /*! Number of pyramid levels.*/
     int nPyrLevels;
 
+public:
+
+    /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
+    float SSO;
+
     /*! Intensity (gray), depth and gradient image pyramids. Each pyramid has 'numpyramidLevels' levels.*/
     std::vector<cv::Mat> graySrcPyr, grayTrgPyr, depthSrcPyr, depthTrgPyr;
     std::vector<cv::Mat> grayTrgGradXPyr, grayTrgGradYPyr, depthTrgGradXPyr, depthTrgGradYPyr;
     std::vector<cv::Mat> graySrcGradXPyr, graySrcGradYPyr, depthSrcGradXPyr, depthSrcGradYPyr;
     std::vector<cv::Mat> colorSrcPyr;
 
-    DirectRegistration(projectionType proj = PINHOLE, sensorType sensor = KINECT);
+    DirectRegistration(sensorType sensor = KINECT);
 
     /*! Set the number of pyramid levels.*/
     inline void setSensorType(const sensorType sensor)

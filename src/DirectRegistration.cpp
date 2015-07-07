@@ -77,8 +77,7 @@
 using namespace std;
 using namespace Eigen;
 
-DirectRegistration::DirectRegistration(projectionType proj = PINHOLE, sensorType sensor = KINECT) :
-    projection_model(proj),     // SPHERICAL
+DirectRegistration::DirectRegistration(sensorType sensor) :
     sensor_type(sensor),        //RGBD360_INDOOR, STEREO_OUTDOOR
     use_salient_pixels_(false),
     compute_MAD_stdDev_(false),
@@ -86,8 +85,10 @@ DirectRegistration::DirectRegistration(projectionType proj = PINHOLE, sensorType
     visualize_(false),
     nPyrLevels(0)
 {
-    if(projection_model != PINHOLE)
-        setProjectionModel(projection_model);
+    if(sensor_type == KINECT)
+        setProjectionModel(PINHOLE);
+    else //RGBD360_INDOOR, STEREO_OUTDOOR
+        setProjectionModel(PINHOLE);
 
     stdDevPhoto = 8./255;
     varPhoto = stdDevPhoto*stdDevPhoto;
@@ -305,34 +306,10 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
 //    float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
 //    float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
 
-    if(method == DEPTH_ICP) // Fast ICP implementation: the data association is given by the image warping (still to optimize)
-    {
-#if ENABLE_OPENMP
-#pragma omp parallel for reduction (+:error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
-#endif
-        for(size_t i=0; i < n_pts; i++)
-        {
-            if( visible_pixels(i) )
-            {
-                ++numVisiblePts;
-                float depth = _depthTrgPyr[warped_i];
-                if(depth > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
-                {
-                    //if( fabs(_depthTrgGradXPyr[warped_i]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warped_i]) > thres_saliency_depth_)
-                    {
-                        Vector3f residual3D = (LUT_xyz_source.block(validPixels_src(i),0,1,3).transpose() - LUT_xyz_target.block(warped_i,0,1,3).transpose()) * stdDevError_inv_src(i);
-                        float weight2 = weightMEstimator(residual3D.norm());
-                        wEstimDepth_src(i) = sqrt(weight2);
-                        residualsDepth_src.block(3*i,0,3,1) = wEstimDepth_src(i) * residual3D;
-                        error2_depth += weight2 * residual3D .dot (residual3D);
-                    }
-                }
-            }
-        }
-    }
+
     //Asign the intensity/depth value to the warped image and compute the difference between the transformed
     //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
-    else if( !use_bilinear_ || pyrLevel !=0 )
+    if( !use_bilinear_ || pyrLevel !=0 )
     {
         cout << " SALIENT Nearest-Neighbor LUT " << LUT_xyz_source.rows()  << endl;
         //            if(method == PHOTO_DEPTH)
@@ -340,10 +317,12 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
 
         // Warp the image
         VectorXi visible_pixels;
-        (projectNN*)(xyz_src_transf, warp_pixels_src, visible_pixels);
+        (ProjectionModel::projectNN)(xyz_src_transf, warp_pixels_src, visible_pixels);
 
         if(method == PHOTO_DEPTH)
-        {
+        {            
+//            Eigen::VectorXf diff_photo(n_pts); //= Eigen::VectorXf::Zero(n_pts);
+//            Eigen::VectorXf diff_depth(n_pts);
     #if ENABLE_OPENMP
     #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
     #endif
@@ -353,11 +332,12 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
                 {
                     ++numVisiblePts;
                     // cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyrLevel].at<float>(r_transf,c_transf)) << " " << fabs(grayTrgGradYPyr[pyrLevel].at<float>(r_transf,c_transf)) << endl;
-                    //if( fabs(_grayTrgGradXPyr[warped_i]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warped_i]) > thres_saliency_gray_)
+                    //if( fabs(_grayTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_gray_)
                     //if( fabs(_graySrcGradXPyr[validPixels_src(i)]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[validPixels_src(i)]) > thres_saliency_gray_)
                     {
                         validPixelsPhoto_src(i) = 1;
-                        float diff = _grayTrgPyr[warped_i] - _graySrcPyr[validPixels_src(i)];
+                        float diff = _grayTrgPyr[warp_pixels_src(i)] - _graySrcPyr[validPixels_src(i)];
+                        //diff_photo(i) = _grayTrgPyr[warp_pixels_src(i)] - _graySrcPyr[validPixels_src(i)];
                         float residual = diff * stdDevPhoto_inv;
                         float weight2 = weightMEstimator(residualsPhoto_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
                         wEstimPhoto_src(i) = sqrt(weight2);
@@ -366,13 +346,15 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
                         //v_AD_intensity[i] = fabs(diff);
                     }
 
-                    float depth = _depthTrgPyr[warped_i];
+                    float depth = _depthTrgPyr[warp_pixels_src(i)];
                     if(depth > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                     {
-                        //if( fabs(_depthTrgGradXPyr[warped_i]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warped_i]) > thres_saliency_depth_)
+                        //if( fabs(_depthTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_depth_)
                         {
                             validPixelsDepth_src(i) = 1;
                             stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
+                            //diff_depth(i) = _depthTrgPyr[warp_pixels_src(i)] - getDepth(xyz);
+                            Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
                             float residual = (depth - getDepth(xyz)) * stdDevError_inv_src(i);
                             float weight2 = weightMEstimator(residual);
                             wEstimDepth_src(i) = sqrt(weight2);
@@ -395,11 +377,11 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
                 {
                     ++numVisiblePts;
                     // cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyrLevel].at<float>(r_transf,c_transf)) << " " << fabs(grayTrgGradYPyr[pyrLevel].at<float>(r_transf,c_transf)) << endl;
-                    //if( fabs(_grayTrgGradXPyr[warped_i]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warped_i]) > thres_saliency_gray_)
+                    //if( fabs(_grayTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_gray_)
                     //if( fabs(_graySrcGradXPyr[validPixels_src(i)]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[validPixels_src(i)]) > thres_saliency_gray_)
                     {
                         validPixelsPhoto_src(i) = 1;
-                        float diff = _grayTrgPyr[warped_i] - _graySrcPyr[validPixels_src(i)];
+                        float diff = _grayTrgPyr[warp_pixels_src(i)] - _graySrcPyr[validPixels_src(i)];
                         float residual = diff * stdDevPhoto_inv;
                         float weight2 = weightMEstimator(residualsPhoto_src(i)); // Apply M-estimator weighting // The weight computed by an M-estimator
                         wEstimPhoto_src(i) = sqrt(weight2);
@@ -420,19 +402,50 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
                 if( visible_pixels(i) )
                 {
                     ++numVisiblePts;
-                    float depth = _depthTrgPyr[warped_i];
+                    float depth = _depthTrgPyr[warp_pixels_src(i)];
                     if(depth > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
                     {
-                        //if( fabs(_depthTrgGradXPyr[warped_i]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warped_i]) > thres_saliency_depth_)
+                        //if( fabs(_depthTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_depth_)
                         {
                             validPixelsDepth_src(i) = 1;
                             stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
+                            Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
                             float residual = (depth - getDepth(xyz)) * stdDevError_inv_src(i);
                             float weight2 = weightMEstimator(residual);
                             wEstimDepth_src(i) = sqrt(weight2);
                             residualsDepth_src(i) = wEstimDepth_src(i) * residual;
                             error2_depth += weight2 * residual * residual;
                             // cout << i << " error2 " << error2 << " wDepthError " << weightedError << " weight_estim " << weight_estim << " diff " << diff << " " << stdDevError << endl;
+                        }
+                    }
+                }
+            }
+        }
+        else if(method == DEPTH_ICP) // Fast ICP implementation: the data association is given by the image warping (still to optimize)
+        {
+            float thres_max_dist = 0.5f;
+    #if ENABLE_OPENMP
+    #pragma omp parallel for reduction (+:error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+    #endif
+            for(size_t i=0; i < n_pts; i++)
+            {
+                if( visible_pixels(i) )
+                {
+                    float depth = _depthTrgPyr[warped_i];
+                    if(depth > min_depth_) // if(depth > min_depth_) // Make sure this point has depth (not a NaN)
+                    {
+                        //if( fabs(_depthTrgGradXPyr[warped_i]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warped_i]) > thres_saliency_depth_)
+                        {
+                            Vector3f residual3D = (LUT_xyz_source.block(validPixels_src(i),0,1,3).transpose() - LUT_xyz_target.block(warped_i,0,1,3).transpose()) * stdDevError_inv_src(i);
+                            float res_norm = residual3D.norm();
+                            if(res_norm < thres_max_dist)
+                            {
+                                ++numVisiblePts;
+                                float weight2 = weightMEstimator(res_norm);
+                                wEstimDepth_src(i) = sqrt(weight2);
+                                residualsDepth_src.block(3*i,0,3,1) = wEstimDepth_src(i) * residual3D;
+                                error2_depth += weight2 * residual3D .dot (residual3D);
+                            }
                         }
                     }
                 }
@@ -446,7 +459,7 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
         // Warp the image
         MatrixXf warped_pixels;
         VectorXi visible_pixels;
-        (project*)(xyz_src_transf, warped_pixels, visible_pixels);
+        (project)(xyz_src_transf, warped_pixels, visible_pixels);
 
         if(method == PHOTO_DEPTH)
         {
@@ -481,6 +494,7 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
                         {
                             validPixelsDepth_src(i) = 1;
                             stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
+                            Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
                             float residual = (depth - getDepth(xyz)) * stdDevError_inv_src(i);
                             float weight2 = weightMEstimator(residual);
                             wEstimDepth_src(i) = sqrt(weight2);
@@ -538,6 +552,7 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
                         {
                             validPixelsDepth_src(i) = 1;
                             stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
+                            Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
                             float residual = (depth - getDepth(xyz)) * stdDevError_inv_src(i);
                             float weight2 = weightMEstimator(residual);
                             wEstimDepth_src(i) = sqrt(weight2);
@@ -640,6 +655,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
             warped_depth = cv::Mat::zeros(nRows,nCols,depthSrcPyr[pyrLevel].type());
     }
 
+    // Build the aligned versions of the image derivatives, so that we can benefit from SIMD performance
     VectorXf grayGradX, grayGradY;
     VectorXf depthGradX, depthGradY;
     if(use_salient_pixels_)
@@ -4754,7 +4770,7 @@ double DirectRegistration::computeJacobian_sphere(const int pyrLevel,
                     size_t warped_i = r_transf * nCols + c_transf;
 
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                     {
@@ -4858,7 +4874,7 @@ double DirectRegistration::computeJacobian_sphere(const int pyrLevel,
 
                         //Compute the pixel jacobian
                         Matrix<float,2,6> jacobianWarpRt;
-                        computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                        computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                         if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                         {
@@ -4950,7 +4966,7 @@ double DirectRegistration::computeJacobian_sphere(const int pyrLevel,
                         size_t warped_i = r_transf * nCols + c_transf;
 
                         Matrix<float,2,6> jacobianWarpRt;
-                        computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                        computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                         if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                         {
@@ -5056,7 +5072,7 @@ double DirectRegistration::computeJacobian_sphere(const int pyrLevel,
 
                         //Compute the pixel jacobian
                         Matrix<float,2,6> jacobianWarpRt;
-                        computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                        computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                         if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                         {
@@ -5275,7 +5291,7 @@ void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
                     float dist = xyz.norm();
 
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     //if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                     if( validPixelsPhoto_src(i) )
@@ -5376,7 +5392,7 @@ void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
 
                     //Compute the pixel jacobian
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     cv::Point2f warped_pixel(warp_img_src(0,0), warp_img_src(0,1));
                     //if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
@@ -5445,7 +5461,7 @@ void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
                     float dist = xyz.norm();
 
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     //if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                         if( validPixelsPhoto_src(i) )
@@ -5530,7 +5546,7 @@ void DirectRegistration::calcHessGrad_sphere(const int pyrLevel,
 
                     //Compute the pixel jacobian
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     cv::Point2f warped_pixel(warp_img_src(0,0), warp_img_src(0,1));
                     //if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
@@ -5666,7 +5682,7 @@ void DirectRegistration::calcHessGrad_warp_sphere(const int pyrLevel,
                     float dist = xyz.norm();
 
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                     if( validPixelsPhoto_src(i) )
@@ -5744,7 +5760,7 @@ void DirectRegistration::calcHessGrad_warp_sphere(const int pyrLevel,
 
                     //Compute the pixel jacobian
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     cv::Point2f warped_pixel(warp_img_src(0,0), warp_img_src(0,1));
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
@@ -5813,7 +5829,7 @@ void DirectRegistration::calcHessGrad_warp_sphere(const int pyrLevel,
                     float dist = xyz.norm();
 
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                         if( validPixelsPhoto_src(i) )
@@ -5885,7 +5901,7 @@ void DirectRegistration::calcHessGrad_warp_sphere(const int pyrLevel,
 
                     //Compute the pixel jacobian
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     cv::Point2f warped_pixel(warp_img_src(0,0), warp_img_src(0,1));
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
@@ -6018,7 +6034,7 @@ void DirectRegistration::calcHessGrad_side_sphere(const int pyrLevel,
                     float dist = xyz.norm();
 
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                     if( validPixelsPhoto_src(i) )
@@ -6121,7 +6137,7 @@ void DirectRegistration::calcHessGrad_side_sphere(const int pyrLevel,
 
                     //Compute the pixel jacobian
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     cv::Point2f warped_pixel(warp_img_src(0,0), warp_img_src(0,1));
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
@@ -6202,7 +6218,7 @@ void DirectRegistration::calcHessGrad_side_sphere(const int pyrLevel,
                     float dist = xyz.norm();
 
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                         if( validPixelsPhoto_src(i) )
@@ -6285,7 +6301,7 @@ void DirectRegistration::calcHessGrad_side_sphere(const int pyrLevel,
 
                     //Compute the pixel jacobian
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     cv::Point2f warped_pixel(warp_img_src(0,0), warp_img_src(0,1));
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
@@ -6433,7 +6449,7 @@ void DirectRegistration::calcHessGradRot_sphere(const int pyrLevel,
                     float dist = xyz.norm();
 
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                     if( validPixelsPhoto_src(i) )
@@ -6514,7 +6530,7 @@ void DirectRegistration::calcHessGradRot_sphere(const int pyrLevel,
 
                     //Compute the pixel jacobian
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     cv::Point2f warped_pixel(warp_img_src(0,0), warp_img_src(0,1));
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
@@ -6585,7 +6601,7 @@ void DirectRegistration::calcHessGradRot_sphere(const int pyrLevel,
                     float dist = xyz.norm();
 
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                         if( validPixelsPhoto_src(i) )
@@ -6665,7 +6681,7 @@ void DirectRegistration::calcHessGradRot_sphere(const int pyrLevel,
 
                     //Compute the pixel jacobian
                     Matrix<float,2,6> jacobianWarpRt;
-                    computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                    computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                     cv::Point2f warped_pixel(warp_img_src(0,0), warp_img_src(0,1));
                     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
@@ -10785,7 +10801,7 @@ void DirectRegistration::calcHessGrad_sphere_bidirectional( const int pyrLevel,
                 float dist = xyz.norm();
 
                 Matrix<float,2,6> jacobianWarpRt;
-                computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                 if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
                 {
@@ -10920,7 +10936,7 @@ void DirectRegistration::calcHessGrad_sphere_bidirectional( const int pyrLevel,
 
                 //Compute the pixel jacobian
                 Matrix<float,2,6> jacobianWarpRt;
-                computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+                computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
                 cv::Point2f warped_pixel(warp_img_src(0,0), warp_img_src(0,1));
                 if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)

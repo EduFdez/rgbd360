@@ -792,9 +792,9 @@ void ProjectionModel::reconstruct3D_pinhole(const cv::Mat & depth_img, MatrixXf 
 
 /*! Compute the 3D points XYZ according to the pinhole camera model. */
 void ProjectionModel::reconstruct3D_pinhole_saliency(MatrixXf & xyz, VectorXi & validPixels,
-                                                const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                                const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
-                                                const float thres_saliency_gray, const float thres_saliency_depth)
+                                                    const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
+                                                    const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
+                                                    const float thres_saliency_gray, const float thres_saliency_depth)
 {
 #if !(_SSE)
     assert(0); // TODO: implement regular (non SSE)
@@ -879,7 +879,7 @@ void ProjectionModel::reconstruct3D_pinhole_saliency(MatrixXf & xyz, VectorXi & 
 }
 
 /*! Project 3D points XYZ according to the pinhole camera model. */
-void ProjectionModel::project_pinhole(MatrixXf & xyz, MatrixXf & pixels)
+void ProjectionModel::project_pinhole(const MatrixXf & xyz, MatrixXf & pixels)
 {
     pixels.resize(xyz.rows(),2);
     float *_r = &pixels(0,0);
@@ -924,7 +924,7 @@ void ProjectionModel::project_pinhole(MatrixXf & xyz, MatrixXf & pixels)
 };
 
 /*! Project 3D points XYZ according to the spherical camera model. */
-void ProjectionModel::project_spherical(MatrixXf & xyz, MatrixXf & pixels)
+void ProjectionModel::project_spherical(const MatrixXf & xyz, MatrixXf & pixels)
 {
     pixels.resize(xyz.rows(),2);
     float *_r = &pixels(0,0);
@@ -987,7 +987,7 @@ void ProjectionModel::project_spherical(MatrixXf & xyz, MatrixXf & pixels)
 };
 
 /*! Project 3D points XYZ according to the pinhole camera model. */
-void ProjectionModel::projectNN_pinhole(MatrixXf & xyz, MatrixXi & pixels, MatrixXi & visible)
+void ProjectionModel::projectNN_pinhole(const MatrixXf & xyz, MatrixXi & pixels, MatrixXi & visible)
 {
     pixels.resize(xyz.rows(),1);
     visible.resize(xyz.rows(),1);
@@ -1044,7 +1044,7 @@ void ProjectionModel::projectNN_pinhole(MatrixXf & xyz, MatrixXi & pixels, Matri
 };
 
 /*! Project 3D points XYZ according to the spherical camera model. */
-void ProjectionModel::projectNN_spherical(MatrixXf & xyz, MatrixXi & pixels, MatrixXi & visible)
+void ProjectionModel::projectNN_spherical(const MatrixXf & xyz, MatrixXi & pixels, MatrixXi & visible)
 {
     pixels.resize(xyz.rows(),1);
     visible.resize(xyz.rows(),1);
@@ -1114,185 +1114,185 @@ void ProjectionModel::projectNN_spherical(MatrixXf & xyz, MatrixXi & pixels, Mat
 #endif
 };
 
-/*! Compute the 2x6 jacobian matrices of the composition (warping+rigidTransformation) using the pinhole camera model. */
-void ProjectionModel::computeJacobians26_pinhole(MatrixXf & xyz_tf, MatrixXf & jacobians_aligned)
-{
-    jacobians_aligned.resize(xyz_tf.rows(), 10); // It has 10 columns instead of 10 because the positions (1,0) and (0,1) of the 2x6 jacobian are alwatys 0
+///*! Compute the 2x6 jacobian matrices of the composition (warping+rigidTransformation) using the pinhole camera model. */
+//void ProjectionModel::computeJacobians26_pinhole(MatrixXf & xyz_tf, MatrixXf & jacobians_aligned)
+//{
+//    jacobians_aligned.resize(xyz_tf.rows(), 10); // It has 10 columns instead of 10 because the positions (1,0) and (0,1) of the 2x6 jacobian are alwatys 0
 
-    float *_x = &xyz_tf(0,0);
-    float *_y = &xyz_tf(0,1);
-    float *_z = &xyz_tf(0,2);
+//    float *_x = &xyz_tf(0,0);
+//    float *_y = &xyz_tf(0,1);
+//    float *_z = &xyz_tf(0,2);
 
-#if !(_SSE3) // # ifdef !__SSE3__
+//#if !(_SSE3) // # ifdef !__SSE3__
 
-//    #if ENABLE_OPENMP
-//    #pragma omp parallel for
-//    #endif
-    for(size_t i=0; i < xyz_transf.rows(); i++)
-    {
-        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
-        float inv_transf_z = 1.0/xyz_transf(2);
+////    #if ENABLE_OPENMP
+////    #pragma omp parallel for
+////    #endif
+//    for(size_t i=0; i < xyz_transf.rows(); i++)
+//    {
+//        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+//        float inv_transf_z = 1.0/xyz_transf(2);
 
-        //Derivative with respect to x
-        jacobians_aligned(i,0)=fx*inv_transf_z;
-        //jacobianWarpRt(1,0)=0.f;
+//        //Derivative with respect to x
+//        jacobians_aligned(i,0)=fx*inv_transf_z;
+//        //jacobianWarpRt(1,0)=0.f;
 
-        //Derivative with respect to y
-        //jacobianWarpRt(0,1)=0.f;
-        jacobians_aligned(i,1)=fy*inv_transf_z;
+//        //Derivative with respect to y
+//        //jacobianWarpRt(0,1)=0.f;
+//        jacobians_aligned(i,1)=fy*inv_transf_z;
 
-        //Derivative with respect to z
-        float inv_transf_z_2 = inv_transf_z*inv_transf_z;
-        jacobians_aligned(i,2)=-fx*xyz_transf(0)*inv_transf_z_2;
-        jacobians_aligned(i,3)=-fy*xyz_transf(1)*inv_transf_z_2;
+//        //Derivative with respect to z
+//        float inv_transf_z_2 = inv_transf_z*inv_transf_z;
+//        jacobians_aligned(i,2)=-fx*xyz_transf(0)*inv_transf_z_2;
+//        jacobians_aligned(i,3)=-fy*xyz_transf(1)*inv_transf_z_2;
 
-        //Derivative with respect to \w_x
-        jacobians_aligned(i,4)=-fx*xyz_transf(1)*xyz_transf(0)*inv_transf_z_2;
-        jacobians_aligned(i,5)=-fy*(1+xyz_transf(1)*xyz_transf(1)*inv_transf_z_2);
+//        //Derivative with respect to \w_x
+//        jacobians_aligned(i,4)=-fx*xyz_transf(1)*xyz_transf(0)*inv_transf_z_2;
+//        jacobians_aligned(i,5)=-fy*(1+xyz_transf(1)*xyz_transf(1)*inv_transf_z_2);
 
-        //Derivative with respect to \w_y
-        jacobians_aligned(i,6)= fx*(1+xyz_transf(0)*xyz_transf(0)*inv_transf_z_2);
-        jacobians_aligned(i,7)= fy*xyz_transf(0)*xyz_transf(1)*inv_transf_z_2;
+//        //Derivative with respect to \w_y
+//        jacobians_aligned(i,6)= fx*(1+xyz_transf(0)*xyz_transf(0)*inv_transf_z_2);
+//        jacobians_aligned(i,7)= fy*xyz_transf(0)*xyz_transf(1)*inv_transf_z_2;
 
-        //Derivative with respect to \w_z
-        jacobians_aligned(i,8)=-fx*xyz_transf(1)*inv_transf_z;
-        jacobians_aligned(i,9)= fy*xyz_transf(0)*inv_transf_z;
-    }
+//        //Derivative with respect to \w_z
+//        jacobians_aligned(i,8)=-fx*xyz_transf(1)*inv_transf_z;
+//        jacobians_aligned(i,9)= fy*xyz_transf(0)*inv_transf_z;
+//    }
 
-#else
-    // Pointers to the jacobian elements
-    float *_j00 = &jacobians_aligned(0,0);
-    float *_j11 = &jacobians_aligned(0,1);
-    float *_j02 = &jacobians_aligned(0,2);
-    float *_j12 = &jacobians_aligned(0,3);
-    float *_j03 = &jacobians_aligned(0,4);
-    float *_j13 = &jacobians_aligned(0,5);
-    float *_j04 = &jacobians_aligned(0,6);
-    float *_j14 = &jacobians_aligned(0,7);
-    float *_j05 = &jacobians_aligned(0,8);
-    float *_j15 = &jacobians_aligned(0,9);
+//#else
+//    // Pointers to the jacobian elements
+//    float *_j00 = &jacobians_aligned(0,0);
+//    float *_j11 = &jacobians_aligned(0,1);
+//    float *_j02 = &jacobians_aligned(0,2);
+//    float *_j12 = &jacobians_aligned(0,3);
+//    float *_j03 = &jacobians_aligned(0,4);
+//    float *_j13 = &jacobians_aligned(0,5);
+//    float *_j04 = &jacobians_aligned(0,6);
+//    float *_j14 = &jacobians_aligned(0,7);
+//    float *_j05 = &jacobians_aligned(0,8);
+//    float *_j15 = &jacobians_aligned(0,9);
 
-    __m128 _fx = _mm_set1_ps(fx);
-    __m128 _fy = _mm_set1_ps(fy);
-    __m128 _one = _mm_set1_ps(1.f);
-    for(size_t i=0; i < xyz_tf.rows(); i+=4)
-    {
-        __m128 block_x = _mm_load_ps(_x+i);
-        __m128 block_y = _mm_load_ps(_y+i);
-        __m128 block_z = _mm_load_ps(_z+i);
-        __m128 _inv_z = _mm_div_ps(_one, block_z);
+//    __m128 _fx = _mm_set1_ps(fx);
+//    __m128 _fy = _mm_set1_ps(fy);
+//    __m128 _one = _mm_set1_ps(1.f);
+//    for(size_t i=0; i < xyz_tf.rows(); i+=4)
+//    {
+//        __m128 block_x = _mm_load_ps(_x+i);
+//        __m128 block_y = _mm_load_ps(_y+i);
+//        __m128 block_z = _mm_load_ps(_z+i);
+//        __m128 _inv_z = _mm_div_ps(_one, block_z);
 
-        __m128 block_j00 = _mm_mul_ps(_fx, _inv_z);
-        __m128 block_j11 = _mm_mul_ps(_fy, _inv_z);
-        __m128 block_j02 = _mm_xor_ps( _mm_mul_ps(block_x, _mm_mul_ps(_inv_z, block_j00) ), _mm_set1_ps(-0.f) );
-        __m128 block_j12_neg = _mm_mul_ps(block_y, _mm_mul_ps(_inv_z, block_j11) );
+//        __m128 block_j00 = _mm_mul_ps(_fx, _inv_z);
+//        __m128 block_j11 = _mm_mul_ps(_fy, _inv_z);
+//        __m128 block_j02 = _mm_xor_ps( _mm_mul_ps(block_x, _mm_mul_ps(_inv_z, block_j00) ), _mm_set1_ps(-0.f) );
+//        __m128 block_j12_neg = _mm_mul_ps(block_y, _mm_mul_ps(_inv_z, block_j11) );
 
-        _mm_store_ps(_j00+i, block_j00 );
-        _mm_store_ps(_j11+i, block_j11 );
-        _mm_store_ps(_j02+i, block_j02);
-        _mm_store_ps(_j12+i, _mm_xor_ps(block_j12, _mm_set1_ps(-0.f)) );
-        _mm_store_ps(_j03+i, _mm_mul_ps( block_y, block_j02) );
-        _mm_store_ps(_j13+i, _mm_sub_ps(_mm_mul_ps( block_y, block_j12), _fy );
-        _mm_store_ps(_j04+i, _mm_sub_ps(_fx, _mm_mul_ps( block_x, block_j02) );
-        _mm_store_ps(_j14+i, _mm_mul_ps( block_0, block_j12_neg) );
-        _mm_store_ps(_j05+i, _mm_xor_ps( _mm_mul_ps(block_y, block_j00), _mm_set1_ps(-0.f) ) );
-        _mm_store_ps(_j16+i, _mm_mul_ps(block_x, block_j11));
-    }
-#endif
-}
+//        _mm_store_ps(_j00+i, block_j00 );
+//        _mm_store_ps(_j11+i, block_j11 );
+//        _mm_store_ps(_j02+i, block_j02);
+//        _mm_store_ps(_j12+i, _mm_xor_ps(block_j12, _mm_set1_ps(-0.f)) );
+//        _mm_store_ps(_j03+i, _mm_mul_ps( block_y, block_j02) );
+//        _mm_store_ps(_j13+i, _mm_sub_ps(_mm_mul_ps( block_y, block_j12), _fy );
+//        _mm_store_ps(_j04+i, _mm_sub_ps(_fx, _mm_mul_ps( block_x, block_j02) );
+//        _mm_store_ps(_j14+i, _mm_mul_ps( block_0, block_j12_neg) );
+//        _mm_store_ps(_j05+i, _mm_xor_ps( _mm_mul_ps(block_y, block_j00), _mm_set1_ps(-0.f) ) );
+//        _mm_store_ps(_j16+i, _mm_mul_ps(block_x, block_j11));
+//    }
+//#endif
+//}
 
-/*! Compute the 2x6 jacobian matrices of the composition (warping+rigidTransformation) using the spherical camera model. */
-void ProjectionModel::computeJacobians26_spherical(MatrixXf & xyz_tf, MatrixXf & jacobians_aligned)
-{
-    jacobians_aligned.resize(xyz_tf.rows(), 11); // It has 10 columns instead of 10 because the positions (1,0) and (0,1) of the 2x6 jacobian are alwatys 0
+///*! Compute the 2x6 jacobian matrices of the composition (warping+rigidTransformation) using the spherical camera model. */
+//void ProjectionModel::computeJacobians26_spherical(MatrixXf & xyz_tf, MatrixXf & jacobians_aligned)
+//{
+//    jacobians_aligned.resize(xyz_tf.rows(), 11); // It has 10 columns instead of 10 because the positions (1,0) and (0,1) of the 2x6 jacobian are alwatys 0
 
-    float *_x = &xyz_tf(0,0);
-    float *_y = &xyz_tf(0,1);
-    float *_z = &xyz_tf(0,2);
+//    float *_x = &xyz_tf(0,0);
+//    float *_y = &xyz_tf(0,1);
+//    float *_z = &xyz_tf(0,2);
 
-#if !(_SSE3) // # ifdef !__SSE3__
+//#if !(_SSE3) // # ifdef !__SSE3__
 
-//    #if ENABLE_OPENMP
-//    #pragma omp parallel for
-//    #endif
-    for(size_t i=0; i < xyz_transf.rows(); i++)
-    {
-        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
-        float inv_transf_z = 1.0/xyz_transf(2);
+////    #if ENABLE_OPENMP
+////    #pragma omp parallel for
+////    #endif
+//    for(size_t i=0; i < xyz_transf.rows(); i++)
+//    {
+//        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+//        float inv_transf_z = 1.0/xyz_transf(2);
 
-        float dist = xyz_transf.norm();
-        float dist2 = dist * dist;
-        float x2_z2 = dist2 - xyz_transf(1)*xyz_transf(1);
-        float x2_z2_sqrt = sqrt(x2_z2);
-        float commonDer_c = pixel_angle_inv / x2_z2;
-        float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
+//        float dist = xyz_transf.norm();
+//        float dist2 = dist * dist;
+//        float x2_z2 = dist2 - xyz_transf(1)*xyz_transf(1);
+//        float x2_z2_sqrt = sqrt(x2_z2);
+//        float commonDer_c = pixel_angle_inv / x2_z2;
+//        float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
 
-        jacobians_aligned(i,0) = commonDer_c * xyz_transf(2);
-        //jacobianWarpRt(0,1) = 0.f;
-        jacobians_aligned(i,3) = -commonDer_c * xyz_transf(0);
-    //        jacobianWarpRt(1,0) = commonDer_r * xyz_transf(0) * xyz_transf(1);
-        jacobians_aligned(i,2) =-commonDer_r * x2_z2;
-    //        jacobianWarpRt(1,2) = commonDer_r * xyz_transf(2) * xyz_transf(1);
-        float commonDer_r_y = commonDer_r * xyz_transf(1);
-        jacobians_aligned(i,1) = commonDer_r_y * xyz_transf(0);
-        jacobians_aligned(i,4) = commonDer_r_y * xyz_transf(2);
+//        jacobians_aligned(i,0) = commonDer_c * xyz_transf(2);
+//        //jacobianWarpRt(0,1) = 0.f;
+//        jacobians_aligned(i,3) = -commonDer_c * xyz_transf(0);
+//    //        jacobianWarpRt(1,0) = commonDer_r * xyz_transf(0) * xyz_transf(1);
+//        jacobians_aligned(i,2) =-commonDer_r * x2_z2;
+//    //        jacobianWarpRt(1,2) = commonDer_r * xyz_transf(2) * xyz_transf(1);
+//        float commonDer_r_y = commonDer_r * xyz_transf(1);
+//        jacobians_aligned(i,1) = commonDer_r_y * xyz_transf(0);
+//        jacobians_aligned(i,4) = commonDer_r_y * xyz_transf(2);
 
-        jacobians_aligned(i,5) = jacobians_aligned(i,3) * xyz_transf(1);
-        jacobians_aligned(i,7) = jacobians_aligned(i,0) * xyz_transf(2) - jacobians_aligned(i,3) * xyz_transf(0);
-        jacobians_aligned(i,9) =-jacobians_aligned(i,0) * xyz_transf(1);
-        jacobians_aligned(i,6) =-jacobians_aligned(i,2) * xyz_transf(2) + jacobians_aligned(i,4) * xyz_transf(1);
-        jacobians_aligned(1,8) = jacobians_aligned(i,1) * xyz_transf(2) - jacobians_aligned(i,4) * xyz_transf(0);
-        jacobians_aligned(1,10) =-jacobians_aligned(i,1) * xyz_transf(1) + jacobians_aligned(i,2) * xyz_transf(0);
-    }
+//        jacobians_aligned(i,5) = jacobians_aligned(i,3) * xyz_transf(1);
+//        jacobians_aligned(i,7) = jacobians_aligned(i,0) * xyz_transf(2) - jacobians_aligned(i,3) * xyz_transf(0);
+//        jacobians_aligned(i,9) =-jacobians_aligned(i,0) * xyz_transf(1);
+//        jacobians_aligned(i,6) =-jacobians_aligned(i,2) * xyz_transf(2) + jacobians_aligned(i,4) * xyz_transf(1);
+//        jacobians_aligned(1,8) = jacobians_aligned(i,1) * xyz_transf(2) - jacobians_aligned(i,4) * xyz_transf(0);
+//        jacobians_aligned(1,10) =-jacobians_aligned(i,1) * xyz_transf(1) + jacobians_aligned(i,2) * xyz_transf(0);
+//    }
 
-#else
-    // Pointers to the jacobian elements
-    float *_j00 = &jacobians_aligned(0,0);
-    float *_j10 = &jacobians_aligned(0,1);
-    float *_j11 = &jacobians_aligned(0,2);
-    float *_j02 = &jacobians_aligned(0,3);
-    float *_j12 = &jacobians_aligned(0,4);
-    float *_j03 = &jacobians_aligned(0,5);
-    float *_j13 = &jacobians_aligned(0,6);
-    float *_j04 = &jacobians_aligned(0,7);
-    float *_j14 = &jacobians_aligned(0,8);
-    float *_j05 = &jacobians_aligned(0,9);
-    float *_j15 = &jacobians_aligned(0,10);
+//#else
+//    // Pointers to the jacobian elements
+//    float *_j00 = &jacobians_aligned(0,0);
+//    float *_j10 = &jacobians_aligned(0,1);
+//    float *_j11 = &jacobians_aligned(0,2);
+//    float *_j02 = &jacobians_aligned(0,3);
+//    float *_j12 = &jacobians_aligned(0,4);
+//    float *_j03 = &jacobians_aligned(0,5);
+//    float *_j13 = &jacobians_aligned(0,6);
+//    float *_j04 = &jacobians_aligned(0,7);
+//    float *_j14 = &jacobians_aligned(0,8);
+//    float *_j05 = &jacobians_aligned(0,9);
+//    float *_j15 = &jacobians_aligned(0,10);
 
-    __m128 _pixel_angle_inv = _mm_set1_ps(pixel_angle_inv);
-    for(size_t i=0; i < xyz_tf.rows(); i+=4)
-    {
-        __m128 block_x = _mm_load_ps(_x+i);
-        __m128 block_y = _mm_load_ps(_y+i);
-        __m128 block_z = _mm_load_ps(_z+i);
-        __m128 _x2_z2 = _mm_sum_ps(_mm_mul_ps(block_x, block_x), _mm_mul_ps(block_z, block_z) );
-        __m128 _x2_z2_sqrt = _mm_sqrt_ps(_x2_z2);
-        __m128 _dist2 = _mm_sum_ps(_mm_mul_ps(block_y, block_y), _x2_z2 );
-        __m128 _dist = _mm_sqrt_ps(_dist2);
-        __m128 _commonDer_c = _mm_div_ps(_pixel_angle_inv, _x2_z2);
-        __m128 _commonDer_r = _mm_xor_ps( _mm_div_ps(_pixel_angle_inv, _mm_mul_ps(_dist2, _x2_z2_sqrt) ), _mm_set1_ps(-0.f) );
-        __m128 _commonDer_r_y = _mm_mul_ps(_commonDer_r, block_y);
+//    __m128 _pixel_angle_inv = _mm_set1_ps(pixel_angle_inv);
+//    for(size_t i=0; i < xyz_tf.rows(); i+=4)
+//    {
+//        __m128 block_x = _mm_load_ps(_x+i);
+//        __m128 block_y = _mm_load_ps(_y+i);
+//        __m128 block_z = _mm_load_ps(_z+i);
+//        __m128 _x2_z2 = _mm_sum_ps(_mm_mul_ps(block_x, block_x), _mm_mul_ps(block_z, block_z) );
+//        __m128 _x2_z2_sqrt = _mm_sqrt_ps(_x2_z2);
+//        __m128 _dist2 = _mm_sum_ps(_mm_mul_ps(block_y, block_y), _x2_z2 );
+//        __m128 _dist = _mm_sqrt_ps(_dist2);
+//        __m128 _commonDer_c = _mm_div_ps(_pixel_angle_inv, _x2_z2);
+//        __m128 _commonDer_r = _mm_xor_ps( _mm_div_ps(_pixel_angle_inv, _mm_mul_ps(_dist2, _x2_z2_sqrt) ), _mm_set1_ps(-0.f) );
+//        __m128 _commonDer_r_y = _mm_mul_ps(_commonDer_r, block_y);
 
-        __m128 block_j00 = _mm_mul_ps(_commonDer_c, block_z);
-        __m128 block_j10 = _mm_mul_ps(_commonDer_r_y, block_x);
-        __m128 block_j11 = _mm_xor_ps( _mm_mul_ps(_commonDer_r, _x2_z2), _mm_set1_ps(-0.f) );
-        __m128 block_j02 = _mm_xor_ps( _mm_mul_ps(_commonDer_c, block_x), _mm_set1_ps(-0.f));
-        __m128 block_j12 = _mm_mul_ps(_commonDer_r_y, block_z );
+//        __m128 block_j00 = _mm_mul_ps(_commonDer_c, block_z);
+//        __m128 block_j10 = _mm_mul_ps(_commonDer_r_y, block_x);
+//        __m128 block_j11 = _mm_xor_ps( _mm_mul_ps(_commonDer_r, _x2_z2), _mm_set1_ps(-0.f) );
+//        __m128 block_j02 = _mm_xor_ps( _mm_mul_ps(_commonDer_c, block_x), _mm_set1_ps(-0.f));
+//        __m128 block_j12 = _mm_mul_ps(_commonDer_r_y, block_z );
 
-        _mm_store_ps(_j00+i, block_j00 );
-        _mm_store_ps(_j10+i, block_j10 );
-        _mm_store_ps(_j11+i, block_j11 );
-        _mm_store_ps(_j02+i, block_j02 );
-        _mm_store_ps(_j12+i, block_j12 );
-        _mm_store_ps(_j03+i, _mm_mul_ps( block_j02, block_y ) );
-        _mm_store_ps(_j13+i, _mm_sub_ps(_mm_mul_ps(block_j12, block_y), _mm_mul_ps(block_j11, block_z) ) );
-        _mm_store_ps(_j04+i, _mm_sub_ps(_mm_mul_ps(block_j00, block_z), _mm_mul_ps(block_j02, block_x) ) );
-        _mm_store_ps(_j14+i, _mm_sub_ps(_mm_mul_ps(block_j10, block_z), _mm_mul_ps(block_j12, block_x) ) );
-        _mm_store_ps(_j05+i, _mm_xor_ps( _mm_mul_ps(block_j00, block_y), _mm_set1_ps(-0.f) ) );
-        _mm_store_ps(_j15+i, _mm_sub_ps(_mm_mul_ps(block_j11, block_x), _mm_mul_ps(block_j10, block_y) ) );
-    }
-#endif
-}
+//        _mm_store_ps(_j00+i, block_j00 );
+//        _mm_store_ps(_j10+i, block_j10 );
+//        _mm_store_ps(_j11+i, block_j11 );
+//        _mm_store_ps(_j02+i, block_j02 );
+//        _mm_store_ps(_j12+i, block_j12 );
+//        _mm_store_ps(_j03+i, _mm_mul_ps( block_j02, block_y ) );
+//        _mm_store_ps(_j13+i, _mm_sub_ps(_mm_mul_ps(block_j12, block_y), _mm_mul_ps(block_j11, block_z) ) );
+//        _mm_store_ps(_j04+i, _mm_sub_ps(_mm_mul_ps(block_j00, block_z), _mm_mul_ps(block_j02, block_x) ) );
+//        _mm_store_ps(_j14+i, _mm_sub_ps(_mm_mul_ps(block_j10, block_z), _mm_mul_ps(block_j12, block_x) ) );
+//        _mm_store_ps(_j05+i, _mm_xor_ps( _mm_mul_ps(block_j00, block_y), _mm_set1_ps(-0.f) ) );
+//        _mm_store_ps(_j15+i, _mm_sub_ps(_mm_mul_ps(block_j11, block_x), _mm_mul_ps(block_j10, block_y) ) );
+//    }
+//#endif
+//}
 
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
 void ProjectionModel::computeJacobiansPhoto_pinhole(MatrixXf & xyz_tf, const float stdDevPhoto_inv, VectorXf & weights, MatrixXf & jacobians, float *_grayGradX, float *_grayGradY)
@@ -1387,8 +1387,7 @@ void ProjectionModel::computeJacobiansPhoto_spherical(MatrixXf & xyz_tf, const f
     {
         Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
-        float dist = xyz_transf.norm();
-        computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+        computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
         img_gradient(0,1) = _grayGradY[i];
@@ -1550,8 +1549,7 @@ void ProjectionModel::computeJacobiansDepth_spherical(MatrixXf & xyz_tf, VectorX
     {
         Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
-        float dist = xyz_transf.norm();
-        computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+        computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
         Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
         jacobian16_depthT.block(0,0,1,3) = (1 / dist) * xyz_transf.transpose();
         Matrix<float,1,2> depth_gradient;
@@ -1747,7 +1745,7 @@ void ProjectionModel::computeJacobiansPhotoDepth_spherical(MatrixXf & xyz_tf, co
         Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
         float dist = xyz_transf.norm();
-        computeJacobian26_wT_sphere(xyz, dist, pixel_angle_inv, jacobianWarpRt);
+        computeJacobian26_wT_sphere(xyz, jacobianWarpRt);
 
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];

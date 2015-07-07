@@ -1,3 +1,23 @@
+#include <stdio.h>
+void my_int_func(int x)
+{
+    printf( "%d\n", x );
+}
+
+
+int main()
+{
+    void (*foo)(int);
+    foo = &my_int_func;
+
+    /* call my_int_func (note that you do not need to write (*foo)(2) ) */
+    foo( 2 );
+    /* but if you want to, you may */
+    (*foo)( 2 );
+
+    return 0;
+}
+
 //#include <immintrin.h>
 //#include <iostream>
 //using namespace std;
@@ -10,71 +30,71 @@
 //    return 0;
 //}
 
-// sort algorithm example
-#include <iostream>     // std::cout
-#include <algorithm>    // std::sort
-#include <vector>       // std::vector
-//#include <Eigen/Core>
-#include "/usr/local/include/eigen3/Eigen/Core"
+//// sort algorithm example
+//#include <iostream>     // std::cout
+//#include <algorithm>    // std::sort
+//#include <vector>       // std::vector
+////#include <Eigen/Core>
+//#include "/usr/local/include/eigen3/Eigen/Core"
 
-using namespace std;
+//using namespace std;
 
-int main () {
+//int main () {
 
-#if _SSE2
-    std::cout << __SSE2__ << " _SSE2 \n";
-#endif
+//#if _SSE2
+//    std::cout << __SSE2__ << " _SSE2 \n";
+//#endif
 
-#if _AVX
-    std::cout << " _AVX \n";
-#endif
+//#if _AVX
+//    std::cout << " _AVX \n";
+//#endif
 
 
-    const size_t n_pts = 1200;
-    Eigen::MatrixXf xyz = Eigen::MatrixXf::Ones(n_pts,3);
-    Eigen::MatrixXf xyz2;
-    xyz2.resize(xyz.rows(),xyz.cols());
-    __m256 _const2 = _mm256_set1_ps(2.f);
-    std::vector<int> idx_(n_pts);
+//    const size_t n_pts = 1200;
+//    Eigen::MatrixXf xyz = Eigen::MatrixXf::Ones(n_pts,3);
+//    Eigen::MatrixXf xyz2;
+//    xyz2.resize(xyz.rows(),xyz.cols());
+//    __m256 _const2 = _mm256_set1_ps(2.f);
+//    std::vector<int> idx_(n_pts);
 
-    float *_x = &xyz(0,0);
-    float *_x_out = &xyz2(0,0);
-    int *_ind = &idx_[0];
+//    float *_x = &xyz(0,0);
+//    float *_x_out = &xyz2(0,0);
+//    int *_ind = &idx_[0];
 
-    cout << " alignment 32 x " << (((unsigned long)_x & 31) == 0) << " \n";
-    cout << " alignment 32 x " << (((unsigned long)_x_out & 31) == 0) << " \n";
-    cout << " alignment 16 ind " << (((unsigned long)_ind & 15) == 0) << " \n";
-    cout << " alignment 32 ind " << (((unsigned long)_ind & 31) == 0) << " \n";
+//    cout << " alignment 32 x " << (((unsigned long)_x & 31) == 0) << " \n";
+//    cout << " alignment 32 x " << (((unsigned long)_x_out & 31) == 0) << " \n";
+//    cout << " alignment 16 ind " << (((unsigned long)_ind & 15) == 0) << " \n";
+//    cout << " alignment 32 ind " << (((unsigned long)_ind & 31) == 0) << " \n";
 
-    for(size_t r=0;r<n_pts; r+=8)
-    {
-        __m256 block_xyz = _mm256_load_ps(_x+r);
-        __m256 block_x = _mm256_mul_ps( _const2, block_xyz );
-        _mm256_store_ps(_x_out+r, block_x);
-    }
+//    for(size_t r=0;r<n_pts; r+=8)
+//    {
+//        __m256 block_xyz = _mm256_load_ps(_x+r);
+//        __m256 block_x = _mm256_mul_ps( _const2, block_xyz );
+//        _mm256_store_ps(_x_out+r, block_x);
+//    }
 
-    for(size_t r=0;r<20; r++)
-    {
-        cout << "val " << xyz(r,0) << " " << xyz2(r,0) << endl;
-    }
+//    for(size_t r=0;r<20; r++)
+//    {
+//        cout << "val " << xyz(r,0) << " " << xyz2(r,0) << endl;
+//    }
 
-  std::vector<float> v(4, 0.2f);
-  v.push_back(0.3f);
-  v[2] = 0.1f;
+//  std::vector<float> v(4, 0.2f);
+//  v.push_back(0.3f);
+//  v[2] = 0.1f;
 
-  vector<size_t> idx(v.size());
-  for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
+//  vector<size_t> idx(v.size());
+//  for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
 
-  sort(idx.begin(), idx.end(),
-       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
+//  sort(idx.begin(), idx.end(),
+//       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
 
-  std::cout << "ordering:";
-  for (std::vector<size_t>::iterator it=idx.begin(); it!=idx.end(); ++it)
-    std::cout << ' ' << *it;
-  std::cout << '\n';
+//  std::cout << "ordering:";
+//  for (std::vector<size_t>::iterator it=idx.begin(); it!=idx.end(); ++it)
+//    std::cout << ' ' << *it;
+//  std::cout << '\n';
 
-  return 0;
-}
+//  return 0;
+//}
 
 //bool myfunction (int i,int j) { return (i<j); }
 
