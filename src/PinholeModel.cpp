@@ -49,6 +49,7 @@
 #define PRINT_PROFILING 1
 
 using namespace std;
+using namespace Eigen;
 
 PinholeModel::PinholeModel()
 {
@@ -59,8 +60,11 @@ PinholeModel::PinholeModel()
 }
 
 /*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
-void PinholeModel::scaleCameraParams(const float scaleFactor)
+void PinholeModel::scaleCameraParams(const int pyrLevel)
 {
+    const float scaleFactor = 1.0/pow(2,pyrLevel);
+    //nRows = scaleFactor*nRows;
+
     fx = cameraMatrix(0,0)*scaleFactor;
     fy = cameraMatrix(1,1)*scaleFactor;
     ox = cameraMatrix(0,2)*scaleFactor;
@@ -70,7 +74,7 @@ void PinholeModel::scaleCameraParams(const float scaleFactor)
 }
 
 /*! Compute the 3D points XYZ according to the pinhole camera model. */
-void PinholeModel::reconstruct3D(const cv::Mat & depth_img, MatrixXf & xyz, VectorXi & validPixels)
+void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -91,10 +95,10 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, MatrixXf & xyz, Vect
     float *_z = &xyz(0,2);
 
     validPixels.resize(imgSize);
-    int *_valid_pt = reinterpret_cast<int*>(&validPixels(0));
-    for(int i=0; i < imgSize; i++, _valid_pt++)
+    float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
+    for(size_t i=0; i < imgSize; i++, _valid_pt++)
         _valid_pt[i] = i;  // *(_valid_pt++) = i;
-    int *_valid_pt = reinterpret_cast<int*>(&validPixels(0));
+    _valid_pt = reinterpret_cast<float*>(&validPixels(0));
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
@@ -145,25 +149,25 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, MatrixXf & xyz, Vect
     __m128 _oy = _mm_set1_ps(oy);
     __m128 _min_depth_ = _mm_set1_ps(min_depth_);
     __m128 _max_depth_ = _mm_set1_ps(max_depth_);
-    for(size_t r=0; r < nRows; r++)
+    for(int r=0; r < nRows; r++)
     {
         __m128 _r = _mm_set1_ps(r);
-        size_t block_i = r*nCols;
-        for(size_t c=0; c < nCols; c+=4, block_i+=4)
+        size_t i = r*nCols;
+        for(int c=0; c < nCols; c+=4, i+=4)
         {
-            __m128 block_depth = _mm_load_ps(_depth+block_i);
-            __m128 block_c = _mm_load_ps(_idx+c);
+            __m128 __depth = _mm_load_ps(_depth+i);
+            __m128 __c = _mm_load_ps(_idx+c);
 
-            __m128 block_x = _mm_mul_ps( block_depth, _mm_mul_ps(_inv_fx, _mm_sub_ps(block_c, _ox) ) );
-            __m128 block_y = _mm_mul_ps( block_depth, _mm_mul_ps(_inv_fy, _mm_sub_ps(_r, _oy) ) );
-            _mm_store_ps(_x+block_i, block_x);
-            _mm_store_ps(_y+block_i, block_y);
-            _mm_store_ps(_z+block_i, block_depth);
+            __m128 __x = _mm_mul_ps( __depth, _mm_mul_ps(_inv_fx, _mm_sub_ps(__c, _ox) ) );
+            __m128 __y = _mm_mul_ps( __depth, _mm_mul_ps(_inv_fy, _mm_sub_ps(_r, _oy) ) );
+            _mm_store_ps(_x+i, __x);
+            _mm_store_ps(_y+i, __y);
+            _mm_store_ps(_z+i, __depth);
 
-            __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
-            //_mm_store_ps(_valid_pt+block_i, valid_depth_pts );
-            __m128 block_valid = _mm_load_ps(_valid_pt+block_i);
-            _mm_store_ps(_valid_pt+block_i, _mm_and_ps(block_valid, valid_depth_pts) );
+            __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) );
+            //_mm_store_ps(_valid_pt+i, valid_depth_pts );
+            __m128 __valid = _mm_load_ps(_valid_pt+i);
+            _mm_store_ps(_valid_pt+i, _mm_and_ps(__valid, valid_depth_pts) );
         }
     }
 
@@ -207,29 +211,29 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, MatrixXf & xyz, Vect
 //        {
 //            __m256 _r = _mm256_set1_ps(r);
 ////            cout << " Set _r \n";
-//            size_t block_i = r*nCols;
-//            size_t block_i_xyz = r*nCols + hack_padding_xyz;
-//            size_t block_i_valid = r*nCols + hack_padding_validPixels;
-//            for(size_t c=0; c < nCols; c+=8, block_i+=8, block_i_xyz+=8, block_i_valid+=8)
+//            size_t i = r*nCols;
+//            size_t i_xyz = r*nCols + hack_padding_xyz;
+//            size_t i_valid = r*nCols + hack_padding_validPixels;
+//            for(size_t c=0; c < nCols; c+=8, i+=8, i_xyz+=8, i_valid+=8)
 //            {
-//                __m256 block_depth = _mm256_load_ps(_depth+block_i);
-//                __m256 block_c = _mm256_load_ps(_idx+c);
+//                __m256 __depth = _mm256_load_ps(_depth+i);
+//                __m256 __c = _mm256_load_ps(_idx+c);
 ////                cout << " Load depth \n";
 
-//                __m256 block_x = _mm256_mul_ps( block_depth, _mm256_mul_ps(_inv_fx, _mm256_sub_ps(block_c, _ox) ) );
+//                __m256 __x = _mm256_mul_ps( __depth, _mm256_mul_ps(_inv_fx, _mm256_sub_ps(__c, _ox) ) );
 ////                cout << " operation \n";
-//                __m256 block_y = _mm256_mul_ps( block_depth, _mm256_mul_ps(_inv_fy, _mm256_sub_ps(_r, _oy) ) );
-//                _mm256_store_ps(_x+block_i_xyz, block_x);
+//                __m256 __y = _mm256_mul_ps( __depth, _mm256_mul_ps(_inv_fy, _mm256_sub_ps(_r, _oy) ) );
+//                _mm256_store_ps(_x+i_xyz, __x);
 ////                cout << " store \n";
-////                cout << " alignment 32 " << (((unsigned long)(_x+block_i) & 31) == 0) << " \n";
-//                _mm256_store_ps(_y+block_i_xyz, block_y);
-//                _mm256_store_ps(_z+block_i_xyz, block_depth);
+////                cout << " alignment 32 " << (((unsigned long)(_x+i) & 31) == 0) << " \n";
+//                _mm256_store_ps(_y+i_xyz, __y);
+//                _mm256_store_ps(_z+i_xyz, __depth);
 
 ////                cout << " calc valid_depth_pts \n";
 
-//                __m256 valid_depth_pts = _mm256_and_ps( _mm256_cmp_ps(_min_depth_, block_depth, _CMP_LT_OQ), _mm256_cmp_ps(block_depth, _max_depth_, _CMP_LT_OQ) );
+//                __m256 valid_depth_pts = _mm256_and_ps( _mm256_cmp_ps(_min_depth_, __depth, _CMP_LT_OQ), _mm256_cmp_ps(__depth, _max_depth_, _CMP_LT_OQ) );
 ////                cout << " store valid_depth_pts \n";
-//                _mm256_store_ps(_valid_pt+block_i_valid, valid_depth_pts );
+//                _mm256_store_ps(_valid_pt+i_valid, valid_depth_pts );
 ////                cout << " cycle \n";
 //            }
 //        }
@@ -246,38 +250,38 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, MatrixXf & xyz, Vect
 //        {
 //            __m256 _r = _mm256_set1_ps(r);
 ////            cout << " Set _r \n";
-//            size_t block_i = r*nCols+4;
-////            size_t block_i_xyz = r*nCols + hack_padding_xyz;
-//            size_t block_i_valid = r*nCols + hack_padding_validPixels;
-//            for(size_t c=4; c < nCols-4; c+=8, block_i+=8, block_i_valid+=8)//, block_i_xyz+=8)
+//            size_t i = r*nCols+4;
+////            size_t i_xyz = r*nCols + hack_padding_xyz;
+//            size_t i_valid = r*nCols + hack_padding_validPixels;
+//            for(size_t c=4; c < nCols-4; c+=8, i+=8, i_valid+=8)//, i_xyz+=8)
 //            {
-//                __m256 block_depth = _mm256_load_ps(_depth+block_i);
-//                __m256 block_c = _mm256_load_ps(_idx+c);
+//                __m256 __depth = _mm256_load_ps(_depth+i);
+//                __m256 __c = _mm256_load_ps(_idx+c);
 ////                cout << " Load depth \n";
 
-//                __m256 block_x = _mm256_mul_ps( block_depth, _mm256_mul_ps(_inv_fx, _mm256_sub_ps(block_c, _ox) ) );
+//                __m256 __x = _mm256_mul_ps( __depth, _mm256_mul_ps(_inv_fx, _mm256_sub_ps(__c, _ox) ) );
 ////                cout << " operation \n";
-//                __m256 block_y = _mm256_mul_ps( block_depth, _mm256_mul_ps(_inv_fy, _mm256_sub_ps(_r, _oy) ) );
-//                _mm256_store_ps(_x+block_i, block_x);
+//                __m256 __y = _mm256_mul_ps( __depth, _mm256_mul_ps(_inv_fy, _mm256_sub_ps(_r, _oy) ) );
+//                _mm256_store_ps(_x+i, __x);
 ////                cout << " store \n";
-////                cout << " alignment 32 " << (((unsigned long)(_x+block_i) & 31) == 0) << " \n";
-//                _mm256_store_ps(_y+block_i, block_y);
-//                _mm256_store_ps(_z+block_i, block_depth);
+////                cout << " alignment 32 " << (((unsigned long)(_x+i) & 31) == 0) << " \n";
+//                _mm256_store_ps(_y+i, __y);
+//                _mm256_store_ps(_z+i, __depth);
 
 ////                cout << " calc valid_depth_pts \n";
 
-//                __m256 valid_depth_pts = _mm256_and_ps( _mm256_cmp_ps(_min_depth_, block_depth, _CMP_LT_OQ), _mm256_cmp_ps(block_depth, _max_depth_, _CMP_LT_OQ) );
+//                __m256 valid_depth_pts = _mm256_and_ps( _mm256_cmp_ps(_min_depth_, __depth, _CMP_LT_OQ), _mm256_cmp_ps(__depth, _max_depth_, _CMP_LT_OQ) );
 ////                cout << " store valid_depth_pts \n";
-//                _mm256_store_ps(_valid_pt+block_i_valid, valid_depth_pts );
+//                _mm256_store_ps(_valid_pt+i_valid, valid_depth_pts );
 
-//                cout << " cycle " << block_i << " " << block_i_valid << "\n";
+//                cout << " cycle " << i << " " << i_valid << "\n";
 
-////                if(block_i_valid==112)
+////                if(i_valid==112)
 ////                {
 ////                    for(size_t i=0; i < 8; i++)
-////                        cout << i << " pt " << xyz.block(block_i_valid+i,0,1,3) << " valid " << validPixels(block_i_valid+i) << endl;
+////                        cout << i << " pt " << xyz.block(i_valid+i,0,1,3) << " valid " << validPixels(i_valid+i) << endl;
 
-////                    float *b_depth = reinterpret_cast<float*>(&block_depth);
+////                    float *b_depth = reinterpret_cast<float*>(&__depth);
 ////                    int *b_valid = reinterpret_cast<int*>(&valid_depth_pts);
 ////                    cout << "b_depth " << b_depth[0] << " " << b_depth[1] << " " << b_depth[2] << " " << b_depth[3] << " " << b_depth[4] << " " << b_depth[5] << " " << b_depth[6] << " " << b_depth[7] << " \n";
 ////                    cout << "b_valid " << b_valid[0] << " " << b_valid[1] << " " << b_valid[2] << " " << b_valid[3] << " " << b_valid[4] << " " << b_valid[5] << " " << b_valid[6] << " " << b_valid[7] << " \n";
@@ -366,10 +370,10 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, MatrixXf & xyz, Vect
 }
 
 /*! Compute the 3D points XYZ according to the pinhole camera model. */
-void PinholeModel::reconstruct3D_saliency(MatrixXf & xyz, VectorXi & validPixels,
-                                                    const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                                    const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
-                                                    const float thres_saliency_gray, const float thres_saliency_depth)
+void PinholeModel::reconstruct3D_saliency ( Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+                                            const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
+                                            const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
+                                            const float thres_saliency_gray, const float thres_saliency_depth)
 {
 #if !(_SSE)
     assert(0); // TODO: implement regular (non SSE)
@@ -419,30 +423,30 @@ void PinholeModel::reconstruct3D_saliency(MatrixXf & xyz, VectorXi & validPixels
     __m128 _depth_saliency_neg = _mm_set1_ps(-thres_saliency_depth);
     __m128 _gray_saliency_neg = _mm_set1_ps(-thres_saliency_gray);
 
-    for(size_t r=0; r < nRows; r++)
+    for(int r=0; r < nRows; r++)
     {
         __m128 _r = _mm_set1_ps(r);
-        size_t block_i = r*nCols;
-        for(size_t c=0; c < nCols; c+=4, block_i+=4)
+        size_t i = r*nCols;
+        for(int c=0; c < nCols; c+=4, i+=4)
         {
-            __m128 block_depth = _mm_load_ps(_depth+block_i);
-            __m128 block_c = _mm_load_ps(_idx+c);
+            __m128 __depth = _mm_load_ps(_depth+i);
+            __m128 __c = _mm_load_ps(_idx+c);
 
-            __m128 block_x = _mm_mul_ps( block_depth, _mm_mul_ps(_inv_fx, _mm_sub_ps(block_c, _ox) ) );
-            __m128 block_y = _mm_mul_ps( block_depth, _mm_mul_ps(_inv_fy, _mm_sub_ps(_r, _oy) ) );
-            _mm_store_ps(_x+block_i, block_x);
-            _mm_store_ps(_y+block_i, block_y);
-            _mm_store_ps(_z+block_i, block_depth);
+            __m128 __x = _mm_mul_ps( __depth, _mm_mul_ps(_inv_fx, _mm_sub_ps(__c, _ox) ) );
+            __m128 __y = _mm_mul_ps( __depth, _mm_mul_ps(_inv_fy, _mm_sub_ps(_r, _oy) ) );
+            _mm_store_ps(_x+i, __x);
+            _mm_store_ps(_y+i, __y);
+            _mm_store_ps(_z+i, __depth);
 
-            //_mm_store_ps(_valid_pt+block_i, _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) ) );
-            __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, block_depth), _mm_cmplt_ps(block_depth, _max_depth_) );
-            __m128 block_gradDepthX = _mm_load_ps(_depthGradXPyr+block_i);
-            __m128 block_gradDepthY = _mm_load_ps(_depthGradYPyr+block_i);
-            __m128 block_gradGrayX = _mm_load_ps(_grayGradXPyr+block_i);
-            __m128 block_gradGrayY = _mm_load_ps(_grayGradYPyr+block_i);
-            __m128 salient_pts = _mm_or_ps( _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps(block_gradDepthX, _depth_saliency_), _mm_cmplt_ps(block_gradDepthX, _depth_saliency_neg) ), _mm_or_ps( _mm_cmpgt_ps(block_gradDepthY, _depth_saliency_), _mm_cmplt_ps(block_gradDepthY, _depth_saliency_neg) ) ),
-                                            _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( block_gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( block_gradGrayX, _gray_saliency_neg ) ), _mm_or_ps( _mm_cmpgt_ps( block_gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( block_gradGrayY, _gray_saliency_neg ) ) ) );
-            _mm_store_ps(_valid_pt+block_i, _mm_and_ps( valid_depth_pts, salient_pts ) );
+            //_mm_store_ps(_valid_pt+i, _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) ) );
+            __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) );
+            __m128 __gradDepthX = _mm_load_ps(_depthGradXPyr+i);
+            __m128 __gradDepthY = _mm_load_ps(_depthGradYPyr+i);
+            __m128 __gradGrayX = _mm_load_ps(_grayGradXPyr+i);
+            __m128 __gradGrayY = _mm_load_ps(_grayGradYPyr+i);
+            __m128 salient_pts = _mm_or_ps( _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps(__gradDepthX, _depth_saliency_), _mm_cmplt_ps(__gradDepthX, _depth_saliency_neg) ), _mm_or_ps( _mm_cmpgt_ps(__gradDepthY, _depth_saliency_), _mm_cmplt_ps(__gradDepthY, _depth_saliency_neg) ) ),
+                                            _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( __gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayX, _gray_saliency_neg ) ), _mm_or_ps( _mm_cmpgt_ps( __gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayY, _gray_saliency_neg ) ) ) );
+            _mm_store_ps(_valid_pt+i, _mm_and_ps( valid_depth_pts, salient_pts ) );
         }
     }
 
@@ -454,15 +458,17 @@ void PinholeModel::reconstruct3D_saliency(MatrixXf & xyz, VectorXi & validPixels
 }
 
 /*! Project 3D points XYZ according to the pinhole camera model. */
-void PinholeModel::project(const MatrixXf & xyz, MatrixXf & pixels)
+void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible)
 {
     pixels.resize(xyz.rows(),2);
     float *_r = &pixels(0,0);
     float *_c = &pixels(0,1);
+    visible.resize(xyz.rows());
+    float *_v = reinterpret_cast<float*>(&visible(0));
 
-    float *_x = &xyz(0,0);
-    float *_y = &xyz(0,1);
-    float *_z = &xyz(0,2);
+    const float *_x = &xyz(0,0);
+    const float *_y = &xyz(0,1);
+    const float *_z = &xyz(0,2);
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
@@ -475,6 +481,7 @@ void PinholeModel::project(const MatrixXf & xyz, MatrixXf & pixels)
         cv::Point2f warped_pixel = project2Image(pt_xyz);
         pixels(i,0) = warped_pixel.y;
         pixels(i,1) = warped_pixel.x;
+        visible(i) = isInImage(r_transf, c_transf) ? 1 : 0;
     }
 
 #else
@@ -483,33 +490,53 @@ void PinholeModel::project(const MatrixXf & xyz, MatrixXf & pixels)
     __m128 _fy = _mm_set1_ps(fy);
     __m128 _ox = _mm_set1_ps(ox);
     __m128 _oy = _mm_set1_ps(oy);
-    for(size_t i=0; i < pixels.size(); i+=4)
+    __m128 _nCols = _mm_set1_ps(nCols);
+    __m128 _nRows = _mm_set1_ps(nRows);
+    __m128 _zero = _mm_set1_ps(0.f);
+    for(int i=0; i < pixels.size(); i+=4)
     {
-        __m128 block_x = _mm_load_ps(_x+i);
-        __m128 block_y = _mm_load_ps(_y+i);
-        __m128 block_z = _mm_load_ps(_z+i);
+        __m128 __x = _mm_load_ps(_x+i);
+        __m128 __y = _mm_load_ps(_y+i);
+        __m128 __z = _mm_load_ps(_z+i);
 
-        __m128 block_r = _mm_sum_ps( _mm_div_ps( _mm_mul_ps(_fy, block_y ), block_z ), _oy );
-        __m128 block_c = _mm_sum_ps( _mm_div_ps( _mm_mul_ps(_fx, block_x ), block_z ), _ox );
+        __m128 __r = _mm_add_ps( _mm_div_ps( _mm_mul_ps(_fy, __y ), __z ), _oy );
+        __m128 __c = _mm_add_ps( _mm_div_ps( _mm_mul_ps(_fx, __x ), __z ), _ox );
 
-        _mm_store_ps(_r+i, block_r);
-        _mm_store_ps(_c+i, block_c);
+        _mm_store_ps(_r+i, __r);
+        _mm_store_ps(_c+i, __c);
+
+        __m128 __v =_mm_and_ps( _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) ),
+                                    _mm_and_ps( _mm_cmplt_ps(_zero, __c), _mm_cmplt_ps(__c, _nCols) ) );
+        _mm_store_ps(_v+i, __v);
     }
 #endif
-};
+}
 
 /*! Project 3D points XYZ according to the pinhole camera model. */
-void PinholeModel::projectNN(const MatrixXf & xyz, MatrixXi & pixels, MatrixXi & visible)
+void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels, Eigen::VectorXi & visible)
 {
-    pixels.resize(xyz.rows(),1);
-    visible.resize(xyz.rows(),1);
-    float *_p = &pixels(0);
-    int *_v = &visible(0);
+    pixels.resize(xyz.rows());
+    visible.resize(xyz.rows());
+    //int *_p = &pixels(0);
+    float *_v = reinterpret_cast<float*>(&visible(0));
 
-    float *_x = &xyz(0,0);
-    float *_y = &xyz(0,1);
-    float *_z = &xyz(0,2);
+    const float *_x = &xyz(0,0);
+    const float *_y = &xyz(0,1);
+    const float *_z = &xyz(0,2);
 
+    Eigen::VectorXi pixels_(xyz.rows());
+    Eigen::VectorXi visible_(xyz.rows());
+    for(int i=0; i < pixels.size(); i++)
+    {
+        Eigen::Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
+        cv::Point2f warped_pixel = project2Image(pt_xyz);
+
+        int r_transf = round(warped_pixel.y);
+        int c_transf = round(warped_pixel.x);
+        // cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << endl;
+        pixels_(i) = r_transf * nCols + c_transf;
+        visible_(i) = isInImage(r_transf, c_transf) ? 1 : 0;
+    }
 #if !(_SSE3) // # ifdef !__SSE3__
 
 //    #if ENABLE_OPENMP
@@ -517,7 +544,7 @@ void PinholeModel::projectNN(const MatrixXf & xyz, MatrixXi & pixels, MatrixXi &
 //    #endif
     for(size_t i=0; i < pixels.size(); i++)
     {
-        Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
+        Eigen::Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
         cv::Point2f warped_pixel = project2Image(pt_xyz);
 
         int r_transf = round(warped_pixel.y);
@@ -535,25 +562,34 @@ void PinholeModel::projectNN(const MatrixXf & xyz, MatrixXi & pixels, MatrixXi &
     __m128 _oy = _mm_set1_ps(oy);
     __m128 _nCols = _mm_set1_ps(nCols);
     __m128 _nRows = _mm_set1_ps(nRows);
-    __m128 _nzero = _mm_set1_ps(0.f);
-    for(size_t i=0; i < pixels.size(); i+=4)
+    __m128 _zero = _mm_setzero_ps();
+    for(int i=0; i < pixels.size(); i+=4)
     {
-        __m128 block_x = _mm_load_ps(_x+i);
-        __m128 block_y = _mm_load_ps(_y+i);
-        __m128 block_z = _mm_load_ps(_z+i);
+        __m128 __x = _mm_load_ps(_x+i);
+        __m128 __y = _mm_load_ps(_y+i);
+        __m128 __z = _mm_load_ps(_z+i);
 
-        __m128 block_r = _mm_sum_ps( _mm_div_ps( _mm_mul_ps(_fy, block_y ), block_z ), _oy );
-        __m128 block_c = _mm_sum_ps( _mm_div_ps( _mm_mul_ps(_fx, block_x ), block_z ), _ox );
-        __m128 block_p = _mm_sum_ps( _mm_mul_ps(_nCols, block_r ), block_c);
+        __m128 __r = _mm_add_ps( _mm_div_ps( _mm_mul_ps(_fy, __y ), __z ), _oy );
+        __m128 __c = _mm_add_ps( _mm_div_ps( _mm_mul_ps(_fx, __x ), __z ), _ox );
+        __m128i __p = _mm_cvtps_epi32( _mm_add_ps( _mm_mul_ps(_nCols, __r ), __c) );
+        //__m128 __p = _mm_add_epi32( _mm_cvtps_epi32(_mm_mullo_epi32(_nCols, __r ) ), __c);
 
-        __m128 block_v =_mm_and_ps( _mm_and_ps( _mm_cmplt_ps(_nzero, block_r), _mm_cmplt_ps(block_r, _nRows) ),
-                                    _mm_and_ps( _mm_cmplt_ps(_nzero, block_c), _mm_cmplt_ps(block_c, _nCols) ) );
+        __m128 __v =_mm_and_ps( _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) ),
+                                    _mm_and_ps( _mm_cmplt_ps(_zero, __c), _mm_cmplt_ps(__c, _nCols) ) );
 
-        _mm_store_ps(_p+i, block_p);
-        _mm_store_ps(_v+i, block_v);
-    }
+        __m128i *_p = reinterpret_cast<__m128i*>(&pixels(i));
+        _mm_store_si128(_p, __p);
+        _mm_store_ps(_v+i, __v);
+    } 
 #endif
-};
+
+    //Check result
+    for(int i=0; i < pixels.size(); i++)
+    {
+        assert( visible(i) == visible_(i) );
+        assert( pixels(i) == pixels_(i) );
+    }
+}
 
 ///*! Compute the 2x6 jacobian matrices of the composition (warping+rigidTransformation) using the pinhole camera model. */
 //void PinholeModel::computeJacobians26(MatrixXf & xyz_tf, MatrixXf & jacobians_aligned)
@@ -569,7 +605,7 @@ void PinholeModel::projectNN(const MatrixXf & xyz, MatrixXi & pixels, MatrixXi &
 ////    #if ENABLE_OPENMP
 ////    #pragma omp parallel for
 ////    #endif
-//    for(size_t i=0; i < xyz_transf.rows(); i++)
+//    for(int i=0; i < xyz_tf.rows(); i++)
 //    {
 //        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
 //        float inv_transf_z = 1.0/xyz_transf(2);
@@ -616,48 +652,44 @@ void PinholeModel::projectNN(const MatrixXf & xyz, MatrixXi & pixels, MatrixXi &
 //    __m128 _fx = _mm_set1_ps(fx);
 //    __m128 _fy = _mm_set1_ps(fy);
 //    __m128 _one = _mm_set1_ps(1.f);
-//    for(size_t i=0; i < xyz_tf.rows(); i+=4)
+//    for(int i=0; i < xyz_tf.rows(); i+=4)
 //    {
-//        __m128 block_x = _mm_load_ps(_x+i);
-//        __m128 block_y = _mm_load_ps(_y+i);
-//        __m128 block_z = _mm_load_ps(_z+i);
-//        __m128 _inv_z = _mm_div_ps(_one, block_z);
+//        __m128 __x = _mm_load_ps(_x+i);
+//        __m128 __y = _mm_load_ps(_y+i);
+//        __m128 __z = _mm_load_ps(_z+i);
+//        __m128 _inv_z = _mm_div_ps(_one, __z);
 
-//        __m128 block_j00 = _mm_mul_ps(_fx, _inv_z);
-//        __m128 block_j11 = _mm_mul_ps(_fy, _inv_z);
-//        __m128 block_j02 = _mm_xor_ps( _mm_mul_ps(block_x, _mm_mul_ps(_inv_z, block_j00) ), _mm_set1_ps(-0.f) );
-//        __m128 block_j12_neg = _mm_mul_ps(block_y, _mm_mul_ps(_inv_z, block_j11) );
+//        __m128 __j00 = _mm_mul_ps(_fx, _inv_z);
+//        __m128 __j11 = _mm_mul_ps(_fy, _inv_z);
+//        __m128 __j02 = _mm_xor_ps( _mm_mul_ps(__x, _mm_mul_ps(_inv_z, __j00) ), _mm_set1_ps(-0.f) );
+//        __m128 __j12_neg = _mm_mul_ps(__y, _mm_mul_ps(_inv_z, __j11) );
 
-//        _mm_store_ps(_j00+i, block_j00 );
-//        _mm_store_ps(_j11+i, block_j11 );
-//        _mm_store_ps(_j02+i, block_j02);
-//        _mm_store_ps(_j12+i, _mm_xor_ps(block_j12, _mm_set1_ps(-0.f)) );
-//        _mm_store_ps(_j03+i, _mm_mul_ps( block_y, block_j02) );
-//        _mm_store_ps(_j13+i, _mm_sub_ps(_mm_mul_ps( block_y, block_j12), _fy );
-//        _mm_store_ps(_j04+i, _mm_sub_ps(_fx, _mm_mul_ps( block_x, block_j02) );
-//        _mm_store_ps(_j14+i, _mm_mul_ps( block_0, block_j12_neg) );
-//        _mm_store_ps(_j05+i, _mm_xor_ps( _mm_mul_ps(block_y, block_j00), _mm_set1_ps(-0.f) ) );
-//        _mm_store_ps(_j16+i, _mm_mul_ps(block_x, block_j11));
+//        _mm_store_ps(_j00+i, __j00 );
+//        _mm_store_ps(_j11+i, __j11 );
+//        _mm_store_ps(_j02+i, __j02);
+//        _mm_store_ps(_j12+i, _mm_xor_ps(__j12, _mm_set1_ps(-0.f)) );
+//        _mm_store_ps(_j03+i, _mm_mul_ps( __y, __j02) );
+//        _mm_store_ps(_j13+i, _mm_sub_ps(_mm_mul_ps( __y, __j12), _fy );
+//        _mm_store_ps(_j04+i, _mm_sub_ps(_fx, _mm_mul_ps( __x, __j02) );
+//        _mm_store_ps(_j14+i, _mm_mul_ps( __0, __j12_neg) );
+//        _mm_store_ps(_j05+i, _mm_xor_ps( _mm_mul_ps(__y, __j00), _mm_set1_ps(-0.f) ) );
+//        _mm_store_ps(_j16+i, _mm_mul_ps(__x, __j11));
 //    }
 //#endif
 //}
 
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
-void PinholeModel::computeJacobiansPhoto(MatrixXf & xyz_tf, const float stdDevPhoto_inv, VectorXf & weights, MatrixXf & jacobians, float *_grayGradX, float *_grayGradY)
+void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_grayGradX, float *_grayGradY)
 {
     jacobians.resize(xyz_tf.rows(), 6);
 
-    float *_x = &xyz_tf(0,0);
-    float *_y = &xyz_tf(0,1);
-    float *_z = &xyz_tf(0,2);
-    float *_weight = &weights(0,0);
+    const float *_x = &xyz_tf(0,0);
+    const float *_y = &xyz_tf(0,1);
+    const float *_z = &xyz_tf(0,2);
+    const float *_weight = &weights(0,0);
 
-#if !(_SSE3) // # ifdef !__SSE3__
-
-//    #if ENABLE_OPENMP
-//    #pragma omp parallel for
-//    #endif
-    for(size_t i=0; i < xyz_transf.rows(); i++)
+    Eigen::MatrixXf jacobians2(xyz_tf.rows(), 6);
+    for(int i=0; i < xyz_tf.rows(); i++)
     {
         Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
@@ -665,7 +697,23 @@ void PinholeModel::computeJacobiansPhoto(MatrixXf & xyz_tf, const float stdDevPh
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
         img_gradient(0,1) = _grayGradY[i];
-        jacobians.block(i,0,1,6) = ((sqrt(wEstimDepth(i)) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
+        jacobians2.block(i,0,1,6) = ((sqrt(weights(i)) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
+    }
+
+#if !(_SSE3) // # ifdef !__SSE3__
+
+//    #if ENABLE_OPENMP
+//    #pragma omp parallel for
+//    #endif
+    for(int i=0; i < xyz_tf.rows(); i++)
+    {
+        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Matrix<float,2,6> jacobianWarpRt;
+        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+        Matrix<float,1,2> img_gradient;
+        img_gradient(0,0) = _grayGradX[i];
+        img_gradient(0,1) = _grayGradY[i];
+        jacobians.block(i,0,1,6) = ((sqrt(weights(i)) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
     }
 
 #else
@@ -680,59 +728,60 @@ void PinholeModel::computeJacobiansPhoto(MatrixXf & xyz_tf, const float stdDevPh
     __m128 _fx = _mm_set1_ps(fx);
     __m128 _fy = _mm_set1_ps(fy);
     __m128 _one = _mm_set1_ps(1.f);
-    __m128 block_stdDevInv = _mm_set1_ps(stdDevPhoto_inv);
-    for(size_t i=0; i < xyz_tf.rows(); i+=4)
+    __m128 __stdDevInv = _mm_set1_ps(stdDevPhoto_inv);
+    for(int i=0; i < xyz_tf.rows(); i+=4)
     {
-        __m128 block_gradX = _mm_load_ps(_grayGradX+i);
-        __m128 block_gradY = _mm_load_ps(_grayGradY+i);
-        __m128 block_weight = _mm_load_ps(_weight+i);
-        __m128 block_weight_stdDevInv = _mm_mul_ps(block_stdDevInv, block_weight);
-        __m128 block_gradX_weight = _mm_mul_ps(block_weight_stdDevInv, block_gradX);
-        __m128 block_gradY_weight = _mm_mul_ps(block_weight_stdDevInv, block_gradY);
+        __m128 __gradX = _mm_load_ps(_grayGradX+i);
+        __m128 __gradY = _mm_load_ps(_grayGradY+i);
+        __m128 __weight = _mm_load_ps(_weight+i);
+        __m128 __weight_stdDevInv = _mm_mul_ps(__stdDevInv, __weight);
+        __m128 __gradX_weight = _mm_mul_ps(__weight_stdDevInv, __gradX);
+        __m128 __gradY_weight = _mm_mul_ps(__weight_stdDevInv, __gradY);
 
-        __m128 block_x = _mm_load_ps(_x+i);
-        __m128 block_y = _mm_load_ps(_y+i);
-        __m128 block_z = _mm_load_ps(_z+i);
-        __m128 _inv_z = _mm_div_ps(_one, block_z);
+        __m128 __x = _mm_load_ps(_x+i);
+        __m128 __y = _mm_load_ps(_y+i);
+        __m128 __z = _mm_load_ps(_z+i);
+        __m128 _inv_z = _mm_div_ps(_one, __z);
 
-        __m128 block_j00 = _mm_mul_ps(_fx, _inv_z);
-        __m128 block_j11 = _mm_mul_ps(_fy, _inv_z);
-        __m128 block_j02 = _mm_xor_ps( _mm_mul_ps(block_x, _mm_mul_ps(_inv_z, block_j00) ), _mm_set1_ps(-0.f) );
-        __m128 block_j12_neg = _mm_mul_ps(block_y, _mm_mul_ps(_inv_z, block_j11) );
-        __m128 block_j03 = _mm_mul_ps( block_y, block_j02);
-        __m128 block_j13_neg = _mm_sum_ps(_mm_mul_ps( block_y, block_j12_neg), _fy );
-        __m128 block_j04_neg = _mm_sub_ps(_mm_mul_ps( block_x, block_j02), _fx );
-        __m128 block_j14 = _mm_mul_ps( block_x, block_j12_neg);
-        __m128 block_j05_neg = _mm_mul_ps(block_y, block_j00);
-        __m128 block_j15 = _mm_mul_ps(block_x, block_j11);
+        __m128 __j00 = _mm_mul_ps(_fx, _inv_z);
+        __m128 __j11 = _mm_mul_ps(_fy, _inv_z);
+        __m128 __j02 = _mm_xor_ps( _mm_mul_ps(__x, _mm_mul_ps(_inv_z, __j00) ), _mm_set1_ps(-0.f) );
+        __m128 __j12_neg = _mm_mul_ps(__y, _mm_mul_ps(_inv_z, __j11) );
+        __m128 __j03 = _mm_mul_ps( __y, __j02);
+        __m128 __j13_neg = _mm_add_ps(_mm_mul_ps( __y, __j12_neg), _fy );
+        __m128 __j04_neg = _mm_sub_ps(_mm_mul_ps( __x, __j02), _fx );
+        __m128 __j14 = _mm_mul_ps( __x, __j12_neg);
+        __m128 __j05_neg = _mm_mul_ps(__y, __j00);
+        __m128 __j15 = _mm_mul_ps(__x, __j11);
 
-        _mm_store_ps(_j0+i, _mm_mul_ps(block_gradX_weight, block_j00) );
-        _mm_store_ps(_j1+i, _mm_mul_ps(block_gradY_weight, block_j11) );
-        _mm_store_ps(_j2+i, _mm_sub_ps(_mm_mul_ps(block_gradX_weight, block_j02), _mm_mul_ps(block_gradY_weight, block_j12_neg) ) );
-        _mm_store_ps(_j3+i, _mm_sub_ps(_mm_mul_ps(block_gradX_weight, block_j03), _mm_mul_ps(block_gradY_weight, block_j13) ) );
-        _mm_store_ps(_j4+i, _mm_sub_ps(_mm_mul_ps(block_gradY_weight, block_j14), _mm_mul_ps(block_gradX_weight, block_j04_neg) ) );
-        _mm_store_ps(_j5+i, _mm_sub_ps(block_gradY_weight, block_j15), _mm_sub_ps(_mm_mul_ps(block_gradX_weight, block_j05_neg) ) );
+        _mm_store_ps(_j0+i, _mm_mul_ps(__gradX_weight, __j00) );
+        _mm_store_ps(_j1+i, _mm_mul_ps(__gradY_weight, __j11) );
+        _mm_store_ps(_j2+i, _mm_sub_ps(_mm_mul_ps(__gradX_weight, __j02), _mm_mul_ps(__gradY_weight, __j12_neg) ) );
+        _mm_store_ps(_j3+i, _mm_sub_ps(_mm_mul_ps(__gradX_weight, __j03), _mm_mul_ps(__gradY_weight, __j13_neg) ) );
+        _mm_store_ps(_j4+i, _mm_sub_ps(_mm_mul_ps(__gradY_weight, __j14), _mm_mul_ps(__gradX_weight, __j04_neg) ) );
+        _mm_store_ps(_j5+i, _mm_sub_ps(_mm_mul_ps(__gradY_weight, __j15), _mm_mul_ps(__gradX_weight, __j05_neg) ) );
     }
 #endif
+
+    for(int i=0; i < xyz_tf.rows(); i++)
+        for(size_t j=0; j < 6; j++)
+            assert(jacobians(i,j) == jacobians2(i,j));
+
 }
 
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
-void PinholeModel::computeJacobiansDepth(MatrixXf & xyz_tf, VectorXf & stdDevError_inv, VectorXf & weights, MatrixXf & jacobians, float *_depthGradX, float *_depthGradY)
+void PinholeModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_depthGradX, float *_depthGradY)
 {
     jacobians.resize(xyz_tf.rows(), 6);
 
-    float *_x = &xyz_tf(0,0);
-    float *_y = &xyz_tf(0,1);
-    float *_z = &xyz_tf(0,2);
-    float *_weight = &weights(0,0);
-    float *_stdDevInv = &stdDevError_inv(0);
+    const float *_x = &xyz_tf(0,0);
+    const float *_y = &xyz_tf(0,1);
+    const float *_z = &xyz_tf(0,2);
+    const float *_weight = &weights(0,0);
+    const float *_stdDevInv = &stdDevError_inv(0);
 
-#if !(_SSE3) // # ifdef !__SSE3__
-
-//    #if ENABLE_OPENMP
-//    #pragma omp parallel for
-//    #endif
-    for(size_t i=0; i < xyz_transf.rows(); i++)
+    Eigen::MatrixXf jacobians2(xyz_tf.rows(), 6);
+    for(int i=0; i < xyz_tf.rows(); i++)
     {
         Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
@@ -744,9 +793,27 @@ void PinholeModel::computeJacobiansDepth(MatrixXf & xyz_tf, VectorXf & stdDevErr
         Matrix<float,1,2> depth_gradient;
         depth_gradient(0,0) = _depthGradX[i];
         depth_gradient(0,1) = _depthGradY[i];
-        jacobians.block(i,0,1,6) = (sqrt(wEstimDepth(i)) * stdDevError_inv(i) ) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
+        jacobians2.block(i,0,1,6) = (sqrt(weights(i)) * stdDevError_inv(i) ) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
+    }
 
-        //residualsDepth_src(i) *= weight_estim_sqrt;
+#if !(_SSE3) // # ifdef !__SSE3__
+
+//    #if ENABLE_OPENMP
+//    #pragma omp parallel for
+//    #endif
+    for(int i=0; i < xyz_tf.rows(); i++)
+    {
+        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Matrix<float,2,6> jacobianWarpRt;
+        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+        Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
+        jacobian16_depthT(0,2) = 1.f;
+        jacobian16_depthT(0,3) = xyz_transf(1);
+        jacobian16_depthT(0,4) =-xyz_transf(0);
+        Matrix<float,1,2> depth_gradient;
+        depth_gradient(0,0) = _depthGradX[i];
+        depth_gradient(0,1) = _depthGradY[i];
+        jacobians.block(i,0,1,6) = (sqrt(weights(i)) * stdDevError_inv(i) ) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
     }
 
 #else
@@ -761,60 +828,65 @@ void PinholeModel::computeJacobiansDepth(MatrixXf & xyz_tf, VectorXf & stdDevErr
     __m128 _fx = _mm_set1_ps(fx);
     __m128 _fy = _mm_set1_ps(fy);
     __m128 _one = _mm_set1_ps(1.f);
-    for(size_t i=0; i < xyz_tf.rows(); i+=4)
+    for(int i=0; i < xyz_tf.rows(); i+=4)
     {
-        __m128 block_gradX = _mm_load_ps(_depthGradX+i);
-        __m128 block_gradY = _mm_load_ps(_depthGradY+i);
-        __m128 block_weight = _mm_load_ps(_weight+i);
-        __m128 block_stdDevInv = _mm_load_ps(_stdDevInv+i);
-        __m128 block_weight_stdDevInv = _mm_mul_ps(block_stdDevInv, block_weight);
-        __m128 block_gradX_weight = _mm_mul_ps(block_weight_stdDevInv, block_gradX);
-        __m128 block_gradY_weight = _mm_mul_ps(block_weight_stdDevInv, block_gradY);
+        __m128 __gradX = _mm_load_ps(_depthGradX+i);
+        __m128 __gradY = _mm_load_ps(_depthGradY+i);
+        __m128 __weight = _mm_load_ps(_weight+i);
+        __m128 __stdDevInv = _mm_load_ps(_stdDevInv+i);
+        __m128 __weight_stdDevInv = _mm_mul_ps(__stdDevInv, __weight);
+        __m128 __gradX_weight = _mm_mul_ps(__weight_stdDevInv, __gradX);
+        __m128 __gradY_weight = _mm_mul_ps(__weight_stdDevInv, __gradY);
 
-        __m128 block_x = _mm_load_ps(_x+i);
-        __m128 block_y = _mm_load_ps(_y+i);
-        __m128 block_z = _mm_load_ps(_z+i);
-        __m128 _inv_z = _mm_div_ps(_one, block_z);
+        __m128 __x = _mm_load_ps(_x+i);
+        __m128 __y = _mm_load_ps(_y+i);
+        __m128 __z = _mm_load_ps(_z+i);
+        __m128 _inv_z = _mm_div_ps(_one, __z);
 
-        __m128 block_j00 = _mm_mul_ps(_fx, _inv_z);
-        __m128 block_j11 = _mm_mul_ps(_fy, _inv_z);
-        __m128 block_j02 = _mm_xor_ps( _mm_mul_ps(block_x, _mm_mul_ps(_inv_z, block_j00) ), _mm_set1_ps(-0.f) );
-        __m128 block_j12_neg = _mm_mul_ps(block_y, _mm_mul_ps(_inv_z, block_j11) );
-        __m128 block_j03 = _mm_mul_ps( block_y, block_j02);
-        __m128 block_j13_neg = _mm_sum_ps(_mm_mul_ps( block_y, block_j12_neg), _fy );
-        __m128 block_j04_neg = _mm_sub_ps(_mm_mul_ps( block_x, block_j02), _fx );
-        __m128 block_j14 = _mm_mul_ps( block_x, block_j12_neg);
-        __m128 block_j05_neg = _mm_mul_ps(block_y, block_j00);
-        __m128 block_j15 = _mm_mul_ps(block_x, block_j11);
+        __m128 __j00 = _mm_mul_ps(_fx, _inv_z);
+        __m128 __j11 = _mm_mul_ps(_fy, _inv_z);
+        __m128 __j02 = _mm_xor_ps( _mm_mul_ps(__x, _mm_mul_ps(_inv_z, __j00) ), _mm_set1_ps(-0.f) );
+        __m128 __j12_neg = _mm_mul_ps(__y, _mm_mul_ps(_inv_z, __j11) );
+        __m128 __j03 = _mm_mul_ps( __y, __j02);
+        __m128 __j13_neg = _mm_add_ps(_mm_mul_ps( __y, __j12_neg), _fy );
+        __m128 __j04_neg = _mm_sub_ps(_mm_mul_ps( __x, __j02), _fx );
+        __m128 __j14 = _mm_mul_ps( __x, __j12_neg);
+        __m128 __j05_neg = _mm_mul_ps(__y, __j00);
+        __m128 __j15 = _mm_mul_ps(__x, __j11);
 
-        _mm_store_ps(_j0+i, _mm_mul_ps(block_gradX_weight, block_j00) );
-        _mm_store_ps(_j1+i, _mm_mul_ps(block_gradY_weight, block_j11) );
-        _mm_store_ps(_j2+i, _mm_sub_ps(_mm_sub_ps(_mm_mul_ps(block_gradX_weight, block_j02), _mm_mul_ps(block_gradY_weight, block_j12_neg) ), block_weight_stdDevInv) );
-        _mm_store_ps(_j3+i, _mm_sub_ps(_mm_sub_ps(_mm_mul_ps(block_gradX_weight, block_j03), _mm_mul_ps(block_gradY_weight, block_j13) ), _mm_mul_ps(block_weight_stdDevInv, block_y) ) );
-        _mm_store_ps(_j4+i, _mm_sum_ps(_mm_sub_ps(_mm_mul_ps(block_gradY_weight, block_j14), _mm_mul_ps(block_gradX_weight, block_j04_neg) ), _mm_mul_ps(block_weight_stdDevInv, block_x) ) );
-        _mm_store_ps(_j5+i, _mm_sub_ps(block_gradY_weight, block_j15), _mm_sub_ps(_mm_mul_ps(block_gradX_weight, block_j05_neg) ) );
+        _mm_store_ps(_j0+i, _mm_mul_ps(__gradX_weight, __j00) );
+        _mm_store_ps(_j1+i, _mm_mul_ps(__gradY_weight, __j11) );
+        _mm_store_ps(_j2+i, _mm_sub_ps(_mm_sub_ps(_mm_mul_ps(__gradX_weight, __j02), _mm_mul_ps(__gradY_weight, __j12_neg) ), __weight_stdDevInv) );
+        _mm_store_ps(_j3+i, _mm_sub_ps(_mm_sub_ps(_mm_mul_ps(__gradX_weight, __j03), _mm_mul_ps(__gradY_weight, __j13_neg) ), _mm_mul_ps(__weight_stdDevInv, __y) ) );
+        _mm_store_ps(_j4+i, _mm_add_ps(_mm_sub_ps(_mm_mul_ps(__gradY_weight, __j14), _mm_mul_ps(__gradX_weight, __j04_neg) ), _mm_mul_ps(__weight_stdDevInv, __x) ) );
+        _mm_store_ps(_j5+i, _mm_sub_ps(_mm_mul_ps(__gradY_weight, __j15), _mm_mul_ps(__gradX_weight, __j05_neg) ) );
     }
 #endif
+
+    for(int i=0; i < xyz_tf.rows(); i++)
+        for(size_t j=0; j < 6; j++)
+            assert(jacobians(i,j) == jacobians2(i,j));
 }
 
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
-void PinholeModel::computeJacobiansPhotoDepth(MatrixXf & xyz_tf, const float stdDevPhoto_inv, VectorXf & stdDevError_inv, VectorXf & weights,
-                                                         MatrixXf & jacobians_photo, MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY)
+void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
+                                               Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY)
 {
-    jacobians.resize(xyz_tf.rows(), 6);
+    jacobians_photo.resize(xyz_tf.rows(), 6);
+    jacobians_depth.resize(xyz_tf.rows(), 6);
 
-    float *_x = &xyz_tf(0,0);
-    float *_y = &xyz_tf(0,1);
-    float *_z = &xyz_tf(0,2);
-    float *_weight = &weights(0,0);
-    float *_stdDevInv = &stdDevError_inv(0);
+    const float *_x = &xyz_tf(0,0);
+    const float *_y = &xyz_tf(0,1);
+    const float *_z = &xyz_tf(0,2);
+    const float *_weight = &weights(0,0);
+    const float *_stdDevInv = &stdDevError_inv(0);
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
 //    #if ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
-    for(size_t i=0; i < xyz_transf.rows(); i++)
+    for(int i=0; i < xyz_tf.rows(); i++)
     {
         Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
@@ -823,7 +895,7 @@ void PinholeModel::computeJacobiansPhotoDepth(MatrixXf & xyz_tf, const float std
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
         img_gradient(0,1) = _grayGradY[i];
-        float sqrt_weight = sqrt(wEstimDepth(i));
+        float sqrt_weight = sqrt(weights(i));
         jacobians_photo.block(i,0,1,6) = ((sqrt_weight * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
 
         Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
@@ -855,53 +927,53 @@ void PinholeModel::computeJacobiansPhotoDepth(MatrixXf & xyz_tf, const float std
     __m128 _fx = _mm_set1_ps(fx);
     __m128 _fy = _mm_set1_ps(fy);
     __m128 _one = _mm_set1_ps(1.f);
-    __m128 block_stdDevPhotoInv = _mm_set1_ps(stdDevPhoto_inv);
-    for(size_t i=0; i < xyz_tf.rows(); i+=4)
+    __m128 __stdDevPhotoInv = _mm_set1_ps(stdDevPhoto_inv);
+    for(int i=0; i < xyz_tf.rows(); i+=4)
     {
-        __m128 block_weight = _mm_load_ps(_weight+i);
+        __m128 __weight = _mm_load_ps(_weight+i);
 
-        __m128 block_gradGrayX = _mm_load_ps(_grayGradX+i);
-        __m128 block_gradGrayY = _mm_load_ps(_grayGradY+i);
-        __m128 block_weight_stdDevPhotoInv = _mm_mul_ps(block_stdDevPhotoInv, block_weight);
-        __m128 block_gradX_weight = _mm_mul_ps(block_weight_stdDevInv, block_gradX);
-        __m128 block_gradY_weight = _mm_mul_ps(block_weight_stdDevPhotoInv, block_gradY);
+        __m128 __gradGrayX = _mm_load_ps(_grayGradX+i);
+        __m128 __gradGrayY = _mm_load_ps(_grayGradY+i);
+        __m128 __weight_stdDevPhotoInv = _mm_mul_ps(__stdDevPhotoInv, __weight);
+        __m128 __gradX_weight = _mm_mul_ps(__weight_stdDevPhotoInv, __gradGrayX);
+        __m128 __gradY_weight = _mm_mul_ps(__weight_stdDevPhotoInv, __gradGrayY);
 
-        __m128 block_gradX = _mm_load_ps(_depthGradX+i);
-        __m128 block_gradY = _mm_load_ps(_depthGradY+i);
-        __m128 block_stdDevDepthInv = _mm_load_ps(_stdDevInv+i);
-        __m128 block_weight_stdDevDepthInv = _mm_mul_ps(block_stdDevDepthInv, block_weight);
-        __m128 block_gradDepthX_weight = _mm_mul_ps(block_weight_stdDevDepthInv, block_gradX);
-        __m128 block_gradDepthY_weight = _mm_mul_ps(block_weight_stdDevDepthInv, block_gradY);
+        __m128 __gradX = _mm_load_ps(_depthGradX+i);
+        __m128 __gradY = _mm_load_ps(_depthGradY+i);
+        __m128 __stdDevDepthInv = _mm_load_ps(_stdDevInv+i);
+        __m128 __weight_stdDevDepthInv = _mm_mul_ps(__stdDevDepthInv, __weight);
+        __m128 __gradDepthX_weight = _mm_mul_ps(__weight_stdDevDepthInv, __gradX);
+        __m128 __gradDepthY_weight = _mm_mul_ps(__weight_stdDevDepthInv, __gradY);
 
-        __m128 block_x = _mm_load_ps(_x+i);
-        __m128 block_y = _mm_load_ps(_y+i);
-        __m128 block_z = _mm_load_ps(_z+i);
-        __m128 _inv_z = _mm_div_ps(_one, block_z);
+        __m128 __x = _mm_load_ps(_x+i);
+        __m128 __y = _mm_load_ps(_y+i);
+        __m128 __z = _mm_load_ps(_z+i);
+        __m128 _inv_z = _mm_div_ps(_one, __z);
 
-        __m128 block_j00 = _mm_mul_ps(_fx, _inv_z);
-        __m128 block_j11 = _mm_mul_ps(_fy, _inv_z);
-        __m128 block_j02 = _mm_xor_ps( _mm_mul_ps(block_x, _mm_mul_ps(_inv_z, block_j00) ), _mm_set1_ps(-0.f) );
-        __m128 block_j12_neg = _mm_mul_ps(block_y, _mm_mul_ps(_inv_z, block_j11) );
-        __m128 block_j03 = _mm_mul_ps( block_y, block_j02);
-        __m128 block_j13_neg = _mm_sum_ps(_mm_mul_ps( block_y, block_j12_neg), _fy );
-        __m128 block_j04_neg = _mm_sub_ps(_mm_mul_ps( block_x, block_j02), _fx );
-        __m128 block_j14 = _mm_mul_ps( block_x, block_j12_neg);
-        __m128 block_j05_neg = _mm_mul_ps(block_y, block_j00);
-        __m128 block_j15 = _mm_mul_ps(block_x, block_j11);
+        __m128 __j00 = _mm_mul_ps(_fx, _inv_z);
+        __m128 __j11 = _mm_mul_ps(_fy, _inv_z);
+        __m128 __j02 = _mm_xor_ps( _mm_mul_ps(__x, _mm_mul_ps(_inv_z, __j00) ), _mm_set1_ps(-0.f) );
+        __m128 __j12_neg = _mm_mul_ps(__y, _mm_mul_ps(_inv_z, __j11) );
+        __m128 __j03 = _mm_mul_ps( __y, __j02);
+        __m128 __j13_neg = _mm_add_ps(_mm_mul_ps( __y, __j12_neg), _fy );
+        __m128 __j04_neg = _mm_sub_ps(_mm_mul_ps( __x, __j02), _fx );
+        __m128 __j14 = _mm_mul_ps( __x, __j12_neg);
+        __m128 __j05_neg = _mm_mul_ps(__y, __j00);
+        __m128 __j15 = _mm_mul_ps(__x, __j11);
 
-        _mm_store_ps(_j0_gray+i, _mm_mul_ps(block_gradX_weight, block_j00) );
-        _mm_store_ps(_j1_gray+i, _mm_mul_ps(block_gradY_weight, block_j11) );
-        _mm_store_ps(_j2_gray+i, _mm_sub_ps(_mm_mul_ps(block_gradX_weight, block_j02), _mm_mul_ps(block_gradY_weight, block_j12_neg) ) );
-        _mm_store_ps(_j3_gray+i, _mm_sub_ps(_mm_mul_ps(block_gradX_weight, block_j03), _mm_mul_ps(block_gradY_weight, block_j13) ) );
-        _mm_store_ps(_j4_gray+i, _mm_sub_ps(_mm_mul_ps(block_gradY_weight, block_j14), _mm_mul_ps(block_gradX_weight, block_j04_neg) ) );
-        _mm_store_ps(_j5_gray+i, _mm_sub_ps(block_gradY_weight, block_j15), _mm_sub_ps(_mm_mul_ps(block_gradX_weight, block_j05_neg) ) );
+        _mm_store_ps(_j0_gray+i, _mm_mul_ps(__gradX_weight, __j00) );
+        _mm_store_ps(_j1_gray+i, _mm_mul_ps(__gradY_weight, __j11) );
+        _mm_store_ps(_j2_gray+i, _mm_sub_ps(_mm_mul_ps(__gradX_weight, __j02), _mm_mul_ps(__gradY_weight, __j12_neg) ) );
+        _mm_store_ps(_j3_gray+i, _mm_sub_ps(_mm_mul_ps(__gradX_weight, __j03), _mm_mul_ps(__gradY_weight, __j13_neg) ) );
+        _mm_store_ps(_j4_gray+i, _mm_sub_ps(_mm_mul_ps(__gradY_weight, __j14), _mm_mul_ps(__gradX_weight, __j04_neg) ) );
+        _mm_store_ps(_j5_gray+i, _mm_sub_ps(_mm_mul_ps(__gradY_weight, __j15), _mm_mul_ps(__gradX_weight, __j05_neg) ) );
 
-        _mm_store_ps(_j0_depth+i, _mm_mul_ps(block_gradDepthX_weight, block_j00) );
-        _mm_store_ps(_j1_depth+i, _mm_mul_ps(block_gradDepthY_weight, block_j11) );
-        _mm_store_ps(_j2_depth+i, _mm_sub_ps(_mm_sub_ps(_mm_mul_ps(block_gradDepthX_weight, block_j02), _mm_mul_ps(block_gradDepthY_weight, block_j12_neg) ), block_weight_stdDevInv) );
-        _mm_store_ps(_j3_depth+i, _mm_sub_ps(_mm_sub_ps(_mm_mul_ps(block_gradDepthX_weight, block_j03), _mm_mul_ps(block_gradDepthY_weight, block_j13) ), _mm_mul_ps(block_weight_stdDevInv, block_y) ) );
-        _mm_store_ps(_j4_depth+i, _mm_sum_ps(_mm_sub_ps(_mm_mul_ps(block_gradDepthY_weight, block_j14), _mm_mul_ps(block_gradDepthX_weight, block_j04_neg) ), _mm_mul_ps(block_weight_stdDevInv, block_x) ) );
-        _mm_store_ps(_j5_depth+i, _mm_sub_ps(block_gradDepthY_weight, block_j15), _mm_sub_ps(_mm_mul_ps(block_gradDepthX_weight, block_j05_neg) ) );
+        _mm_store_ps(_j0_depth+i, _mm_mul_ps(__gradDepthX_weight, __j00) );
+        _mm_store_ps(_j1_depth+i, _mm_mul_ps(__gradDepthY_weight, __j11) );
+        _mm_store_ps(_j2_depth+i, _mm_sub_ps(_mm_sub_ps(_mm_mul_ps(__gradDepthX_weight, __j02), _mm_mul_ps(__gradDepthY_weight, __j12_neg) ), __weight_stdDevDepthInv) );
+        _mm_store_ps(_j3_depth+i, _mm_sub_ps(_mm_sub_ps(_mm_mul_ps(__gradX_weight, __j03), _mm_mul_ps(__gradY_weight, __j13_neg) ), _mm_mul_ps(__weight_stdDevDepthInv, __y) ) );
+        _mm_store_ps(_j4_depth+i, _mm_add_ps(_mm_sub_ps(_mm_mul_ps(__gradDepthY_weight, __j14), _mm_mul_ps(__gradDepthX_weight, __j04_neg) ), _mm_mul_ps(__weight_stdDevDepthInv, __x) ) );
+        _mm_store_ps(_j5_depth+i, _mm_sub_ps(_mm_mul_ps(__gradY_weight, __j15), _mm_mul_ps(__gradX_weight, __j05_neg) ) );
     }
 #endif
 }

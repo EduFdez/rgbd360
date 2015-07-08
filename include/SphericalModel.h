@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "SphericalModel.h"
+#include "ProjectionModel.h"
 //#include "Miscellaneous.h"
 //#include <Saliency.h>
 
@@ -59,6 +59,9 @@ class SphericalModel : public ProjectionModel
 
     SphericalModel();
 
+    /*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
+    void scaleCameraParams(const int pyrLevel);
+
     /*! Return the depth value of the 3D point projected on the image.*/
     inline float getDepth(const Eigen::Vector3f &xyz)
     {
@@ -70,7 +73,7 @@ class SphericalModel : public ProjectionModel
     inline bool isInImage(const T x, const T y)
     {
         return ( y >= 0 && y < nRows );
-    };
+    }
 
     /*! Project 3D points XYZ. */
     inline cv::Point2f project2Image(Eigen::Vector3f & xyz)
@@ -117,10 +120,10 @@ class SphericalModel : public ProjectionModel
     };
 
     /*! Project 3D points XYZ according to the spherical camera model (3D -> 2D). */
-    void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels);
+    void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible);
 
     /*! Project 3D points XYZ according to the spherical camera model (3D -> 1D nearest neighbor). */
-    void projectNN(const Eigen::MatrixXf &xyz, Eigen::MatrixXi & pixels, Eigen::MatrixXi &visible);
+    void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels, Eigen::VectorXi & visible);
 
     /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
     void reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels);
@@ -142,8 +145,7 @@ class SphericalModel : public ProjectionModel
     {
         //Eigen::Matrix<float,2,6> jacobianWarpRt;
 
-        const float dist = xyz_transf.norm();
-        float dist2 = dist * dist;
+        float dist2 = xyz_transf.squaredNorm();
         float x2_z2 = dist2 - xyz_transf(1)*xyz_transf(1);
         float x2_z2_sqrt = sqrt(x2_z2);
         float commonDer_c = pixel_angle_inv / x2_z2;
@@ -172,19 +174,19 @@ class SphericalModel : public ProjectionModel
     /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF of the inverse transformation */
     inline void
     //Eigen::Matrix<float,2,6>
-    computeJacobian26_wT_inv(const Eigen::Vector3f & xyz_transf, const Eigen::Vector3f & xyz_orig, const Eigen::Matrix3f & rotation, const float & dist, const float & pixel_angle_inv, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    computeJacobian26_wT_inv(const Eigen::Vector3f & xyz_transf, const Eigen::Vector3f & xyz_orig, const Eigen::Matrix3f & rotation, Eigen::Matrix<float,2,6> &jacobianWarpRt)
     {
         //Eigen::Matrix<float,2,6> jacobianWarpRt;
 
         // The Jacobian of the spherical projection
         Eigen::Matrix<float,2,3> jacobianProj23;
-        float dist2 = dist * dist;
+        float dist2 = xyz_transf.squaredNorm();
         float x2_z2 = dist2 - xyz_transf(1)*xyz_transf(1);
         float x2_z2_sqrt = sqrt(x2_z2);
         float commonDer_c = pixel_angle_inv / x2_z2;
         float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
         jacobianProj23(0,0) = commonDer_c * xyz_transf(2);
-        jacobianProj23(0,1) = 0;
+        jacobianProj23(0,1) = 0.f;
         jacobianProj23(0,2) =-commonDer_c * xyz_transf(0);
 //        jacobianProj23(1,0) = commonDer_r * xyz_transf(0) * xyz_transf(1);
         jacobianProj23(1,1) =-commonDer_r * x2_z2;
@@ -209,16 +211,16 @@ class SphericalModel : public ProjectionModel
 
     /*! Compute the Jacobian of the warp */
     inline void
-    computeJacobian23_warp(const Eigen::Vector3f & xyz_transf, const float dist, const float pixel_angle_inv, Eigen::Matrix<float,2,3> &jacobianWarp)
+    computeJacobian23_warp(const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,3> &jacobianWarp)
     {
         // The Jacobian of the spherical projection
-        float dist2 = dist * dist;
+        float dist2 = xyz_transf.squaredNorm();
         float x2_z2 = dist2 - xyz_transf(1)*xyz_transf(1);
         float x2_z2_sqrt = sqrt(x2_z2);
         float commonDer_c = pixel_angle_inv / x2_z2;
         float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
         jacobianWarp(0,0) = commonDer_c * xyz_transf(2);
-        jacobianWarp(0,1) = 0;
+        jacobianWarp(0,1) = 0.f;
         jacobianWarp(0,2) =-commonDer_c * xyz_transf(0);
 //        jacobianWarp(1,0) = commonDer_r * xyz_transf(0) * xyz_transf(1);
         jacobianWarp(1,1) =-commonDer_r * x2_z2;
@@ -231,12 +233,12 @@ class SphericalModel : public ProjectionModel
     /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
     inline void
     //Eigen::Matrix<float,2,6>
-    computeJacobian26_wTTx(const Eigen::Matrix4f & Rt, const Eigen::Vector3f & xyz, const float & dist, const float & pixel_angle_inv, const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt)
+    computeJacobian26_wTTx(const Eigen::Matrix4f & Rt, const Eigen::Vector3f & xyz, const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt)
     {
         Eigen::Matrix<float,2,3> jacobianWarp;
         Eigen::Matrix<float,3,6> jacobianRt;
 
-        computeJacobian23_warp(xyz_transf, dist, pixel_angle_inv, jacobianWarp);
+        computeJacobian23_warp(xyz_transf, jacobianWarp);
         computeJacobian36_Tx_p(Rt.block(0,0,3,3), xyz, jacobianRt);
 
         jacobianWarpRt = jacobianWarp * jacobianRt;
@@ -265,13 +267,13 @@ class SphericalModel : public ProjectionModel
 //}
 
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
-    void computeJacobiansPhoto(Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, Eigen::VectorXf & wEstimDepth, Eigen::MatrixXf & jacobians, float *_gradX, float *_gradY);
+    void computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_photo, float *_grayGradX, float *_grayGradY);
 
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
-    void computeJacobiansDepth(Eigen::MatrixXf & xyz_tf, Eigen::VectorXf & stdDevError_inv, Eigen::VectorXf & wEstimDepth, Eigen::MatrixXf & jacobians, float *_gradDepthX, float *_gradDepthY);
+    void computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY);
 
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
-    void computeJacobiansPhotoDepth(Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, Eigen::VectorXf & stdDevError_inv, Eigen::VectorXf & weights,
+    void computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
                                     Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY);
 
 };

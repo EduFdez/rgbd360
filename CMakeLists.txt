@@ -213,7 +213,6 @@ ADD_LIBRARY(DR
             ${PROJECT_SOURCE_DIR}/src/DirectRegistration.cpp
             ${PROJECT_SOURCE_DIR}/include/MEstimator.h
             ${PROJECT_SOURCE_DIR}/include/ProjectionModel.h
-            ${PROJECT_SOURCE_DIR}/src/ProjectionModel.cpp
             ${PROJECT_SOURCE_DIR}/include/PinholeModel.h
             ${PROJECT_SOURCE_DIR}/src/PinholeModel.cpp
             ${PROJECT_SOURCE_DIR}/include/SphericalModel.h

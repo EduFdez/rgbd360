@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <iostream>     // std::cout
 void my_int_func(int x)
 {
     printf( "%d\n", x );
@@ -9,6 +10,11 @@ int main()
 {
     void (*foo)(int);
     foo = &my_int_func;
+
+    double a[5];
+    int b[5];
+    short int c[5];
+    std::cout << " Data lenght " << "a: " << sizeof(double) << " b: " << sizeof(float) << " c: " << sizeof(int) << " c: " << sizeof(short int) << " c: " << sizeof(long int) << " \n";
 
     /* call my_int_func (note that you do not need to write (*foo)(2) ) */
     foo( 2 );

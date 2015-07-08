@@ -47,8 +47,8 @@
  */
 class ProjectionModel
 {
-//public:
-protected:
+public:
+//protected:
 
 //    /*! Projection's mathematical model */
 //    enum projectionType
@@ -70,9 +70,16 @@ protected:
     /*! Maximum allowed depth to consider a depth pixel valid.*/
     float max_depth_;
 
-public:
+//public:
 
-    ProjectionModel();
+    ProjectionModel() :
+        //projection_model(PINHOLE),  // SPHERICAL
+        min_depth_(0.3f),
+        max_depth_(20.f)
+    {
+    };
+
+    virtual ~ProjectionModel(){};
 
     /*! Set the minimum depth distance (m) to consider a certain pixel valid.*/
     inline void setMinDepth(const float minD)
@@ -86,27 +93,102 @@ public:
         max_depth_ = maxD;
     };
 
-    /*! Check if a pixel is within the image limits. */
-    template<typename T> inline bool isInImage(const T x, const T y) = 0;
+    /*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
+    virtual void scaleCameraParams(const int pyrLevel) = 0;
+
+//    /*! Check if a pixel is within the image limits. */
+//    virtual inline bool isInImage(const int x, const int y)
+//    {
+//        return ( y >= 0 && y < nRows && x >= 0 && x < nCols );
+//    };
+
+    /*! Return the depth value of the 3D point projected on the image.*/
+    virtual float getDepth(const Eigen::Vector3f &xyz) = 0;
 
     /*! Project 3D points XYZ. */
-    inline cv::Point2f project2Image(Eigen::Vector3f & xyz) = 0;
+    virtual inline cv::Point2f project2Image(Eigen::Vector3f & xyz) = 0;
 
-    /*! Project 3D points XYZ according to the camera model (3D -> 2D). */
-    void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels) = 0;
+    /*! Project 3D points XYZ according to the pinhole camera model (3D -> 2D). */
+    virtual void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible) = 0;
 
-    /*! Project 3D points XYZ according to the camera model (3D -> 1D nearest neighbor). */
-    void projectNN(const Eigen::MatrixXf &xyz, Eigen::MatrixXi & pixels, Eigen::MatrixXi &visible) = 0;
+    /*! Project 3D points XYZ according to the pinhole camera model (3D -> 1D nearest neighbor). */
+    virtual void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels, Eigen::VectorXi &visible) = 0;
 
-    /*! Compute the 3D points XYZ from the depth image. */
-    void reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels) = 0;
+    /*! Compute the 3D points XYZ according to the pinhole camera model. */
+    virtual void reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels) = 0;
 
-    /*! Get a list of salient points (pixels with hugh gradient) and compute their 3D position xyz */
-    void reconstruct3D_saliency( Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                   const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                   const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
-                                   const float thres_saliency_gray, const float thres_saliency_depth
-                                 ) = 0; // TODO extend this function to employ only depth
+    /*! Compute the 3D points XYZ according to the pinhole camera model. */
+    virtual void reconstruct3D_saliency ( Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+                                          const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
+                                          const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
+                                          const float thres_saliency_gray, const float thres_saliency_depth
+                                        ) = 0;
+
+    /*! Warp the image according to a given geometric transformation. */
+    //void warpImage ( const int pyrLevel, const Eigen::Matrix4f &poseGuess, costFuncType method );
+
+    /*! Compute the Jacobian composition of the transformed point: T(x)Tp */
+    inline void
+    //Eigen::Matrix<float,3,6>
+    computeJacobian36_xT_p(const Eigen::Vector3f & xyz, Eigen::Matrix<float,3,6> &jacobianRt)
+    {
+        //Eigen::Matrix<float,3,6> jacobianWarpRt;
+
+        jacobianRt.block(0,0,3,3) = Eigen::Matrix3f::Identity();
+        jacobianRt.block(0,3,3,3) = -skew(xyz);
+
+//        jacobianRt = Eigen::Matrix<float,3,6>::Zero();
+//        jacobianRt(0,0) = 1.f;
+//        jacobianRt(1,1) = 1.f;
+//        jacobianRt(2,2) = 1.f;
+//        jacobianRt(0,4) = xyz(2);
+//        jacobianRt(1,3) = -xyz(2);
+//        jacobianRt(0,5) = -xyz(1);
+//        jacobianRt(2,3) = xyz(1);
+//        jacobianRt(1,5) = xyz(0);
+//        jacobianRt(2,4) = -xyz(0);
+    }
+
+    /*! Compute the Jacobian composition of the transformed point: TT(x)p */
+    inline void
+    //Eigen::Matrix<float,3,6>
+    computeJacobian36_Tx_p(const Eigen::Matrix3f & rot, const Eigen::Vector3f & xyz, Eigen::Matrix<float,3,6> &jacobianRt)
+    {
+        //Eigen::Matrix<float,3,6> jacobianWarpRt;
+
+        jacobianRt.block(0,0,3,3) = Eigen::Matrix3f::Identity();
+        jacobianRt.block(0,3,3,3) = -skew(xyz);
+
+        jacobianRt = rot * jacobianRt;
+    }
+
+    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
+    virtual inline void
+    //Eigen::Matrix<float,2,6>
+    computeJacobian26_wT(const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt) = 0;
+
+    /*! Compute the Jacobian of the warp */
+    virtual inline void computeJacobian23_warp(const Eigen::Vector3f & xyz, Eigen::Matrix<float,2,3> &jacobianWarp) = 0;
+
+    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
+    virtual inline void
+    //Eigen::Matrix<float,2,6>
+    computeJacobian26_wTTx(const Eigen::Matrix4f & Rt, const Eigen::Vector3f & xyz, const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt) = 0;
+
+
+    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
+    virtual void computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_gradX, float *_gradY) = 0;
+
+    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
+    virtual void computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_gradDepthX, float *_gradDepthY) = 0;
+
+    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
+    virtual void computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
+                                    Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY) = 0;
+
+    ///*! Compute the 3Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
+    //void computeJacobiansICP(Eigen::MatrixXf & xyz_tf, Eigen::VectorXf & stdDevError_inv, Eigen::VectorXf & wEstimDepth, Eigen::MatrixXf & jacobians);
+
 
     /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y' */
 //    inline cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)
@@ -275,86 +357,6 @@ public:
     //    return _mm_cvtsi128_si32(out);
     //#endif
     //}
-
-    /*! Project 3D points XYZ according to the pinhole camera model (3D -> 2D). */
-    void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels);
-
-    /*! Project 3D points XYZ according to the pinhole camera model (3D -> 1D nearest neighbor). */
-    void projectNN(const Eigen::MatrixXf & xyz, Eigen::MatrixXi & pixels, Eigen::MatrixXi &visible);
-
-    /*! Compute the 3D points XYZ according to the pinhole camera model. */
-    void reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels);
-
-    /*! Compute the 3D points XYZ according to the pinhole camera model. */
-    void reconstruct3D_saliency ( Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                          const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                          const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
-                                          const float thres_saliency_gray, const float thres_saliency_depth
-                                        );
-
-    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
-    inline void
-    //Eigen::Matrix<float,2,6>
-    computeJacobian26_wT(const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt) = 0;
-
-    /*! Compute the Jacobian of the warp */
-    inline void computeJacobian23_warp(const Eigen::Vector3f & xyz, Eigen::Matrix<float,2,3> &jacobianWarp) = 0;
-
-    /*! Compute the Jacobian composition of the transformed point: T(x)Tp */
-    inline void
-    //Eigen::Matrix<float,3,6>
-    computeJacobian36_xT_p(const Eigen::Vector3f & xyz, Eigen::Matrix<float,3,6> &jacobianRt)
-    {
-        //Eigen::Matrix<float,3,6> jacobianWarpRt;
-
-        jacobianRt.block(0,0,3,3) = Eigen::Matrix3f::Identity();
-        jacobianRt.block(0,3,3,3) = -skew(xyz);
-
-//        jacobianRt = Eigen::Matrix<float,3,6>::Zero();
-//        jacobianRt(0,0) = 1.f;
-//        jacobianRt(1,1) = 1.f;
-//        jacobianRt(2,2) = 1.f;
-//        jacobianRt(0,4) = xyz(2);
-//        jacobianRt(1,3) = -xyz(2);
-//        jacobianRt(0,5) = -xyz(1);
-//        jacobianRt(2,3) = xyz(1);
-//        jacobianRt(1,5) = xyz(0);
-//        jacobianRt(2,4) = -xyz(0);
-    }
-
-    /*! Compute the Jacobian composition of the transformed point: TT(x)p */
-    inline void
-    //Eigen::Matrix<float,3,6>
-    computeJacobian36_Tx_p(const Eigen::Matrix3f & rot, const Eigen::Vector3f & xyz, Eigen::Matrix<float,3,6> &jacobianRt)
-    {
-        //Eigen::Matrix<float,3,6> jacobianWarpRt;
-
-        jacobianRt.block(0,0,3,3) = Eigen::Matrix3f::Identity();
-        jacobianRt.block(0,3,3,3) = -skew(xyz);
-
-        jacobianRt = rot * jacobianRt;
-    }
-
-    /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */
-    inline void
-    //Eigen::Matrix<float,2,6>
-    computeJacobian26_wTTx(const Eigen::Matrix4f & Rt, const Eigen::Vector3f & xyz, const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt) = 0;
-
-    /*! Warp the image according to a given geometric transformation. */
-    //void warpImage ( const int pyrLevel, const Eigen::Matrix4f &poseGuess, costFuncType method );
-
-    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
-    void computeJacobiansPhoto(Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, Eigen::VectorXf & wEstimDepth, Eigen::MatrixXf & jacobians, float *_gradX, float *_gradY) = 0;
-
-    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
-    void computeJacobiansDepth(Eigen::MatrixXf & xyz_tf, Eigen::VectorXf & stdDevError_inv, Eigen::VectorXf & wEstimDepth, Eigen::MatrixXf & jacobians, float *_gradDepthX, float *_gradDepthY) = 0;
-
-    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
-    void computeJacobiansPhotoDepth(Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, Eigen::VectorXf & stdDevError_inv, Eigen::VectorXf & weights,
-                                    Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY) = 0;
-
-    ///*! Compute the 3Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
-    //void computeJacobiansICP(Eigen::MatrixXf & xyz_tf, Eigen::VectorXf & stdDevError_inv, Eigen::VectorXf & wEstimDepth, Eigen::MatrixXf & jacobians);
 };
 
 #endif

@@ -46,30 +46,13 @@
  *  Refer to the last chapter of my thesis dissertation for more details:
  * "Contributions to metric-topological localization and mapping in mobile robotics" 2014. Eduardo Fernández-Moral.
  */
-class DirectRegistration : public ProjectionModel, Pyramid, MEstimator
+class DirectRegistration : public Pyramid, MEstimator //ProjectionModel
 {
 //public:
-
-    /*! Sensor */
-    enum sensorType
-    {
-        RGBD360_INDOOR = 0,
-        STEREO_OUTDOOR,
-        KINECT // Same for Asus XPL
-    } sensor_type;
 
 //    PinholeModel pinhole_model;
 //    SphericalModel spherical_model;
     ProjectionModel *ProjModel;
-
-    /*! Optimization method (cost function). The options are: 0=Photoconsistency, 1=Depth consistency (ICP like), 2= A combination of photo-depth consistency */
-    enum costFuncType
-    {
-        PHOTO_DEPTH,
-        PHOTO_CONSISTENCY,
-        DEPTH_CONSISTENCY,
-        DEPTH_ICP
-    } method;
 
     /*! The reference intensity image */
     cv::Mat graySrc;
@@ -215,6 +198,23 @@ class DirectRegistration : public ProjectionModel, Pyramid, MEstimator
 
 public:
 
+    /*! Sensor */
+    enum sensorType
+    {
+        RGBD360_INDOOR = 0,
+        STEREO_OUTDOOR,
+        KINECT // Same for Asus XPL
+    } sensor_type;
+
+    /*! Optimization method (cost function). The options are: 0=Photoconsistency, 1=Depth consistency (ICP like), 2= A combination of photo-depth consistency */
+    enum costFuncType
+    {
+        PHOTO_DEPTH,
+        PHOTO_CONSISTENCY,
+        DEPTH_CONSISTENCY,
+        DEPTH_ICP
+    } method;
+
     /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
     float SSO;
 
@@ -225,6 +225,8 @@ public:
     std::vector<cv::Mat> colorSrcPyr;
 
     DirectRegistration(sensorType sensor = KINECT);
+
+    ~DirectRegistration();
 
     /*! Set the number of pyramid levels.*/
     inline void setSensorType(const sensorType sensor)
@@ -311,8 +313,20 @@ public:
         use_salient_pixels_ = use_salient_pixels__;
     };
 
+    /*! Set the minimum depth distance (m) to consider a certain pixel valid.*/
+    inline void setMinDepth(const float minD)
+    {
+        ProjModel->setMinDepth(minD);
+    };
+
+    /*! Set the maximum depth distance (m) to consider a certain pixel valid.*/
+    inline void setMaxDepth(const float maxD)
+    {
+        ProjModel->setMaxDepth(maxD);
+    };
+
     /*! Returns the optimal SE(3) rigid transformation matrix between the source and target frame.
-     * This method has to be called after calling the register() method.*/
+     * This method has to be called after calling the regist() method.*/
     inline Eigen::Matrix4f getOptimalPose()
     {
         return registered_pose_;
@@ -494,23 +508,21 @@ public:
     /*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
       * This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
       * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution. */
-    void registerRGBD (  const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                         costFuncType method = PHOTO_CONSISTENCY,
-                         const int occlusion = 0);
+    void regist( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(), costFuncType method = PHOTO_CONSISTENCY, const int occlusion = 0);
 
-    void registerRGBD_InvDepth ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+    void register_InvDepth ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                                  costFuncType method = PHOTO_CONSISTENCY,
                                  const int occlusion = 0);
 
-    void registerRGBD_IC(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+    void register_IC(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                          costFuncType method = PHOTO_CONSISTENCY,
                          const int occlusion = 0);
 
-    void registerRGBD_inv ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+    void register_inv ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                             costFuncType method = PHOTO_CONSISTENCY,
                             const int occlusion = 0);
 
-    void registerRGBD_bidirectional ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
+    void register_bidirectional ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                             costFuncType method = PHOTO_CONSISTENCY,
                             const int occlusion = 0);
 
