@@ -88,7 +88,7 @@ public:
       //  cv::imshow( "maskCar", maskCar );
       //  cv::waitKey(0);
 
-        assert ( fexists(rgb1.c_str()) );
+        ASSERT_ ( fexists(rgb1.c_str()) );
         //std::cout << "  rgb1:\t\t" << rgb1 << std::endl;
         string rgb = rgb1;
 
@@ -159,7 +159,7 @@ public:
 
         // Initialize Dense aligner
         DirectRegistration align360; // Dense RGB-D alignment
-        align360.setSensorType(ProjectionModel::STEREO_OUTDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
+        align360.setSensorType(DirectRegistration::STEREO_OUTDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
         align360.setNumPyr(6);
         align360.setMaxDepth(15.f);
         align360.useSaliency(false);

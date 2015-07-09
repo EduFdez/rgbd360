@@ -321,11 +321,12 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
         //            {
 
         // Warp the image
-        VectorXi visible_pixels;
-        ProjModel->projectNN(xyz_src_transf, warp_pixels_src, visible_pixels);
+        ProjModel->projectNN(xyz_src_transf, warp_pixels_src, validPixels_warp);
 
         if(method == PHOTO_DEPTH)
         {            
+            //cout << " method == PHOTO_DEPTH " << endl;
+
 //            Eigen::VectorXf diff_photo(n_pts); //= Eigen::VectorXf::Zero(n_pts);
 //            Eigen::VectorXf diff_depth(n_pts);
     #if ENABLE_OPENMP
@@ -333,7 +334,7 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
     #endif
             for(size_t i=0; i < n_pts; i++)
             {
-                if( visible_pixels(i) )
+                if( validPixels_warp(i) )
                 {
                     ++numVisiblePts;
                     // cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyrLevel].at<float>(r_transf,c_transf)) << " " << fabs(grayTrgGradYPyr[pyrLevel].at<float>(r_transf,c_transf)) << endl;
@@ -373,12 +374,13 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
         }
         else if(method == PHOTO_CONSISTENCY)
         {
+            //cout << " method == PHOTO_CONSISTENCY " << endl;
 #if ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
             for(size_t i=0; i < n_pts; i++)
             {
-                if( visible_pixels(i) )
+                if( validPixels_warp(i) )
                 {
                     ++numVisiblePts;
                     // cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyrLevel].at<float>(r_transf,c_transf)) << " " << fabs(grayTrgGradYPyr[pyrLevel].at<float>(r_transf,c_transf)) << endl;
@@ -399,12 +401,13 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
         }
         else if(method == DEPTH_CONSISTENCY)
         {
+            //cout << " method == DEPTH_CONSISTENCY " << endl;
 #if ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
             for(size_t i=0; i < n_pts; i++)
             {
-                if( visible_pixels(i) )
+                if( validPixels_warp(i) )
                 {
                     ++numVisiblePts;
                     float depth = _depthTrgPyr[warp_pixels_src(i)];
@@ -434,7 +437,7 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
     #endif
             for(size_t i=0; i < n_pts; i++)
             {
-                if( visible_pixels(i) )
+                if( validPixels_warp(i) )
                 {
                     float depth = _depthTrgPyr[warp_pixels_src(i)];
                     if(depth > ProjModel->min_depth_) // if(depth > ProjModel->min_depth_) // Make sure this point has depth (not a NaN)
@@ -462,9 +465,7 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
         cout << " BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION \n " << endl;
 
         // Warp the image
-        MatrixXf warped_pixels;
-        VectorXi visible_pixels;
-        ProjModel->project(xyz_src_transf, warped_pixels, visible_pixels);
+        ProjModel->project(xyz_src_transf, warp_img_src, validPixels_warp);
 
         if(method == PHOTO_DEPTH)
         {
@@ -473,10 +474,10 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
     #endif
             for(size_t i=0; i < n_pts; i++)
             {
-                if( visible_pixels(i) )
+                if( validPixels_warp(i) )
                 {
                     ++numVisiblePts;
-                    cv::Point2f warped_pixel(warped_pixels(i,0), warped_pixels(i,1));
+                    cv::Point2f warped_pixel(warp_img_src(i,0), warp_img_src(i,1));
                     // cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyrLevel].at<float>(r_transf,c_transf)) << " " << fabs(grayTrgGradYPyr[pyrLevel].at<float>(r_transf,c_transf)) << endl;
                     //if( fabs(_grayTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_gray_)
                     //if( fabs(_graySrcGradXPyr[validPixels_src(i)]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[validPixels_src(i)]) > thres_saliency_gray_)
@@ -518,10 +519,10 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
 #endif
             for(size_t i=0; i < n_pts; i++)
             {
-                if( visible_pixels(i) )
+                if( validPixels_warp(i) )
                 {
                     ++numVisiblePts;
-                    cv::Point2f warped_pixel(warped_pixels(i,0), warped_pixels(i,1));
+                    cv::Point2f warped_pixel(warp_img_src(i,0), warp_img_src(i,1));
                     // cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyrLevel].at<float>(r_transf,c_transf)) << " " << fabs(grayTrgGradYPyr[pyrLevel].at<float>(r_transf,c_transf)) << endl;
                     //if( fabs(_grayTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_gray_)
                     //if( fabs(_graySrcGradXPyr[validPixels_src(i)]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[validPixels_src(i)]) > thres_saliency_gray_)
@@ -546,10 +547,10 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
 #endif
             for(size_t i=0; i < n_pts; i++)
             {
-                if( visible_pixels(i) )
+                if( validPixels_warp(i) )
                 {
                     ++numVisiblePts;
-                    cv::Point2f warped_pixel(warped_pixels(i,0), warped_pixels(i,1));
+                    cv::Point2f warped_pixel(warp_img_src(i,0), warp_img_src(i,1));
                     float depth = ProjModel->bilinearInterp_depth( grayTrgPyr[pyrLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
                     if(depth > ProjModel->min_depth_) // if(depth > ProjModel->min_depth_) // Make sure this point has depth (not a NaN)
                     {
@@ -707,6 +708,34 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
     else if(method == DEPTH_CONSISTENCY)
     {
         ProjModel->computeJacobiansDepth(xyz_src_transf, stdDevError_inv_src, wEstimDepth_src, jacobiansDepth, _depthSrcGradXPyr, _depthSrcGradYPyr);
+    }
+
+    for(size_t i=0; i < n_pts; i++)
+        cout << i << " validPixels_src(i) " << validPixels_src(i) << " validPixels_warp(i) " << validPixels_warp(i) << endl;
+
+    if(visualize_)
+    {
+        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+        {
+            warped_gray = cv::Mat::zeros(graySrcPyr[pyrLevel].rows, graySrcPyr[pyrLevel].cols, graySrcPyr[pyrLevel].type());
+            for(size_t i=0; i < n_pts; i++)
+                if(validPixels_src(i) != -1 && validPixels_warp(i) != 0)
+                {
+                    cout << i << " validPixels_src(i) " << validPixels_src(i) << " validPixels_warp(i) " << validPixels_warp(i) << endl;
+                    warped_gray.at<float>(warp_pixels_src(i)) = graySrcPyr[pyrLevel].at<float>(validPixels_src(i));
+                    cout << " check \n";
+                }
+        }
+        if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+        {
+            warped_depth = cv::Mat::zeros(depthSrcPyr[pyrLevel].rows, depthSrcPyr[pyrLevel].cols, depthSrcPyr[pyrLevel].type());
+            for(size_t i=0; i < n_pts; i++)
+                if(validPixels_src(i) && validPixels_warp(i) != -1)
+                {
+                    Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
+                    warped_depth.at<float>(warp_pixels_src(i)) = ProjModel->getDepth(xyz);
+                }
+        }
     }
 
 //    if( !use_bilinear_ || pyrLevel !=0 )
@@ -2345,7 +2374,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //        wEstimPhoto_src.resize(n_pts);
 //        wEstimDepth_src.resize(n_pts);
 //        warp_pixels_src = VectorXi::Constant(n_pts,-1);
-//        //visible_pixels_src = VectorXi::Zero(n_pts);
+//        //validPixels_warp = VectorXi::Zero(n_pts);
 //        validPixelsPhoto_src = VectorXi::Zero(n_pts);
 //        validPixelsDepth_src = VectorXi::Zero(n_pts);
 
@@ -2393,7 +2422,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //        wEstimPhoto_trg.resize(n_pts);
 //        wEstimDepth_trg.resize(n_pts);
 //        warp_pixels_trg = VectorXi::Constant(n_pts,-1);
-//        //visible_pixels_trg = VectorXi::Zero(n_pts);
+//        //validPixels_warp_trg = VectorXi::Zero(n_pts);
 //        validPixelsPhoto_trg = VectorXi::Zero(n_pts);
 //        validPixelsDepth_trg = VectorXi::Zero(n_pts);
 
@@ -2459,7 +2488,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                    if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 //                    {
 //                        ++numVisiblePts;
-//                        //visible_pixels(i) = 1;
+//                        //validPixels_warp(i) = 1;
 //                        float theta = atan2(xyz(0),xyz(2));
 //                        int c_transf = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(c_transf<nCols); //assert(c_transf<nCols);
 //                        size_t warped_i = r_transf * nCols + c_transf;
@@ -2526,7 +2555,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                    if( transformed_r>=0 && transformed_r < nRows) // && c_transf < nCols )
 //                    {
 //                        ++numVisiblePts;
-//                        //_visible_pixels[i] = 1;
+//                        //_validPixels_warp[i] = 1;
 //                        float theta = atan2(xyz(0),xyz(2));
 //                        float transformed_c = half_width + theta*pixel_angle_inv;
 //                        if(transformed_c > nCols_1);
@@ -2604,7 +2633,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
 //                        if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 //                        {
-//                            //_visible_pixels[i] = 1;
+//                            //_validPixels_warp[i] = 1;
 //                            float theta = atan2(xyz(0),xyz(2));
 //                            int c_transf = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(c_transf<nCols); //assert(c_transf<nCols);
 //                            size_t warped_i = r_transf * nCols + c_transf;
@@ -2683,7 +2712,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
 //                        if( transformed_r>=0 && transformed_r < nRows) // && c_transf < nCols )
 //                        {
-//                            //_visible_pixels[i] = 1;
+//                            //_validPixels_warp[i] = 1;
 //                            ++numVisiblePts;
 //                            float theta = atan2(xyz(0),xyz(2));
 //                            float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c <= nCols_1); //transformed_c -= half_width;
@@ -2763,7 +2792,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                    if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 //                    {
 //                        ++numVisiblePts;
-//                        //visible_pixels(i) = 1;
+//                        //validPixels_warp(i) = 1;
 //                        float theta = atan2(xyz(0),xyz(2));
 //                        int c_transf = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(c_transf<nCols); //assert(c_transf<nCols);
 //                        size_t warped_i = r_transf * nCols + c_transf;
@@ -2812,7 +2841,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                    if( transformed_r>=0 && transformed_r < nRows) // && c_transf < nCols )
 //                    {
 //                        ++numVisiblePts;
-//                        //_visible_pixels[i] = 1;
+//                        //_validPixels_warp[i] = 1;
 //                        float theta = atan2(xyz(0),xyz(2));
 //                        float transformed_c = half_width + theta*pixel_angle_inv;
 //                        if(transformed_c > nCols_1);
@@ -2872,7 +2901,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
 //                        if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 //                        {
-//                            //_visible_pixels[i] = 1;
+//                            //_validPixels_warp[i] = 1;
 //                            float theta = atan2(xyz(0),xyz(2));
 //                            int c_transf = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(c_transf<nCols); //assert(c_transf<nCols);
 //                            size_t warped_i = r_transf * nCols + c_transf;
@@ -2932,7 +2961,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
 //                        if( transformed_r>=0 && transformed_r < nRows) // && c_transf < nCols )
 //                        {
-//                            //_visible_pixels[i] = 1;
+//                            //_validPixels_warp[i] = 1;
 //                            ++numVisiblePts;
 //                            float theta = atan2(xyz(0),xyz(2));
 //                            float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c <= nCols_1); //transformed_c -= half_width;
@@ -2994,7 +3023,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                    if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 //                    {
 //                        ++numVisiblePts;
-//                        //visible_pixels(i) = 1;
+//                        //validPixels_warp(i) = 1;
 //                        float theta = atan2(xyz(0),xyz(2));
 //                        int c_transf = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(c_transf<nCols); //assert(c_transf<nCols);
 //                        size_t warped_i = r_transf * nCols + c_transf;
@@ -3059,7 +3088,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                    if( transformed_r>=0 && transformed_r < nRows) // && c_transf < nCols )
 //                    {
 //                        ++numVisiblePts;
-//                        //_visible_pixels[i] = 1;
+//                        //_validPixels_warp[i] = 1;
 //                        float theta = atan2(xyz(0),xyz(2));
 //                        float transformed_c = half_width + theta*pixel_angle_inv;
 //                        if(transformed_c > nCols_1);
@@ -3137,7 +3166,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
 //                        if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 //                        {
-//                            //_visible_pixels[i] = 1;
+//                            //_validPixels_warp[i] = 1;
 //                            float theta = atan2(xyz(0),xyz(2));
 //                            int c_transf = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(c_transf<nCols); //assert(c_transf<nCols);
 //                            size_t warped_i = r_transf * nCols + c_transf;
@@ -3216,7 +3245,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                        //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
 //                        if( transformed_r>=0 && transformed_r < nRows) // && c_transf < nCols )
 //                        {
-//                            //_visible_pixels[i] = 1;
+//                            //_validPixels_warp[i] = 1;
 //                            ++numVisiblePts;
 //                            float theta = atan2(xyz(0),xyz(2));
 //                            float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c <= nCols_1); //transformed_c -= half_width;
@@ -3394,7 +3423,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 //                {
 //                    ++numVisiblePts;
-//                    //visible_pixels_src(i) = 1;
+//                    //validPixels_warp(i) = 1;
 //                    float theta = atan2(xyz(0),xyz(2));
 //                    int c_transf = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(c_transf<nCols); //assert(c_transf<nCols);
 //                    size_t warped_i = r_transf * nCols + c_transf;
@@ -3457,7 +3486,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 ////                if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 ////                {
 ////                    ++numVisiblePts;
-////                    //visible_pixels_src(i) = 1;
+////                    //validPixels_warp(i) = 1;
 ////                    v_theta(i) = atan2(xyz(0),xyz(2));
 
 ////                    float *_theta = &v_theta(0);
@@ -3542,7 +3571,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                if( transformed_r>=0 && transformed_r < nRows) // && c_transf < nCols )
 //                {
 //                    ++numVisiblePts;
-//                    //visible_pixels_src(i) = 1;
+//                    //validPixels_warp(i) = 1;
 //                    float theta = atan2(xyz(0),xyz(2));
 //                    float transformed_c = half_width + theta*pixel_angle_inv;
 //                    if(transformed_c > nCols_1);
@@ -3626,7 +3655,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
 //                    if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 //                    {
-//                        //visible_pixels_src(i) = 1;
+//                        //validPixels_warp(i) = 1;
 //                        float theta = atan2(xyz(0),xyz(2));
 //                        int c_transf = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(c_transf<nCols); //assert(c_transf<nCols);
 //                        size_t warped_i = r_transf * nCols + c_transf;
@@ -3739,7 +3768,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
 //                    if( transformed_r>=0 && transformed_r < nRows) // && c_transf < nCols )
 //                    {
-//                        //visible_pixels_src(i) = 1;
+//                        //validPixels_warp(i) = 1;
 //                        ++numVisiblePts;
 //                        float theta = atan2(xyz(0),xyz(2));
 //                        float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c <= nCols_1); //transformed_c -= half_width;
@@ -3921,7 +3950,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //    stdDevError_inv_src.resize(n_pts);
 //    wEstimPhoto_src.resize(n_pts);
 //    wEstimDepth_src.resize(n_pts);
-//    //visible_pixels_src = VectorXi::Zero(n_pts);
+//    //validPixels_warp = VectorXi::Zero(n_pts);
 //    validPixelsPhoto_src = VectorXi::Zero(n_pts);
 //    validPixelsDepth_src = VectorXi::Zero(n_pts);
 
@@ -3978,7 +4007,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 //                {
 //                    ++numVisiblePts;
-//                    //visible_pixels_src(i) = 1;
+//                    //validPixels_warp(i) = 1;
 //                    float theta = atan2(xyz(0),xyz(2));
 //                    int c_transf = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(c_transf<nCols); //assert(c_transf<nCols);
 //                    size_t warped_i = r_transf * nCols + c_transf;
@@ -4055,7 +4084,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                if( transformed_r>=0 && transformed_r < nRows) // && c_transf < nCols )
 //                {
 //                    ++numVisiblePts;
-//                    //visible_pixels_src(i) = 1;
+//                    //validPixels_warp(i) = 1;
 //                    float theta = atan2(xyz(0),xyz(2));
 //                    float transformed_c = half_width + theta*pixel_angle_inv;
 //                    if(transformed_c > nCols_1);
@@ -4139,7 +4168,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
 //                    if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 //                    {
-//                        //visible_pixels_src(i) = 1;
+//                        //validPixels_warp(i) = 1;
 //                        float theta = atan2(xyz(0),xyz(2));
 //                        int c_transf = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(c_transf<nCols); //assert(c_transf<nCols);
 //                        size_t warped_i = r_transf * nCols + c_transf;
@@ -4220,7 +4249,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
 //                    if( transformed_r>=0 && transformed_r < nRows) // && c_transf < nCols )
 //                    {
-//                        //visible_pixels_src(i) = 1;
+//                        //validPixels_warp(i) = 1;
 //                        ++numVisiblePts;
 //                        float theta = atan2(xyz(0),xyz(2));
 //                        float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c <= nCols_1); //transformed_c -= half_width;
@@ -4393,7 +4422,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 //                {
 //                    ++numVisiblePts;
-//                    //visible_pixels_src(i) = 1;
+//                    //validPixels_warp(i) = 1;
 //                    float theta = atan2(xyz(0),xyz(2));
 //                    int c_transf = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(c_transf<nCols); //assert(c_transf<nCols);
 //                    size_t warped_i = r_transf * nCols + c_transf;
@@ -4457,7 +4486,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                if( transformed_r>=0 && transformed_r < nRows) // && c_transf < nCols )
 //                {
 //                    ++numVisiblePts;
-//                    //visible_pixels_src(i) = 1;
+//                    //validPixels_warp(i) = 1;
 //                    float theta = atan2(xyz(0),xyz(2));
 //                    float transformed_c = half_width + theta*pixel_angle_inv;
 //                    if(transformed_c > nCols_1);
@@ -4534,7 +4563,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
 //                    if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 //                    {
-//                        //visible_pixels_src(i) = 1;
+//                        //validPixels_warp(i) = 1;
 //                        float theta = atan2(xyz(0),xyz(2));
 //                        int c_transf = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(c_transf<nCols); //assert(c_transf<nCols);
 //                        size_t warped_i = r_transf * nCols + c_transf;
@@ -4608,7 +4637,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
 //                    if( transformed_r>=0 && transformed_r < nRows) // && c_transf < nCols )
 //                    {
-//                        //visible_pixels_src(i) = 1;
+//                        //validPixels_warp(i) = 1;
 //                        ++numVisiblePts;
 //                        float theta = atan2(xyz(0),xyz(2));
 //                        float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c <= nCols_1); //transformed_c -= half_width;
@@ -4726,7 +4755,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //    stdDevError_inv_src.resize(n_pts);
 //    wEstimPhoto_src.resize(n_pts);
 //    wEstimDepth_src.resize(n_pts);
-//    //visible_pixels_src = VectorXi::Zero(n_pts);
+//    //validPixels_warp = VectorXi::Zero(n_pts);
 //    validPixelsPhoto_src = VectorXi::Zero(n_pts);
 //    validPixelsDepth_src = VectorXi::Zero(n_pts);
 
@@ -4866,7 +4895,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                    if( transformed_r>=0 && transformed_r < nRows) // && c_transf < nCols )
 //                    {
 //                        ++numVisiblePts;
-//                        //visible_pixels_src(i) = 1;
+//                        //validPixels_warp(i) = 1;
 //                        float theta = atan2(xyz(0),xyz(2));
 //                        float transformed_c = half_width + theta*pixel_angle_inv;
 //                        if(transformed_c > nCols_1);
@@ -5064,7 +5093,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                    if( transformed_r>=0 && transformed_r < nRows) // && c_transf < nCols )
 //                    {
 //                        ++numVisiblePts;
-//                        //visible_pixels_src(i) = 1;
+//                        //validPixels_warp(i) = 1;
 //                        float theta = atan2(xyz(0),xyz(2));
 //                        float transformed_c = half_width + theta*pixel_angle_inv;
 //                        if(transformed_c > nCols_1);
@@ -5387,7 +5416,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //            for(size_t i=0; i < n_pts; i++)
 //            {
 //                //if( warp_pixels_src(i) != -1 ) //Compute the jacobian only for the visible points
-//                //if( visible_pixels_src(i) ) //Compute the jacobian only for the visible points
+//                //if( validPixels_warp(i) ) //Compute the jacobian only for the visible points
 //                if( validPixelsPhoto_src(i) || validPixelsDepth_src(i) )
 //                {
 //                    Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
@@ -5540,7 +5569,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //            for(size_t i=0; i < n_pts; i++)
 //            {
 //                //if( warp_pixels_src(i) != -1 ) //Compute the jacobian only for the visible points
-//                //if( visible_pixels_src(i) ) //Compute the jacobian only for the visible points
+//                //if( validPixels_warp(i) ) //Compute the jacobian only for the visible points
 //                if( validPixelsPhoto_src(i) || validPixelsDepth_src(i) )
 //                {
 //                    Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
@@ -5755,7 +5784,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //            for(size_t i=0; i < n_pts; i++)
 //            {
 //                //if( warp_pixels_src(i) != -1 ) //Compute the jacobian only for the visible points
-//                //if( visible_pixels_src(i) ) //Compute the jacobian only for the visible points
+//                //if( validPixels_warp(i) ) //Compute the jacobian only for the visible points
 //                if( validPixelsPhoto_src(i) || validPixelsDepth_src(i) )
 //                {
 //                    Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
@@ -5896,7 +5925,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //            for(size_t i=0; i < n_pts; i++)
 //            {
 //                //if( warp_pixels_src(i) != -1 ) //Compute the jacobian only for the visible points
-//                //if( visible_pixels_src(i) ) //Compute the jacobian only for the visible points
+//                //if( validPixels_warp(i) ) //Compute the jacobian only for the visible points
 //                if( validPixelsPhoto_src(i) || validPixelsDepth_src(i) )
 //                {
 //                    Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
@@ -6132,7 +6161,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //            for(size_t i=0; i < n_pts; i++)
 //            {
 //                //if( warp_pixels_src(i) != -1 ) //Compute the jacobian only for the visible points
-//                //if( visible_pixels_src(i) ) //Compute the jacobian only for the visible points
+//                //if( validPixels_warp(i) ) //Compute the jacobian only for the visible points
 //                if( validPixelsPhoto_src(i) || validPixelsDepth_src(i) )
 //                {
 //                    Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
@@ -6296,7 +6325,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //            for(size_t i=0; i < n_pts; i++)
 //            {
 //                //if( warp_pixels_src(i) != -1 ) //Compute the jacobian only for the visible points
-//                //if( visible_pixels_src(i) ) //Compute the jacobian only for the visible points
+//                //if( validPixels_warp(i) ) //Compute the jacobian only for the visible points
 //                if( validPixelsPhoto_src(i) || validPixelsDepth_src(i) )
 //                {
 //                    Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
@@ -6525,7 +6554,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //            for(size_t i=0; i < n_pts; i++)
 //            {
 //                //if( warp_pixels_src(i) != -1 ) //Compute the jacobian only for the visible points
-//                //if( visible_pixels_src(i) ) //Compute the jacobian only for the visible points
+//                //if( validPixels_warp(i) ) //Compute the jacobian only for the visible points
 //                if( validPixelsPhoto_src(i) || validPixelsDepth_src(i) )
 //                {
 //                    Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
@@ -6676,7 +6705,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //            for(size_t i=0; i < n_pts; i++)
 //            {
 //                //if( warp_pixels_src(i) != -1 ) //Compute the jacobian only for the visible points
-//                //if( visible_pixels_src(i) ) //Compute the jacobian only for the visible points
+//                //if( validPixels_warp(i) ) //Compute the jacobian only for the visible points
 //                if( validPixelsPhoto_src(i) || validPixelsDepth_src(i) )
 //                {
 //                    Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
@@ -6843,7 +6872,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 //                {
 //                    ++numVisiblePts;
-//                    //visible_pixels_src(i) = 1;
+//                    //validPixels_warp(i) = 1;
 //                    float theta = atan2(xyz_transf(0),xyz_transf(2));
 //                    int c_transf = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(c_transf<nCols); //assert(c_transf<nCols);
 //                    size_t warped_i = r_transf * nCols + c_transf;
@@ -7065,7 +7094,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //                if( r_transf>=0 && r_transf < nRows) // && c_transf < nCols )
 //                {
 //                    ++numVisiblePts;
-//                    //visible_pixels_src(i) = 1;
+//                    //validPixels_warp(i) = 1;
 //                    float theta = atan2(xyz_transf(0),xyz_transf(2));
 //                    int c_transf = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(c_transf<nCols); //assert(c_transf<nCols);
 //                    size_t warped_i = r_transf * nCols + c_transf;

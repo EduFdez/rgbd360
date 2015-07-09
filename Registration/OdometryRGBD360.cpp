@@ -89,7 +89,7 @@ public:
         //    cout << "regsitrationCloud has " << registrationClouds[1]->size() << " Pts\n";
 
         DirectRegistration align360; // Dense RGB-D alignment
-        align360.setSensorType(ProjectionModel::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
+        align360.setSensorType(DirectRegistration::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
         align360.setNumPyr(6);
         align360.useSaliency(true);
 //        align360.setVisualization(true);
@@ -202,7 +202,7 @@ public:
             {
                 cout << "\tBad registration\n\n";
                 cout << "\nPbMap regist \n" << registerer.getPose() << endl;
-                assert(false);
+                ASSERT_(false);
 //                fileName = path_dataset + mrpt::format("/sphere_images_%d.bin",++frame);
 //                bGoodRegistration = false;
 //                delete frame360_2;
@@ -238,7 +238,7 @@ public:
                 diff_rot = mrpt::utils::RAD2DEG(diffRotation(rigidTransf_dense, rigidTransf_dense_inv));
                 diff_trans = 1000*difTranslation(rigidTransf_dense, rigidTransf_dense_inv);
                 cout << "Deviations Inv " << diff_rot << " deg " << diff_trans << " diff_trans \n";
-                assert( diff_rot < diff_rot_threshold && diff_trans < diff_trans_threshold );
+                ASSERT_( diff_rot < diff_rot_threshold && diff_trans < diff_trans_threshold );
 
                 time_start += pcl::getTime();
                 align360.register360_bidirectional(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
@@ -248,7 +248,7 @@ public:
                 diff_rot = mrpt::utils::RAD2DEG(diffRotation(rigidTransf_dense, rigidTransf_dense_bidirectional));
                 diff_trans = 1000*difTranslation(rigidTransf_dense, rigidTransf_dense_bidirectional);
                 cout << "Deviations Bidirectional " << diff_rot << " deg " << diff_trans << " diff_trans \n";
-                assert( diff_rot < diff_rot_threshold && diff_trans < diff_trans_threshold );
+                ASSERT_( diff_rot < diff_rot_threshold && diff_trans < diff_trans_threshold );
 
                 // Update the prev motion
                 prev_motion = align360.getOptimalPose();

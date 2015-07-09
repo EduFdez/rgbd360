@@ -383,7 +383,7 @@ public:
 //        registerRGBD.thresSaliencyIntensity(0.f);
 //        registerRGBD.thresSaliencyIntensity(0.f);
 //        registerRGBD.setBilinearInterp(true);
-//        registerRGBD.setVisualization(true);
+        registerRGBD.setVisualization(true);
         registerRGBD.setGrayVariance(8.f/255);
 
         // Initialize ICP
@@ -465,7 +465,7 @@ public:
 
             if( bFirstFrame )
             {
-                assert( obsRGBD->hasIntensityImage && obsRGBD->hasRangeImage ); // Check that the images are really RGBD
+                ASSERT_( obsRGBD->hasIntensityImage && obsRGBD->hasRangeImage ); // Check that the images are really RGBD
 
                 intensity_src = cv::Mat(obsRGBD->intensityImage.getAs<IplImage>());
                 //intensity_src = cv::cvarrToMat(obsRGBD->intensityImage.getAs<IplImage>());
@@ -587,9 +587,9 @@ public:
             registerRGBD.setTargetFrame(intensity_trg, depth_trg);
             registerRGBD.setSourceFrame(intensity_src, depth_src);
 
-            registerRGBD.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            relativePose = registerRGBD.getOptimalPose();
-            cout << "registerRGBD \n" << relativePose << endl;
+//            registerRGBD.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//            relativePose = registerRGBD.getOptimalPose();
+//            cout << "registerRGBD \n" << relativePose << endl;
 
             registerRGBD.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePose_photo = registerRGBD.getOptimalPose();

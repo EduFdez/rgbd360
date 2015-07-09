@@ -115,7 +115,7 @@ public:
         //    cout << "regsitrationCloud has " << registrationClouds[1]->size() << " Pts\n";
 
         DirectRegistration align360; // Dense RGB-D alignment
-        align360.setSensorType( ProjectionModel::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
+        align360.setSensorType(DirectRegistration::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
         align360.setNumPyr(6);
         align360.useSaliency(false);
 //        align360.setVisualization(true);
@@ -290,7 +290,7 @@ public:
 //            if(dist < 0.2 && align360.avDepthResidual < 0.8)
             if(align360.avDepthResidual < 0.9)
             {
-                assert(align360.avDepthResidual < 1.5);
+                ASSERT_(align360.avDepthResidual < 1.5);
 
 //                bGoodRegistration = false;
 //                delete frame360_2;

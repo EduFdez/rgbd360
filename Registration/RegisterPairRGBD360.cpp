@@ -118,7 +118,7 @@ int main (int argc, char ** argv)
     //Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(0,0) = rot_offset(1,1) = cos(angle_offset*PI/180); rot_offset(0,1) = -sin(angle_offset*PI/180); rot_offset(1,0) = -rot_offset(0,1);
 
     DirectRegistration dir_reg; // Dense RGB-D alignment
-    dir_reg.setSensorType( ProjectionModel::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
+    dir_reg.setSensorType(DirectRegistration::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
     dir_reg.setNumPyr(5);
     dir_reg.useSaliency(false);
     // dir_reg.setVisualization(true);

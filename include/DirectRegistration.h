@@ -165,7 +165,8 @@ class DirectRegistration : public Pyramid, MEstimator //ProjectionModel
 
     /*! If set to true, only the pixels with high gradient in the gray image are used (for both photo and depth minimization) */    
     Eigen::VectorXi validPixels_src;
-    Eigen::VectorXi visible_pixels_src;
+    Eigen::VectorXi validPixels_warp;
+    //Eigen::VectorXi visible_pixels_src;
     Eigen::VectorXi validPixelsPhoto_src;
     Eigen::VectorXi validPixelsDepth_src;
 

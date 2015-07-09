@@ -31,6 +31,9 @@
 
 #include <PinholeModel.h>
 #include <pcl/common/time.h>
+#include <mrpt/system/os.h>
+#include <mrpt/utils/mrpt_macros.h>
+//#include <assert.h>
 //#include "/usr/local/include/eigen3/Eigen/Core"
 
 #if _SSE2
@@ -47,9 +50,21 @@
 
 #define ENABLE_OPENMP 0
 #define PRINT_PROFILING 1
+#define TEST_SIMD 1
 
 using namespace std;
 using namespace Eigen;
+
+static inline __m128i muly(const __m128i &a, const __m128i &b)
+{
+#ifdef __SSE4_1__  // modern CPU - use SSE 4.1
+    return _mm_mullo_epi32(a, b);
+#else               // old CPU - use SSE 2
+    __m128i tmp1 = _mm_mul_epu32(a,b); /* mul 2,0*/
+    __m128i tmp2 = _mm_mul_epu32( _mm_srli_si128(a,4), _mm_srli_si128(b,4)); /* mul 3,1 */
+    return _mm_unpacklo_epi32(_mm_shuffle_epi32(tmp1, _MM_SHUFFLE (0,0,2,0)), _mm_shuffle_epi32(tmp2, _MM_SHUFFLE (0,0,2,0))); /* shuffle results to [63..0] and pack */
+#endif
+}
 
 PinholeModel::PinholeModel()
 {
@@ -93,22 +108,42 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
     float *_x = &xyz(0,0);
     float *_y = &xyz(0,1);
     float *_z = &xyz(0,2);
-
     validPixels.resize(imgSize);
-    float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
-    for(size_t i=0; i < imgSize; i++, _valid_pt++)
-        _valid_pt[i] = i;  // *(_valid_pt++) = i;
-    _valid_pt = reinterpret_cast<float*>(&validPixels(0));
+    //float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
+
+#ifdef TEST_SIMD
+    Eigen::MatrixXf xyz2(imgSize,3);
+    Eigen::VectorXi validPixels2(imgSize);
+    for(int r=0; r < nRows; r++)
+    {
+        int row_pix = r*nCols;
+        for(int c=0; c < nCols; c++)
+        {
+            int i = row_pix + c;
+            xyz2(i,2) = _depth[i]; //xyz2(i,2) = 0.001f*depthSrcPyr[pyrLevel].at<unsigned short>(r,c);
+            if(min_depth_ < xyz2(i,2) && xyz2(i,2) < max_depth_) //Compute the jacobian only for the valid points
+            {
+                validPixels2(i) = i;
+                xyz2(i,0) = (c - ox) * xyz2(i,2) * inv_fx;
+                xyz2(i,1) = (r - oy) * xyz2(i,2) * inv_fy;
+            }
+            else
+            {
+                validPixels2(i) = -1;
+            }
+        }
+    }
+#endif
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
     #if ENABLE_OPENMP
     #pragma omp parallel for
     #endif
-    for(size_t r=0;r<nRows; r++)
+    for(int r=0; r < nRows; r++)
     {
-        size_t row_pix = r*nCols;
-        for(size_t c=0;c<nCols; c++)
+        int row_pix = r*nCols;
+        for(int c=0; c < nCols; c++)
         {
             int i = row_pix + c;
             xyz(i,2) = _depth[i]; //xyz(i,2) = 0.001f*depthSrcPyr[pyrLevel].at<unsigned short>(r,c);
@@ -117,6 +152,7 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
             //cout << depthSrcPyr[pyrLevel].type() << " xyz " << i << " x " << xyz(i,2) << " thres " << min_depth_ << " " << max_depth_ << endl;
             if(min_depth_ < xyz(i,2) && xyz(i,2) < max_depth_) //Compute the jacobian only for the valid points
             {
+                validPixels(i) = i;
                 xyz(i,0) = (c - ox) * xyz(i,2) * inv_fx;
                 xyz(i,1) = (r - oy) * xyz(i,2) * inv_fy;
             }
@@ -137,7 +173,7 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
 
 //#if !(_AVX) // Use _SSE3
     cout << " reconstruct3D _SSE3 " << nRows << "x" << nCols << " = " << imgSize << " pts \n";
-    assert(nCols % 4 == 0); // Make sure that the image columns are aligned
+    ASSERT_(nCols % 4 == 0); // Make sure that the image columns are aligned
 
 //    cout << " alignment 16 " << (((unsigned long)_x & 15) == 0) << " \n";
 //    cout << " alignment 16 " << (((unsigned long)_y & 15) == 0) << " \n";
@@ -149,9 +185,12 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
     __m128 _oy = _mm_set1_ps(oy);
     __m128 _min_depth_ = _mm_set1_ps(min_depth_);
     __m128 _max_depth_ = _mm_set1_ps(max_depth_);
+    __m128 _zero_ = _mm_set1_ps(0.f);
+    __m128i _idx_zero_ = _mm_setr_epi32(0.f, 1.f, 2.f, 3.f);
+    __m128i __minus_one = _mm_set1_epi32(-1);
     for(int r=0; r < nRows; r++)
     {
-        __m128 _r = _mm_set1_ps(r);
+        __m128 __r = _mm_set1_ps(r);
         size_t i = r*nCols;
         for(int c=0; c < nCols; c+=4, i+=4)
         {
@@ -159,21 +198,37 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
             __m128 __c = _mm_load_ps(_idx+c);
 
             __m128 __x = _mm_mul_ps( __depth, _mm_mul_ps(_inv_fx, _mm_sub_ps(__c, _ox) ) );
-            __m128 __y = _mm_mul_ps( __depth, _mm_mul_ps(_inv_fy, _mm_sub_ps(_r, _oy) ) );
+            __m128 __y = _mm_mul_ps( __depth, _mm_mul_ps(_inv_fy, _mm_sub_ps(__r, _oy) ) );
             _mm_store_ps(_x+i, __x);
             _mm_store_ps(_y+i, __y);
             _mm_store_ps(_z+i, __depth);
 
             __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) );
-            //_mm_store_ps(_valid_pt+i, valid_depth_pts );
-            __m128 __valid = _mm_load_ps(_valid_pt+i);
-            _mm_store_ps(_valid_pt+i, _mm_and_ps(__valid, valid_depth_pts) );
+            //_mm_store_ps(_valid_pt+i, valid_depth_pts ); // Store 0 or -1
+
+            __m128i __pos = _mm_set1_epi32(i);
+            __m128i __idx = _mm_add_epi32(__pos, _idx_zero_);
+            __m128i *_v = reinterpret_cast<__m128i*>(&validPixels(i));
+            _mm_store_si128(_v, __idx);
+
+//            __m128i invalid_pts = _mm_cvtps_epi32( _mm_and_ps(_zero_, valid_depth_pts) );
+////            cout << "invalid_pts " << i  << " "
+////                 << _mm_extract_epi32(invalid_pts,0) << " " << _mm_extract_epi32(invalid_pts,1) << " " << _mm_extract_epi32(invalid_pts,2) << " " << _mm_extract_epi32(invalid_pts,3) << endl;
+//            char *_vv = reinterpret_cast<char*>(&validPixels(i));
+//            _mm_maskmoveu_si128(__minus_one, invalid_pts, _vv);
+
+            for(int j=0; j < 4; j++)
+            {
+                const int jj = j;
+                if(!valid_depth_pts[jj])
+                    validPixels(i+j) = -1;
+            }
         }
-    }
+    }    
 
 //#else // Use _AVX
 //    cout << " reconstruct3D _AVX " << imgSize << " pts \n";
-//    assert(nCols % 8 == 0); // Make sure that the image columns are aligned
+//    ASSERT_(nCols % 8 == 0); // Make sure that the image columns are aligned
 
 //    // Hack for unaligned (32bytes). Eigen should have support for AVX soon
 //    bool b_depth_aligned = (((unsigned long)_depth & 31) == 0);
@@ -244,7 +299,7 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
 //    }
 //    else // !b_depth_aligned
 //    {
-//        assert(!b_xyz_aligned);
+//        ASSERT_(!b_xyz_aligned);
 
 //        for(size_t r=0; r < nRows; r++)
 //        {
@@ -349,18 +404,33 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
 //                validPixels_2(i) = 0;
 
 //            cout << i << " pt " << xyz.block(i,0,1,3) << " vs " << xyz_2.block(i,0,1,3) << " valid " << validPixels(i) << " " << validPixels_2(i) << endl;
-////            assert(validPixels_2(i) == validPixels(i));
+////            ASSERT_(validPixels_2(i) == validPixels(i));
 ////            if(validPixels(i))
 ////            {
 ////                //cout << i << " pt3D " << xyz.block(i,0,1,3) << " vs " << xyz_2.block(i,0,1,3) << " valid " << validPixels(i) << " " << validPixels_2(i) << endl;
-////                assert(xyz_2(i,0) - xyz(i,0) < 1e-6);
-////                assert(xyz_2(i,1) - xyz(i,1) < 1e-6);
-////                assert(xyz_2(i,2) - xyz(i,2) < 1e-6);
+////                ASSERT_(xyz_2(i,0) - xyz(i,0) < 1e-6);
+////                ASSERT_(xyz_2(i,1) - xyz(i,1) < 1e-6);
+////                ASSERT_(xyz_2(i,2) - xyz(i,2) < 1e-6);
 ////            }
 //        }
 //    }
 //#endif // endif vectorization options
 #endif // endif vectorization
+
+#if TEST_SIMD
+    // Test SSE
+    cout << " Check result " << validPixels.size() << endl;
+    for(int i=0; i < validPixels.size(); i++)
+    {
+        cout << i << " validPixels(i) " << validPixels(i) << " " << validPixels2(i) << endl;
+        cout << " xyz " << xyz(i,0) << " " << xyz(i,1) << " " << xyz(i,2) << " xyz2 " << xyz2(i,0) << " " << xyz2(i,1) << " " << xyz2(i,2) << endl;
+//        cout << " diff " << xyz(i,0) - xyz2(i,0) << " " << 1e-5 << endl;
+//        ASSERT_( validPixels(i) == validPixels2(i) );
+//        ASSERT_( (xyz(i,0) - xyz2(i,0) > 1e-5) || (xyz2(i,0) - xyz(i,0) > 1e-5) );
+//        ASSERT_( (xyz(i,1) - xyz2(i,1) > 1e-5) || (xyz2(i,1) - xyz(i,1) > 1e-5) );
+//        ASSERT_( (xyz(i,2) - xyz2(i,2) > 1e-5) || (xyz2(i,2) - xyz(i,2) > 1e-5) );
+    }
+#endif
 
 #if PRINT_PROFILING
     }
@@ -376,7 +446,7 @@ void PinholeModel::reconstruct3D_saliency ( Eigen::MatrixXf & xyz, Eigen::Vector
                                             const float thres_saliency_gray, const float thres_saliency_depth)
 {
 #if !(_SSE)
-    assert(0); // TODO: implement regular (non SSE)
+    ASSERT_(0); // TODO: implement regular (non SSE)
 #endif
 
 #if PRINT_PROFILING
@@ -389,7 +459,7 @@ void PinholeModel::reconstruct3D_saliency ( Eigen::MatrixXf & xyz, Eigen::Vector
     nRows = depth_img.rows;
     nCols = depth_img.cols;
     imgSize = nRows*nCols;
-    assert(nCols % 4 == 0); // Make sure that the image columns are aligned
+    ASSERT_(nCols % 4 == 0); // Make sure that the image columns are aligned
 
     float *_depth = reinterpret_cast<float*>(depth_img.data);
     float *_depthGradXPyr = reinterpret_cast<float*>(depth_gradX.data);
@@ -460,6 +530,12 @@ void PinholeModel::reconstruct3D_saliency ( Eigen::MatrixXf & xyz, Eigen::Vector
 /*! Project 3D points XYZ according to the pinhole camera model. */
 void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible)
 {
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t ii=0; ii<100; ii++)
+    {
+#endif
+
     pixels.resize(xyz.rows(),2);
     float *_r = &pixels(0,0);
     float *_c = &pixels(0,1);
@@ -506,26 +582,41 @@ void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels
         _mm_store_ps(_c+i, __c);
 
         __m128 __v =_mm_and_ps( _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) ),
-                                    _mm_and_ps( _mm_cmplt_ps(_zero, __c), _mm_cmplt_ps(__c, _nCols) ) );
+                                _mm_and_ps( _mm_cmplt_ps(_zero, __c), _mm_cmplt_ps(__c, _nCols) ) );
         _mm_store_ps(_v+i, __v);
     }
+#endif
+
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    cout << " PinholeModel::project " << xyz.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
 /*! Project 3D points XYZ according to the pinhole camera model. */
 void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels, Eigen::VectorXi & visible)
 {
+#if PRINT_PROFILING
+    cout << " PinholeModel::projectNN ... " << endl;
+    double time_start = pcl::getTime();
+    //for(size_t ii=0; ii<100; ii++)
+    {
+#endif
+
     pixels.resize(xyz.rows());
     visible.resize(xyz.rows());
     //int *_p = &pixels(0);
-    float *_v = reinterpret_cast<float*>(&visible(0));
-
+    //int *_v = &visible(0);
+    //float *_v = reinterpret_cast<float*>(&visible(0));
     const float *_x = &xyz(0,0);
     const float *_y = &xyz(0,1);
     const float *_z = &xyz(0,2);
 
-    Eigen::VectorXi pixels_(xyz.rows());
-    Eigen::VectorXi visible_(xyz.rows());
+#if TEST_SIMD
+    // Test SSE
+    Eigen::VectorXi pixels2(xyz.rows());
+    Eigen::VectorXi visible2(xyz.rows());
     for(int i=0; i < pixels.size(); i++)
     {
         Eigen::Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
@@ -534,15 +625,21 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixe
         int r_transf = round(warped_pixel.y);
         int c_transf = round(warped_pixel.x);
         // cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << endl;
-        pixels_(i) = r_transf * nCols + c_transf;
-        visible_(i) = isInImage(r_transf, c_transf) ? 1 : 0;
+        if(isInImage(r_transf, c_transf))
+            pixels2(i) = r_transf * nCols + c_transf;
+        else
+            pixels2(i) = -1;
+//        pixels(i) = r_transf * nCols + c_transf;
+//        visible(i) = isInImage(r_transf, c_transf) ? 1 : 0;
     }
+#endif
+
 #if !(_SSE3) // # ifdef !__SSE3__
 
 //    #if ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
-    for(size_t i=0; i < pixels.size(); i++)
+    for(int i=0; i < pixels.size(); i++)
     {
         Eigen::Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
         cv::Point2f warped_pixel = project2Image(pt_xyz);
@@ -550,8 +647,12 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixe
         int r_transf = round(warped_pixel.y);
         int c_transf = round(warped_pixel.x);
         // cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << endl;
-        pixels(i) = r_transf * nCols + c_transf;
-        visible(i) = isInImage(r_transf, c_transf) ? 1 : 0;
+        if(isInImage(r_transf, c_transf))
+            pixels(i) = r_transf * nCols + c_transf;
+        else
+            pixels(i) = -1;
+//        pixels(i) = r_transf * nCols + c_transf;
+//        visible(i) = isInImage(r_transf, c_transf) ? 1 : 0;
     }
 
 #else
@@ -560,35 +661,85 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixe
     __m128 _fy = _mm_set1_ps(fy);
     __m128 _ox = _mm_set1_ps(ox);
     __m128 _oy = _mm_set1_ps(oy);
-    __m128 _nCols = _mm_set1_ps(nCols);
-    __m128 _nRows = _mm_set1_ps(nRows);
-    __m128 _zero = _mm_setzero_ps();
+    __m128i _nCols = _mm_set1_epi32(nCols);
+    __m128i _nRows = _mm_set1_epi32(nRows);
+    __m128i _nCols_1 = _mm_set1_epi32(nCols-1);
+    __m128i _nRows_1 = _mm_set1_epi32(nRows-1);
+    __m128i _minus_one = _mm_set1_epi32(-1);
+    __m128i _zero = _mm_set1_epi32(0);
     for(int i=0; i < pixels.size(); i+=4)
     {
         __m128 __x = _mm_load_ps(_x+i);
         __m128 __y = _mm_load_ps(_y+i);
         __m128 __z = _mm_load_ps(_z+i);
 
+//        cout << "Load xyz " << i << "\n";
+//        for(int j=0; j < 4; j++)
+//        {
+//            const int jj = j;
+//            cout << j << " x " << _x[i+j] << " " << __x[jj] << endl;
+//            //cout << j << " x " << _x[i+j] << " " << (float)__x.m128_f32[0] << endl;
+//            //cout << j << " x " << _x[i+j] << " " << (float)_mm_extract_ps(__x,3) << endl;
+//        }
+
         __m128 __r = _mm_add_ps( _mm_div_ps( _mm_mul_ps(_fy, __y ), __z ), _oy );
         __m128 __c = _mm_add_ps( _mm_div_ps( _mm_mul_ps(_fx, __x ), __z ), _ox );
-        __m128i __p = _mm_cvtps_epi32( _mm_add_ps( _mm_mul_ps(_nCols, __r ), __c) );
-        //__m128 __p = _mm_add_epi32( _mm_cvtps_epi32(_mm_mullo_epi32(_nCols, __r ) ), __c);
+        //__m128i __p = _mm_cvtps_epi32( _mm_add_ps( _mm_mul_ps(_nCols, __r ), __c) );
+        __m128i __r_int = _mm_cvtps_epi32(__r);
+        __m128i __c_int = _mm_cvtps_epi32(__c);
+//        for(int j=0; j < 4; j++)
+//        {
+//            const int jj = j;
+//            cout << j << " __r " << __r[jj] << endl;
+//        }
+//        cout << "__r_int " << i << " " << _mm_extract_epi32(__r_int,0) << " " << _mm_extract_epi32(__r_int,1) << " " << _mm_extract_epi32(__r_int,2) << " " << _mm_extract_epi32(__r_int,3) << endl;
+//        cout << "__c_int " << i << " " << _mm_extract_epi32(__c_int,0) << " " << _mm_extract_epi32(__c_int,1) << " " << _mm_extract_epi32(__c_int,2) << " " << _mm_extract_epi32(__c_int,3) << endl;
+//        //cout << "__r_int " << i << " " << _mm_extract_epi32(__r_int,0) << " " << _mm_extract_epi32(__r_int,1) << " " << _mm_extract_epi32(__r_int,2) << " " << _mm_extract_epi32(__r_int,3) << endl;
 
-        __m128 __v =_mm_and_ps( _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) ),
-                                    _mm_and_ps( _mm_cmplt_ps(_zero, __c), _mm_cmplt_ps(__c, _nCols) ) );
-
+        __m128i __p = _mm_add_epi32( _mm_mullo_epi32(_nCols, __r_int ), __c_int );
+//        cout << "Compute warped pixel " << i  << " "
+//             << _mm_extract_epi32(__p,0) << " " << _mm_extract_epi32(__p,1) << " " << _mm_extract_epi32(__p,2) << " " << _mm_extract_epi32(__p,3) << endl;
         __m128i *_p = reinterpret_cast<__m128i*>(&pixels(i));
         _mm_store_si128(_p, __p);
-        _mm_store_ps(_v+i, __v);
-    } 
+
+        __m128i __v =_mm_and_si128 (_mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) ),
+                                    _mm_and_si128( _mm_cmplt_epi32(_minus_one, __c_int), _mm_cmplt_epi32(__c_int, _nCols) ) );
+        __m128i *_v = reinterpret_cast<__m128i*>(&visible(i));
+        _mm_store_si128(_v, __v);
+
+//        __m128i valid_row = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) );
+//        __m128i valid_col = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __c_int), _mm_cmplt_epi32(__c_int, _nCols) );
+//        cout << "valid_row " << " " << _mm_extract_epi32(valid_row,0) << " " << _mm_extract_epi32(valid_row,1) << " " << _mm_extract_epi32(valid_row,2) << " " << _mm_extract_epi32(valid_row,3) << endl;
+//        cout << "valid_col " << " " << _mm_extract_epi32(valid_col,0) << " " << _mm_extract_epi32(valid_col,1) << " " << _mm_extract_epi32(valid_col,2) << " " << _mm_extract_epi32(valid_col,3) << endl;
+
+//        __m128i _outOfImg = _mm_and_si128(_mm_and_si128( _mm_cmpgt_epi32(_zero, __r_int), _mm_cmpgt_epi32(__r_int, _nRows_1) ),
+//                                          _mm_and_si128( _mm_cmpgt_epi32(_zero, __c_int), _mm_cmpgt_epi32(__c_int, _nCols_1) ) );
+//        char *_p_outOfImg = reinterpret_cast<char*>(&pixels(i));
+//        _mm_maskmoveu_si128(_minus_one, _outOfImg, _p_outOfImg);
+
+//        cout << "stored warped pixels " << i << " " << _mm_extract_epi32(__p,0) << " " << _mm_extract_epi32(__p,1) << " " << _mm_extract_epi32(__p,2) << " " << _mm_extract_epi32(__p,3) << endl;
+//        cout << "stored visible pixels " << i << " " << _mm_extract_epi32(__v,0) << " " << _mm_extract_epi32(__v,1) << " " << _mm_extract_epi32(__v,2) << " " << _mm_extract_epi32(__v,3) << endl;
+//        mrpt::system::pause();
+    }
 #endif
 
-    //Check result
+#if TEST_SIMD
+    // Test SSE
     for(int i=0; i < pixels.size(); i++)
     {
-        assert( visible(i) == visible_(i) );
-        assert( pixels(i) == pixels_(i) );
+        if( pixels(i) != pixels2(i) )
+            cout << i << " pixels " << pixels(i) << " " << pixels2(i) << endl; // << " visible " << visible(i) << " " << visible2(i) <<
+        if( pixels(i) )
+            ASSERT_( pixels(i) == pixels2(i) );
+        ASSERT_( visible(i) == visible2(i) );
     }
+#endif
+
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    cout << " PinholeModel::projectNN " << xyz.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
+#endif
 }
 
 ///*! Compute the 2x6 jacobian matrices of the composition (warping+rigidTransformation) using the pinhole camera model. */
@@ -681,13 +832,20 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixe
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
 void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_grayGradX, float *_grayGradY)
 {
-    jacobians.resize(xyz_tf.rows(), 6);
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t ii=0; ii<100; ii++)
+    {
+#endif
 
+    jacobians.resize(xyz_tf.rows(), 6);
     const float *_x = &xyz_tf(0,0);
     const float *_y = &xyz_tf(0,1);
     const float *_z = &xyz_tf(0,2);
     const float *_weight = &weights(0,0);
 
+#if TEST_SIMD
+    // Test SSE
     Eigen::MatrixXf jacobians2(xyz_tf.rows(), 6);
     for(int i=0; i < xyz_tf.rows(); i++)
     {
@@ -699,6 +857,7 @@ void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const f
         img_gradient(0,1) = _grayGradY[i];
         jacobians2.block(i,0,1,6) = ((sqrt(weights(i)) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
     }
+#endif
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
@@ -763,23 +922,42 @@ void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const f
     }
 #endif
 
+#if TEST_SIMD
+    // Test SSE
     for(int i=0; i < xyz_tf.rows(); i++)
         for(size_t j=0; j < 6; j++)
-            assert(jacobians(i,j) == jacobians2(i,j));
+        {
+            if(jacobians(i,j) - jacobians2(i,j) > 1e-5 || jacobians2(i,j) - jacobians(i,j) > 1e-5)
+                cout << i << " jacobians(i) " << jacobians.block(i,0,1,6) << "\n     jacobians2(i) " << jacobians2.block(i,0,1,6) << endl;
+            ASSERT_(jacobians(i,j) == jacobians2(i,j));
+        }
+#endif
 
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    cout << " PinholeModel::computeJacobiansPhoto " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
+#endif
 }
 
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
 void PinholeModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_depthGradX, float *_depthGradY)
 {
-    jacobians.resize(xyz_tf.rows(), 6);
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t ii=0; ii<100; ii++)
+    {
+#endif
 
+    jacobians.resize(xyz_tf.rows(), 6);
     const float *_x = &xyz_tf(0,0);
     const float *_y = &xyz_tf(0,1);
     const float *_z = &xyz_tf(0,2);
     const float *_weight = &weights(0,0);
     const float *_stdDevInv = &stdDevError_inv(0);
 
+#if TEST_SIMD
+    // Test SSE
     Eigen::MatrixXf jacobians2(xyz_tf.rows(), 6);
     for(int i=0; i < xyz_tf.rows(); i++)
     {
@@ -795,6 +973,7 @@ void PinholeModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const E
         depth_gradient(0,1) = _depthGradY[i];
         jacobians2.block(i,0,1,6) = (sqrt(weights(i)) * stdDevError_inv(i) ) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
     }
+#endif
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
@@ -863,23 +1042,64 @@ void PinholeModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const E
     }
 #endif
 
+#if TEST_SIMD
+    // Test SSE
     for(int i=0; i < xyz_tf.rows(); i++)
         for(size_t j=0; j < 6; j++)
-            assert(jacobians(i,j) == jacobians2(i,j));
+            ASSERT_(jacobians(i,j) == jacobians2(i,j));
+#endif
+
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    cout << " PinholeModel::computeJacobiansDepth " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
+#endif
 }
 
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
 void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
                                                Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY)
 {
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t ii=0; ii<100; ii++)
+    {
+#endif
+
     jacobians_photo.resize(xyz_tf.rows(), 6);
     jacobians_depth.resize(xyz_tf.rows(), 6);
-
     const float *_x = &xyz_tf(0,0);
     const float *_y = &xyz_tf(0,1);
     const float *_z = &xyz_tf(0,2);
     const float *_weight = &weights(0,0);
     const float *_stdDevInv = &stdDevError_inv(0);
+
+#if TEST_SIMD
+    // Test SSE
+    Eigen::MatrixXf jacobians_photo2(xyz_tf.rows(), 6);
+    Eigen::MatrixXf jacobians_depth2(xyz_tf.rows(), 6);
+    for(int i=0; i < xyz_tf.rows(); i++)
+    {
+        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Matrix<float,2,6> jacobianWarpRt;
+        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+
+        Matrix<float,1,2> img_gradient;
+        img_gradient(0,0) = _grayGradX[i];
+        img_gradient(0,1) = _grayGradY[i];
+        float sqrt_weight = sqrt(weights(i));
+        jacobians_photo2.block(i,0,1,6) = ((sqrt_weight * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
+
+        Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
+        jacobian16_depthT(0,2) = 1.f;
+        jacobian16_depthT(0,3) = xyz_transf(1);
+        jacobian16_depthT(0,4) =-xyz_transf(0);
+        Matrix<float,1,2> depth_gradient;
+        depth_gradient(0,0) = _depthGradX[i];
+        depth_gradient(0,1) = _depthGradY[i];
+        jacobians_depth2.block(i,0,1,6) = ( (sqrt_weight * stdDevError_inv(i) ) * (depth_gradient * jacobianWarpRt - jacobian16_depthT) );
+    }
+#endif
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
@@ -905,7 +1125,7 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
         Matrix<float,1,2> depth_gradient;
         depth_gradient(0,0) = _depthGradX[i];
         depth_gradient(0,1) = _depthGradY[i];
-        jacobians_depth.block(i,0,1,6) = ( (sqrt_weight * stdDevError_inv(i) ) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
+        jacobians_depth.block(i,0,1,6) = ( (sqrt_weight * stdDevError_inv(i) ) * (depth_gradient * jacobianWarpRt - jacobian16_depthT) );
     }
 
 #else
@@ -975,6 +1195,22 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
         _mm_store_ps(_j4_depth+i, _mm_add_ps(_mm_sub_ps(_mm_mul_ps(__gradDepthY_weight, __j14), _mm_mul_ps(__gradDepthX_weight, __j04_neg) ), _mm_mul_ps(__weight_stdDevDepthInv, __x) ) );
         _mm_store_ps(_j5_depth+i, _mm_sub_ps(_mm_mul_ps(__gradY_weight, __j15), _mm_mul_ps(__gradX_weight, __j05_neg) ) );
     }
+#endif
+
+#if TEST_SIMD
+    // Test SSE
+    for(int i=0; i < xyz_tf.rows(); i++)
+        for(size_t j=0; j < 6; j++)
+        {
+            ASSERT_(jacobians_photo(i,j) == jacobians_photo2(i,j));
+            ASSERT_(jacobians_depth(i,j) == jacobians_depth2(i,j));
+        }
+#endif
+
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    cout << " PinholeModel::computeJacobiansPhotoDepth " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
@@ -1059,8 +1295,8 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
 ////            {
 ////                //visible_pixels(i) = 1;
 ////                float theta = atan2(xyz(0),xyz(2));
-////                float transformed_c = half_width + theta*pixel_angle_inv; assert(transformed_c <= nCols_1); //transformed_c -= half_width;
-////                int transformed_c_int = int(round(transformed_c)); assert(transformed_c_int<nCols);// % half_width;
+////                float transformed_c = half_width + theta*pixel_angle_inv; ASSERT_(transformed_c <= nCols_1); //transformed_c -= half_width;
+////                int transformed_c_int = int(round(transformed_c)); ASSERT_(transformed_c_int<nCols);// % half_width;
 ////                cv::Point2f warped_pixel(transformed_r, transformed_c);
 
 ////                size_t warped_i = transformed_r_int * nCols + transformed_c_int;
@@ -1096,7 +1332,7 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
 //            {
 //                //visible_pixels(i) = 1;
 //                float theta = atan2(xyz(0),xyz(2));
-//                int transformed_c_int = int(round(half_width + theta*pixel_angle_inv)) % nCols; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
+//                int transformed_c_int = int(round(half_width + theta*pixel_angle_inv)) % nCols; //ASSERT_(transformed_c_int<nCols); //ASSERT_(transformed_c_int<nCols);
 //                size_t warped_i = transformed_r_int * nCols + transformed_c_int;
 //                if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
 //                    _warpedGray[warped_i] = _graySrcPyr[i];
