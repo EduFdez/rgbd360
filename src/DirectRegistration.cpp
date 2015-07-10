@@ -394,7 +394,8 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
                         wEstimPhoto_src(i) = sqrt(weight2);
                         residualsPhoto_src(i) = wEstimPhoto_src(i) * residual;
                         error2_photo += weight2 * residual * residual;
-                        //v_AD_intensity[i] = fabs(diff);
+                        //v_AD_intensity[i] = fabs(diff);                       
+                        //cout << i << " warp_pixel " << warp_pixels_src(i) << " weight " << wEstimPhoto_src(i) << endl;
                     }
                 }
             }
@@ -465,7 +466,7 @@ double DirectRegistration::errorDense( const int pyrLevel, const Matrix4f & pose
         cout << " BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION \n " << endl;
 
         // Warp the image
-        ProjModel->project(xyz_src_transf, warp_img_src);
+        ProjModel->project(xyz_src_transf, warp_img_src, warp_pixels_src);
 
         if(method == PHOTO_DEPTH)
         {
@@ -653,14 +654,6 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //    float *_grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyrLevel].data);
 //    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
 
-    if(visualize_)
-    {
-        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
-            warped_gray = cv::Mat::zeros(graySrcPyr[pyrLevel].rows, graySrcPyr[pyrLevel].cols, graySrcPyr[pyrLevel].type());
-        if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
-            warped_depth = cv::Mat::zeros(depthSrcPyr[pyrLevel].rows, depthSrcPyr[pyrLevel].cols, depthSrcPyr[pyrLevel].type());
-    }
-
     // Build the aligned versions of the image derivatives, so that we can benefit from SIMD performance
     VectorXf grayGradX, grayGradY;
     VectorXf depthGradX, depthGradY;
@@ -703,15 +696,12 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
     }
     else if(method == PHOTO_CONSISTENCY)
     {
-        ProjModel->computeJacobiansPhoto(xyz_src_transf, stdDevPhoto_inv, wEstimDepth_src, jacobiansPhoto, _graySrcGradXPyr, _graySrcGradYPyr);
+        ProjModel->computeJacobiansPhoto(xyz_src_transf, stdDevPhoto_inv, wEstimPhoto_src, jacobiansPhoto, _graySrcGradXPyr, _graySrcGradYPyr);
     }
     else if(method == DEPTH_CONSISTENCY)
     {
         ProjModel->computeJacobiansDepth(xyz_src_transf, stdDevError_inv_src, wEstimDepth_src, jacobiansDepth, _depthSrcGradXPyr, _depthSrcGradYPyr);
     }
-
-    for(size_t i=0; i < n_pts; i++)
-        cout << i << " warp_pixels_src(i) " << warp_pixels_src(i) << endl;
 
     if(visualize_)
     {
@@ -721,9 +711,8 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
             for(size_t i=0; i < n_pts; i++)
                 if(warp_pixels_src(i) != -1)
                 {
-                    cout << i << " warp_pixels_src(i) " << warp_pixels_src(i) << endl;
+                    //cout << i << " warp_pixels_src(i) " << warp_pixels_src(i) << endl;
                     warped_gray.at<float>(warp_pixels_src(i)) = graySrcPyr[pyrLevel].at<float>(warp_pixels_src(i));
-                    cout << " check \n";
                 }
         }
         if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)

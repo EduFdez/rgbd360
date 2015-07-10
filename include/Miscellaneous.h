@@ -30,6 +30,8 @@
  * Author: Eduardo Fernandez-Moral
  */
 
+#pragma once
+
 #ifndef MISCELLANEOUS_H
 #define MISCELLANEOUS_H
 

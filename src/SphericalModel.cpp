@@ -30,9 +30,6 @@
  */
 
 #include <SphericalModel.h>
-#include <pcl/common/time.h>
-#include <mrpt/utils/mrpt_macros.h>
-//#include <ASSERT__.h>
 //#include "/usr/local/include/eigen3/Eigen/Core"
 
 #if _SSE2
@@ -46,10 +43,6 @@
 #if _SSE4_1
 #  include <smmintrin.h>
 #endif
-
-#define ENABLE_OPENMP 0
-#define PRINT_PROFILING 1
-#define TEST_SIMD 1
 
 using namespace std;
 using namespace Eigen;
@@ -214,7 +207,6 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
     ASSERT_(nCols % 4 == 0); // Make sure that the image columns are aligned
     ASSERT_(nRows % 2 == 0);
 
-    __m128 _zero_ = _mm_set1_ps(0.f);
     __m128i _idx_zero_ = _mm_setr_epi32(0.f, 1.f, 2.f, 3.f);
     __m128i __minus_one = _mm_set1_epi32(-1);
     __m128 _min_depth_ = _mm_set1_ps(min_depth_);
@@ -244,19 +236,15 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
                 _mm_store_ps(_y+i, __y);
                 _mm_store_ps(_z+i, __z);
 
-                __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) );
+                //__m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) );
                 //_mm_store_ps(_valid_pt+i, valid_depth_pts ); // Store 0 or -1
 
                 __m128i __pos = _mm_set1_epi32(i);
                 __m128i __idx = _mm_add_epi32(__pos, _idx_zero_);
+                __m128 _invalid_pts = _mm_or_ps( _mm_cmpgt_ps(_min_depth_, __depth), _mm_cmpgt_ps(__depth, _max_depth_) );
+                __m128i __idx_mask = _mm_or_si128(__idx, reinterpret_cast<__m128i>(_invalid_pts));
                 __m128i *_v = reinterpret_cast<__m128i*>(&validPixels(i));
                 _mm_store_si128(_v, __idx);
-
-                __m128i invalid_pts = _mm_cvtps_epi32( _mm_and_ps(_zero_, valid_depth_pts) );
-    //            cout << "invalid_pts " << i  << " "
-    //                 << _mm_extract_epi32(invalid_pts,0) << " " << _mm_extract_epi32(invalid_pts,1) << " " << _mm_extract_epi32(invalid_pts,2) << " " << _mm_extract_epi32(invalid_pts,3) << endl;
-                char *_vv = reinterpret_cast<char*>(&validPixels(i));
-                _mm_maskmoveu_si128(__minus_one, invalid_pts, _vv);
 
     //            for(int j=0; j < 4; j++)
     //            {
@@ -289,19 +277,15 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
                 _mm_store_ps(_y+i, __y);
                 _mm_store_ps(_z+i, __z);
 
-                __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) );
+                //__m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) );
                 //_mm_store_ps(_valid_pt+i, valid_depth_pts ); // Store 0 or -1
 
                 __m128i __pos = _mm_set1_epi32(i);
                 __m128i __idx = _mm_add_epi32(__pos, _idx_zero_);
+                __m128 _invalid_pts = _mm_or_ps( _mm_cmpgt_ps(_min_depth_, __depth), _mm_cmpgt_ps(__depth, _max_depth_) );
+                __m128i __idx_mask = _mm_or_si128(__idx, reinterpret_cast<__m128i>(_invalid_pts));
                 __m128i *_v = reinterpret_cast<__m128i*>(&validPixels(i));
                 _mm_store_si128(_v, __idx);
-
-                __m128i invalid_pts = _mm_cvtps_epi32( _mm_and_ps(_zero_, valid_depth_pts) );
-    //            cout << "invalid_pts " << i  << " "
-    //                 << _mm_extract_epi32(invalid_pts,0) << " " << _mm_extract_epi32(invalid_pts,1) << " " << _mm_extract_epi32(invalid_pts,2) << " " << _mm_extract_epi32(invalid_pts,3) << endl;
-                char *_vv = reinterpret_cast<char*>(&validPixels(i));
-                _mm_maskmoveu_si128(__minus_one, invalid_pts, _vv);
 
     //            for(int j=0; j < 4; j++)
     //            {
@@ -548,7 +532,7 @@ void SphericalModel::reconstruct3D_saliency(Eigen::MatrixXf & xyz, VectorXi & va
 }
 
 /*! Project 3D points XYZ according to the spherical camera model. */
-void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels)
+void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible)
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -559,8 +543,8 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
     pixels.resize(xyz.rows(),2);
     float *_r = &pixels(0,0);
     float *_c = &pixels(0,1);
-//    visible.resize(xyz.rows());
-//    float *_v = reinterpret_cast<float*>(&visible(0));
+    visible.resize(xyz.rows());
+    float *_v = reinterpret_cast<float*>(&visible(0));
 
     const float *_x = &xyz(0,0);
     const float *_y = &xyz(0,1);
@@ -620,9 +604,9 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
         _mm_store_ps(_r+i, __r);
         _mm_store_ps(_c+i, __c);
 
-//        __m128 __v = _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) );
-//                                    //,_mm_and_ps( _mm_cmplt_ps(_zero, __c), _mm_cmplt_ps(__c, _nCols) ) );
-//        _mm_store_ps(_v+i, __v);
+        __m128 __v = _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) );
+                                    //,_mm_and_ps( _mm_cmplt_ps(_zero, __c), _mm_cmplt_ps(__c, _nCols) ) );
+        _mm_store_ps(_v+i, __v);
     }
 
     for(int i=0; i < pixels.size(); i++)
@@ -888,7 +872,7 @@ void SphericalModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
         img_gradient(0,1) = _grayGradY[i];
-        jacobians_photo2.block(i,0,1,6) = ((sqrt(weights(i)) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
+        jacobians_photo2.block(i,0,1,6) = ((weights(i) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
     }
 #endif
 
@@ -905,7 +889,7 @@ void SphericalModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
         img_gradient(0,1) = _grayGradY[i];
-        jacobians_photo.block(i,0,1,6) = ((sqrt(weights(i)) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
+        jacobians_photo.block(i,0,1,6) = ((weights(i) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
     }
 
 #else
@@ -963,8 +947,19 @@ void SphericalModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const
 #if TEST_SIMD
     // Test SSE
     for(int i=0; i < xyz_tf.rows(); i++)
+    {
+        //cout << i << " weights(i) " << weights(i) << "\n  jacobians_photo(i) " << jacobians_photo.block(i,0,1,6) << "\n jacobians_photo2(i) " << jacobians_photo2.block(i,0,1,6) << endl;
         for(size_t j=0; j < 6; j++)
-            ASSERT_(jacobians_photo(i,j) == jacobians_photo2(i,j));
+        {
+            if(weights(i) > 0.f)
+            {
+                if( !AlmostEqual2sComplement(jacobians_photo(i,j), jacobians_photo2(i,j), 100000000) )
+                    cout << i << " weights(i) " << weights(i) << "\n  jacobians_photo(i) " << jacobians_photo.block(i,0,1,6) << "\n jacobians_photo2(i) " << jacobians_photo2.block(i,0,1,6) << endl;
+                ASSERT_( AlmostEqual2sComplement(jacobians_photo(i,j), jacobians_photo2(i,j), 100000000) );
+            }
+        }
+    }
+    //mrpt::system::pause();
 #endif
 
 #if PRINT_PROFILING
@@ -1003,7 +998,7 @@ void SphericalModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const
         Matrix<float,1,2> depth_gradient;
         depth_gradient(0,0) = _depthGradX[i];
         depth_gradient(0,1) = _depthGradY[i];
-        jacobians_depth.block(i,0,1,6) = (sqrt(weights(i)) * stdDevError_inv(i) * (depth_gradient) * jacobianWarpRt - jacobian16_depthT);
+        jacobians_depth.block(i,0,1,6) = (weights(i) * stdDevError_inv(i) * (depth_gradient) * jacobianWarpRt - jacobian16_depthT);
     }
 #endif
 
@@ -1022,7 +1017,7 @@ void SphericalModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const
         Matrix<float,1,2> depth_gradient;
         depth_gradient(0,0) = _depthGradX[i];
         depth_gradient(0,1) = _depthGradY[i];
-        jacobians_depth.block(i,0,1,6) = (sqrt(weights(i)) * stdDevError_inv(i) * (depth_gradient) * jacobianWarpRt - jacobian16_depthT);
+        jacobians_depth.block(i,0,1,6) = (weights(i) * stdDevError_inv(i) * (depth_gradient) * jacobianWarpRt - jacobian16_depthT);
     }
 
 #else
@@ -1081,8 +1076,19 @@ void SphericalModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const
 #if TEST_SIMD
     // Test SSE
     for(int i=0; i < xyz_tf.rows(); i++)
+    {
+        //cout << i << " weights(i) " << weights(i) << "\n  jacobians_depth(i) " << jacobians_depth.block(i,0,1,6) << "\n jacobians_depth2(i) " << jacobians_depth2.block(i,0,1,6) << endl;
         for(size_t j=0; j < 6; j++)
-            ASSERT_(jacobians_depth(i,j) == jacobians_depth2(i,j));
+        {
+            if(weights(i) > 0.f)
+            {
+                if( !AlmostEqual2sComplement(jacobians_depth(i,j), jacobians_depth2(i,j), 100000000) )
+                    cout << i << " weights(i) " << weights(i) << "\n  jacobians_depth(i) " << jacobians_depth.block(i,0,1,6) << "\n jacobians_depth2(i) " << jacobians_depth2.block(i,0,1,6) << endl;
+                ASSERT_( AlmostEqual2sComplement(jacobians_depth(i,j), jacobians_depth2(i,j), 100000000) );
+            }
+        }
+    }
+    //mrpt::system::pause();
 #endif
 
 #if PRINT_PROFILING
@@ -1123,14 +1129,14 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
         img_gradient(0,1) = _grayGradY[i];
-        jacobians_photo.block(i,0,1,6) = ((sqrt(weights(i)) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
+        jacobians_photo.block(i,0,1,6) = ((weights(i) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
 
         Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
         jacobian16_depthT.block(0,0,1,3) = (1 / xyz_tf.norm()) * xyz_transf.transpose();
         Matrix<float,1,2> depth_gradient;
         depth_gradient(0,0) = _depthGradX[i];
         depth_gradient(0,1) = _depthGradY[i];
-        jacobians_depth.block(i,0,1,6) = (sqrt(weights(i)) * stdDevError_inv(i) * (depth_gradient) * jacobianWarpRt - jacobian16_depthT);
+        jacobians_depth.block(i,0,1,6) = (weights(i) * stdDevError_inv(i) * (depth_gradient) * jacobianWarpRt - jacobian16_depthT);
     }
 #endif
 
@@ -1148,14 +1154,14 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
         img_gradient(0,1) = _grayGradY[i];
-        jacobians_photo.block(i,0,1,6) = ((sqrt(weights(i)) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
+        jacobians_photo.block(i,0,1,6) = ((weights(i) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
 
         Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
         jacobian16_depthT.block(0,0,1,3) = (1 / xyz_tf.norm()) * xyz_transf.transpose();
         Matrix<float,1,2> depth_gradient;
         depth_gradient(0,0) = _depthGradX[i];
         depth_gradient(0,1) = _depthGradY[i];
-        jacobians_depth.block(i,0,1,6) = (sqrt(weights(i)) * stdDevError_inv(i) * (depth_gradient) * jacobianWarpRt - jacobian16_depthT);
+        jacobians_depth.block(i,0,1,6) = (weights(i) * stdDevError_inv(i) * (depth_gradient) * jacobianWarpRt - jacobian16_depthT);
     }
 
 #else
@@ -1236,11 +1242,18 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
 #if TEST_SIMD
     // Test SSE
     for(int i=0; i < xyz_tf.rows(); i++)
+    {
+        //cout << i << " weights(i) " << weights(i) << "\n  jac_photo " << jacobians_photo.block(i,0,1,6) << "\n                    (i) " << jacobians_photo.block(i,0,1,6) << endl;
         for(size_t j=0; j < 6; j++)
         {
-            ASSERT_(jacobians_photo(i,j) == jacobians_photo2(i,j));
-            ASSERT_(jacobians_depth(i,j) == jacobians_depth2(i,j));
+            if(weights(i) > 0.f)
+            {
+                //cout << i << " jacobians(i) " << jacobians.block(i,0,1,6) << "\n  jacobians2(i) " << jacobians2.block(i,0,1,6) << endl;
+                ASSERT_( AlmostEqual2sComplement(jacobians_photo(i,j), jacobians_photo2(i,j), 100000000) );
+                ASSERT_( AlmostEqual2sComplement(jacobians_depth(i,j), jacobians_depth2(i,j), 100000000) );
+            }
         }
+    }
 #endif
 
 #if PRINT_PROFILING

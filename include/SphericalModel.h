@@ -127,7 +127,7 @@ class SphericalModel : public ProjectionModel
     };
 
     /*! Project 3D points XYZ according to the spherical camera model (3D -> 2D). */
-    void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels);
+    void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible);
 
     /*! Project 3D points XYZ according to the spherical camera model (3D -> 1D nearest neighbor). */
     void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels);

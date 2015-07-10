@@ -42,6 +42,10 @@
 #define SSE4_A  ${CMAKE_HAS_SSE4_A}   // This value can be set to 0 from CMake with DISABLE_SSE4_A
 #define AVX     ${CMAKE_HAS_AVX}      // This value can be set to 0 from CMake with DISABLE_SSE4_A
 
+#define TEST_SIMD 	1	// Enable/disable SIMD tests (SSE, AVX) 
+#define ENABLE_OPENMP 	0	// Enable/disable OpenMP
+#define PRINT_PROFILING 1	// Enable/disable Profiling
+
 #endif
 
 

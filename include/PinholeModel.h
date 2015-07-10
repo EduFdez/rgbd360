@@ -94,7 +94,7 @@ class PinholeModel : public ProjectionModel
     };
 
     /*! Project 3D points XYZ according to the pinhole camera model (3D -> 2D). */
-    void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels); //, Eigen::VectorXi & visible);
+    void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible);
 
     /*! Project 3D points XYZ according to the pinhole camera model (3D -> 1D nearest neighbor). */
     void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels); //, Eigen::VectorXi & visible);

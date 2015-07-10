@@ -39,6 +39,38 @@
 #include <Eigen/Core>
 //#include "/usr/local/include/eigen3/Eigen/Core"
 
+#if PRINT_PROFILING
+    #include <pcl/common/time.h>
+#endif
+
+#if TEST_SIMD
+    #include <mrpt/system/os.h>
+    #include <mrpt/utils/mrpt_macros.h>
+    //#include <assert.h>
+    #include <bitset>
+
+// This function is explained in: http://www.cygnus-software.com/papers/comparingfloats/comparingfloats.htm
+// Usable AlmostEqual function
+bool AlmostEqual2sComplement(float A, float B, int maxUlps)
+{
+    // Make sure maxUlps is non-negative and small enough that the
+    // default NAN won't compare as equal to anything.
+    assert(maxUlps > 0 && maxUlps < 4 * 1024 * 1024);
+    int aInt = *(int*)&A;
+    // Make aInt lexicographically ordered as a twos-complement int
+    if (aInt < 0)
+        aInt = 0x80000000 - aInt;
+    // Make bInt lexicographically ordered as a twos-complement int
+    int bInt = *(int*)&B;
+    if (bInt < 0)
+        bInt = 0x80000000 - bInt;
+    int intDiff = abs(aInt - bInt);
+    if (intDiff <= maxUlps)
+        return true;
+    return false;
+}
+#endif
+
 /*! This class encapsulates different projection models including both perspective and spherical.
  *  It implements the functionality to project and reproject from the image domain to 3D and viceversa.
  *
@@ -110,7 +142,7 @@ public:
     virtual inline cv::Point2f project2Image(Eigen::Vector3f & xyz) = 0;
 
     /*! Project 3D points XYZ according to the pinhole camera model (3D -> 2D). */
-    virtual void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels) = 0;
+    virtual void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible) = 0;
 
     /*! Project 3D points XYZ according to the pinhole camera model (3D -> 1D nearest neighbor). */
     virtual void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels) = 0;
