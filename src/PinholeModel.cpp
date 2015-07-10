@@ -109,7 +109,7 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
     float *_y = &xyz(0,1);
     float *_z = &xyz(0,2);
     validPixels.resize(imgSize);
-    //float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
+    float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
 
 #ifdef TEST_SIMD
     Eigen::MatrixXf xyz2(imgSize,3);
@@ -187,7 +187,7 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
     __m128 _max_depth_ = _mm_set1_ps(max_depth_);
     __m128 _zero_ = _mm_set1_ps(0.f);
     __m128i _idx_zero_ = _mm_setr_epi32(0.f, 1.f, 2.f, 3.f);
-    __m128i __minus_one = _mm_set1_epi32(-1);
+    __m128 __nan = _mm_set1_ps(-std::numeric_limits<float>::quiet_NaN());
     for(int r=0; r < nRows; r++)
     {
         __m128 __r = _mm_set1_ps(r);
@@ -203,26 +203,31 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
             _mm_store_ps(_y+i, __y);
             _mm_store_ps(_z+i, __depth);
 
-            __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) );
+            //__m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) );
             //_mm_store_ps(_valid_pt+i, valid_depth_pts ); // Store 0 or -1
 
             __m128i __pos = _mm_set1_epi32(i);
             __m128i __idx = _mm_add_epi32(__pos, _idx_zero_);
+//            __m128i *_v = reinterpret_cast<__m128i*>(&validPixels(i));
+//            _mm_store_si128(_v, __idx);
+            __m128 _invalid_pts = _mm_and_ps( _mm_cmpgt_ps(_min_depth_, __depth), _mm_cmpgt_ps(__depth, _max_depth_) );
+            __m128i _invalid_pts2 = reinterpret_cast<__m128i>(_invalid_pts);
+            __m128i __idx_mask = _mm_or_si128(__idx, _invalid_pts2);
             __m128i *_v = reinterpret_cast<__m128i*>(&validPixels(i));
-            _mm_store_si128(_v, __idx);
+            _mm_store_si128(_v, __idx_mask);
 
-//            __m128i invalid_pts = _mm_cvtps_epi32( _mm_and_ps(_zero_, valid_depth_pts) );
-////            cout << "invalid_pts " << i  << " "
-////                 << _mm_extract_epi32(invalid_pts,0) << " " << _mm_extract_epi32(invalid_pts,1) << " " << _mm_extract_epi32(invalid_pts,2) << " " << _mm_extract_epi32(invalid_pts,3) << endl;
-//            char *_vv = reinterpret_cast<char*>(&validPixels(i));
-//            _mm_maskmoveu_si128(__minus_one, invalid_pts, _vv);
+            cout << "invalid_pts " << i  << " " << _invalid_pts[0] << " " << _invalid_pts[1] << " " << _invalid_pts[2] << " " << _invalid_pts[3] << endl;
+            cout << "invalid_pts2 " << i  << " " << _mm_extract_epi32(_invalid_pts2,0) << " " << _mm_extract_epi32(_invalid_pts2,1) << " " << _mm_extract_epi32(_invalid_pts2,2) << " " << _mm_extract_epi32(_invalid_pts2,3) << endl;
 
-            for(int j=0; j < 4; j++)
-            {
-                const int jj = j;
-                if(!valid_depth_pts[jj])
-                    validPixels(i+j) = -1;
-            }
+//            int *_vv = &validPixels(i);
+//            _mm_maskstore_ps(_valid_pt, invalid_depth_pts, __minus_one);
+
+//            for(int j=0; j < 4; j++)
+//            {
+//                const int jj = j;
+//                if(!valid_depth_pts[jj])
+//                    validPixels(i+j) = -1;
+//            }
         }
     }    
 
@@ -425,10 +430,10 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
         cout << i << " validPixels(i) " << validPixels(i) << " " << validPixels2(i) << endl;
         cout << " xyz " << xyz(i,0) << " " << xyz(i,1) << " " << xyz(i,2) << " xyz2 " << xyz2(i,0) << " " << xyz2(i,1) << " " << xyz2(i,2) << endl;
 //        cout << " diff " << xyz(i,0) - xyz2(i,0) << " " << 1e-5 << endl;
-//        ASSERT_( validPixels(i) == validPixels2(i) );
-//        ASSERT_( (xyz(i,0) - xyz2(i,0) > 1e-5) || (xyz2(i,0) - xyz(i,0) > 1e-5) );
-//        ASSERT_( (xyz(i,1) - xyz2(i,1) > 1e-5) || (xyz2(i,1) - xyz(i,1) > 1e-5) );
-//        ASSERT_( (xyz(i,2) - xyz2(i,2) > 1e-5) || (xyz2(i,2) - xyz(i,2) > 1e-5) );
+        ASSERT_( validPixels(i) == validPixels2(i) );
+//        ASSERT_( (xyz(i,0) - xyz2(i,0)) > 1e-5 || (xyz2(i,0) - xyz(i,0)) > 1e-5 );
+//        ASSERT_( (xyz(i,1) - xyz2(i,1)) > 1e-5 || (xyz2(i,1) - xyz(i,1)) > 1e-5 );
+//        ASSERT_( (xyz(i,2) - xyz2(i,2)) > 1e-5 || (xyz2(i,2) - xyz(i,2)) > 1e-5 );
     }
 #endif
 
@@ -528,7 +533,7 @@ void PinholeModel::reconstruct3D_saliency ( Eigen::MatrixXf & xyz, Eigen::Vector
 }
 
 /*! Project 3D points XYZ according to the pinhole camera model. */
-void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible)
+void PinholeModel::project(const Eigen::MatrixXf & xyz)//, Eigen::MatrixXf & pixels)
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -539,8 +544,8 @@ void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels
     pixels.resize(xyz.rows(),2);
     float *_r = &pixels(0,0);
     float *_c = &pixels(0,1);
-    visible.resize(xyz.rows());
-    float *_v = reinterpret_cast<float*>(&visible(0));
+//    visible.resize(xyz.rows());
+//    float *_v = reinterpret_cast<float*>(&visible(0));
 
     const float *_x = &xyz(0,0);
     const float *_y = &xyz(0,1);
@@ -557,7 +562,7 @@ void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels
         cv::Point2f warped_pixel = project2Image(pt_xyz);
         pixels(i,0) = warped_pixel.y;
         pixels(i,1) = warped_pixel.x;
-        visible(i) = isInImage(r_transf, c_transf) ? 1 : 0;
+        visible(i) = isInImage(c_transf, r_transf) ? 1 : 0;
     }
 
 #else
@@ -581,9 +586,9 @@ void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels
         _mm_store_ps(_r+i, __r);
         _mm_store_ps(_c+i, __c);
 
-        __m128 __v =_mm_and_ps( _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) ),
-                                _mm_and_ps( _mm_cmplt_ps(_zero, __c), _mm_cmplt_ps(__c, _nCols) ) );
-        _mm_store_ps(_v+i, __v);
+//        __m128 __v =_mm_and_ps( _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) ),
+//                                _mm_and_ps( _mm_cmplt_ps(_zero, __c), _mm_cmplt_ps(__c, _nCols) ) );
+//        _mm_store_ps(_v+i, __v);
     }
 #endif
 
@@ -595,7 +600,7 @@ void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels
 }
 
 /*! Project 3D points XYZ according to the pinhole camera model. */
-void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels, Eigen::VectorXi & visible)
+void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels) //, Eigen::VectorXi & visible)
 {
 #if PRINT_PROFILING
     cout << " PinholeModel::projectNN ... " << endl;
@@ -605,7 +610,7 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixe
 #endif
 
     pixels.resize(xyz.rows());
-    visible.resize(xyz.rows());
+//    visible.resize(xyz.rows());
     //int *_p = &pixels(0);
     //int *_v = &visible(0);
     //float *_v = reinterpret_cast<float*>(&visible(0));
@@ -616,7 +621,6 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixe
 #if TEST_SIMD
     // Test SSE
     Eigen::VectorXi pixels2(xyz.rows());
-    Eigen::VectorXi visible2(xyz.rows());
     for(int i=0; i < pixels.size(); i++)
     {
         Eigen::Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
@@ -624,13 +628,13 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixe
 
         int r_transf = round(warped_pixel.y);
         int c_transf = round(warped_pixel.x);
-        // cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << endl;
-        if(isInImage(r_transf, c_transf))
+        if(isInImage(c_transf, r_transf))
             pixels2(i) = r_transf * nCols + c_transf;
         else
             pixels2(i) = -1;
 //        pixels(i) = r_transf * nCols + c_transf;
-//        visible(i) = isInImage(r_transf, c_transf) ? 1 : 0;
+//        visible(i) = isInImage(c_transf, r_transf) ? 1 : 0;
+         cout << i << " Pixel transform " << pixels2(i) << " " << r_transf << " " << c_transf << endl;
     }
 #endif
 
@@ -647,12 +651,12 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixe
         int r_transf = round(warped_pixel.y);
         int c_transf = round(warped_pixel.x);
         // cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << endl;
-        if(isInImage(r_transf, c_transf))
+        if(isInImage(c_transf, r_transf))
             pixels(i) = r_transf * nCols + c_transf;
         else
             pixels(i) = -1;
 //        pixels(i) = r_transf * nCols + c_transf;
-//        visible(i) = isInImage(r_transf, c_transf) ? 1 : 0;
+//        visible(i) = isInImage(c_transf, r_transf) ? 1 : 0;
     }
 
 #else
@@ -702,23 +706,35 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixe
         __m128i *_p = reinterpret_cast<__m128i*>(&pixels(i));
         _mm_store_si128(_p, __p);
 
-        __m128i __v =_mm_and_si128 (_mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) ),
-                                    _mm_and_si128( _mm_cmplt_epi32(_minus_one, __c_int), _mm_cmplt_epi32(__c_int, _nCols) ) );
-        __m128i *_v = reinterpret_cast<__m128i*>(&visible(i));
-        _mm_store_si128(_v, __v);
+//        __m128i __v =_mm_and_si128 (_mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) ),
+//                                    _mm_and_si128( _mm_cmplt_epi32(_minus_one, __c_int), _mm_cmplt_epi32(__c_int, _nCols) ) );
+//        __m128i *_v = reinterpret_cast<__m128i*>(&visible(i));
+//        _mm_store_si128(_v, __v);
+
+//        cout << "stored warped __p  " << i << " " << pixels(i) << " " << pixels(i+1) << " " << pixels(i+2) << " " << pixels(i+3) << endl;
+//        cout << "stored warped pixels " << i << " " << _mm_extract_epi32(__p,0) << " " << _mm_extract_epi32(__p,1) << " " << _mm_extract_epi32(__p,2) << " " << _mm_extract_epi32(__p,3) << endl;
+//        cout << "stored visible pixels " << i << " " << _mm_extract_epi32(__v,0) << " " << _mm_extract_epi32(__v,1) << " " << _mm_extract_epi32(__v,2) << " " << _mm_extract_epi32(__v,3) << endl;
 
 //        __m128i valid_row = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) );
 //        __m128i valid_col = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __c_int), _mm_cmplt_epi32(__c_int, _nCols) );
 //        cout << "valid_row " << " " << _mm_extract_epi32(valid_row,0) << " " << _mm_extract_epi32(valid_row,1) << " " << _mm_extract_epi32(valid_row,2) << " " << _mm_extract_epi32(valid_row,3) << endl;
 //        cout << "valid_col " << " " << _mm_extract_epi32(valid_col,0) << " " << _mm_extract_epi32(valid_col,1) << " " << _mm_extract_epi32(valid_col,2) << " " << _mm_extract_epi32(valid_col,3) << endl;
 
-//        __m128i _outOfImg = _mm_and_si128(_mm_and_si128( _mm_cmpgt_epi32(_zero, __r_int), _mm_cmpgt_epi32(__r_int, _nRows_1) ),
-//                                          _mm_and_si128( _mm_cmpgt_epi32(_zero, __c_int), _mm_cmpgt_epi32(__c_int, _nCols_1) ) );
-//        char *_p_outOfImg = reinterpret_cast<char*>(&pixels(i));
-//        _mm_maskmoveu_si128(_minus_one, _outOfImg, _p_outOfImg);
+        __m128i _outOfImg = _mm_and_si128(_mm_and_si128( _mm_cmpgt_epi32(_zero, __r_int), _mm_cmpgt_epi32(__r_int, _nRows_1) ),
+                                          _mm_and_si128( _mm_cmpgt_epi32(_zero, __c_int), _mm_cmpgt_epi32(__c_int, _nCols_1) ) );
+        int *_p_outOfImg = &pixels(i);
+        _mm_maskstore_epi32(_p_outOfImg, invalid_pts, __minus_one);
 
-//        cout << "stored warped pixels " << i << " " << _mm_extract_epi32(__p,0) << " " << _mm_extract_epi32(__p,1) << " " << _mm_extract_epi32(__p,2) << " " << _mm_extract_epi32(__p,3) << endl;
-//        cout << "stored visible pixels " << i << " " << _mm_extract_epi32(__v,0) << " " << _mm_extract_epi32(__v,1) << " " << _mm_extract_epi32(__v,2) << " " << _mm_extract_epi32(__v,3) << endl;
+//        for(int j=0; j < 4; j++)
+//        {
+//            const int jj = j;
+//            if(_mm_extract_epi32(__v,jj) == 0)
+//                pixels(i+j) = -1;
+//        }
+
+//        cout << "stored warped __p end " << i << " " << pixels(i) << " " << pixels(i+1) << " " << pixels(i+2) << " " << pixels(i+3) << endl;
+//        cout << "_minus_one " << i << " " << _mm_extract_epi32(_minus_one,0) << " " << _mm_extract_epi32(_minus_one,1) << " " << _mm_extract_epi32(_minus_one,2) << " " << _mm_extract_epi32(_minus_one,3) << endl;
+//        cout << "_outOfImg " << i << " " << _mm_extract_epi32(_outOfImg,0) << " " << _mm_extract_epi32(_outOfImg,1) << " " << _mm_extract_epi32(_outOfImg,2) << " " << _mm_extract_epi32(_outOfImg,3) << endl;
 //        mrpt::system::pause();
     }
 #endif
@@ -731,7 +747,6 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixe
             cout << i << " pixels " << pixels(i) << " " << pixels2(i) << endl; // << " visible " << visible(i) << " " << visible2(i) <<
         if( pixels(i) )
             ASSERT_( pixels(i) == pixels2(i) );
-        ASSERT_( visible(i) == visible2(i) );
     }
 #endif
 
@@ -927,7 +942,7 @@ void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const f
     for(int i=0; i < xyz_tf.rows(); i++)
         for(size_t j=0; j < 6; j++)
         {
-            if(jacobians(i,j) - jacobians2(i,j) > 1e-5 || jacobians2(i,j) - jacobians(i,j) > 1e-5)
+            //if(jacobians(i,j) - jacobians2(i,j) > 1e-5 || jacobians2(i,j) - jacobians(i,j) > 1e-5)
                 cout << i << " jacobians(i) " << jacobians.block(i,0,1,6) << "\n     jacobians2(i) " << jacobians2.block(i,0,1,6) << endl;
             ASSERT_(jacobians(i,j) == jacobians2(i,j));
         }

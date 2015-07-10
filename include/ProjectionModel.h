@@ -96,11 +96,12 @@ public:
     /*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
     virtual void scaleCameraParams(const int pyrLevel) = 0;
 
-//    /*! Check if a pixel is within the image limits. */
-//    virtual inline bool isInImage(const int x, const int y)
-//    {
-//        return ( y >= 0 && y < nRows && x >= 0 && x < nCols );
-//    };
+    /*! Check if a pixel is within the image limits. */
+    template<typename T>
+    inline bool isInImage(const T x, const T y)
+    {
+        return ( x >= 0 && x < nCols && y >= 0 && y < nRows);
+    }
 
     /*! Return the depth value of the 3D point projected on the image.*/
     virtual float getDepth(const Eigen::Vector3f &xyz) = 0;
@@ -109,10 +110,10 @@ public:
     virtual inline cv::Point2f project2Image(Eigen::Vector3f & xyz) = 0;
 
     /*! Project 3D points XYZ according to the pinhole camera model (3D -> 2D). */
-    virtual void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible) = 0;
+    virtual void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels) = 0;
 
     /*! Project 3D points XYZ according to the pinhole camera model (3D -> 1D nearest neighbor). */
-    virtual void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels, Eigen::VectorXi &visible) = 0;
+    virtual void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels) = 0;
 
     /*! Compute the 3D points XYZ according to the pinhole camera model. */
     virtual void reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels) = 0;

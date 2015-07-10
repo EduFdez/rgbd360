@@ -548,7 +548,7 @@ void SphericalModel::reconstruct3D_saliency(Eigen::MatrixXf & xyz, VectorXi & va
 }
 
 /*! Project 3D points XYZ according to the spherical camera model. */
-void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, VectorXi & visible)
+void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels)
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -559,8 +559,8 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
     pixels.resize(xyz.rows(),2);
     float *_r = &pixels(0,0);
     float *_c = &pixels(0,1);
-    visible.resize(xyz.rows());
-    float *_v = reinterpret_cast<float*>(&visible(0));
+//    visible.resize(xyz.rows());
+//    float *_v = reinterpret_cast<float*>(&visible(0));
 
     const float *_x = &xyz(0,0);
     const float *_y = &xyz(0,1);
@@ -620,9 +620,9 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
         _mm_store_ps(_r+i, __r);
         _mm_store_ps(_c+i, __c);
 
-        __m128 __v = _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) );
-                                    //,_mm_and_ps( _mm_cmplt_ps(_zero, __c), _mm_cmplt_ps(__c, _nCols) ) );
-        _mm_store_ps(_v+i, __v);
+//        __m128 __v = _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) );
+//                                    //,_mm_and_ps( _mm_cmplt_ps(_zero, __c), _mm_cmplt_ps(__c, _nCols) ) );
+//        _mm_store_ps(_v+i, __v);
     }
 
     for(int i=0; i < pixels.size(); i++)
@@ -638,7 +638,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
 }
 
 /*! Project 3D points XYZ according to the spherical camera model. */
-void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels, VectorXi & visible)
+void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels)
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -647,7 +647,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels, V
 #endif
 
     pixels.resize(xyz.rows());
-    visible.resize(xyz.rows());
+//    visible.resize(xyz.rows());
     //int *_p = &pixels(0);
     //float *_v = reinterpret_cast<float*>(&visible(0));
     const float *_x = &xyz(0,0);
@@ -657,7 +657,6 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels, V
 #if TEST_SIMD
     // Test SSE
     Eigen::VectorXi pixels2(xyz.rows());
-    Eigen::VectorXi visible2(xyz.rows());
     for(int i=0; i < pixels.size(); i++)
     {
         Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
@@ -666,7 +665,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels, V
         int c_transf = round(warped_pixel.x);
         // cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << endl;
         pixels2(i) = r_transf * nCols + c_transf;
-        visible2(i) = isInImage(r_transf, c_transf) ? 1 : 0;
+//        visible2(i) = isInImage(r_transf) ? 1 : 0;
     }
 #endif
 
@@ -683,7 +682,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels, V
         int c_transf = round(warped_pixel.x);
         // cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << endl;
         pixels(i) = r_transf * nCols + c_transf;
-        visible(i) = isInImage(r_transf, c_transf) ? 1 : 0;
+//        visible(i) = isInImage(r_transf) ? 1 : 0;
     }
 
 #else
@@ -740,21 +739,17 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels, V
         __m128i __p = _mm_add_epi32( _mm_mullo_epi32(_nCols, __r_int ), __c_int );
 //        cout << "Compute warped pixel " << i  << " "
 //             << _mm_extract_epi32(__p,0) << " " << _mm_extract_epi32(__p,1) << " " << _mm_extract_epi32(__p,2) << " " << _mm_extract_epi32(__p,3) << endl;
-
-        __m128i __v = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) );
-//        __m128i valid_row = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) );
-//        __m128i valid_col = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __c_int), _mm_cmplt_epi32(__c_int, _nCols) );
-//        cout << "valid_row " << " " << _mm_extract_epi32(valid_row,0) << " " << _mm_extract_epi32(valid_row,1) << " " << _mm_extract_epi32(valid_row,2) << " " << _mm_extract_epi32(valid_row,3) << endl;
-//        cout << "valid_col " << " " << _mm_extract_epi32(valid_col,0) << " " << _mm_extract_epi32(valid_col,1) << " " << _mm_extract_epi32(valid_col,2) << " " << _mm_extract_epi32(valid_col,3) << endl;
-
         __m128i *_p = reinterpret_cast<__m128i*>(&pixels(i));
         _mm_store_si128(_p, __p);
-        __m128i *_v = reinterpret_cast<__m128i*>(&visible(i));
-        _mm_store_si128(_v, __v);
-    }
 
-    for(int i=0; i < pixels.size(); i++)
-        ASSERT_(pixels(i,1) < nCols);
+//        __m128i __v = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) );
+////        __m128i valid_row = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) );
+////        __m128i valid_col = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __c_int), _mm_cmplt_epi32(__c_int, _nCols) );
+////        cout << "valid_row " << " " << _mm_extract_epi32(valid_row,0) << " " << _mm_extract_epi32(valid_row,1) << " " << _mm_extract_epi32(valid_row,2) << " " << _mm_extract_epi32(valid_row,3) << endl;
+////        cout << "valid_col " << " " << _mm_extract_epi32(valid_col,0) << " " << _mm_extract_epi32(valid_col,1) << " " << _mm_extract_epi32(valid_col,2) << " " << _mm_extract_epi32(valid_col,3) << endl;
+//        __m128i *_v = reinterpret_cast<__m128i*>(&visible(i));
+//        _mm_store_si128(_v, __v);
+    }
 
 #endif
 
@@ -764,7 +759,6 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels, V
     for(int i=0; i < pixels.size(); i++)
     {
         //cout << " Check result " << i << " " << pixels.size() << endl;
-        ASSERT_( visible(i) == visible2(i) );
         ASSERT_( pixels(i) == pixels2(i) );
     }
 #endif

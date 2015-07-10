@@ -74,12 +74,12 @@ class PinholeModel : public ProjectionModel
     /*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
     void scaleCameraParams(const int pyrLevel);
 
-    /*! Check if a pixel is within the image limits. */
-    template<typename T>
-    inline bool isInImage(const T x, const T y)
-    {
-        return ( y >= 0 && y < nRows && x >= 0 && x < nCols );
-    }
+//    /*! Check if a pixel is within the image limits. */
+//    template<typename T>
+//    inline bool isInImage(const T x, const T y)
+//    {
+//        return ( y >= 0 && y < nRows && x >= 0 && x < nCols );
+//    }
 
     /*! Project 3D points XYZ. */
     inline cv::Point2f project2Image(Eigen::Vector3f & xyz)
@@ -89,15 +89,15 @@ class PinholeModel : public ProjectionModel
         // 2D coordinates of the transformed pixel(r,c) of frame 1
         float transformed_c = (xyz(0) * fx)*inv_transf_z + ox; //transformed x (2D)
         float transformed_r = (xyz(1) * fy)*inv_transf_z + oy; //transformed y (2D)
-        cv::Point2f pixel(transformed_r, transformed_c);
+        cv::Point2f pixel(transformed_c, transformed_r);
         return pixel;
     };
 
     /*! Project 3D points XYZ according to the pinhole camera model (3D -> 2D). */
-    void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible);
+    void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels); //, Eigen::VectorXi & visible);
 
     /*! Project 3D points XYZ according to the pinhole camera model (3D -> 1D nearest neighbor). */
-    void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels, Eigen::VectorXi & visible);
+    void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels); //, Eigen::VectorXi & visible);
 
     /*! Compute the 3D points XYZ according to the pinhole camera model. */
     void reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels);

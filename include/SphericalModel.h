@@ -68,9 +68,16 @@ class SphericalModel : public ProjectionModel
         return xyz.norm();
     }
 
+//    /*! Check if a pixel is within the image limits. */
+//    template<typename T>
+//    inline bool isInImage(const T x, const T y)
+//    {
+//        return ( y >= 0 && y < nRows );
+//    }
+
     /*! Check if a pixel is within the image limits. */
     template<typename T>
-    inline bool isInImage(const T x, const T y)
+    inline bool isInImage(const T y)
     {
         return ( y >= 0 && y < nRows );
     }
@@ -89,7 +96,7 @@ class SphericalModel : public ProjectionModel
         assert(transformed_c < nCols);
         assert(transformed_c >= 0);
 
-        cv::Point2f pixel(transformed_r, transformed_c);
+        cv::Point2f pixel(transformed_c, transformed_r);
         return pixel;
     };
 
@@ -120,10 +127,10 @@ class SphericalModel : public ProjectionModel
     };
 
     /*! Project 3D points XYZ according to the spherical camera model (3D -> 2D). */
-    void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible);
+    void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels);
 
     /*! Project 3D points XYZ according to the spherical camera model (3D -> 1D nearest neighbor). */
-    void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels, Eigen::VectorXi & visible);
+    void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels);
 
     /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
     void reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels);
