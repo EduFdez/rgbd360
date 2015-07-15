@@ -1,0 +1,34 @@
+IF(BUILD_LC)
+
+	find_package(DLib REQUIRED PATHS ${CMAKE_BINARY_DIR}/../DLib)
+	find_package(DBoW2 REQUIRED PATHS ${CMAKE_BINARY_DIR}/../DBoW2)
+
+	INCLUDE_DIRECTORIES( ${DLib_INCLUDE_DIRS} )
+	INCLUDE_DIRECTORIES( ${DBoW2_INCLUDE_DIRS} )
+
+	# Declare the target (an executable)
+        ADD_EXECUTABLE(testLC testLC.cpp
+        )
+
+	TARGET_LINK_LIBRARIES(testLC
+					${MRPT_LIBS}
+					${OpenCV_LIBS}
+					${Boost_SERIALIZATION_LIBRARY}
+					${DLib_LIBS}
+					${DBoW2_LIBS}
+	)
+
+	# Declare the target (an executable)
+        ADD_EXECUTABLE(CreateVocabulary CreateVocabulary.cpp
+        )
+
+	TARGET_LINK_LIBRARIES(CreateVocabulary
+					${MRPT_LIBS}
+					${OpenCV_LIBS}
+					${Boost_SERIALIZATION_LIBRARY}
+					${DLib_LIBS}
+					${DBoW2_LIBS}
+	)
+
+ENDIF(BUILD_LC)
+

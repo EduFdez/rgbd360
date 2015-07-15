@@ -53,10 +53,17 @@ SphericalModel::SphericalModel()
 }
 
 /*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
-void SphericalModel::scaleCameraParams(const int pyrLevel)
+void SphericalModel::scaleCameraParams(std::vector<cv::Mat> & depthPyr, const int pyrLevel)
 {
-    //nCols = nCols / scaleFactor;
+    const float scaleFactor = 1.0/pow(2,pyrLevel);
+    nRows = depthPyr[0].rows*scaleFactor;
+    nCols = depthPyr[0].cols*scaleFactor;
+    imgSize = nRows*nCols;
+
     row_phi_start = 0.5f*nRows-0.5f;
+
+    assert(nRows == depthPyr[pyrLevel].rows);
+    ASSERT_(nRows == depthPyr[pyrLevel].rows);
 }
 
 /*! Compute the unit sphere for the given spherical image dimmensions. This serves as a LUT to speed-up calculations. */
@@ -243,7 +250,7 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
                 __m128 _invalid_pts = _mm_or_ps( _mm_cmpgt_ps(_min_depth_, __depth), _mm_cmpgt_ps(__depth, _max_depth_) );
                 __m128i __idx_mask = _mm_or_si128(__idx, reinterpret_cast<__m128i>(_invalid_pts));
                 __m128i *_v = reinterpret_cast<__m128i*>(&validPixels(i));
-                _mm_store_si128(_v, __idx);
+                _mm_store_si128(_v, __idx_mask);
 
 //                for(int j=0; j < 4; j++)
 //                {
@@ -284,12 +291,12 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
                 __m128 _invalid_pts = _mm_or_ps( _mm_cmpgt_ps(_min_depth_, __depth), _mm_cmpgt_ps(__depth, _max_depth_) );
                 __m128i __idx_mask = _mm_or_si128(__idx, reinterpret_cast<__m128i>(_invalid_pts));
                 __m128i *_v = reinterpret_cast<__m128i*>(&validPixels(i));
-                _mm_store_si128(_v, __idx);
+                _mm_store_si128(_v, __idx_mask);
 
 //                for(int j=0; j < 4; j++)
 //                {
 //                    const int jj = j;
-//                    cout << i+j << " depth " << __depth[jj] << " xyz " << __x[jj] << " " << __y[jj] << " " << __z[jj] << " validPixels " << validPixels(i+j) << endl;
+//                    cout << i+j << " depth " << __depth[jj] << " _invalid_pts " << _invalid_pts[jj] << " xyz " << __x[jj] << " " << __y[jj] << " " << __z[jj] << " validPixels " << validPixels(i+j) << endl;
 //    //                if(!valid_depth_pts[jj])
 //    //                    validPixels(i+j) = -1;
 //                }
@@ -313,7 +320,7 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
         if(validPixels(i) != -1)
         {
             if( validPixels(i) != validPixels2(i) )
-                cout << i << " validPixels(i) " << validPixels(i) << " xyz " << xyz(i,0) << " " << xyz(i,1) << " " << xyz(i,2) << " xyz2 " << xyz2(i,0) << " " << xyz2(i,1) << " " << xyz2(i,2) << endl;
+                cout << i << " validPixels(i) " << validPixels(i) << " " << validPixels2(i) << " xyz " << xyz(i,0) << " " << xyz(i,1) << " " << xyz(i,2) << " xyz2 " << xyz2(i,0) << " " << xyz2(i,1) << " " << xyz2(i,2) << endl;
             if( !AlmostEqual2sComplement(xyz(i,0), xyz2(i,0), MAX_ULPS) || !AlmostEqual2sComplement(xyz(i,1), xyz2(i,1), MAX_ULPS) || !AlmostEqual2sComplement(xyz(i,2), xyz2(i,2), MAX_ULPS) )
                 cout << i << " xyz " << xyz(i,0) << " " << xyz(i,1) << " " << xyz(i,2) << " xyz2 " << xyz2(i,0) << " " << xyz2(i,1) << " " << xyz2(i,2) << endl;
     //        cout << " diff " << xyz(i,0) - xyz2(i,0) << " " << 1e-5 << endl;
@@ -381,6 +388,35 @@ void SphericalModel::reconstruct3D_saliency(Eigen::MatrixXf & xyz, VectorXi & va
     xyz.resize(imgSize,3);
     float *_depth = reinterpret_cast<float*>(depth_img.data);
 
+#if TEST_SIMD
+    Eigen::VectorXf validPixels2(imgSize);
+    Eigen::MatrixXf xyz2(imgSize,3);
+    size_t count_valid_pixels2 = 0;
+    for(size_t r=0;r<nRows;r++)
+    {
+        size_t i = r*nCols;
+        for(size_t c=0;c<nCols;c++,i++)
+        {
+            if(min_depth_ < _depth[i] && _depth[i] < max_depth_) //Compute only for the valid points
+                if( fabs(_grayGradXPyr[i]) > thres_saliency_gray || fabs(_grayGradYPyr[i]) > thres_saliency_gray ||
+                    fabs(_depthGradXPyr[i]) > thres_saliency_depth || fabs(_depthGradYPyr[i]) > thres_saliency_depth )
+                {
+                    validPixels2(count_valid_pixels2) = i;
+                    //cout << " depth " << _depth[i] << " validPixels " << validPixels(count_valid_pixels2) << " count_valid_pixels2 " << count_valid_pixels2 << endl;
+                    xyz2(count_valid_pixels2,0) = _depth[i] * v_cosPhi[r] * v_sinTheta[c];
+                    xyz2(count_valid_pixels2,1) = _depth[i] * v_sinPhi[r];
+                    xyz2(count_valid_pixels2,2) = _depth[i] * v_cosPhi[r] * v_cosTheta[c];
+                    //cout << " xyz " << xyz.block(count_valid_pixels2,0,1,3) << endl;
+                    ++count_valid_pixels2;
+                    //mrpt::system::pause();
+                }
+        }
+    }
+    size_t valid_pixels_aligned = count_valid_pixels2 - count_valid_pixels2 % 4;
+    validPixels2.conservativeResize(valid_pixels_aligned);
+    xyz2.conservativeResize(valid_pixels_aligned,3);
+#endif
+
 #if !(_SSE3) // # ifdef __SSE3__
 
     size_t count_valid_pixels = 0;
@@ -389,7 +425,7 @@ void SphericalModel::reconstruct3D_saliency(Eigen::MatrixXf & xyz, VectorXi & va
         size_t i = r*nCols;
         for(size_t c=0;c<nCols;c++,i++)
         {
-            if(min_depth_ < _depth[i] && _depth[i] < max_depth_) //Compute the jacobian only for the valid points
+            if(min_depth_ < _depth[i] && _depth[i] < max_depth_) //Compute only for the valid points
                 if( fabs(_grayGradXPyr[i]) > thres_saliency_gray || fabs(_grayGradYPyr[i]) > thres_saliency_gray ||
                     fabs(_depthGradXPyr[i]) > thres_saliency_depth || fabs(_depthGradYPyr[i]) > thres_saliency_depth )
                 {
@@ -522,6 +558,22 @@ void SphericalModel::reconstruct3D_saliency(Eigen::MatrixXf & xyz, VectorXi & va
 
 #endif
 
+#if TEST_SIMD
+    // Test SSE
+    for(int i=0; i < validPixels.size(); i++)
+    {
+        if( validPixels(i) != validPixels2(i) )
+            cout << i << " validPixels(i) " << validPixels(i) << " " << validPixels2(i) << " xyz " << xyz(i,0) << " " << xyz(i,1) << " " << xyz(i,2) << " xyz2 " << xyz2(i,0) << " " << xyz2(i,1) << " " << xyz2(i,2) << endl;
+        if( !AlmostEqual2sComplement(xyz(i,0), xyz2(i,0), MAX_ULPS) || !AlmostEqual2sComplement(xyz(i,1), xyz2(i,1), MAX_ULPS) || !AlmostEqual2sComplement(xyz(i,2), xyz2(i,2), MAX_ULPS) )
+            cout << i << " xyz " << xyz(i,0) << " " << xyz(i,1) << " " << xyz(i,2) << " xyz2 " << xyz2(i,0) << " " << xyz2(i,1) << " " << xyz2(i,2) << endl;
+//        cout << " diff " << xyz(i,0) - xyz2(i,0) << " " << 1e-5 << endl;
+        ASSERT_( validPixels(i) == validPixels2(i) );
+        ASSERT_( AlmostEqual2sComplement(xyz(i,0), xyz2(i,0), MAX_ULPS) );
+        ASSERT_( AlmostEqual2sComplement(xyz(i,1), xyz2(i,1), MAX_ULPS) );
+        ASSERT_( AlmostEqual2sComplement(xyz(i,2), xyz2(i,2), MAX_ULPS) );
+    }
+#endif
+
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
@@ -533,6 +585,7 @@ void SphericalModel::reconstruct3D_saliency(Eigen::MatrixXf & xyz, VectorXi & va
 void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible)
 {
 #if PRINT_PROFILING
+    cout << " SphericalModel::project ... " << xyz.rows() << endl;
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -552,17 +605,19 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
     // Test SSE
     Eigen::VectorXi visible2(xyz.rows());
     Eigen::MatrixXf pixels2(xyz.rows(),2);
-    for(int i=0; i < pixels.size(); i++)
+    for(int i=0; i < pixels.rows(); i++)
     {
         Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
         cv::Point2f warped_pixel = project2Image(pt_xyz);
         pixels2(i,0) = warped_pixel.y;
         pixels2(i,1) = warped_pixel.x;
-//         cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << warped_pixel.y << " " << warped_pixel.x << endl;
+        visible2(i) = isInImage(warped_pixel.y) ? -1 : 0;
+        //cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << warped_pixel.y << " " << warped_pixel.x << " visible2(i) " << visible2(i) << endl;
 //         mrpt::system::pause();
-        visible2(i) = isInImage(warped_pixel.y) ? 1 : 0;
     }
 #endif
+
+    cout << " SphericalModel::project ... " << xyz.rows() << endl;
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
@@ -575,7 +630,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
         cv::Point2f warped_pixel = project2Image(pt_xyz);
         pixels(i,0) = warped_pixel.y;
         pixels(i,1) = warped_pixel.x;
-        visible(i) = isInImage(warped_pixel.y) ? 1 : 0;
+        visible(i) = isInImage(warped_pixel.y) ? -1 : 0;
     }
 
 #else
@@ -588,7 +643,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
     //__m128 _nCols = _mm_set1_ps(nCols);
     __m128 _nRows = _mm_set1_ps(nRows);
     __m128 _zero = _mm_set1_ps(0.f);
-    for(int i=0; i < pixels.size(); i+=4)
+    for(int i=0; i < pixels.rows(); i+=4)
     {
         __m128 __x = _mm_load_ps(_x+i);
         __m128 __y = _mm_load_ps(_y+i);
@@ -606,30 +661,55 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
         }
         __m128 _phi = _mm_load_ps(phi);
         __m128 _theta = _mm_load_ps(theta);
+//        cout << "__y " << i << " " << __y[0] << " " << __y[1] << " " << __y[2] << " " << __y[3] << endl;
+//        cout << "_phi " << i << " " << _phi[0] << " " << _phi[1] << " " << _phi[2] << " " << _phi[3] << endl;
+//        cout << "_theta " << i << " " << _theta[0] << " " << _theta[1] << " " << _theta[2] << " " << _theta[3] << endl;
 
         __m128 __r = _mm_add_ps( _mm_mul_ps(_phi, _pixel_angle_inv ), _row_phi_start );
         __m128 __c = _mm_add_ps( _mm_mul_ps(_theta, _pixel_angle_inv ), _half_width );
+//        cout << "__r " << i << " " << __r[0] << " " << __r[1] << " " << __r[2] << " " << __r[3] << endl;
+//        cout << "__c " << i << " " << __c[0] << " " << __c[1] << " " << __c[2] << " " << __c[3] << " nCols " << nCols << endl;
+//        for(int j=0; j < 4; j++)
+//            ASSERT_(pixels(i+j,1) < nCols);
 
         _mm_store_ps(_r+i, __r);
         _mm_store_ps(_c+i, __c);
 
         __m128 __v = _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) );
-        _mm_store_ps(_v+i, __v);
-    }
+        __m128i __v_mask = _mm_or_si128(reinterpret_cast<__m128i>(__v), _mm_set1_epi32(0));
+        //cout << "__v_mask " << i << " " << _mm_extract_epi32(__v_mask,0) << " " << _mm_extract_epi32(__v_mask,1) << " " << _mm_extract_epi32(__v_mask,2) << " " << _mm_extract_epi32(__v_mask,3) << endl;
 
-    for(int i=0; i < pixels.size(); i++)
-        ASSERT_(pixels(i,1) < nCols);
+        __m128i *_vv = reinterpret_cast<__m128i*>(&visible(i));
+        _mm_store_si128(_vv, __v_mask);
+
+//        for(int j=0; j < 4; j++)
+//            if( !(visible(i+j) == visible2(i+j)) )
+//            {
+//                const int jj = j;
+//                cout << i << " pixels " << pixels(i+j,1) << " " << pixels(i+j,0) << " pixels2 " << pixels2(i+j,1) << " " << pixels2(i+j,0) << " visible " << visible(i+j) << " vs " << __v[jj] << " " << visible2(i+j) << " __r " << __r[jj] << endl;
+//                ASSERT_(0);
+//            }
+    }
 
 #endif
 
 #if TEST_SIMD
     // Test SSE
     cout << " Check result " << endl;
-    for(int i=0; i < pixels.size(); i++)
+    for(int i=0; i < pixels.rows(); i++)
     {
         //cout << " Check result " << i << " " << pixels.size() << endl;
-        ASSERT_( pixels(i) == pixels2(i) );
-        ASSERT_( pixels(i) == pixels2(i) );
+        if( !(visible(i) == visible2(i) && AlmostEqual2sComplement(pixels(i,0), pixels2(i,0), MAX_ULPS) && AlmostEqual2sComplement(pixels(i,1), pixels2(i,1), MAX_ULPS) ) )
+        {
+            Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
+            cv::Point2f warped_pixel = project2Image(pt_xyz);
+            cout << i << " Pixel transform " //<< i/nCols << " " << i%nCols << " "
+                 << " warped_pixel " << warped_pixel.x << " " << warped_pixel.y << endl;
+            cout << i << " pixels " << pixels(i,1) << " " << pixels(i,0) << " visible " << visible(i) << " " << visible2(i) << endl;
+        }
+//        ASSERT_( AlmostEqual2sComplement(pixels(i,0), pixels2(i,0), MAX_ULPS) );
+//        ASSERT_( AlmostEqual2sComplement(pixels(i,1), pixels2(i,1), MAX_ULPS) );
+//        ASSERT_( visible(i) == visible2(i) );
     }
 #endif
 
@@ -644,7 +724,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
 void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels)
 {
 #if PRINT_PROFILING
-    cout << " SphericalModel::projectNN ... " << xyz.rows() << " points. \n";
+    //cout << " SphericalModel::projectNN ... " << xyz.rows() << " points. \n";
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -658,23 +738,23 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels)
     const float *_y = &xyz(0,1);
     const float *_z = &xyz(0,2);
 
-#if TEST_SIMD
-    // Test SSE
-    Eigen::VectorXi pixels2(xyz.rows());
-    for(int i=0; i < pixels.size(); i++)
-    {
-        Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
-        cv::Point2f warped_pixel = project2Image(pt_xyz);
-        int r_transf = round(warped_pixel.y);
-        int c_transf = round(r_transf);
-        if( isInImage(warped_pixel.y) )
-            pixels2(i) = r_transf * nCols + c_transf;
-        else
-            pixels2(i) = -1;
-         cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << " " << pixels2(i) << endl;
-//         mrpt::system::pause();
-    }
-#endif
+//#if TEST_SIMD
+//    // Test SSE
+//    Eigen::VectorXi pixels2(xyz.rows());
+//    for(int i=0; i < pixels.size(); i++)
+//    {
+//        Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
+//        cv::Point2f warped_pixel = project2Image(pt_xyz);
+//        int r_transf = round(warped_pixel.y);
+//        int c_transf = round(warped_pixel.x);
+//        if( isInImage(r_transf) )
+//            pixels2(i) = r_transf * nCols + c_transf;
+//        else
+//            pixels2(i) = -1;
+//        // cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << " pixel " << pixels2(i) << endl;
+//        // mrpt::system::pause();
+//    }
+//#endif
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
@@ -728,36 +808,29 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels)
         __m128 _phi = _mm_load_ps(phi);
         __m128 _theta = _mm_load_ps(theta);
 
-//        __m128 __r = _mm_add_ps( _mm_mul_ps(_phi, _pixel_angle_inv ), _start_row );
         __m128 __r = _mm_add_ps( _mm_mul_ps(_phi, _pixel_angle_inv ), _row_phi_start);
         __m128 __c = _mm_add_ps( _mm_mul_ps(_theta, _pixel_angle_inv ), _half_width );
         //__m128 __p = _mm_add_epi32( _mm_cvtps_epi32(_nCols, __r ), __c);
+//        cout << "__r " << i << " " << __r[0] << " " << __r[1] << " " << __r[2] << " " << __r[3] << endl;
+//        cout << "__c " << i << " " << __c[0] << " " << __c[1] << " " << __c[2] << " " << __c[3] << endl;
 
-        __m128i __r_int = _mm_cvtps_epi32(__r);
-        __m128i __c_int = _mm_cvtps_epi32(__c);
-//        for(int j=0; j < 4; j++)
-//        {
-//            const int jj = j;
-//            cout << j << " __r " << __r[jj] << endl;
-//        }
+        __m128i __r_int = _mm_cvtps_epi32( _mm_round_ps(__r, 0x0) );
+        __m128i __c_int = _mm_cvtps_epi32( _mm_round_ps(__c, 0x0) );
 //        cout << "__r_int " << i << " " << _mm_extract_epi32(__r_int,0) << " " << _mm_extract_epi32(__r_int,1) << " " << _mm_extract_epi32(__r_int,2) << " " << _mm_extract_epi32(__r_int,3) << endl;
 //        cout << "__c_int " << i << " " << _mm_extract_epi32(__c_int,0) << " " << _mm_extract_epi32(__c_int,1) << " " << _mm_extract_epi32(__c_int,2) << " " << _mm_extract_epi32(__c_int,3) << endl;
-//        //cout << "__r_int " << i << " " << _mm_extract_epi32(__r_int,0) << " " << _mm_extract_epi32(__r_int,1) << " " << _mm_extract_epi32(__r_int,2) << " " << _mm_extract_epi32(__r_int,3) << endl;
 
         __m128i __p = _mm_add_epi32( _mm_mullo_epi32(_nCols, __r_int ), __c_int );
-//        cout << "Compute warped pixel " << i  << " "
-//             << _mm_extract_epi32(__p,0) << " " << _mm_extract_epi32(__p,1) << " " << _mm_extract_epi32(__p,2) << " " << _mm_extract_epi32(__p,3) << endl;
         __m128i _outOfImg = _mm_or_si128( _mm_cmpgt_epi32(_zero, __r_int), _mm_cmpgt_epi32(__r_int, _nRows_1) );
 //        __m128i _outOfImg  _mm_or_si128(_mm_or_si128( _mm_cmpgt_epi32(_zero, __r_int), _mm_cmpgt_epi32(__r_int, _nRows_1) ),
 //                                        _mm_cmpeq_epi32( validPixels_src, _minus_one ) );
         __m128i __p_mask = _mm_or_si128(__p, reinterpret_cast<__m128i>(_outOfImg));
-        cout << " warped pixels " << i << " " << _mm_extract_epi32(__p,0) << " " << _mm_extract_epi32(__p,1) << " " << _mm_extract_epi32(__p,2) << " " << _mm_extract_epi32(__p,3) << endl;
-        cout << " warped pixels " << i << " " << _mm_extract_epi32(__p_mask,0) << " " << _mm_extract_epi32(__p_mask,1) << " " << _mm_extract_epi32(__p_mask,2) << " " << _mm_extract_epi32(__p_mask,3) << endl;
-        cout << "_outOfImg " << i << " " << _mm_extract_epi32(_outOfImg,0) << " " << _mm_extract_epi32(_outOfImg,1) << " " << _mm_extract_epi32(_outOfImg,2) << " " << _mm_extract_epi32(_outOfImg,3) << endl;
+//        cout << " warped pixels " << i << " " << _mm_extract_epi32(__p,0) << " " << _mm_extract_epi32(__p,1) << " " << _mm_extract_epi32(__p,2) << " " << _mm_extract_epi32(__p,3) << endl;
+//        cout << " warped pixels " << i << " " << _mm_extract_epi32(__p_mask,0) << " " << _mm_extract_epi32(__p_mask,1) << " " << _mm_extract_epi32(__p_mask,2) << " " << _mm_extract_epi32(__p_mask,3) << endl;
+//        cout << "_outOfImg " << i << " " << _mm_extract_epi32(_outOfImg,0) << " " << _mm_extract_epi32(_outOfImg,1) << " " << _mm_extract_epi32(_outOfImg,2) << " " << _mm_extract_epi32(_outOfImg,3) << endl;
 
         __m128i *_p = reinterpret_cast<__m128i*>(&pixels(i));
         _mm_store_si128(_p, __p_mask);
-        cout << "stored warped __p  " << i << " " << pixels(i) << " " << pixels(i+1) << " " << pixels(i+2) << " " << pixels(i+3) << endl;
+        //cout << "stored warped __p  " << i << " " << pixels(i) << " " << pixels(i+1) << " " << pixels(i+2) << " " << pixels(i+3) << endl;
         //mrpt::system::pause();
 
 //        __m128i __v = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) );
@@ -771,15 +844,23 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels)
 
 #endif
 
-#if TEST_SIMD
-    // Test SSE
-    for(int i=0; i < pixels.size(); i++)
-    {
-        if( pixels(i) != pixels2(i) )
-            cout << i << " pixels " << pixels(i) << " " << pixels2(i) << endl; // << " visible " << visible(i) << " " << visible2(i) <<
-        ASSERT_( pixels(i) == pixels2(i) );
-    }
-#endif
+//#if TEST_SIMD
+//    // Test SSE
+//    for(int i=0; i < pixels.size(); i++)
+//    {
+//        if( pixels(i) != pixels2(i) )
+//        {
+//            Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
+//            cv::Point2f warped_pixel = project2Image(pt_xyz);
+//            int r_transf = round(warped_pixel.y);
+//            int c_transf = round(warped_pixel.x);
+//            cout << i << " Pixel transform " //<< i/nCols << " " << i%nCols << " "
+//                 << r_transf << " " << c_transf << " warped_pixel " << warped_pixel.x << " " << warped_pixel.y << endl;
+//            cout << i << " pixels " << pixels(i) << " " << pixels2(i) << endl; // << " visible " << visible(i) << " " << visible2(i) <<
+//        }
+//        ASSERT_( pixels(i) == pixels2(i) );
+//    }
+//#endif
 
 #if PRINT_PROFILING
     }
@@ -804,32 +885,32 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels)
 ////    #endif
 //    for(int i=0; i < xyz_tf.rows(); i++)
 //    {
-//        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
-//        float inv_transf_z = 1.0/xyz_transf(2);
+//        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
+//        float inv_transf_z = 1.0/pt_xyz(2);
 
-//        float dist = xyz_transf.norm();
+//        float dist = pt_xyz.norm();
 //        float dist2 = dist * dist;
-//        float x2_z2 = dist2 - xyz_transf(1)*xyz_transf(1);
+//        float x2_z2 = dist2 - pt_xyz(1)*pt_xyz(1);
 //        float x2_z2_sqrt = sqrt(x2_z2);
 //        float commonDer_c = pixel_angle_inv / x2_z2;
 //        float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
 
-//        jacobians_aligned(i,0) = commonDer_c * xyz_transf(2);
+//        jacobians_aligned(i,0) = commonDer_c * pt_xyz(2);
 //        //jacobianWarpRt(0,1) = 0.f;
-//        jacobians_aligned(i,3) = -commonDer_c * xyz_transf(0);
-//    //        jacobianWarpRt(1,0) = commonDer_r * xyz_transf(0) * xyz_transf(1);
+//        jacobians_aligned(i,3) = -commonDer_c * pt_xyz(0);
+//    //        jacobianWarpRt(1,0) = commonDer_r * pt_xyz(0) * pt_xyz(1);
 //        jacobians_aligned(i,2) =-commonDer_r * x2_z2;
-//    //        jacobianWarpRt(1,2) = commonDer_r * xyz_transf(2) * xyz_transf(1);
-//        float commonDer_r_y = commonDer_r * xyz_transf(1);
-//        jacobians_aligned(i,1) = commonDer_r_y * xyz_transf(0);
-//        jacobians_aligned(i,4) = commonDer_r_y * xyz_transf(2);
+//    //        jacobianWarpRt(1,2) = commonDer_r * pt_xyz(2) * pt_xyz(1);
+//        float commonDer_r_y = commonDer_r * pt_xyz(1);
+//        jacobians_aligned(i,1) = commonDer_r_y * pt_xyz(0);
+//        jacobians_aligned(i,4) = commonDer_r_y * pt_xyz(2);
 
-//        jacobians_aligned(i,5) = jacobians_aligned(i,3) * xyz_transf(1);
-//        jacobians_aligned(i,7) = jacobians_aligned(i,0) * xyz_transf(2) - jacobians_aligned(i,3) * xyz_transf(0);
-//        jacobians_aligned(i,9) =-jacobians_aligned(i,0) * xyz_transf(1);
-//        jacobians_aligned(i,6) =-jacobians_aligned(i,2) * xyz_transf(2) + jacobians_aligned(i,4) * xyz_transf(1);
-//        jacobians_aligned(1,8) = jacobians_aligned(i,1) * xyz_transf(2) - jacobians_aligned(i,4) * xyz_transf(0);
-//        jacobians_aligned(1,10) =-jacobians_aligned(i,1) * xyz_transf(1) + jacobians_aligned(i,2) * xyz_transf(0);
+//        jacobians_aligned(i,5) = jacobians_aligned(i,3) * pt_xyz(1);
+//        jacobians_aligned(i,7) = jacobians_aligned(i,0) * pt_xyz(2) - jacobians_aligned(i,3) * pt_xyz(0);
+//        jacobians_aligned(i,9) =-jacobians_aligned(i,0) * pt_xyz(1);
+//        jacobians_aligned(i,6) =-jacobians_aligned(i,2) * pt_xyz(2) + jacobians_aligned(i,4) * pt_xyz(1);
+//        jacobians_aligned(1,8) = jacobians_aligned(i,1) * pt_xyz(2) - jacobians_aligned(i,4) * pt_xyz(0);
+//        jacobians_aligned(1,10) =-jacobians_aligned(i,1) * pt_xyz(1) + jacobians_aligned(i,2) * pt_xyz(0);
 //    }
 
 //#else
@@ -900,9 +981,9 @@ void SphericalModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const
     Eigen::MatrixXf jacobians_photo2(xyz_tf.rows(), 6);
     for(int i=0; i < xyz_tf.rows(); i++)
     {
-        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
-        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
         img_gradient(0,1) = _grayGradY[i];
@@ -917,9 +998,9 @@ void SphericalModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const
 //    #endif
     for(int i=0; i < xyz_tf.rows(); i++)
     {
-        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
-        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
         img_gradient(0,1) = _grayGradY[i];
@@ -1024,15 +1105,15 @@ void SphericalModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const
     Eigen::MatrixXf jacobians_depth2(xyz_tf.rows(), 6);
     for(int i=0; i < xyz_tf.rows(); i++)
     {
-        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
-        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
         Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
-        jacobian16_depthT.block(0,0,1,3) = (1 / xyz_tf.norm()) * xyz_transf.transpose();
+        jacobian16_depthT.block(0,0,1,3) = (1 / pt_xyz.norm()) * pt_xyz.transpose();
         Matrix<float,1,2> depth_gradient;
         depth_gradient(0,0) = _depthGradX[i];
         depth_gradient(0,1) = _depthGradY[i];
-        jacobians_depth.block(i,0,1,6) = (weights(i) * stdDevError_inv(i) * (depth_gradient) * jacobianWarpRt - jacobian16_depthT);
+        jacobians_depth2.block(i,0,1,6) = (weights(i) * stdDevError_inv(i)) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
     }
 #endif
 
@@ -1043,15 +1124,15 @@ void SphericalModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const
 //    #endif
     for(int i=0; i < xyz_tf.rows(); i++)
     {
-        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
-        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
         Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
-        jacobian16_depthT.block(0,0,1,3) = (1 / xyz_tf.norm()) * xyz_transf.transpose();
+        jacobian16_depthT.block(0,0,1,3) = (1 / xyz_tf.norm()) * pt_xyz.transpose();
         Matrix<float,1,2> depth_gradient;
         depth_gradient(0,0) = _depthGradX[i];
         depth_gradient(0,1) = _depthGradY[i];
-        jacobians_depth.block(i,0,1,6) = (weights(i) * stdDevError_inv(i) * (depth_gradient) * jacobianWarpRt - jacobian16_depthT);
+        jacobians_depth.block(i,0,1,6) = (weights(i) * stdDevError_inv(i)) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
     }
 
 #else
@@ -1066,13 +1147,13 @@ void SphericalModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const
     __m128 _pixel_angle_inv = _mm_set1_ps(pixel_angle_inv);
     for(int i=0; i < xyz_tf.rows(); i+=4)
     {
-        __m128 __gradX = _mm_load_ps(_depthGradX+i);
-        __m128 __gradY = _mm_load_ps(_depthGradY+i);
+        __m128 __gradDepthX = _mm_load_ps(_depthGradX+i);
+        __m128 __gradDepthY = _mm_load_ps(_depthGradY+i);
+        __m128 __stdDevDepthInv = _mm_load_ps(_stdDevInv+i);
         __m128 __weight = _mm_load_ps(_weight+i);
-        __m128 __stdDevInv = _mm_load_ps(_stdDevInv+i);
-        __m128 __weight_stdDevDepthInv = _mm_mul_ps(__stdDevInv, __weight);
-        __m128 __gradDepthX_weight = _mm_mul_ps(__weight_stdDevDepthInv, __gradX);
-        __m128 __gradDepthY_weight = _mm_mul_ps(__weight_stdDevDepthInv, __gradY);
+        __m128 __weight_stdDevDepthInv = _mm_mul_ps(__stdDevDepthInv, __weight);
+        __m128 __gradDepthX_weight = _mm_mul_ps(__weight_stdDevDepthInv, __gradDepthX);
+        __m128 __gradDepthY_weight = _mm_mul_ps(__weight_stdDevDepthInv, __gradDepthY);
 
         __m128 __x = _mm_load_ps(_x+i);
         __m128 __y = _mm_load_ps(_y+i);
@@ -1156,21 +1237,23 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
     Eigen::MatrixXf jacobians_depth2(xyz_tf.rows(), 6);
     for(int i=0; i < xyz_tf.rows(); i++)
     {
-        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
-        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
 
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
         img_gradient(0,1) = _grayGradY[i];
-        jacobians_photo.block(i,0,1,6) = ((weights(i) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
+        jacobians_photo2.block(i,0,1,6) = ((weights(i) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
 
         Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
-        jacobian16_depthT.block(0,0,1,3) = (1 / xyz_tf.norm()) * xyz_transf.transpose();
+        jacobian16_depthT.block(0,0,1,3) = (1 / pt_xyz.norm()) * pt_xyz.transpose();
         Matrix<float,1,2> depth_gradient;
         depth_gradient(0,0) = _depthGradX[i];
         depth_gradient(0,1) = _depthGradY[i];
-        jacobians_depth.block(i,0,1,6) = (weights(i) * stdDevError_inv(i) * (depth_gradient) * jacobianWarpRt - jacobian16_depthT);
+        jacobians_depth2.block(i,0,1,6) = (weights(i) * stdDevError_inv(i)) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
+//        cout << " test_jx " << i << " " << weights(i) * stdDevError_inv(i) * depth_gradient * jacobianWarpRt.block(0,0,2,1) << endl;
+//        cout << " test_jx_ " << i << " " << weights(i) * stdDevError_inv(i) * pt_xyz(0) / pt_xyz.norm() << endl;
     }
 #endif
 
@@ -1181,9 +1264,9 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
 //    #endif
     for(int i=0; i < xyz_tf.rows(); i++)
     {
-        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
-        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
 
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
@@ -1191,11 +1274,11 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
         jacobians_photo.block(i,0,1,6) = ((weights(i) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
 
         Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
-        jacobian16_depthT.block(0,0,1,3) = (1 / xyz_tf.norm()) * xyz_transf.transpose();
+        jacobian16_depthT.block(0,0,1,3) = (1 / pt_xyz.norm()) * pt_xyz.transpose();
         Matrix<float,1,2> depth_gradient;
         depth_gradient(0,0) = _depthGradX[i];
         depth_gradient(0,1) = _depthGradY[i];
-        jacobians_depth.block(i,0,1,6) = (weights(i) * stdDevError_inv(i) * (depth_gradient) * jacobianWarpRt - jacobian16_depthT);
+        jacobians_depth.block(i,0,1,6) = (weights(i) * stdDevError_inv(i)) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
     }
 
 #else
@@ -1226,12 +1309,12 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
         __m128 __gradX_weight = _mm_mul_ps(__weight_stdDevPhotoInv, __gradGrayX);
         __m128 __gradY_weight = _mm_mul_ps(__weight_stdDevPhotoInv, __gradGrayY);
 
-        __m128 __gradX = _mm_load_ps(_depthGradX+i);
-        __m128 __gradY = _mm_load_ps(_depthGradY+i);
+        __m128 __gradDepthX = _mm_load_ps(_depthGradX+i);
+        __m128 __gradDepthY = _mm_load_ps(_depthGradY+i);
         __m128 __stdDevDepthInv = _mm_load_ps(_stdDevInv+i);
         __m128 __weight_stdDevDepthInv = _mm_mul_ps(__stdDevDepthInv, __weight);
-        __m128 __gradDepthX_weight = _mm_mul_ps(__weight_stdDevDepthInv, __gradX);
-        __m128 __gradDepthY_weight = _mm_mul_ps(__weight_stdDevDepthInv, __gradY);
+        __m128 __gradDepthX_weight = _mm_mul_ps(__weight_stdDevDepthInv, __gradDepthX);
+        __m128 __gradDepthY_weight = _mm_mul_ps(__weight_stdDevDepthInv, __gradDepthY);
 
         __m128 __x = _mm_load_ps(_x+i);
         __m128 __y = _mm_load_ps(_y+i);
@@ -1264,9 +1347,15 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
         _mm_store_ps(_j4_gray+i, _mm_add_ps(_mm_mul_ps(__gradY_weight, __j14), _mm_mul_ps(__gradX_weight, __j04) ) );
         _mm_store_ps(_j5_gray+i, _mm_sub_ps(_mm_mul_ps(__gradY_weight, __j15), _mm_mul_ps(__gradX_weight, __j05_neg) ) );
 
-        _mm_store_ps(_j0_depth+i, _mm_sub_ps(_mm_add_ps(_mm_mul_ps(__gradDepthX_weight, __j00), _mm_mul_ps(__gradDepthY_weight, __j10) ), _mm_mul_ps(__weight_stdDevDepthInv, _mm_div_ps(__x, _dist) ) ) );
-        _mm_store_ps(_j1_depth+i, _mm_sub_ps(_mm_mul_ps(__gradDepthY_weight, __j11), _mm_mul_ps(__weight_stdDevDepthInv, _mm_div_ps( __y, _dist ) ) ) );
-        _mm_store_ps(_j2_depth+i, _mm_sub_ps(_mm_sub_ps(_mm_mul_ps(__gradDepthY_weight, __j12), _mm_mul_ps(__gradDepthX_weight, __j02_neg) ), _mm_mul_ps(__weight_stdDevDepthInv, _mm_div_ps(__z, _dist) ) ) );
+        //jacobians_depth.block(i,0,1,6) = (weights(i) * stdDevError_inv(i)) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
+        __m128 _weight_dist = _mm_div_ps(__weight_stdDevDepthInv, _dist);
+//        __m128 test_j0 = _mm_add_ps(_mm_mul_ps(__gradDepthX_weight, __j00), _mm_mul_ps(__gradDepthY_weight, __j10) );
+//        __m128 test_j0_ = _mm_mul_ps(__x, _weight_dist);
+//        cout << " test_j0 " << i << " " << test_j0[0] << " " << test_j0[1] << " " << test_j0[2] << " " << test_j0[3] << endl;
+//        cout << " test_j0_ " << i << " " << test_j0_[0] << " " << test_j0_[1] << " " << test_j0_[2] << " " << test_j0_[3] << endl;
+        _mm_store_ps(_j0_depth+i, _mm_sub_ps(_mm_add_ps(_mm_mul_ps(__gradDepthX_weight, __j00), _mm_mul_ps(__gradDepthY_weight, __j10) ), _mm_mul_ps(__x, _weight_dist) ) );
+        _mm_store_ps(_j1_depth+i, _mm_sub_ps(_mm_mul_ps(__gradDepthY_weight, __j11), _mm_mul_ps(__y, _weight_dist ) ) );
+        _mm_store_ps(_j2_depth+i, _mm_sub_ps(_mm_sub_ps(_mm_mul_ps(__gradDepthY_weight, __j12), _mm_mul_ps(__gradDepthX_weight, __j02_neg) ), _mm_mul_ps(__z, _weight_dist) ) );
         _mm_store_ps(_j3_depth+i, _mm_sub_ps(_mm_mul_ps(__gradDepthY_weight, __j13), _mm_mul_ps(__gradDepthX_weight, __j03_neg) ) );
         _mm_store_ps(_j4_depth+i, _mm_add_ps(_mm_mul_ps(__gradDepthY_weight, __j14), _mm_mul_ps(__gradDepthX_weight, __j04) ) );
         _mm_store_ps(_j5_depth+i, _mm_sub_ps(_mm_mul_ps(__gradDepthY_weight, __j15), _mm_mul_ps(__gradDepthX_weight, __j05_neg) ) );
@@ -1282,8 +1371,195 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
         {
             if(weights(i) > 0.f)
             {
-                //cout << i << " jacobians(i) " << jacobians.block(i,0,1,6) << "\n  jacobians2(i) " << jacobians2.block(i,0,1,6) << endl;
+                //cout << i << " jacobians_photo(i) " << jacobians_photo.block(i,0,1,6) << "\n  jacobians_photo2(i) " << jacobians_photo2.block(i,0,1,6) << endl;
+                if( !AlmostEqual2sComplement(jacobians_photo(i,j), jacobians_photo2(i,j), MAX_ULPS) )
+                    cout << i << " weights(i) " << weights(i) << "\n  jacobians_photo(i) " << jacobians_photo.block(i,0,1,6) << "\n jacobians_photo2(i) " << jacobians_photo2.block(i,0,1,6) << endl;
                 ASSERT_( AlmostEqual2sComplement(jacobians_photo(i,j), jacobians_photo2(i,j), MAX_ULPS) );
+                if( !AlmostEqual2sComplement(jacobians_depth(i,j), jacobians_depth2(i,j), MAX_ULPS) )
+                    cout << i << " weights(i) " << weights(i) << "\n  jacobians_depth(i) " << jacobians_depth.block(i,0,1,6) << "\n jacobians_depth2(i) " << jacobians_depth2.block(i,0,1,6) << endl;
+                ASSERT_( AlmostEqual2sComplement(jacobians_depth(i,j), jacobians_depth2(i,j), MAX_ULPS) );
+            }
+        }
+    }
+#endif
+
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    cout << " SphericalModel::computeJacobiansPhotoDepth " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
+#endif
+}
+
+/*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
+void SphericalModel::computeJacobiansPhotoDepth_IC(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
+                                                   double & error2,
+                                                    Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY)
+{
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t ii=0; ii<100; ii++)
+    {
+#endif
+
+    error2 = 0.0;
+    double error2_photo = 0.0;
+    double error2_depth = 0.0;
+    size_t numVisiblePts = 0;
+
+    jacobians_photo.resize(xyz_tf.rows(), 6);
+    jacobians_depth.resize(xyz_tf.rows(), 6);
+    const float *_x = &xyz_tf(0,0);
+    const float *_y = &xyz_tf(0,1);
+    const float *_z = &xyz_tf(0,2);
+    const float *_weight = &weights(0,0);
+    const float *_stdDevInv = &stdDevError_inv(0);
+
+#if TEST_SIMD
+    // Test SSE
+    Eigen::MatrixXf jacobians_photo2(xyz_tf.rows(), 6);
+    Eigen::MatrixXf jacobians_depth2(xyz_tf.rows(), 6);
+    for(int i=0; i < xyz_tf.rows(); i++)
+    {
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
+        Matrix<float,2,6> jacobianWarpRt;
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
+
+        Matrix<float,1,2> img_gradient;
+        img_gradient(0,0) = _grayGradX[i];
+        img_gradient(0,1) = _grayGradY[i];
+        jacobians_photo2.block(i,0,1,6) = ((weights(i) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
+
+        Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
+        jacobian16_depthT.block(0,0,1,3) = (1 / pt_xyz.norm()) * pt_xyz.transpose();
+        Matrix<float,1,2> depth_gradient;
+        depth_gradient(0,0) = _depthGradX[i];
+        depth_gradient(0,1) = _depthGradY[i];
+        jacobians_depth2.block(i,0,1,6) = (weights(i) * stdDevError_inv(i)) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
+//        cout << " test_jx " << i << " " << weights(i) * stdDevError_inv(i) * depth_gradient * jacobianWarpRt.block(0,0,2,1) << endl;
+//        cout << " test_jx_ " << i << " " << weights(i) * stdDevError_inv(i) * pt_xyz(0) / pt_xyz.norm() << endl;
+    }
+#endif
+
+#if !(_SSE3) // # ifdef !__SSE3__
+
+//    #if ENABLE_OPENMP
+//    #pragma omp parallel for
+//    #endif
+    for(int i=0; i < xyz_tf.rows(); i++)
+    {
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
+        Matrix<float,2,6> jacobianWarpRt;
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
+
+        Matrix<float,1,2> img_gradient;
+        img_gradient(0,0) = _grayGradX[i];
+        img_gradient(0,1) = _grayGradY[i];
+        jacobians_photo.block(i,0,1,6) = ((weights(i) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
+
+        Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
+        jacobian16_depthT.block(0,0,1,3) = (1 / pt_xyz.norm()) * pt_xyz.transpose();
+        Matrix<float,1,2> depth_gradient;
+        depth_gradient(0,0) = _depthGradX[i];
+        depth_gradient(0,1) = _depthGradY[i];
+        jacobians_depth.block(i,0,1,6) = (weights(i) * stdDevError_inv(i)) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
+    }
+
+#else
+    // Pointers to the jacobian elements
+    float *_j0_gray = &jacobians_photo(0,0);
+    float *_j1_gray = &jacobians_photo(0,1);
+    float *_j2_gray = &jacobians_photo(0,2);
+    float *_j3_gray = &jacobians_photo(0,3);
+    float *_j4_gray = &jacobians_photo(0,4);
+    float *_j5_gray = &jacobians_photo(0,5);
+
+    float *_j0_depth = &jacobians_depth(0,0);
+    float *_j1_depth = &jacobians_depth(0,1);
+    float *_j2_depth = &jacobians_depth(0,2);
+    float *_j3_depth = &jacobians_depth(0,3);
+    float *_j4_depth = &jacobians_depth(0,4);
+    float *_j5_depth = &jacobians_depth(0,5);
+
+    __m128 __stdDevPhotoInv = _mm_set1_ps(stdDevPhoto_inv);
+    __m128 _pixel_angle_inv = _mm_set1_ps(pixel_angle_inv);
+    for(int i=0; i < xyz_tf.rows(); i+=4)
+    {
+        __m128 __weight = _mm_load_ps(_weight+i);
+
+        __m128 __gradGrayX = _mm_load_ps(_grayGradX+i);
+        __m128 __gradGrayY = _mm_load_ps(_grayGradY+i);
+        __m128 __weight_stdDevPhotoInv = _mm_mul_ps(__stdDevPhotoInv, __weight);
+        __m128 __gradX_weight = _mm_mul_ps(__weight_stdDevPhotoInv, __gradGrayX);
+        __m128 __gradY_weight = _mm_mul_ps(__weight_stdDevPhotoInv, __gradGrayY);
+
+        __m128 __gradDepthX = _mm_load_ps(_depthGradX+i);
+        __m128 __gradDepthY = _mm_load_ps(_depthGradY+i);
+        __m128 __stdDevDepthInv = _mm_load_ps(_stdDevInv+i);
+        __m128 __weight_stdDevDepthInv = _mm_mul_ps(__stdDevDepthInv, __weight);
+        __m128 __gradDepthX_weight = _mm_mul_ps(__weight_stdDevDepthInv, __gradDepthX);
+        __m128 __gradDepthY_weight = _mm_mul_ps(__weight_stdDevDepthInv, __gradDepthY);
+
+        __m128 __x = _mm_load_ps(_x+i);
+        __m128 __y = _mm_load_ps(_y+i);
+        __m128 __z = _mm_load_ps(_z+i);
+        __m128 _x2_z2 = _mm_add_ps(_mm_mul_ps(__x, __x), _mm_mul_ps(__z, __z) );
+        __m128 _x2_z2_sqrt = _mm_sqrt_ps(_x2_z2);
+        __m128 _dist2 = _mm_add_ps(_mm_mul_ps(__y, __y), _x2_z2 );
+        __m128 _dist = _mm_sqrt_ps(_dist2);
+        __m128 _commonDer_c = _mm_div_ps(_pixel_angle_inv, _x2_z2);
+        __m128 _commonDer_r = _mm_xor_ps( _mm_div_ps(_pixel_angle_inv, _mm_mul_ps(_dist2, _x2_z2_sqrt) ), _mm_set1_ps(-0.f) );
+        __m128 _commonDer_r_y = _mm_mul_ps(_commonDer_r, __y);
+
+        __m128 __j00 = _mm_mul_ps(_commonDer_c, __z);
+        __m128 __j10 = _mm_mul_ps(_commonDer_r_y, __x);
+        __m128 __j11 = _mm_xor_ps( _mm_mul_ps(_commonDer_r, _x2_z2), _mm_set1_ps(-0.f) );
+        //__m128 __j02 = _mm_xor_ps( _mm_mul_ps(_commonDer_c, __x), _mm_set1_ps(-0.f));
+        __m128 __j02_neg = _mm_mul_ps(_commonDer_c, __x);
+        __m128 __j12 = _mm_mul_ps(_commonDer_r_y, __z );
+        __m128 __j03_neg = _mm_mul_ps( __j02_neg, __y );
+        __m128 __j13 = _mm_sub_ps(_mm_mul_ps(__j12, __y), _mm_mul_ps(__j11, __z) );
+        __m128 __j04 = _mm_add_ps(_mm_mul_ps(__j00, __z), _mm_mul_ps(__j02_neg, __x) );
+        __m128 __j14 = _mm_sub_ps(_mm_mul_ps(__j10, __z), _mm_mul_ps(__j12, __x) );
+        __m128 __j05_neg = _mm_mul_ps(__j00, __y);
+        __m128 __j15 = _mm_sub_ps(_mm_mul_ps(__j11, __x), _mm_mul_ps(__j10, __y) );
+
+        _mm_store_ps(_j0_gray+i, _mm_add_ps(_mm_mul_ps(__gradX_weight, __j00), _mm_mul_ps(__gradY_weight, __j10) ) );
+        _mm_store_ps(_j1_gray+i, _mm_mul_ps(__gradY_weight, __j11) );
+        _mm_store_ps(_j2_gray+i, _mm_sub_ps(_mm_mul_ps(__gradY_weight, __j12), _mm_mul_ps(__gradX_weight, __j02_neg) ) );
+        _mm_store_ps(_j3_gray+i, _mm_sub_ps(_mm_mul_ps(__gradY_weight, __j13), _mm_mul_ps(__gradX_weight, __j03_neg) ) );
+        _mm_store_ps(_j4_gray+i, _mm_add_ps(_mm_mul_ps(__gradY_weight, __j14), _mm_mul_ps(__gradX_weight, __j04) ) );
+        _mm_store_ps(_j5_gray+i, _mm_sub_ps(_mm_mul_ps(__gradY_weight, __j15), _mm_mul_ps(__gradX_weight, __j05_neg) ) );
+
+        //jacobians_depth.block(i,0,1,6) = (weights(i) * stdDevError_inv(i)) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
+        __m128 _weight_dist = _mm_div_ps(__weight_stdDevDepthInv, _dist);
+//        __m128 test_j0 = _mm_add_ps(_mm_mul_ps(__gradDepthX_weight, __j00), _mm_mul_ps(__gradDepthY_weight, __j10) );
+//        __m128 test_j0_ = _mm_mul_ps(__x, _weight_dist);
+//        cout << " test_j0 " << i << " " << test_j0[0] << " " << test_j0[1] << " " << test_j0[2] << " " << test_j0[3] << endl;
+//        cout << " test_j0_ " << i << " " << test_j0_[0] << " " << test_j0_[1] << " " << test_j0_[2] << " " << test_j0_[3] << endl;
+        _mm_store_ps(_j0_depth+i, _mm_sub_ps(_mm_add_ps(_mm_mul_ps(__gradDepthX_weight, __j00), _mm_mul_ps(__gradDepthY_weight, __j10) ), _mm_mul_ps(__x, _weight_dist) ) );
+        _mm_store_ps(_j1_depth+i, _mm_sub_ps(_mm_mul_ps(__gradDepthY_weight, __j11), _mm_mul_ps(__y, _weight_dist ) ) );
+        _mm_store_ps(_j2_depth+i, _mm_sub_ps(_mm_sub_ps(_mm_mul_ps(__gradDepthY_weight, __j12), _mm_mul_ps(__gradDepthX_weight, __j02_neg) ), _mm_mul_ps(__z, _weight_dist) ) );
+        _mm_store_ps(_j3_depth+i, _mm_sub_ps(_mm_mul_ps(__gradDepthY_weight, __j13), _mm_mul_ps(__gradDepthX_weight, __j03_neg) ) );
+        _mm_store_ps(_j4_depth+i, _mm_add_ps(_mm_mul_ps(__gradDepthY_weight, __j14), _mm_mul_ps(__gradDepthX_weight, __j04) ) );
+        _mm_store_ps(_j5_depth+i, _mm_sub_ps(_mm_mul_ps(__gradDepthY_weight, __j15), _mm_mul_ps(__gradDepthX_weight, __j05_neg) ) );
+    }
+#endif
+
+#if TEST_SIMD
+    // Test SSE
+    for(int i=0; i < xyz_tf.rows(); i++)
+    {
+        //cout << i << " weights(i) " << weights(i) << "\n  jac_photo " << jacobians_photo.block(i,0,1,6) << "\n                    (i) " << jacobians_photo.block(i,0,1,6) << endl;
+        for(size_t j=0; j < 6; j++)
+        {
+            if(weights(i) > 0.f)
+            {
+                //cout << i << " jacobians_photo(i) " << jacobians_photo.block(i,0,1,6) << "\n  jacobians_photo2(i) " << jacobians_photo2.block(i,0,1,6) << endl;
+                if( !AlmostEqual2sComplement(jacobians_photo(i,j), jacobians_photo2(i,j), MAX_ULPS) )
+                    cout << i << " weights(i) " << weights(i) << "\n  jacobians_photo(i) " << jacobians_photo.block(i,0,1,6) << "\n jacobians_photo2(i) " << jacobians_photo2.block(i,0,1,6) << endl;
+                ASSERT_( AlmostEqual2sComplement(jacobians_photo(i,j), jacobians_photo2(i,j), MAX_ULPS) );
+                if( !AlmostEqual2sComplement(jacobians_depth(i,j), jacobians_depth2(i,j), MAX_ULPS) )
+                    cout << i << " weights(i) " << weights(i) << "\n  jacobians_depth(i) " << jacobians_depth.block(i,0,1,6) << "\n jacobians_depth2(i) " << jacobians_depth2.block(i,0,1,6) << endl;
                 ASSERT_( AlmostEqual2sComplement(jacobians_depth(i,j), jacobians_depth2(i,j), MAX_ULPS) );
             }
         }
@@ -1327,7 +1603,7 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
 //    // depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
 
 //    //reconstruct3D(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels);
-//    transformPts3D(LUT_xyz_source, Rt, xyz_transf);
+//    transformPts3D(LUT_xyz_source, Rt, pt_xyz);
 
 //    //float *_depthTrgPyr = reinterpret_cast<float*>(depthTrgPyr[pyrLevel].data);
 //    float *_graySrcPyr = reinterpret_cast<float*>(graySrcPyr[pyrLevel].data);
@@ -1362,8 +1638,8 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
 ////        for(size_t i=0; i < imgSize; i++)
 ////        {
 ////            //Transform the 3D point using the transformation matrix Rt
-////            Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
-////            // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << xyz_transf.block(i,0,1,3) << endl;
+////            Vector3f xyz = pt_xyz.block(i,0,1,3).transpose();
+////            // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << pt_xyz.block(i,0,1,3) << endl;
 
 ////            //Project the 3D point to the S2 sphere
 ////            float dist = xyz.norm();
@@ -1399,8 +1675,8 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
 //        for(size_t i=0; i < imgSize; i++)
 //        {
 //            //Transform the 3D point using the transformation matrix Rt
-//            Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
-//            // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << xyz_transf.block(i,0,1,3) << endl;
+//            Vector3f xyz = pt_xyz.block(i,0,1,3).transpose();
+//            // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << pt_xyz.block(i,0,1,3) << endl;
 
 //            //Project the 3D point to the S2 sphere
 //            float dist = xyz.norm();

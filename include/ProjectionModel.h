@@ -55,6 +55,11 @@
 // Usable AlmostEqual function
 inline bool AlmostEqual2sComplement(float A, float B, int maxUlps)
 {
+    if( abs(A - B) < 1e-4)
+        return true;
+    else
+        return false;
+
     // Make sure maxUlps is non-negative and small enough that the
     // default NAN won't compare as equal to anything.
     assert(maxUlps > 0 && maxUlps < 4 * 1024 * 1024);
@@ -128,7 +133,7 @@ public:
     };
 
     /*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
-    virtual void scaleCameraParams(const int pyrLevel) = 0;
+    virtual void scaleCameraParams(std::vector<cv::Mat> &depthPyr, const int pyrLevel) = 0;
 
     /*! Check if a pixel is within the image limits. */
     template<typename T>

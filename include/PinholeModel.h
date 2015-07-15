@@ -72,7 +72,7 @@ class PinholeModel : public ProjectionModel
     };
 
     /*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
-    void scaleCameraParams(const int pyrLevel);
+    void scaleCameraParams(std::vector<cv::Mat> & depthPyr, const int pyrLevel);
 
 //    /*! Check if a pixel is within the image limits. */
 //    template<typename T>

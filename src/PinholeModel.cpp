@@ -67,10 +67,12 @@ PinholeModel::PinholeModel()
 }
 
 /*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
-void PinholeModel::scaleCameraParams(const int pyrLevel)
+void PinholeModel::scaleCameraParams(std::vector<cv::Mat> & depthPyr, const int pyrLevel)
 {
     const float scaleFactor = 1.0/pow(2,pyrLevel);
-    //nRows = scaleFactor*nRows;
+    nRows = depthPyr[0].rows*scaleFactor;
+    nCols = depthPyr[0].cols*scaleFactor;
+    imgSize = nRows*nCols;
 
     fx = cameraMatrix(0,0)*scaleFactor;
     fy = cameraMatrix(1,1)*scaleFactor;
@@ -78,6 +80,9 @@ void PinholeModel::scaleCameraParams(const int pyrLevel)
     oy = cameraMatrix(1,2)*scaleFactor;
     inv_fx = 1.f/fx;
     inv_fy = 1.f/fy;
+
+    assert(nRows == depthPyr[pyrLevel].rows);
+    ASSERT_(nRows == depthPyr[pyrLevel].rows);
 }
 
 /*! Compute the 3D points XYZ according to the pinhole camera model. */
@@ -763,8 +768,8 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixe
 ////    #endif
 //    for(int i=0; i < xyz_tf.rows(); i++)
 //    {
-//        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
-//        float inv_transf_z = 1.0/xyz_transf(2);
+//        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
+//        float inv_transf_z = 1.0/pt_xyz(2);
 
 //        //Derivative with respect to x
 //        jacobians_aligned(i,0)=fx*inv_transf_z;
@@ -776,20 +781,20 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixe
 
 //        //Derivative with respect to z
 //        float inv_transf_z_2 = inv_transf_z*inv_transf_z;
-//        jacobians_aligned(i,2)=-fx*xyz_transf(0)*inv_transf_z_2;
-//        jacobians_aligned(i,3)=-fy*xyz_transf(1)*inv_transf_z_2;
+//        jacobians_aligned(i,2)=-fx*pt_xyz(0)*inv_transf_z_2;
+//        jacobians_aligned(i,3)=-fy*pt_xyz(1)*inv_transf_z_2;
 
 //        //Derivative with respect to \w_x
-//        jacobians_aligned(i,4)=-fx*xyz_transf(1)*xyz_transf(0)*inv_transf_z_2;
-//        jacobians_aligned(i,5)=-fy*(1+xyz_transf(1)*xyz_transf(1)*inv_transf_z_2);
+//        jacobians_aligned(i,4)=-fx*pt_xyz(1)*pt_xyz(0)*inv_transf_z_2;
+//        jacobians_aligned(i,5)=-fy*(1+pt_xyz(1)*pt_xyz(1)*inv_transf_z_2);
 
 //        //Derivative with respect to \w_y
-//        jacobians_aligned(i,6)= fx*(1+xyz_transf(0)*xyz_transf(0)*inv_transf_z_2);
-//        jacobians_aligned(i,7)= fy*xyz_transf(0)*xyz_transf(1)*inv_transf_z_2;
+//        jacobians_aligned(i,6)= fx*(1+pt_xyz(0)*pt_xyz(0)*inv_transf_z_2);
+//        jacobians_aligned(i,7)= fy*pt_xyz(0)*pt_xyz(1)*inv_transf_z_2;
 
 //        //Derivative with respect to \w_z
-//        jacobians_aligned(i,8)=-fx*xyz_transf(1)*inv_transf_z;
-//        jacobians_aligned(i,9)= fy*xyz_transf(0)*inv_transf_z;
+//        jacobians_aligned(i,8)=-fx*pt_xyz(1)*inv_transf_z;
+//        jacobians_aligned(i,9)= fy*pt_xyz(0)*inv_transf_z;
 //    }
 
 //#else
@@ -854,9 +859,9 @@ void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const f
     Eigen::MatrixXf jacobians2(xyz_tf.rows(), 6);
     for(int i=0; i < xyz_tf.rows(); i++)
     {
-        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
-        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
         img_gradient(0,1) = _grayGradY[i];
@@ -871,9 +876,9 @@ void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const f
 //    #endif
     for(int i=0; i < xyz_tf.rows(); i++)
     {
-        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
-        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
         img_gradient(0,1) = _grayGradY[i];
@@ -973,13 +978,13 @@ void PinholeModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const E
     Eigen::MatrixXf jacobians2(xyz_tf.rows(), 6);
     for(int i=0; i < xyz_tf.rows(); i++)
     {
-        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
-        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
         Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
         jacobian16_depthT(0,2) = 1.f;
-        jacobian16_depthT(0,3) = xyz_transf(1);
-        jacobian16_depthT(0,4) =-xyz_transf(0);
+        jacobian16_depthT(0,3) = pt_xyz(1);
+        jacobian16_depthT(0,4) =-pt_xyz(0);
         Matrix<float,1,2> depth_gradient;
         depth_gradient(0,0) = _depthGradX[i];
         depth_gradient(0,1) = _depthGradY[i];
@@ -994,13 +999,13 @@ void PinholeModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const E
 //    #endif
     for(int i=0; i < xyz_tf.rows(); i++)
     {
-        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
-        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
         Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
         jacobian16_depthT(0,2) = 1.f;
-        jacobian16_depthT(0,3) = xyz_transf(1);
-        jacobian16_depthT(0,4) =-xyz_transf(0);
+        jacobian16_depthT(0,3) = pt_xyz(1);
+        jacobian16_depthT(0,4) =-pt_xyz(0);
         Matrix<float,1,2> depth_gradient;
         depth_gradient(0,0) = _depthGradX[i];
         depth_gradient(0,1) = _depthGradY[i];
@@ -1103,9 +1108,9 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
     Eigen::MatrixXf jacobians_depth2(xyz_tf.rows(), 6);
     for(int i=0; i < xyz_tf.rows(); i++)
     {
-        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
-        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
 
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
@@ -1114,8 +1119,8 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
 
         Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
         jacobian16_depthT(0,2) = 1.f;
-        jacobian16_depthT(0,3) = xyz_transf(1);
-        jacobian16_depthT(0,4) =-xyz_transf(0);
+        jacobian16_depthT(0,3) = pt_xyz(1);
+        jacobian16_depthT(0,4) =-pt_xyz(0);
         Matrix<float,1,2> depth_gradient;
         depth_gradient(0,0) = _depthGradX[i];
         depth_gradient(0,1) = _depthGradY[i];
@@ -1130,9 +1135,9 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
 //    #endif
     for(int i=0; i < xyz_tf.rows(); i++)
     {
-        Vector3f xyz_transf = xyz_tf.block(i,0,1,3).transpose();
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
         Matrix<float,2,6> jacobianWarpRt;
-        computeJacobian26_wT(xyz_transf, jacobianWarpRt);
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
 
         Matrix<float,1,2> img_gradient;
         img_gradient(0,0) = _grayGradX[i];
@@ -1141,8 +1146,8 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
 
         Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
         jacobian16_depthT(0,2) = 1.f;
-        jacobian16_depthT(0,3) = xyz_transf(1);
-        jacobian16_depthT(0,4) =-xyz_transf(0);
+        jacobian16_depthT(0,3) = pt_xyz(1);
+        jacobian16_depthT(0,4) =-pt_xyz(0);
         Matrix<float,1,2> depth_gradient;
         depth_gradient(0,0) = _depthGradX[i];
         depth_gradient(0,1) = _depthGradY[i];
@@ -1276,7 +1281,7 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
 //    // depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
 
 //    //reconstruct3D_spherical(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels);
-//    transformPts3D(LUT_xyz_source, Rt, xyz_transf);
+//    transformPts3D(LUT_xyz_source, Rt, pt_xyz);
 
 //    //float *_depthTrgPyr = reinterpret_cast<float*>(depthTrgPyr[pyrLevel].data);
 //    float *_graySrcPyr = reinterpret_cast<float*>(graySrcPyr[pyrLevel].data);
@@ -1311,8 +1316,8 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
 ////        for(size_t i=0; i < imgSize; i++)
 ////        {
 ////            //Transform the 3D point using the transformation matrix Rt
-////            Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
-////            // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << xyz_transf.block(i,0,1,3) << endl;
+////            Vector3f xyz = pt_xyz.block(i,0,1,3).transpose();
+////            // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << pt_xyz.block(i,0,1,3) << endl;
 
 ////            //Project the 3D point to the S2 sphere
 ////            float dist = xyz.norm();
@@ -1348,8 +1353,8 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
 //        for(size_t i=0; i < imgSize; i++)
 //        {
 //            //Transform the 3D point using the transformation matrix Rt
-//            Vector3f xyz = xyz_transf.block(i,0,1,3).transpose();
-//            // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << xyz_transf.block(i,0,1,3) << endl;
+//            Vector3f xyz = pt_xyz.block(i,0,1,3).transpose();
+//            // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << pt_xyz.block(i,0,1,3) << endl;
 
 //            //Project the 3D point to the S2 sphere
 //            float dist = xyz.norm();

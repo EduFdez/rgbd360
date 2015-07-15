@@ -61,7 +61,7 @@ class SphericalModel : public ProjectionModel
     SphericalModel();
 
     /*! Scale the intrinsic calibration parameters according to the image resolution (i.e. the reduced resolution being used). */
-    void scaleCameraParams(const int pyrLevel);
+    void scaleCameraParams(std::vector<cv::Mat> & depthPyr, const int pyrLevel);
 
     /*! Return the depth value of the 3D point projected on the image.*/
     inline float getDepth(const Eigen::Vector3f &xyz)
@@ -80,7 +80,7 @@ class SphericalModel : public ProjectionModel
     template<typename T>
     inline bool isInImage(const T y)
     {
-        cout << "isInImage " << y << " " << nRows << endl;
+        //cout << "isInImage " << y << " " << nRows << endl;
         return ( y >= 0 && y < nRows );
     }
 
@@ -285,5 +285,10 @@ class SphericalModel : public ProjectionModel
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
     void computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
                                     Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY);
+
+    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
+    void computeJacobiansPhotoDepth_IC(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
+                                                       double & error2,
+                                                        Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY);
 
 };

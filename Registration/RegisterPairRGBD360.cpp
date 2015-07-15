@@ -134,9 +134,6 @@ int main (int argc, char ** argv)
 //    dir_reg.regist_IC(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //    cout << "Pose Dense IC \n" << dir_reg.getOptimalPose() << endl;
 
-    dir_reg.register360(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-    cout << "Pose Dense Photo register360 \n" << dir_reg.getOptimalPose() << endl;
-
     dir_reg.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     cout << "Pose Dense Photo \n" << dir_reg.getOptimalPose() << endl;
     //Eigen::Matrix4f rigidTransf_dense = dir_reg.getOptimalPose();
@@ -233,13 +230,13 @@ int main (int argc, char ** argv)
     dir_reg.useSaliency(false);
     dir_reg.setBilinearInterp(true);
     dir_reg.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-    cout << "Bilinear Pose Dense Saliency \n" << dir_reg.getOptimalPose() << endl;
+    cout << "Bilinear Pose Dense \n" << dir_reg.getOptimalPose() << endl;
     
     dir_reg.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-    cout << "Bilinear Pose Dense Saliency PHOTO_CONSISTENCY \n" << dir_reg.getOptimalPose() << endl;
+    cout << "Bilinear Pose Dense PHOTO_CONSISTENCY \n" << dir_reg.getOptimalPose() << endl;
     
     dir_reg.regist(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-    cout << "Bilinear Pose Dense Saliency DEPTH_CONSISTENCY \n" << dir_reg.getOptimalPose() << endl;
+    cout << "Bilinear Pose Dense DEPTH_CONSISTENCY \n" << dir_reg.getOptimalPose() << endl;
     
 //    dir_reg.regist_inv(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //    cout << "Bilinear Pose Dense Inv Saliency \n" << dir_reg.getOptimalPose() << endl;
