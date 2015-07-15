@@ -53,7 +53,6 @@ IF(BUILD_REGISTRATION)
 						../include/Calib360.h
 						../include/Frame360.h
                                                 ../src/Frame360.cpp
-						../include/Frame360_stereo.h
 						../include/Map360_Visualizer.h
 						../include/RegisterRGBD360.h
 	)

@@ -29,8 +29,6 @@
  *  Author: Eduardo Fernandez-Moral
  */
 
-#define _DEBUG_MSG 1
-
 #include <RegisterRGBD360.h>
 #include <Map360_Visualizer.h>
 #include <FilterPointCloud.h>
@@ -101,7 +99,6 @@ int main (int argc, char ** argv)
     //  registerer.RegisterPbMap(&frame360_1, &frame360_2, 20, RegisterRGBD360::DEFAULT_6DoF);
     //  registerer.RegisterPbMap(&frame360_1, &frame360_2, 20, RegisterRGBD360::ODOMETRY_6DoF);
     
-    //#if _DEBUG_MSG
     std::map<unsigned, unsigned> bestMatch = registerer.getMatchedPlanes();
     //  std::cout << "NUMBER OF MATCHED PLANES " << bestMatch.size() << " areaMatched " << registerer.getAreaMatched() << std::endl;
     for(std::map<unsigned, unsigned>::iterator it=bestMatch.begin(); it != bestMatch.end(); it++)
@@ -117,8 +114,8 @@ int main (int argc, char ** argv)
     //float angle_offset = -90;
     //Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(0,0) = rot_offset(1,1) = cos(angle_offset*PI/180); rot_offset(0,1) = -sin(angle_offset*PI/180); rot_offset(1,0) = -rot_offset(0,1);
 
-    DirectRegistration dir_reg; // Dense RGB-D alignment
-    dir_reg.setSensorType(DirectRegistration::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::regist for more details)
+    DirectRegistration dir_reg(DirectRegistration::RGBD360_INDOOR); // Dense RGB-D alignment
+    //dir_reg.setSensorType(DirectRegistration::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::regist for more details)
     dir_reg.setNumPyr(5);
     dir_reg.useSaliency(false);
     // dir_reg.setVisualization(true);
@@ -128,24 +125,27 @@ int main (int argc, char ** argv)
     dir_reg.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     //  Eigen::Matrix4f initTransf_dense = rot_offset * poseRegPbMap * rot_offset.inverse();
     //  dir_reg.regist(initTransf_dense, DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-    //Eigen::Matrix4f rigidTransf_dense = dir_reg.getOptimalPose();
+    Eigen::Matrix4f rigidTransf_dense = dir_reg.getOptimalPose();
     //Eigen::Matrix4f rigidTransf_dense_ref = rot_offset.inverse() * rigidTransf_dense_ref * rot_offset;
     //cout << "Pose Dense Y Downwards \n" << rigidTransf_dense_ref << endl;
-    //cout << "Pose Dense \n" << rigidTransf_dense << endl;
+    cout << "Pose Dense \n" << rigidTransf_dense << endl;
     //mrpt::system::pause();
     
 //    dir_reg.regist_IC(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //    cout << "Pose Dense IC \n" << dir_reg.getOptimalPose() << endl;
 
+    dir_reg.register360(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    cout << "Pose Dense Photo register360 \n" << dir_reg.getOptimalPose() << endl;
+
     dir_reg.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     cout << "Pose Dense Photo \n" << dir_reg.getOptimalPose() << endl;
-    Eigen::Matrix4f rigidTransf_dense = dir_reg.getOptimalPose();
+    //Eigen::Matrix4f rigidTransf_dense = dir_reg.getOptimalPose();
 
 //    dir_reg.regist_IC(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //    cout << "Pose Dense Photo IC \n" << dir_reg.getOptimalPose() << endl;
 
-    dir_reg.regist(rigidTransf_dense, DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-    cout << "Pose Dense Depth Init \n" << dir_reg.getOptimalPose() << endl;
+//    dir_reg.regist(rigidTransf_dense, DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+//    cout << "Pose Dense Depth Init \n" << dir_reg.getOptimalPose() << endl;
 
     dir_reg.regist(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     cout << "Pose Dense Depth \n" << dir_reg.getOptimalPose() << endl;

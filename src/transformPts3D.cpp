@@ -49,9 +49,6 @@
 #  include <smmintrin.h>
 #endif
 
-#define ENABLE_OPENMP 0
-#define PRINT_PROFILING 0
-
 using namespace std;
 
 /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */

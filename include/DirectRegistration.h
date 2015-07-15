@@ -164,7 +164,7 @@ class DirectRegistration : public Pyramid, MEstimator //ProjectionModel
     Eigen::VectorXf wEstimDepth_src;
 
     /*! If set to true, only the pixels with high gradient in the gray image are used (for both photo and depth minimization) */    
-    //Eigen::VectorXi validPixels_src;
+    Eigen::VectorXi validPixels_src;
     //Eigen::VectorXi visible_pixels_src;
     Eigen::VectorXi validPixelsPhoto_src;
     Eigen::VectorXi validPixelsDepth_src;
@@ -232,6 +232,11 @@ public:
     inline void setSensorType(const sensorType sensor)
     {
         sensor_type = sensor;
+
+        if(sensor_type == KINECT)
+            ProjModel = new PinholeModel;
+        else //RGBD360_INDOOR, STEREO_OUTDOOR
+            ProjModel = new SphericalModel;
     };
 
     /*! Set the number of pyramid levels.*/
@@ -376,16 +381,16 @@ public:
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-    double errorDense( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
-    double errorDense2( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
+    double computeError( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
+    double computeError2( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
 
-    double errorDense_IC( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
+    double computeError_IC( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
-    double errorDense_inv( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
+    double computeError_inv( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
         This is done following the work in:
@@ -425,24 +430,24 @@ public:
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
     in Computer Vision Workshops (ICCV Workshops), 2011. */
-    double errorDense_sphere (  const int pyrLevel,
+    double computeError_sphere (  const int pyrLevel,
                                 const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
                                 const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
-    double errorDenseWarp_sphere (  int pyrLevel,
+    double computeErrorWarp_sphere (  int pyrLevel,
                                     const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
                                     const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
-    /*! This function do the same as 'errorDense_sphere'. But applying inverse compositional, which only affects the depth error */
-    double errorDenseIC_sphere( const int pyrLevel,
+    /*! This function do the same as 'computeError_sphere'. But applying inverse compositional, which only affects the depth error */
+    double computeErrorIC_sphere( const int pyrLevel,
                                 const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
                                 const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
 
-    double errorDenseInv_sphere(const int pyrLevel,
+    double computeErrorInv_sphere(const int pyrLevel,
                                 const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
                                 const costFuncType method = PHOTO_CONSISTENCY); //,const bool use_bilinear = false );
 
-    double errorDense_sphere_bidirectional (const int pyrLevel,
+    double computeError_sphere_bidirectional (const int pyrLevel,
                                             const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
                                             const costFuncType method = PHOTO_CONSISTENCY); //,const bool use_bilinear = false );
 
@@ -485,7 +490,7 @@ public:
 
 //    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
 //        Occlusions are taken into account by a Z-buffer. */
-//    double errorDense_sphereOcc1(int pyrLevel,
+//    double computeError_sphereOcc1(int pyrLevel,
 //                                    const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
 //                                    costFuncType method = PHOTO_CONSISTENCY );
 //    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
@@ -495,7 +500,7 @@ public:
 //                                    costFuncType method = PHOTO_CONSISTENCY );
 //    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
 //        Occlusions are taken into account by a Z-buffer. */
-//    double errorDense_sphereOcc2(int pyrLevel,
+//    double computeError_sphereOcc2(int pyrLevel,
 //                                    const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
 //                                    costFuncType method = PHOTO_CONSISTENCY );
 

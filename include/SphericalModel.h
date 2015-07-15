@@ -53,7 +53,8 @@ class SphericalModel : public ProjectionModel
     float pixel_angle;
     float pixel_angle_inv;
     float half_width;
-    float phi_start;
+    float row_phi_start;
+    size_t start_row;
 
   public:
 
@@ -79,6 +80,7 @@ class SphericalModel : public ProjectionModel
     template<typename T>
     inline bool isInImage(const T y)
     {
+        cout << "isInImage " << y << " " << nRows << endl;
         return ( y >= 0 && y < nRows );
     }
 
@@ -90,11 +92,12 @@ class SphericalModel : public ProjectionModel
         float dist_inv = 1.f / dist;
         float phi = asin(xyz(1)*dist_inv);
         float theta = atan2(xyz(0),xyz(2));
-        //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
-        float transformed_r = (phi-phi_start)*pixel_angle_inv;
+        float transformed_r = phi*pixel_angle_inv + row_phi_start;
+        //float transformed_r = phi*pixel_angle_inv + start_row;
         float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
         assert(transformed_c < nCols);
         assert(transformed_c >= 0);
+        //cout << "project2Image " << transformed_c << " " << transformed_r << " phi " << phi << " start_row " << start_row << " theta " << theta << " half_width " << half_width << endl;
 
         cv::Point2f pixel(transformed_c, transformed_r);
         return pixel;

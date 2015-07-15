@@ -33,15 +33,11 @@
 #ifndef FRAME360_STEREO_H
 #define FRAME360_STEREO_H
 
-#ifndef _DEBUG_MSG
-#define _DEBUG_MSG 1
-#endif
-
 //#define USE_BILATERAL_FILTER 1
 //#define DOWNSAMPLE_160 1
 
 #include <mrpt/pbmap.h>
-
+#include "config.h"
 #include "Miscellaneous.h"
 
 #include <pcl/point_cloud.h>
@@ -209,7 +205,7 @@ class Frame360_stereo
 //        if (serialize_planes.open(pbmapPath))
 //        {
 //            serialize_planes >> planes;
-//#if _DEBUG_MSG
+//#if PRINT_PROFILING
 //            std::cout << planes.vPlanes.size() << " planes loaded\n";
 //#endif
 //        }
@@ -318,7 +314,7 @@ class Frame360_stereo
 
 //        //    bSphereCloudBuilt = false; // The spherical PointCloud of the frame just loaded is not built yet
 
-//#if _DEBUG_MSG
+//#if PRINT_PROFILING
 //        double time_end = pcl::getTime();
 //        std::cout << "loadDepth took " << double (time_end - time_start) << std::endl;
 //#endif
@@ -386,7 +382,7 @@ class Frame360_stereo
 
         //    bSphereCloudBuilt = false; // The spherical PointCloud of the frame just loaded is not built yet
 
-#if _DEBUG_MSG
+#if PRINT_PROFILING
         double time_end = pcl::getTime();
         std::cout << "loadDepth took " << double (time_end - time_start) << std::endl;
 #endif
@@ -410,7 +406,7 @@ class Frame360_stereo
         else
             std::cerr << "File: " << fileNamePNG << " does NOT EXIST.\n";
 
-#if _DEBUG_MSG
+#if PRINT_PROFILING
         double time_end = pcl::getTime();
         std::cout << "loadRGB took " << double (time_end - time_start) << std::endl;
 #endif
@@ -453,7 +449,7 @@ class Frame360_stereo
 ////            //      cv::eigen2cv(frameRGBD_[sensor_id].m_depthEigUndistort, frameRGBD_[sensor_id].getDepthImage());
 ////        }
 
-//////#if _DEBUG_MSG
+//////#if PRINT_PROFILING
 ////        double time_end = pcl::getTime();
 ////        std::cout << "Undistort Frame360 took " << double (time_end - time_start) << std::endl;
 //////#endif
@@ -597,7 +593,7 @@ class Frame360_stereo
         //    bSphereCloudBuilt = true;
         std::cout << " Frame360_stereo::buildSphereCloud() finished" << std::endl;
 
-#if _DEBUG_MSG
+#if PRINT_PROFILING
         double time_end = pcl::getTime();
         std::cout << "PointCloud sphere construction took " << double (time_end - time_start) << std::endl;
 #endif
@@ -624,7 +620,7 @@ class Frame360_stereo
 ////        groupPlanes(); // Merge planes detected from adjacent sensors, and place them in "planes"
 ////        mergePlanes(); // Merge big planes
 
-////#if _DEBUG_MSG
+////#if PRINT_PROFILING
 ////        double extractPlanes_end = pcl::getTime();
 ////        std::cout << planes.vPlanes.size() << " planes. Extraction took " << double (extractPlanes_end - extractPlanes_start)*1000 << " ms.\n";
 ////#endif
@@ -725,7 +721,7 @@ class Frame360_stereo
                             k = planes.vPlanes.size();
                         }
                     }
-#if _DEBUG_MSG
+#if PRINT_PROFILING
         double time_end = pcl::getTime();
         std::cout << "Merge planes took " << double (time_end - time_start) << std::endl;
 #endif
@@ -945,7 +941,7 @@ class Frame360_stereo
 //      filter.filter(*filteredCloud);
       filter.filter(*sphereCloud);
 
-    #if _DEBUG_MSG
+    #if PRINT_PROFILING
         double time_end = pcl::getTime();
         std::cout << "filterPointCloud in " << (time_end - time_start)*1000 << " ms\n";
     #endif
@@ -1087,7 +1083,7 @@ class Frame360_stereo
                 planes.vPlanes.push_back(plane);
             }
         }
-#if _DEBUG_MSG
+#if PRINT_PROFILING
         double extractPlanes_end = pcl::getTime();
         std::cout << "getPlanesInFrame in " << (extractPlanes_end - extractPlanes_start)*1000 << " ms\n";
 #endif
@@ -1237,7 +1233,7 @@ class Frame360_stereo
                 planes.vPlanes.push_back(plane);
             }
         }
-#if _DEBUG_MSG
+#if PRINT_PROFILING
         double extractPlanes_end = pcl::getTime();
         std::cout << "getPlanesRANSAC took " << (extractPlanes_end - extractPlanes_start)*1000 << " ms\n";
 #endif

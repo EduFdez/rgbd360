@@ -30,6 +30,7 @@
  */
 
 #include <Pyramid.h>
+#include <config.h>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -51,9 +52,6 @@
 #if _SSE4_1
 #  include <smmintrin.h>
 #endif
-
-#define ENABLE_OPENMP 0
-#define PRINT_PROFILING 1
 
 using namespace std;
 

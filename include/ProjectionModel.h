@@ -49,9 +49,11 @@
     //#include <assert.h>
     #include <bitset>
 
+    #define MAX_ULPS 2097152 //1000000000
+
 // This function is explained in: http://www.cygnus-software.com/papers/comparingfloats/comparingfloats.htm
 // Usable AlmostEqual function
-bool AlmostEqual2sComplement(float A, float B, int maxUlps)
+inline bool AlmostEqual2sComplement(float A, float B, int maxUlps)
 {
     // Make sure maxUlps is non-negative and small enough that the
     // default NAN won't compare as equal to anything.

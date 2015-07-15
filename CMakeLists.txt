@@ -207,8 +207,11 @@ endif()
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/include)
 INCLUDE_DIRECTORIES( ${OpenCV_INCLUDE_DIRS} )
 
+configure_file(${PROJECT_SOURCE_DIR}/config.h.in ${PROJECT_SOURCE_DIR}/include/config.h) 
+
 # Create the DR library (Direct Registration)
 ADD_LIBRARY(DR
+            ${PROJECT_SOURCE_DIR}/include/config.h
             ${PROJECT_SOURCE_DIR}/include/DirectRegistration.h
             ${PROJECT_SOURCE_DIR}/src/DirectRegistration.cpp
             ${PROJECT_SOURCE_DIR}/include/MEstimator.h
@@ -267,6 +270,10 @@ ADD_SUBDIRECTORY(Registration)
 
 SET( BUILD_SLAM ON CACHE BOOL "Build SLAM Applications")
 ADD_SUBDIRECTORY(SLAM)
+
+#option(BUILD_LC   "Build LoopClosure"     ON)
+SET( BUILD_LC ON CACHE BOOL "Loop Closure tests")
+ADD_SUBDIRECTORY(LoopClosure)
 
 # Set optimized building:
 IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")

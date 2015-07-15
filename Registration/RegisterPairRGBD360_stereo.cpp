@@ -147,7 +147,6 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
 ////  registerer.RegisterPbMap(&frame360_1, &frame360_2, 20, RegisterRGBD360::ODOMETRY_6DoF);
 //  Eigen::Matrix4f poseRegPbMap = registerer.getPose();
 
-////#if _DEBUG_MSG
 //  std::map<unsigned, unsigned> bestMatch = registerer.getMatchedPlanes();
 ////  std::cout << "NUMBER OF MATCHED PLANES " << bestMatch.size() << " areaMatched " << registerer.getAreaMatched() << std::endl;
 //  for(std::map<unsigned, unsigned>::iterator it=bestMatch.begin(); it != bestMatch.end(); it++)

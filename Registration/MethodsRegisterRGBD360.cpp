@@ -41,9 +41,6 @@
 #include <mrpt/system/os.h>
 
 #define VISUALIZE_POINT_CLOUD 1
-//#ifndef _DEBUG_MSG
-    #define _DEBUG_MSG 1
-//#endif
 
 using namespace std;
 using namespace Eigen;

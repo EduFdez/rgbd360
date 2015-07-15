@@ -39,7 +39,6 @@ IF(BUILD_VISUALIZATION)
 
 	# Declare the target (an executable)
 	ADD_EXECUTABLE(LoadFrame360_stereo LoadFrame360_stereo.cpp
-					../include/Frame360_stereo.h
 					../include/Calib360.h
 					../include/Frame360.h
                                         ../src/Frame360.cpp
@@ -57,7 +56,6 @@ IF(BUILD_VISUALIZATION)
 
         # Declare the target (an executable)
         ADD_EXECUTABLE(Frame360_compare Frame360_compare.cpp
-                                        ../include/Frame360_stereo.h
                                         ../include/Calib360.h
                                         ../include/Frame360.h
                                         ../src/Frame360.cpp

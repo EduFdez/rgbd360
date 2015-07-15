@@ -33,10 +33,6 @@
 #ifndef FRAME360_H
 #define FRAME360_H
 
-#ifndef _DEBUG_MSG
-#define _DEBUG_MSG 0
-#endif
-
 #include "definitions.h"
 
 #define USE_BILATERAL_FILTER 1

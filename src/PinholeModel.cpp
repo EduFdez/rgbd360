@@ -44,40 +44,6 @@
 #  include <smmintrin.h>
 #endif
 
-#define ENABLE_OPENMP 0
-#define PRINT_PROFILING 1
-#if PRINT_PROFILING
-    #include <pcl/common/time.h>
-#endif
-#define TEST_SIMD 1
-#if TEST_SIMD
-    #include <mrpt/system/os.h>
-    #include <mrpt/utils/mrpt_macros.h>
-    //#include <assert.h>
-    #include <bitset>
-
-// This function is explained in: http://www.cygnus-software.com/papers/comparingfloats/comparingfloats.htm
-// Usable AlmostEqual function
-bool AlmostEqual2sComplement(float A, float B, int maxUlps)
-{
-    // Make sure maxUlps is non-negative and small enough that the
-    // default NAN won't compare as equal to anything.
-    assert(maxUlps > 0 && maxUlps < 4 * 1024 * 1024);
-    int aInt = *(int*)&A;
-    // Make aInt lexicographically ordered as a twos-complement int
-    if (aInt < 0)
-        aInt = 0x80000000 - aInt;
-    // Make bInt lexicographically ordered as a twos-complement int
-    int bInt = *(int*)&B;
-    if (bInt < 0)
-        bInt = 0x80000000 - bInt;
-    int intDiff = abs(aInt - bInt);
-    if (intDiff <= maxUlps)
-        return true;
-    return false;
-}
-#endif
-
 using namespace std;
 using namespace Eigen;
 
@@ -455,18 +421,18 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
 
 #if TEST_SIMD
     // Test SSE
-    //cout << "float 100000000 " << float(const_cast<float>(int(100000000))) << endl;
+    //cout << "float MAX_ULPS " << float(const_cast<float>(int(MAX_ULPS))) << endl;
     for(int i=0; i < validPixels.size(); i++)
         if(validPixels(i) != -1)
         {
     //        cout << i << " validPixels(i) " << validPixels(i) << " " << validPixels2(i) << endl;
-            if( !AlmostEqual2sComplement(xyz(i,0), xyz2(i,0), 100000000) || !AlmostEqual2sComplement(xyz(i,1), xyz2(i,1), 100000000) || !AlmostEqual2sComplement(xyz(i,2), xyz2(i,2), 100000000) )
+            if( !AlmostEqual2sComplement(xyz(i,0), xyz2(i,0), MAX_ULPS) || !AlmostEqual2sComplement(xyz(i,1), xyz2(i,1), MAX_ULPS) || !AlmostEqual2sComplement(xyz(i,2), xyz2(i,2), MAX_ULPS) )
                 cout << i << " xyz " << xyz(i,0) << " " << xyz(i,1) << " " << xyz(i,2) << " xyz2 " << xyz2(i,0) << " " << xyz2(i,1) << " " << xyz2(i,2) << endl;
     //        cout << " diff " << xyz(i,0) - xyz2(i,0) << " " << 1e-5 << endl;
             ASSERT_( validPixels(i) == validPixels2(i) );
-            ASSERT_( AlmostEqual2sComplement(xyz(i,0), xyz2(i,0), 100000000) );
-            ASSERT_( AlmostEqual2sComplement(xyz(i,1), xyz2(i,1), 100000000) );
-            ASSERT_( AlmostEqual2sComplement(xyz(i,2), xyz2(i,2), 100000000) );
+            ASSERT_( AlmostEqual2sComplement(xyz(i,0), xyz2(i,0), MAX_ULPS) );
+            ASSERT_( AlmostEqual2sComplement(xyz(i,1), xyz2(i,1), MAX_ULPS) );
+            ASSERT_( AlmostEqual2sComplement(xyz(i,2), xyz2(i,2), MAX_ULPS) );
         }
 #endif
 
@@ -736,7 +702,7 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixe
         __m128i __p = _mm_add_epi32( _mm_mullo_epi32(_nCols, __r_int ), __c_int );
 //        cout << "Compute warped pixel " << i  << " "
 //             << _mm_extract_epi32(__p,0) << " " << _mm_extract_epi32(__p,1) << " " << _mm_extract_epi32(__p,2) << " " << _mm_extract_epi32(__p,3) << endl;       
-        __m128i _outOfImg = _mm_or_si128(_mm_or_si128( _mm_cmpgt_epi32(_zero, __r_int), _mm_cmpgt_epi32(__r_int, _nRows_1) ),
+        __m128i _outOfImg =_mm_or_si128(_mm_or_si128( _mm_cmpgt_epi32(_zero, __r_int), _mm_cmpgt_epi32(__r_int, _nRows_1) ),
                                         _mm_or_si128( _mm_cmpgt_epi32(_zero, __c_int), _mm_cmpgt_epi32(__c_int, _nCols_1) ) );
         __m128i __p_mask = _mm_or_si128(__p, reinterpret_cast<__m128i>(_outOfImg));
         __m128i *_p = reinterpret_cast<__m128i*>(&pixels(i));
@@ -970,9 +936,9 @@ void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const f
         {
             if(weights(i) > 0.f)
             {
-                if( !AlmostEqual2sComplement(jacobians(i,j), jacobians2(i,j), 100000000) )
+                if( !AlmostEqual2sComplement(jacobians(i,j), jacobians2(i,j), MAX_ULPS) )
                     cout << i << " weights(i) " << weights(i) << "\n  jacobians(i) " << jacobians.block(i,0,1,6) << "\n jacobians2(i) " << jacobians2.block(i,0,1,6) << endl;
-                ASSERT_( AlmostEqual2sComplement(jacobians(i,j), jacobians2(i,j), 100000000) );
+                ASSERT_( AlmostEqual2sComplement(jacobians(i,j), jacobians2(i,j), MAX_ULPS) );
             }
         }
     }
@@ -1097,9 +1063,9 @@ void PinholeModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const E
         {
             if(weights(i) > 0.f)
             {
-                if( !AlmostEqual2sComplement(jacobians(i,j), jacobians2(i,j), 100000000) )
+                if( !AlmostEqual2sComplement(jacobians(i,j), jacobians2(i,j), MAX_ULPS) )
                     cout << i << " weights(i) " << weights(i) << "\n  jacobians(i) " << jacobians.block(i,0,1,6) << "\n jacobians2(i) " << jacobians2.block(i,0,1,6) << endl;
-                ASSERT_( AlmostEqual2sComplement(jacobians(i,j), jacobians2(i,j), 100000000) );
+                ASSERT_( AlmostEqual2sComplement(jacobians(i,j), jacobians2(i,j), MAX_ULPS) );
             }
         }
     }
@@ -1262,12 +1228,12 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
             if(weights(i) > 0.f)
             {
                 //cout << i << " jacobians_photo(i) " << jacobians_photo.block(i,0,1,6) << "\n  jacobians_photo2(i) " << jacobians_photo2.block(i,0,1,6) << endl;
-                if( !AlmostEqual2sComplement(jacobians_photo(i,j), jacobians_photo2(i,j), 100000000) )
+                if( !AlmostEqual2sComplement(jacobians_photo(i,j), jacobians_photo2(i,j), MAX_ULPS) )
                     cout << i << " weights(i) " << weights(i) << "\n  jacobians_photo(i) " << jacobians_photo.block(i,0,1,6) << "\n jacobians_photo2(i) " << jacobians_photo2.block(i,0,1,6) << endl;
-                ASSERT_( AlmostEqual2sComplement(jacobians_photo(i,j), jacobians_photo2(i,j), 100000000) );
-                if( !AlmostEqual2sComplement(jacobians_depth(i,j), jacobians_depth2(i,j), 100000000) )
+                ASSERT_( AlmostEqual2sComplement(jacobians_photo(i,j), jacobians_photo2(i,j), MAX_ULPS) );
+                if( !AlmostEqual2sComplement(jacobians_depth(i,j), jacobians_depth2(i,j), MAX_ULPS) )
                     cout << i << " weights(i) " << weights(i) << "\n  jacobians_depth(i) " << jacobians_depth.block(i,0,1,6) << "\n jacobians_depth2(i) " << jacobians_depth2.block(i,0,1,6) << endl;
-                ASSERT_( AlmostEqual2sComplement(jacobians_depth(i,j), jacobians_depth2(i,j), 100000000) );
+                ASSERT_( AlmostEqual2sComplement(jacobians_depth(i,j), jacobians_depth2(i,j), MAX_ULPS) );
             }
         }
     }
