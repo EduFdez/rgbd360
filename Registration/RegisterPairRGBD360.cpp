@@ -119,7 +119,7 @@ int main (int argc, char ** argv)
     dir_reg.setNumPyr(5);
     dir_reg.useSaliency(false);
     // dir_reg.setVisualization(true);
-    dir_reg.setGrayVariance(9.f/255);
+    dir_reg.setGrayVariance(4.f/255);
     dir_reg.setTargetFrame(frame360_1.sphereRGB, frame360_1.sphereDepth);
     dir_reg.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
     dir_reg.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();

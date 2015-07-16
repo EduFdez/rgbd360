@@ -133,17 +133,16 @@ class SphericalModel : public ProjectionModel
     void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible);
 
     /*! Project 3D points XYZ according to the spherical camera model (3D -> 1D nearest neighbor). */
-    void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels);
+    void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & valid_pixels, Eigen::VectorXi & warped_pixels);
 
     /*! Compute the 3D points XYZ by multiplying the unit sphere by the spherical depth image. */
     void reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels);
 
     /*! Get a list of salient points (pixels with hugh gradient) and compute their 3D position xyz */
-    void reconstruct3D_saliency( Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                   const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                   const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
-                                   const float thres_saliency_gray, const float thres_saliency_depth
-                                 ); // TODO extend this function to employ only depth
+    void reconstruct3D_saliency ( const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+                                  const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad,
+                                  const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray
+                                ); // TODO extend this function to employ only depth
 
     /*! Compute the unit sphere for the given spherical image dimmensions. This serves as a LUT to speed-up calculations. */
     void reconstruct3D_unitSphere();

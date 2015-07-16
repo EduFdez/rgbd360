@@ -152,16 +152,15 @@ public:
     virtual void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible) = 0;
 
     /*! Project 3D points XYZ according to the pinhole camera model (3D -> 1D nearest neighbor). */
-    virtual void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels) = 0;
+    virtual void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & valid_pixels, Eigen::VectorXi & warped_pixels) = 0;
 
     /*! Compute the 3D points XYZ according to the pinhole camera model. */
     virtual void reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels) = 0;
 
     /*! Compute the 3D points XYZ according to the pinhole camera model. */
-    virtual void reconstruct3D_saliency ( Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                          const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                          const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
-                                          const float thres_saliency_gray, const float thres_saliency_depth
+    virtual void reconstruct3D_saliency ( const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+                                          const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad,
+                                          const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray
                                         ) = 0;
 
     /*! Warp the image according to a given geometric transformation. */

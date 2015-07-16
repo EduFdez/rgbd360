@@ -339,11 +339,10 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
 }
 
 /*! Get a list of salient points (pixels with hugh gradient) and compute their 3D position xyz */
-void SphericalModel::reconstruct3D_saliency(Eigen::MatrixXf & xyz, VectorXi & validPixels,
-                                            const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                            const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
-                                            const float thres_saliency_gray, const float thres_saliency_depth
-                                            ) // TODO extend this function to employ only depth
+void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+                                             const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad,
+                                             const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray
+                                           ) // TODO extend this function to employ only depth
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -392,14 +391,15 @@ void SphericalModel::reconstruct3D_saliency(Eigen::MatrixXf & xyz, VectorXi & va
     Eigen::VectorXf validPixels2(imgSize);
     Eigen::MatrixXf xyz2(imgSize,3);
     size_t count_valid_pixels2 = 0;
-    for(size_t r=0;r<nRows;r++)
+    for(size_t r=0; r<nRows; r++)
     {
         size_t i = r*nCols;
-        for(size_t c=0;c<nCols;c++,i++)
+        for(size_t c=0; c<nCols; c++,i++)
         {
-            if(min_depth_ < _depth[i] && _depth[i] < max_depth_) //Compute only for the valid points
-                if( fabs(_grayGradXPyr[i]) > thres_saliency_gray || fabs(_grayGradYPyr[i]) > thres_saliency_gray ||
-                    fabs(_depthGradXPyr[i]) > thres_saliency_depth || fabs(_depthGradYPyr[i]) > thres_saliency_depth )
+            //if(min_depth_ < _depth[i] && _depth[i] < max_depth_) //Compute only for the valid points
+            if(min_depth_ < _depth[i] && _depth[i] < max_depth_ && fabs(_depthGradXPyr[i]) < max_depth_grad && fabs(_depthGradYPyr[i]) < max_depth_grad ) //Compute only for the valid points
+                if( fabs(_grayGradXPyr[i]) > thres_saliency_gray || fabs(_grayGradYPyr[i]) > thres_saliency_gray  )
+                //    || fabs(_depthGradXPyr[i]) > thres_saliency_depth || fabs(_depthGradYPyr[i]) > thres_saliency_depth )
                 {
                     validPixels2(count_valid_pixels2) = i;
                     //cout << " depth " << _depth[i] << " validPixels " << validPixels(count_valid_pixels2) << " count_valid_pixels2 " << count_valid_pixels2 << endl;
@@ -425,9 +425,10 @@ void SphericalModel::reconstruct3D_saliency(Eigen::MatrixXf & xyz, VectorXi & va
         size_t i = r*nCols;
         for(size_t c=0;c<nCols;c++,i++)
         {
-            if(min_depth_ < _depth[i] && _depth[i] < max_depth_) //Compute only for the valid points
-                if( fabs(_grayGradXPyr[i]) > thres_saliency_gray || fabs(_grayGradYPyr[i]) > thres_saliency_gray ||
-                    fabs(_depthGradXPyr[i]) > thres_saliency_depth || fabs(_depthGradYPyr[i]) > thres_saliency_depth )
+            //if(min_depth_ < _depth[i] && _depth[i] < max_depth_) //Compute only for the valid points
+            if(min_depth_ < _depth[i] && _depth[i] < max_depth_ && fabs(_depthGradXPyr[i]) < max_depth_grad && fabs(_depthGradYPyr[i]) < max_depth_grad ) //Compute only for the valid points
+                if( fabs(_grayGradXPyr[i]) > thres_saliency_gray || fabs(_grayGradYPyr[i]) > thres_saliency_gray  )
+                //    || fabs(_depthGradXPyr[i]) > thres_saliency_depth || fabs(_depthGradYPyr[i]) > thres_saliency_depth )
                 {
                     validPixels(count_valid_pixels) = i;
                     //cout << " depth " << _depth[i] << " validPixels " << validPixels(count_valid_pixels) << " count_valid_pixels " << count_valid_pixels << endl;
@@ -460,10 +461,12 @@ void SphericalModel::reconstruct3D_saliency(Eigen::MatrixXf & xyz, VectorXi & va
     float *_valid_pt = reinterpret_cast<float*>(&validPixels_tmp(0));
     __m128 _min_depth_ = _mm_set1_ps(min_depth_);
     __m128 _max_depth_ = _mm_set1_ps(max_depth_);
-    __m128 _depth_saliency_ = _mm_set1_ps(thres_saliency_depth);
+    __m128 _max_depth_grad = _mm_set1_ps(max_depth_grad);
+    __m128 _max_depth_grad_neg = _mm_set1_ps(-max_depth_grad);
     __m128 _gray_saliency_ = _mm_set1_ps(thres_saliency_gray);
-    __m128 _depth_saliency_neg = _mm_set1_ps(-thres_saliency_depth);
     __m128 _gray_saliency_neg = _mm_set1_ps(-thres_saliency_gray);
+//    __m128 _depth_saliency_ = _mm_set1_ps(thres_saliency_depth);
+//    __m128 _depth_saliency_neg = _mm_set1_ps(-thres_saliency_depth);
 
     if(imgSize > 1e5)
     {
@@ -489,20 +492,22 @@ void SphericalModel::reconstruct3D_saliency(Eigen::MatrixXf & xyz, VectorXi & va
                 _mm_store_ps(_y+i, __y);
                 _mm_store_ps(_z+i, __z);
 
-                //__m128 mask = _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) );
-                //mi cmpeq_epi8(mi a,mi b)
-
-                //_mm_store_ps(_valid_pt+i, _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) ) );
                 __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) );
                 __m128 __gradDepthX = _mm_load_ps(_depthGradXPyr+i);
                 __m128 __gradDepthY = _mm_load_ps(_depthGradYPyr+i);
                 __m128 __gradGrayX = _mm_load_ps(_grayGradXPyr+i);
                 __m128 __gradGrayY = _mm_load_ps(_grayGradYPyr+i);
-                __m128 salient_pts = _mm_or_ps( _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps(__gradDepthX, _depth_saliency_), _mm_cmplt_ps(__gradDepthX, _depth_saliency_neg) ),
-                                                           _mm_or_ps( _mm_cmpgt_ps(__gradDepthY, _depth_saliency_), _mm_cmplt_ps(__gradDepthY, _depth_saliency_neg) ) ),
-                                                _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( __gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayX, _gray_saliency_neg ) ),
-                                                           _mm_or_ps( _mm_cmpgt_ps( __gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayY, _gray_saliency_neg ) ) ) );
-                _mm_store_ps(_valid_pt+i, _mm_and_ps( valid_depth_pts, salient_pts ) );
+                __m128 valid_depth_grad = _mm_and_ps(_mm_and_ps( _mm_cmpgt_ps(_max_depth_grad, __gradDepthX), _mm_cmplt_ps(_max_depth_grad_neg, __gradDepthX) ),
+                                                     _mm_and_ps( _mm_cmpgt_ps(_max_depth_grad, __gradDepthY), _mm_cmplt_ps(_max_depth_grad_neg, __gradDepthY) ) );
+                //__m128 salient_pts = _mm_or_ps( _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps(__gradDepthX, _depth_saliency_), _mm_cmplt_ps(__gradDepthX, _depth_saliency_neg) ),
+                //                                           _mm_or_ps( _mm_cmpgt_ps(__gradDepthY, _depth_saliency_), _mm_cmplt_ps(__gradDepthY, _depth_saliency_neg) ) ),
+                //                                _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( __gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayX, _gray_saliency_neg ) ),
+                //                                           _mm_or_ps( _mm_cmpgt_ps( __gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayY, _gray_saliency_neg ) ) ) );
+                //_mm_store_ps(_valid_pt+i, _mm_and_ps( valid_depth_pts, salient_pts ) );
+                //_mm_store_ps(_valid_pt+i, _mm_and_ps( valid_depth_pts, salient_pts ) );
+                __m128 salient_pts =_mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( __gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayX, _gray_saliency_neg ) ),
+                                               _mm_or_ps( _mm_cmpgt_ps( __gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayY, _gray_saliency_neg ) ) );
+                _mm_store_ps(_valid_pt+i, _mm_and_ps( _mm_and_ps(valid_depth_pts, valid_depth_grad), salient_pts ) );
             }
         }
     }
@@ -527,15 +532,22 @@ void SphericalModel::reconstruct3D_saliency(Eigen::MatrixXf & xyz, VectorXi & va
                 _mm_store_ps(_y+i, __y);
                 _mm_store_ps(_z+i, __z);
 
-                //_mm_store_ps(_valid_pt+i, _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) ) );
                 __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) );
                 __m128 __gradDepthX = _mm_load_ps(_depthGradXPyr+i);
                 __m128 __gradDepthY = _mm_load_ps(_depthGradYPyr+i);
                 __m128 __gradGrayX = _mm_load_ps(_grayGradXPyr+i);
                 __m128 __gradGrayY = _mm_load_ps(_grayGradYPyr+i);
-                __m128 salient_pts = _mm_or_ps( _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps(__gradDepthX, _depth_saliency_), _mm_cmplt_ps(__gradDepthX, _depth_saliency_neg) ), _mm_or_ps( _mm_cmpgt_ps(__gradDepthY, _depth_saliency_), _mm_cmplt_ps(__gradDepthY, _depth_saliency_neg) ) ),
-                                                _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( __gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayX, _gray_saliency_neg ) ), _mm_or_ps( _mm_cmpgt_ps( __gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayY, _gray_saliency_neg ) ) ) );
-                _mm_store_ps(_valid_pt+i, _mm_and_ps( valid_depth_pts, salient_pts ) );
+                __m128 valid_depth_grad = _mm_and_ps(_mm_and_ps( _mm_cmpgt_ps(_max_depth_grad, __gradDepthX), _mm_cmplt_ps(_max_depth_grad_neg, __gradDepthX) ),
+                                                     _mm_and_ps( _mm_cmpgt_ps(_max_depth_grad, __gradDepthY), _mm_cmplt_ps(_max_depth_grad_neg, __gradDepthY) ) );
+                //__m128 salient_pts = _mm_or_ps( _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps(__gradDepthX, _depth_saliency_), _mm_cmplt_ps(__gradDepthX, _depth_saliency_neg) ),
+                //                                           _mm_or_ps( _mm_cmpgt_ps(__gradDepthY, _depth_saliency_), _mm_cmplt_ps(__gradDepthY, _depth_saliency_neg) ) ),
+                //                                _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( __gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayX, _gray_saliency_neg ) ),
+                //                                           _mm_or_ps( _mm_cmpgt_ps( __gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayY, _gray_saliency_neg ) ) ) );
+                //_mm_store_ps(_valid_pt+i, _mm_and_ps( valid_depth_pts, salient_pts ) );
+                //_mm_store_ps(_valid_pt+i, _mm_and_ps( valid_depth_pts, salient_pts ) );
+                __m128 salient_pts =_mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( __gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayX, _gray_saliency_neg ) ),
+                                               _mm_or_ps( _mm_cmpgt_ps( __gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayY, _gray_saliency_neg ) ) );
+                _mm_store_ps(_valid_pt+i, _mm_and_ps( _mm_and_ps(valid_depth_pts, valid_depth_grad), salient_pts ) );
             }
         }
     }
@@ -577,7 +589,7 @@ void SphericalModel::reconstruct3D_saliency(Eigen::MatrixXf & xyz, VectorXi & va
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " SphericalModel::reconstruct3D " << depth_img.rows*depth_img.cols << " (" << depth_img.rows << "x" << depth_img.cols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " SphericalModel::reconstruct3D_saliency " << depth_img.rows*depth_img.cols << " (" << depth_img.rows << "x" << depth_img.cols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
@@ -721,7 +733,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
 }
 
 /*! Project 3D points XYZ according to the spherical camera model. */
-void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels)
+void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pixels, VectorXi & warped_pixels)
 {
 #if PRINT_PROFILING
     //cout << " SphericalModel::projectNN ... " << xyz.rows() << " points. \n";
@@ -730,7 +742,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels)
     {
 #endif
 
-    pixels.resize(xyz.rows());
+    warped_pixels.resize(xyz.rows());
 //    visible.resize(xyz.rows());
     //int *_p = &pixels(0);
     //float *_v = reinterpret_cast<float*>(&visible(0));
@@ -738,39 +750,49 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels)
     const float *_y = &xyz(0,1);
     const float *_z = &xyz(0,2);
 
-//#if TEST_SIMD
-//    // Test SSE
-//    Eigen::VectorXi pixels2(xyz.rows());
-//    for(int i=0; i < pixels.size(); i++)
-//    {
-//        Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
-//        cv::Point2f warped_pixel = project2Image(pt_xyz);
-//        int r_transf = round(warped_pixel.y);
-//        int c_transf = round(warped_pixel.x);
-//        if( isInImage(r_transf) )
-//            pixels2(i) = r_transf * nCols + c_transf;
-//        else
-//            pixels2(i) = -1;
-//        // cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << " pixel " << pixels2(i) << endl;
-//        // mrpt::system::pause();
-//    }
-//#endif
+#if TEST_SIMD
+    // Test SSE
+    Eigen::VectorXi warped_pixels2(xyz.rows());
+    for(int i=0; i < warped_pixels.size(); i++)
+    {
+        if(valid_pixels(i) == -1)
+        {
+            warped_pixels2(i) = -1;
+            continue;
+        }
+        Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
+        cv::Point2f warped_pixel = project2Image(pt_xyz);
+        int r_transf = round(warped_pixel.y);
+        int c_transf = round(warped_pixel.x);
+        if( isInImage(r_transf) )
+            warped_pixels2(i) = r_transf * nCols + c_transf;
+        else
+            warped_pixels2(i) = -1;
+        // cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << " pixel " << warped_pixels2(i) << endl;
+        // mrpt::system::pause();
+    }
+#endif
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
 //    #if ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
-    for(int i=0; i < pixels.size(); i++)
+    for(int i=0; i < warped_pixels.size(); i++)
     {
+        if(valid_pixels(i) == -1)
+        {
+            warped_pixels(i) = -1;
+            continue;
+        }
         Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
         cv::Point2f warped_pixel = project2Image(pt_xyz);
         int r_transf = round(warped_pixel.y);
         int c_transf = round(warped_pixel.x);
         if( isInImage(r_transf) )
-            pixels(i) = r_transf * nCols + c_transf;
+            warped_pixels(i) = r_transf * nCols + c_transf;
         else
-            pixels(i) = -1;
+            warped_pixels(i) = -1;
         // cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << endl;
 //        visible(i) = isInImage(r_transf) ? 1 : 0;
     }
@@ -789,7 +811,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels)
     __m128 _start_row = _mm_set1_ps(start_row);
     __m128 _half_width = _mm_set1_ps(half_width);
     __m128 _pixel_angle_inv = _mm_set1_ps(pixel_angle_inv);
-    for(int i=0; i < pixels.size(); i+=4)
+    for(int i=0; i < warped_pixels.size(); i+=4)
     {
         __m128 __x = _mm_load_ps(_x+i);
         __m128 __y = _mm_load_ps(_y+i);
@@ -821,14 +843,17 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels)
 
         __m128i __p = _mm_add_epi32( _mm_mullo_epi32(_nCols, __r_int ), __c_int );
         __m128i _outOfImg = _mm_or_si128( _mm_cmpgt_epi32(_zero, __r_int), _mm_cmpgt_epi32(__r_int, _nRows_1) );
-//        __m128i _outOfImg  _mm_or_si128(_mm_or_si128( _mm_cmpgt_epi32(_zero, __r_int), _mm_cmpgt_epi32(__r_int, _nRows_1) ),
-//                                        _mm_cmpeq_epi32( validPixels_src, _minus_one ) );
-        __m128i __p_mask = _mm_or_si128(__p, reinterpret_cast<__m128i>(_outOfImg));
+        const __m128i *_valid = reinterpret_cast<__m128i*>(&valid_pixels(i));
+        __m128i __v = _mm_load_si128(_valid);
+        __m128i _invalid = _mm_or_si128( _outOfImg, _mm_cmpeq_epi32(__v, _minus_one) );
+        __m128i __p_mask = _mm_or_si128(__p, reinterpret_cast<__m128i>(_invalid));
+//        cout << " __v " << i << " " << _mm_extract_epi32(__v,0) << " " << _mm_extract_epi32(__v,1) << " " << _mm_extract_epi32(__v,2) << " " << _mm_extract_epi32(__v,3) << endl;
+//        cout << " _invalid " << i << " " << _mm_extract_epi32(_invalid,0) << " " << _mm_extract_epi32(_invalid,1) << " " << _mm_extract_epi32(_invalid,2) << " " << _mm_extract_epi32(_invalid,3) << endl;
 //        cout << " warped pixels " << i << " " << _mm_extract_epi32(__p,0) << " " << _mm_extract_epi32(__p,1) << " " << _mm_extract_epi32(__p,2) << " " << _mm_extract_epi32(__p,3) << endl;
 //        cout << " warped pixels " << i << " " << _mm_extract_epi32(__p_mask,0) << " " << _mm_extract_epi32(__p_mask,1) << " " << _mm_extract_epi32(__p_mask,2) << " " << _mm_extract_epi32(__p_mask,3) << endl;
 //        cout << "_outOfImg " << i << " " << _mm_extract_epi32(_outOfImg,0) << " " << _mm_extract_epi32(_outOfImg,1) << " " << _mm_extract_epi32(_outOfImg,2) << " " << _mm_extract_epi32(_outOfImg,3) << endl;
 
-        __m128i *_p = reinterpret_cast<__m128i*>(&pixels(i));
+        __m128i *_p = reinterpret_cast<__m128i*>(&warped_pixels(i));
         _mm_store_si128(_p, __p_mask);
         //cout << "stored warped __p  " << i << " " << pixels(i) << " " << pixels(i+1) << " " << pixels(i+2) << " " << pixels(i+3) << endl;
         //mrpt::system::pause();
@@ -848,7 +873,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels)
 //    // Test SSE
 //    for(int i=0; i < pixels.size(); i++)
 //    {
-//        if( pixels(i) != pixels2(i) )
+//        if( pixels(i) != warped_pixels2(i) )
 //        {
 //            Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
 //            cv::Point2f warped_pixel = project2Image(pt_xyz);
@@ -856,9 +881,9 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & pixels)
 //            int c_transf = round(warped_pixel.x);
 //            cout << i << " Pixel transform " //<< i/nCols << " " << i%nCols << " "
 //                 << r_transf << " " << c_transf << " warped_pixel " << warped_pixel.x << " " << warped_pixel.y << endl;
-//            cout << i << " pixels " << pixels(i) << " " << pixels2(i) << endl; // << " visible " << visible(i) << " " << visible2(i) <<
+//            cout << i << " pixels " << pixels(i) << " " << warped_pixels2(i) << endl; // << " visible " << visible(i) << " " << visible2(i) <<
 //        }
-//        ASSERT_( pixels(i) == pixels2(i) );
+//        ASSERT_( pixels(i) == warped_pixels2(i) );
 //    }
 //#endif
 

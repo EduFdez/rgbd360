@@ -97,16 +97,15 @@ class PinholeModel : public ProjectionModel
     void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible);
 
     /*! Project 3D points XYZ according to the pinhole camera model (3D -> 1D nearest neighbor). */
-    void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & pixels); //, Eigen::VectorXi & visible);
+    void projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & valid_pixels, Eigen::VectorXi & warped_pixels);
 
     /*! Compute the 3D points XYZ according to the pinhole camera model. */
     void reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels);
 
     /*! Compute the 3D points XYZ according to the pinhole camera model. */
-    void reconstruct3D_saliency ( Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                  const cv::Mat & depth_img, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY,
-                                  const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY,
-                                  const float thres_saliency_gray, const float thres_saliency_depth
+    void reconstruct3D_saliency ( const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
+                                  const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad,
+                                  const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray
                                 );
 
     /*! Compute the Jacobian composition of the warping + 3D transformation wrt to the 6DoF transformation */

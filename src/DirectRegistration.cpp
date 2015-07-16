@@ -89,7 +89,7 @@ DirectRegistration::DirectRegistration(sensorType sensor) :
     else //RGBD360_INDOOR, STEREO_OUTDOOR
         ProjModel = new SphericalModel;
 
-    stdDevPhoto = 8./255;
+    stdDevPhoto = 4./255;
     varPhoto = stdDevPhoto*stdDevPhoto;
 
     stdDevDepth = 0.01;
@@ -317,7 +317,7 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
     if( !use_bilinear_ || pyrLevel !=0 )
     {
         // Warp the image
-        ProjModel->projectNN(xyz_src_transf, warp_pixels_src);
+        ProjModel->projectNN(xyz_src_transf, validPixels_src, warp_pixels_src);
 
         if(method == PHOTO_DEPTH)
         {            
@@ -331,7 +331,8 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
             for(size_t i=0; i < n_pts; i++)
             {
                 //cout << i << " validPixels_src " << validPixels_src(i) << " warp_pixel " << warp_pixels_src(i) << endl;
-                if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+                //if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+                if( warp_pixels_src(i) != -1 )
                 {
                     //cout << i << " validPixels_src " << validPixels_src(i) << " warp_pixel " << warp_pixels_src(i) << endl;
                     ++numVisiblePts;
@@ -379,7 +380,8 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
 #endif
             for(size_t i=0; i < n_pts; i++)
             {
-                if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+                //if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+                if( warp_pixels_src(i) != -1 )
                 {
                     ++numVisiblePts;
                     // cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyrLevel].at<float>(r_transf,c_transf)) << " " << fabs(grayTrgGradYPyr[pyrLevel].at<float>(r_transf,c_transf)) << endl;
@@ -407,7 +409,8 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
 #endif
             for(size_t i=0; i < n_pts; i++)
             {
-                if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+                //if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+                if( warp_pixels_src(i) != -1 )
                 {
                     ++numVisiblePts;
                     float depth = _depthTrgPyr[warp_pixels_src(i)];
@@ -437,7 +440,8 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
     #endif
             for(size_t i=0; i < n_pts; i++)
             {
-                if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+                //if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+                if( warp_pixels_src(i) != -1 )
                 {
                     float depth = _depthTrgPyr[warp_pixels_src(i)];
                     if(depth > ProjModel->min_depth_) // if(depth > ProjModel->min_depth_) // Make sure this point has depth (not a NaN)
@@ -657,33 +661,17 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 //    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
 
     // Build the aligned versions of the image derivatives, so that we can benefit from SIMD performance
-    VectorXf grayGradX, grayGradY;
-    VectorXf depthGradX, depthGradY;
     if(use_salient_pixels_)
     {
         if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
         {
-            grayGradX.resize(n_pts);
-            grayGradY.resize(n_pts);
-            for(size_t i=0; i < n_pts; i++)
-            {
-                grayGradX(i) = _graySrcGradXPyr[warp_pixels_src(i)];
-                grayGradY(i) = _graySrcGradYPyr[warp_pixels_src(i)];
-            }
-            _graySrcGradXPyr = &grayGradX(0);
-            _graySrcGradYPyr = &grayGradY(0);
+            _graySrcGradXPyr = &grayGradX_sal(0);
+            _graySrcGradYPyr = &grayGradY_sal(0);
         }
         if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
         {
-            depthGradX.resize(n_pts);
-            depthGradY.resize(n_pts);
-            for(size_t i=0; i < n_pts; i++)
-            {
-                depthGradX(i) = _depthSrcGradXPyr[warp_pixels_src(i)];
-                depthGradY(i) = _depthSrcGradYPyr[warp_pixels_src(i)];
-            }
-            _depthSrcGradXPyr = &depthGradX(0);
-            _depthSrcGradYPyr = &depthGradY(0);
+            _depthSrcGradXPyr = &depthGradX_sal(0);
+            _depthSrcGradYPyr = &depthGradY_sal(0);
         }
     }
 
@@ -7298,7 +7286,40 @@ void DirectRegistration::regist(const Matrix4f pose_guess, const costFuncType me
         ProjModel->scaleCameraParams(depthSrcPyr, pyrLevel);
 
         // Make LUT to store the values of the 3D points of the source image
-        ProjModel->reconstruct3D(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
+        if(use_salient_pixels_)
+        {
+            ProjModel->reconstruct3D_saliency( depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src,
+                                               depthSrcGradXPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], _max_depth_grad,
+                                               graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradXPyr[pyrLevel], thres_saliency_gray_);
+
+            const size_t n_pts = validPixels_src.rows();
+            if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+            {
+                float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
+                float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
+                grayGradX_sal.resize(n_pts);
+                grayGradY_sal.resize(n_pts);
+                for(size_t i=0; i < n_pts; i++)
+                {
+                    grayGradX_sal(i) = _graySrcGradXPyr[validPixels_src(i)];
+                    grayGradY_sal(i) = _graySrcGradYPyr[validPixels_src(i)];
+                }
+            }
+            if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+            {
+                float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
+                float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
+                depthGradX_sal.resize(n_pts);
+                depthGradY_sal.resize(n_pts);
+                for(size_t i=0; i < n_pts; i++)
+                {
+                    depthGradX_sal(i) = _depthSrcGradXPyr[validPixels_src(i)];
+                    depthGradY_sal(i) = _depthSrcGradYPyr[validPixels_src(i)];
+                }
+            }
+        }
+        else
+            ProjModel->reconstruct3D(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
         //ProjModel->reconstruct3D(depthTrgPyr[pyrLevel], LUT_xyz_target, validPixels_trg);
 
 //        MatrixXf LUT_xyz_source_(imgSize,3);
