@@ -87,8 +87,8 @@ void Pyramid::buildPyramid(const cv::Mat & img, std::vector<cv::Mat> & pyramid, 
 //        cv::Mat img_show;
 //        pyramid[level].convertTo(img_show, CV_8UC1, 255);
 //        cv::imwrite(mrpt::format("/home/efernand/pyr_gray_%d.png",level), img_show);
-//        //cv::imshow("pyramid", pyramid[level]);
-//        //cv::waitKey(0);
+//        cv::imshow("pyramid", pyramid[level]);
+//        cv::waitKey(0);
     }
 #if PRINT_PROFILING
     }
@@ -115,15 +115,6 @@ void Pyramid::buildPyramidRange(const cv::Mat & img, std::vector<cv::Mat> & pyra
         pyramid[0] = img;
     //    cout << "types " << pyramid[0].type() << " " << img.type() << endl;
 
-//    cv::Mat img_show;
-//    cv::Mat img255(pyramid[0].rows, pyramid[0].cols, CV_8U, 255);
-//    const float viz_factor_meters = 82.5;
-//    pyramid[0].convertTo(img_show, CV_8U, viz_factor_meters);
-//    cv::Mat mask = img_show == 0;
-//    img_show = img255 - img_show;
-//    img_show.setTo(0, mask);
-//    cv::imwrite(mrpt::format("/home/efernand/pyr_depth_%d.png",0), img_show);
-
     for(int level=1; level <= nPyrLevels; level++)
     {
         //Create an auxiliar image of factor times the size of the original image
@@ -134,8 +125,8 @@ void Pyramid::buildPyramidRange(const cv::Mat & img, std::vector<cv::Mat> & pyra
         //            cv::Mat imgAux = cv::Mat::zeros(cv::Size( nCols/2, pyramid[level-1].rows/2 ), pyramid[0].type() );
         float *_z = reinterpret_cast<float*>(pyramid[level-1].data);
         float *_z_sub = reinterpret_cast<float*>(pyramid[level].data);
-        if(img_size > 4*1e4) // Apply multicore only to the bigger images
-        {
+//        if(img_size > 4*1e4) // Apply multicore only to the bigger images
+//        {
 #if ENABLE_OPENMP
 #pragma omp parallel for
 #endif
@@ -161,42 +152,48 @@ void Pyramid::buildPyramidRange(const cv::Mat & img, std::vector<cv::Mat> & pyra
                     if(nvalidPixels_src > 0)
                     {
                         //pyramid[level].at<float>(r/2,c/2) = avDepth / nvalidPixels_src;
-                        size_t pixel_sub = r*nCols/4 + c/2;
+                        unsigned int pixel_sub = r*nCols/4 + c/2;
                         _z_sub[pixel_sub] = avDepth / nvalidPixels_src;
+                        //cout << pixel_sub << " pixel_sub " << _z_sub[pixel_sub] << endl;
                     }
                 }
             }
-        }
-        else
-        {
-            for(size_t r=0; r < nRows; r+=2)
-                for(size_t c=0; c < nCols; c+=2)
-                {
-                    float avDepth = 0.f;
-                    unsigned nvalidPixels_src = 0;
-                    for(size_t i=0; i < 2; i++)
-                        for(size_t j=0; j < 2; j++)
-                        {
-                            size_t pixel = (r+i)*nCols + c + j;
-                            float z = _z[pixel];
-                            //                        float z = pyramid[level-1].at<float>(r+i,c+j);
-                            //cout << "z " << z << endl;
-                            if(z > 0.f)
-                            {
-                                avDepth += z;
-                                ++nvalidPixels_src;
-                            }
-                        }
-                    if(nvalidPixels_src > 0)
-                    {
-                        //pyramid[level].at<float>(r/2,c/2) = avDepth / nvalidPixels_src;
-                        size_t pixel_sub = r*nCols/4 + c/2;
-                        _z_sub[pixel_sub] = avDepth / nvalidPixels_src;
-                    }
-                }
-        }
+//        }
+//        else
+//        {
+//            for(size_t r=0, new_pixel=0; r < nRows; r+=2)
+//                for(size_t c=0; c < nCols; c+=2, new_pixel++)
+//                {
+//                    vector<float> valid_depth(4);
+//                    unsigned nvalidPixels_src = 0;
+//                    for(size_t i=0; i < 2; i++)
+//                        for(size_t j=0; j < 2; j++)
+//                        {
+//                            size_t pixel = (r+i)*nCols + c + j;
+//                            float z = _z[pixel];
+//                            //                        float z = pyramid[level-1].at<float>(r+i,c+j);
+//                            //cout << "z " << z << endl;
+//                            if(z > 0.f)
+//                            {
+//                                valid_depth[nvalidPixels_src] = z;
+//                                ++nvalidPixels_src;
+//                            }
+//                        }
+//                    if(nvalidPixels_src > 0)
+//                    {
+//                        valid_depth.resize(nvalidPixels_src);
+//                        std::sort(valid_depth.begin(), valid_depth.end());
+//                        //pyramid[level].at<float>(r/2,c/2) = avDepth / nvalidPixels_src;
+//                        size_t id_median = nvalidPixels_src / 2;
+//                        _z_sub[new_pixel] = valid_depth[id_median];
+//                        //cout << new_pixel << " new_pixel " << _z_sub[new_pixel] << endl;
+//                    }
+//                }
+//        }
+
 //        cv::Mat img_show;
 //        cv::Mat img255(pyramid[level].rows, pyramid[level].cols, CV_8U, 255);
+//        const float viz_factor_meters = 82.5;
 //        pyramid[level].convertTo(img_show, CV_8U, viz_factor_meters);
 //        cv::Mat mask = img_show == 0;
 //        img_show = img255 - img_show;

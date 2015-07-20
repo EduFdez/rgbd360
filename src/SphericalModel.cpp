@@ -153,9 +153,8 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
     // Test SSE
     Eigen::MatrixXf xyz2(imgSize,3);
     Eigen::VectorXi validPixels2(imgSize);
-    for(int r=0; r < nRows;r++)
+    for(int r=0, i=0; r < nRows;r++)
     {
-        size_t i = r*nCols;
         for(int c=0; c < nCols;c++,i++)
         {
             float depth1 = _depth[i];
@@ -183,9 +182,8 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
     #if ENABLE_OPENMP
     #pragma omp parallel for
     #endif
-    for(int r=0; r < nRows;r++)
+    for(int r=0, i=0; r < nRows;r++)
     {
-        size_t i = r*nCols;
         for(int c=0; c < nCols;c++,i++)
         {
             float depth1 = _depth[i];
@@ -228,12 +226,11 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
 //    }
 //    else
     {
-        for(int r=0; r < nRows; r++)
+        for(int r=0, i=0; r < nRows; r++)
         {
             __m128 sin_phi = _mm_set1_ps(v_sinPhi[r]);
             __m128 cos_phi = _mm_set1_ps(v_cosPhi[r]);
 
-            size_t i = r*nCols;
             for(int c=0; c < nCols; c+=4, i+=4)
             {
                 __m128 __depth = _mm_load_ps(_depth+i);
@@ -257,14 +254,13 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
                 __m128i *_v = reinterpret_cast<__m128i*>(&validPixels(i));
                 _mm_store_si128(_v, __idx_mask);
 
-                for(int j=0; j < 4; j++)
-                {
-                    //cout << "_v " << validPixels(i+j) << endl;
-                    const int jj = j;
-                    cout << i+j << " depth " << __depth[jj] << " _invalid_pts " << (int)(_invalid_pts[jj]) << " xyz " << __x[jj] << " " << __y[jj] << " " << __z[jj] << " validPixels " << validPixels(i+j) << endl;
-    //                if(!valid_depth_pts[jj])
-    //                    validPixels(i+j) = -1;
-                }
+//                for(int j=0; j < 4; j++)
+//                {
+//                    const int jj = j;
+//                    cout << i+j << " depth " << __depth[jj] << " _invalid_pts " << (int)(_invalid_pts[jj]) << " xyz " << __x[jj] << " " << __y[jj] << " " << __z[jj] << " validPixels " << validPixels(i+j) << endl;
+//    //                if(!valid_depth_pts[jj])
+//    //                    validPixels(i+j) = -1;
+//                }
             }
         }
     }
@@ -356,9 +352,8 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
     Eigen::VectorXf validPixels2(imgSize);
     Eigen::MatrixXf xyz2(imgSize,3);
     size_t count_valid_pixels2 = 0;
-    for(size_t r=0; r<nRows; r++)
+    for(size_t r=0, i=0; r<nRows; r++)
     {
-        size_t i = r*nCols;
         for(size_t c=0; c<nCols; c++,i++)
         {
             //if(min_depth_ < _depth[i] && _depth[i] < max_depth_) //Compute only for the valid points
@@ -385,9 +380,8 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
 #if !(_SSE3) // # ifdef __SSE3__
 
     size_t count_valid_pixels = 0;
-    for(size_t r=0;r<nRows;r++)
+    for(size_t r=0, i=0;r<nRows;r++)
     {
-        size_t i = r*nCols;
         for(size_t c=0;c<nCols;c++,i++)
         {
             //if(min_depth_ < _depth[i] && _depth[i] < max_depth_) //Compute only for the valid points
@@ -489,12 +483,11 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
 //    }
 //    else
     {
-        for(int r=0; r < nRows; r++)
+        for(int r=0, i=0; r < nRows; r++)
         {
             __m128 sin_phi = _mm_set1_ps(v_sinPhi[r]);
             __m128 cos_phi = _mm_set1_ps(v_cosPhi[r]);
 
-            size_t i = r*nCols;
             for(int c=0; c < nCols; c+=4, i+=4)
             {
                 __m128 __depth = _mm_load_ps(_depth+i);
@@ -1010,7 +1003,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
 
         __m128i *_p = reinterpret_cast<__m128i*>(&warped_pixels(i));
         _mm_store_si128(_p, __p_mask);
-        cout << "stored warped __p  " << i << " " << warped_pixels(i) << " " << warped_pixels(i+1) << " " << warped_pixels(i+2) << " " << warped_pixels(i+3) << endl;
+//        cout << "stored warped __p  " << i << " " << warped_pixels(i) << " " << warped_pixels(i+1) << " " << warped_pixels(i+2) << " " << warped_pixels(i+3) << endl;
 //        mrpt::system::pause();
 
 //        __m128i __v = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) );

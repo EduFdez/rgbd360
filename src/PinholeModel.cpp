@@ -184,10 +184,9 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
     __m128 _max_depth_ = _mm_set1_ps(max_depth_);
     __m128i _idx_zero_ = _mm_setr_epi32(0.f, 1.f, 2.f, 3.f);
     //__m128 __nan = _mm_set1_ps(-std::numeric_limits<float>::quiet_NaN());
-    for(int r=0; r < nRows; r++)
+    for(int r=0,i=0; r < nRows; r++)
     {
         __m128 __r = _mm_set1_ps(r);
-        size_t i = r*nCols;
         for(int c=0; c < nCols; c+=4, i+=4)
         {
             __m128 __depth = _mm_load_ps(_depth+i);
@@ -507,10 +506,9 @@ void PinholeModel::reconstruct3D_saliency ( const cv::Mat & depth_img, Eigen::Ma
     __m128 _depth_saliency_ = _mm_set1_ps(thres_saliency_depth);
     __m128 _depth_saliency_neg = _mm_set1_ps(-thres_saliency_depth);
 
-    for(int r=0; r < nRows; r++)
+    for(int r=0, i=0; r < nRows; r++)
     {
         __m128 _r = _mm_set1_ps(r);
-        size_t i = r*nCols;
         for(int c=0; c < nCols; c+=4, i+=4)
         {
             __m128 __depth = _mm_load_ps(_depth+i);
