@@ -349,7 +349,7 @@ class GetControlPlanes
 
       cout << "Segment planes\n";
         // Segment planes
-        frame360.getLocalPlanes();
+        frame360.segmentPlanesLocal();
 
       cout << "Merge planes \n";
         planes.vPlanes.clear();

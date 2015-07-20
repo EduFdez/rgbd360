@@ -296,7 +296,7 @@ cout << "Get eigen depth\n";
 
     //  frame360->undistort();
 //      frame360->buildSphereCloud_rgbd360();
-//      frame360->getPlanes();
+//      frame360->segmentPlanes();
 //cout << "Get eigen depth\n";
 
       if(!bVisualize)
@@ -327,7 +327,7 @@ cout << "Get eigen depth\n";
           frame360->undistort();
 cout << "frame360->buildSphereCloud\n";
           frame360->buildSphereCloud_rgbd360();
-//          frame360->getPlanes();
+//          frame360->segmentPlanes();
 
           if(mode == 3)
           {
@@ -375,7 +375,7 @@ cout << "frame360->buildSphereCloud\n";
 //      }
 
       // Segment surfaces (planes and curve regions)
-//      obs360.getPlanes();
+//      obs360.segmentPlanes();
 
       // Visualize the data
       if(bVisualize)

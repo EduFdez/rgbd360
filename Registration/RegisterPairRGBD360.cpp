@@ -114,12 +114,15 @@ int main (int argc, char ** argv)
     //float angle_offset = -90;
     //Eigen::Matrix4f rot_offset = Eigen::Matrix4f::Identity(); rot_offset(0,0) = rot_offset(1,1) = cos(angle_offset*PI/180); rot_offset(0,1) = -sin(angle_offset*PI/180); rot_offset(1,0) = -rot_offset(0,1);
 
+    cout << "Dense Registration\n" << endl;
     DirectRegistration dir_reg(DirectRegistration::RGBD360_INDOOR); // Dense RGB-D alignment
     //dir_reg.setSensorType(DirectRegistration::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::regist for more details)
-    dir_reg.setNumPyr(5);
+    dir_reg.setNumPyr(4);
     dir_reg.useSaliency(false);
     // dir_reg.setVisualization(true);
     dir_reg.setGrayVariance(4.f/255);
+    dir_reg.setSaliencyThreshodIntensity(0.05f);
+    dir_reg.setSaliencyThreshodDepth(0.05f);
     dir_reg.setTargetFrame(frame360_1.sphereRGB, frame360_1.sphereDepth);
     dir_reg.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
     dir_reg.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
@@ -164,8 +167,6 @@ int main (int argc, char ** argv)
 //    cout << "Pose Dense Saliency Jac \n" << dir_reg.getOptimalPose() << endl;
     
     dir_reg.useSaliency(true);
-    dir_reg.setSaliencyThreshodIntensity(0.05f);
-    dir_reg.setSaliencyThreshodDepth(0.05f);
     dir_reg.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     cout << "Pose Dense Saliency \n" << dir_reg.getOptimalPose() << endl;
     

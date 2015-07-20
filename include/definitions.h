@@ -33,7 +33,7 @@
 #define DEFINITIONS_H
 
 
-#define NUM_ASUS_SENSORS 8
+#define NUM_ASUS_SENSORS 4
 #define USE_INTRINSICS 1
 
 

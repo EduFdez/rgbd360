@@ -129,6 +129,9 @@ class SphericalModel : public ProjectionModel
         transformed_c_int = round(theta_trg*nCols/(2*PI));
     };
 
+    /*! Re-project the warping image into the reference one. The input points 'xyz' represent the reference point cloud as seen by the target image. */
+    void reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray, cv::Mat & warped_gray, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible);
+
     /*! Project 3D points XYZ according to the spherical camera model (3D -> 2D). */
     void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible);
 
@@ -139,8 +142,8 @@ class SphericalModel : public ProjectionModel
     void reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & sphere_xyz, Eigen::VectorXi & validPixels);
 
     /*! Get a list of salient points (pixels with hugh gradient) and compute their 3D position xyz */
-    void reconstruct3D_saliency ( const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                  const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad,
+    void reconstruct3D_saliency ( const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels, const int method,
+                                  const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad, const float thres_saliency_depth,
                                   const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray
                                 ); // TODO extend this function to employ only depth
 

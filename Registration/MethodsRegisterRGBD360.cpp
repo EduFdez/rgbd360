@@ -56,7 +56,7 @@ void print_help(char ** argv)
 //pcl::PointCloud<PointT>::Ptr imgCloud;
 //mrpt::pbmap::PbMap planes;
 
-//void getLocalPlanesInFrame2()
+//void segmentPlanesLocalInFrame2()
 //{
 //    // Segment planes
 //    //    cout << "extractPlaneFeatures\n";
@@ -233,7 +233,7 @@ int main (int argc, char ** argv)
 //        imgCloud = frame360_1.getCloud_id(sensor_id);
 //        cv::Mat im_rgb = frame360_1.getFrameRGBD_id(sensor_id).getRGBImage();
 //        cv::imwrite(mrpt::format("/home/edu/rgb_%01d.png",sensor_id), im_rgb);
-//        getLocalPlanesInFrame2();
+//        segmentPlanesLocalInFrame2();
 
 //        cv::Mat imgSegmentation = im_rgb.clone();
 //        for(size_t i=0; i < planes.vPlanes.size(); i++)
@@ -266,8 +266,8 @@ int main (int argc, char ** argv)
 
     time_start = pcl::getTime();
     RegisterRGBD360 registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH));
-    frame360_1.getPlanes();
-    frame360_2.getPlanes();
+    frame360_1.segmentPlanes();
+    frame360_2.segmentPlanes();
     registerer.RegisterPbMap(&frame360_1, &frame360_2, 25, RegisterRGBD360::PLANAR_3DoF);
     //  registerer.RegisterPbMap(&frame360_1, &frame360_2, 20, RegisterRGBD360::DEFAULT_6DoF);
     //  registerer.RegisterPbMap(&frame360_1, &frame360_2, 20, RegisterRGBD360::ODOMETRY_6DoF);

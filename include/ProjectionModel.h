@@ -148,6 +148,9 @@ public:
     /*! Project 3D points XYZ. */
     virtual inline cv::Point2f project2Image(Eigen::Vector3f & xyz) = 0;
 
+    /*! Re-project the warping image into the reference one. The input points 'xyz' represent the reference point cloud as seen by the target image. */
+    virtual void reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray, cv::Mat & warped_gray, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible) = 0;
+
     /*! Project 3D points XYZ according to the pinhole camera model (3D -> 2D). */
     virtual void project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible) = 0;
 
@@ -158,8 +161,8 @@ public:
     virtual void reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels) = 0;
 
     /*! Compute the 3D points XYZ according to the pinhole camera model. */
-    virtual void reconstruct3D_saliency ( const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels,
-                                          const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad,
+    virtual void reconstruct3D_saliency ( const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels, const int method,
+                                          const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad, const float thres_saliency_depth,
                                           const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray
                                         ) = 0;
 

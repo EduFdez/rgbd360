@@ -51,8 +51,14 @@ inline Eigen::Matrix4f getPoseEigenMatrix(const mrpt::poses::CPose3D & pose)
               pose_mat_mrpt(3,0), pose_mat_mrpt(3,1), pose_mat_mrpt(3,2), pose_mat_mrpt(3,3) ;
   return  pose_mat;
 }
+
 int main (int argc, char ** argv)
 {
+    assert(argc > 1);
+
+  string path_calibration;
+  if(argc > 1)
+    path_calibration = static_cast<string>(argv[1]);
 
     cout << "Change the reference system of the calibrattion of RGBD360 multisensor\n";
     float angle_offset = 22.5; //45
@@ -73,49 +79,45 @@ int main (int argc, char ** argv)
     Eigen::Matrix4f Rt_raul_new[4];
 
     Eigen::Matrix4f change_ref = Eigen::Matrix4f::Zero();
-//    change_ref(0,1) = 1.f;
-//    change_ref(1,2) = 1.f;
-//    change_ref(2,0) = 1.f;
-//    change_ref(3,3) = 1.f;
-
     change_ref(0,2) = 1.f;
-    change_ref(1,1) = -1.f;
-    change_ref(2,0) = 1.f;
+    change_ref(1,0) = -1.f;
+    change_ref(2,1) = -1.f;
     change_ref(3,3) = 1.f;
 
     for(size_t sensor_id=0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
     {
-        Rt_[sensor_id].loadFromTextFile( mrpt::format("Rt_0%i.txt",sensor_id+1) );
+        Rt_[sensor_id].loadFromTextFile( mrpt::format("%s/Rt_0%i.txt", path_calibration.c_str(), sensor_id+1) );
         Rt_raul[sensor_id] = getPoseEigenMatrix( pose[sensor_id] ); //.inverse();
         //cout << " Rt_raul \n" << pose[sensor_id].getHomogeneousMatrixVal() << endl << Rt_raul[sensor_id] << endl;
 
         if(sensor_id > 0)
         {
-            relative_edu[sensor_id] = Rt_[0].inverse() * Rt_[sensor_id];
-            relative_raul[sensor_id] = change_ref.transpose() * relative_edu[sensor_id] * change_ref;
+            //relative_edu[sensor_id] = Rt_[0].inverse() * Rt_[sensor_id];
+            relative_raul[sensor_id] = change_ref * Rt_[0].inverse() * Rt_[sensor_id] * change_ref.inverse();
 
             Rt_raul_new[sensor_id] = Rt_raul[0] * relative_raul[sensor_id];
 
-            cout << " rel edu \n" << relative_edu[sensor_id] << endl;
+            //cout << " rel edu \n" << relative_edu[sensor_id] << endl;
             cout << " rel edu to raul \n" << relative_raul[sensor_id] << endl;
             cout << " rel raul \n" << Rt_raul[0].inverse() * Rt_raul[sensor_id] << endl;
             cout << " raul \n" << Rt_raul[sensor_id] << endl;
             cout << " new \n" << Rt_raul_new[sensor_id] << endl;
-            mrpt::system::pause();
-
-            ofstream calibFile;
-              string calibFileName = mrpt::format("ref_Rt_0%u.txt", sensor_id);
-              calibFile.open(calibFileName.c_str());
-              if (calibFile.is_open())
-              {
-                calibFile << Rt_raul_new[sensor_id];
-                calibFile.close();
-              }
-              else
-                cout << "Unable to open file " << calibFileName << endl;
+            mrpt::system::pause();            
         }
+        else
+            Rt_raul_new[0] = Rt_raul[0];
+
+        ofstream calibFile;
+        string calibFileName = mrpt::format("%s/ref_raul/Rt_0%u.txt", path_calibration.c_str(), sensor_id+1);
+        calibFile.open(calibFileName.c_str());
+        if (calibFile.is_open())
+        {
+            calibFile << Rt_raul_new[sensor_id];
+            calibFile.close();
+        }
+        else
+            cout << "Unable to open file " << calibFileName << endl;
     }
-    Rt_raul_new[0] = Rt_raul[0];
 
   cout << "EXIT\n";
 

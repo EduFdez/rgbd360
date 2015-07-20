@@ -40,6 +40,7 @@
 //#include <fstream>
 
 #include <pcl/common/time.h>
+#include <mrpt/utils/mrpt_macros.h>
 
 #if _SSE2
     #include <emmintrin.h>
@@ -218,6 +219,8 @@ void Pyramid::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gra
     //for(size_t i=0; i<1000; i++)
     {
 #endif
+
+    ASSERT_(src.cols % 4 == 0);
 
     //int dataType = src.type();
     gradX = cv::Mat::zeros(cv::Size(src.cols, src.rows), src.type() );

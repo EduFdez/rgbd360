@@ -66,7 +66,7 @@ int main (int argc, char ** argv)
   frame360.loadFrame(fileName);
   frame360.undistort();
   frame360.buildSphereCloud_rgbd360();
-  frame360.getPlanes();
+  frame360.segmentPlanes();
 
 //  frame360.stitchSphericalImage();
 //  cv::imwrite("rgb_test.png", frame360.sphereRGB);

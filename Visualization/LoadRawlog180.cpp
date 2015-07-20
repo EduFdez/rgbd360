@@ -238,7 +238,7 @@ int main (int argc, char ** argv)
 
             // Visualize cloud
             frame360.buildSphereCloud_rgbd360();
-            frame360.getPlanes();
+            frame360.segmentPlanes();
             Frame360_Visualizer sphereViewer(&frame360);
             while (!sphereViewer.viewer.wasStopped() )
               boost::this_thread::sleep (boost::posix_time::milliseconds (10));

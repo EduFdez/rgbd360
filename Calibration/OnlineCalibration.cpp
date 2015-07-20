@@ -476,7 +476,7 @@ class OnlineCalibration
 
         cout << "Segment planes\n";
             // Segment planes
-            frame360.getLocalPlanes();
+            frame360.segmentPlanesLocal();
 
             { boost::mutex::scoped_lock updateLock(visualizationMutex);
 
@@ -736,7 +736,7 @@ class OnlineCalibration
             }
 
 //              // Segment planes
-//              frame360.getLocalPlanes();
+//              frame360.segmentPlanesLocal();
 //
 //              { boost::mutex::scoped_lock updateLock(visualizationMutex);
 //

@@ -145,7 +145,7 @@ class LoadSequence
         {
 //          frame360->undistort();
           frame360->buildSphereCloud_rgbd360();
-          frame360->getPlanes();
+          frame360->segmentPlanes();
 
           if(mode == 3)
           {

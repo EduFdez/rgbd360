@@ -280,15 +280,28 @@ int main (int argc, char ** argv)
     pose[3] = mrpt::poses::CPose3D(0.24, -0.045, 0.975, DEG2RAD(-90), DEG2RAD(1.5), DEG2RAD(-90));
     int rgbd180_arrangement[4] = {1,8,2,7};
     //Eigen::Matrix4f Rt_raul[4];
+
+    Eigen::Matrix4f change_ref = Eigen::Matrix4f::Zero();
+    change_ref(0,2) = 1.f;
+    change_ref(1,0) = -1.f;
+    change_ref(2,1) = -1.f;
+    change_ref(3,3) = 1.f;
+
     for(size_t sensor_id=0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
     {
-        //calib.Rt_[sensor_id].loadFromTextFile( mrpt::format("/home/efernand/Libraries/rgbd360/Calibration/test/Rt_0%i.txt",sensor_id+1) );
+//        calib.Rt_[sensor_id].loadFromTextFile( mrpt::format("/home/efernand/Libraries/rgbd360/Calibration/180/Rt_0%i.txt",sensor_id+1) );
+
+        Eigen::Matrix4f pose_ref_raul;
+        pose_ref_raul.loadFromTextFile( mrpt::format("/home/efernand/Libraries/rgbd360/Calibration/180/ref_raul/Rt_0%i.txt",sensor_id+1) );
+        calib.setRt_id( sensor_id, pose_ref_raul * change_ref);
 
 //        Eigen::Matrix4f pose_mat = getPoseEigenMatrix( pose[sensor_id] ); //.inverse();
+//        Eigen::Matrix4f pose_mat = getPoseEigenMatrix( pose[sensor_id] ) * change_ref;
 //        calib.setRt_id( sensor_id, pose_mat);
-        calib.Rt_[sensor_id].loadFromTextFile( mrpt::format("/home/efernand/Libraries/rgbd360/Calibration/Extrinsics/ConstructionSpecs/Rt_0%i.txt",rgbd180_arrangement[sensor_id]) );
-        //cout << sensor_id << " sensor pose\n" << calib.Rt_[sensor_id] << endl;
-        calib.Rt_[sensor_id] = rot_offset * calib.Rt_[sensor_id];
+
+//        calib.Rt_[sensor_id].loadFromTextFile( mrpt::format("/home/efernand/Libraries/rgbd360/Calibration/Extrinsics/ConstructionSpecs/Rt_0%i.txt",rgbd180_arrangement[sensor_id]) );
+//        //cout << sensor_id << " sensor pose\n" << calib.Rt_[sensor_id] << endl;
+//        calib.Rt_[sensor_id] = rot_offset * calib.Rt_[sensor_id];
 
 //        if(sensor_id > 0)
 //        {
@@ -463,8 +476,8 @@ int main (int argc, char ** argv)
 //                boost::this_thread::sleep (boost::posix_time::milliseconds (10));
 
 
-            cout << "frame360.getLocalPlanes() \n";
-            frame360.getLocalPlanes();
+            cout << "frame360.segmentPlanesLocal() \n";
+            frame360.segmentPlanesLocal();
             cout << "Merge planes \n";
             mrpt::pbmap::PbMap &planes = frame360.planes;
             //planes.vPlanes.clear();
@@ -480,7 +493,7 @@ int main (int argc, char ** argv)
 
             // Visualize cloud
             frame360.buildSphereCloud_rgbd360();
-            frame360.getPlanes();
+            frame360.segmentPlanes();
             Frame360_Visualizer sphereViewer(&frame360);
             while (!sphereViewer.viewer.wasStopped() )
               boost::this_thread::sleep (boost::posix_time::milliseconds (10));

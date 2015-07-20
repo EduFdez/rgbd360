@@ -954,7 +954,7 @@ public:
 //          pcl::PointCloud<pcl::PointXYZRGBA>::Ptr downsampledCloud = downsampler.downsamplePointCloud(cloudKinect);
 //          cloud_.setPointCloud(downsampledCloud);
 //          mrpt::pbmap::PbMap planes_;
-////          getPlanesInFrame(cloud_, planes_);
+////          segmentPlanesInFrame(cloud_, planes_);
 //
 ////          //Extract a plane with RANSAC
 ////          Eigen::VectorXf modelcoeff_Plane(4);
@@ -1243,7 +1243,7 @@ class OnlinePairCalibration_
 
 
   /*! This function segments planes from the point cloud */
-    void getPlanesInFrame(CloudRGBD_Ext &cloudImg, mrpt::pbmap::PbMap &planes)
+    void segmentPlanesInFrame(CloudRGBD_Ext &cloudImg, mrpt::pbmap::PbMap &planes)
     {
       // Downsample and filter point cloud
 //      DownsampleRGBD downsampler(2);
@@ -1424,7 +1424,7 @@ class OnlinePairCalibration_
         }
       }
         double extractPlanes_end = pcl::getTime();
-      std::cout << "getPlanesInFrame in " << (extractPlanes_end - extractPlanes_start)*1000 << " ms\n";
+      std::cout << "segmentPlanesInFrame in " << (extractPlanes_end - extractPlanes_start)*1000 << " ms\n";
     }
 
 
@@ -1596,8 +1596,8 @@ class OnlinePairCalibration_
 //          updateLock.unlock();
 //          } // CS_visualize
 
-            getPlanesInFrame(frameRGBD_[0], planes_i);
-          cout << "getPlanesInFrame " << planes_i.vPlanes.size() << endl;
+            segmentPlanesInFrame(frameRGBD_[0], planes_i);
+          cout << "segmentPlanesInFrame " << planes_i.vPlanes.size() << endl;
 
             Eigen::Matrix<float,Eigen::Dynamic,6> lines;
             ransac_detect_3D_lines(cloud_j, lines, 0.1, 140);

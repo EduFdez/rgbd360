@@ -311,7 +311,7 @@ class OnlinePairCalibration
 
 
   /*! This function segments planes from the point cloud */
-    void getPlanesInFrame(CloudRGBD_Ext &cloudImg, mrpt::pbmap::PbMap &planes)
+    void segmentPlanesInFrame(CloudRGBD_Ext &cloudImg, mrpt::pbmap::PbMap &planes)
     {
       // Downsample and filter point cloud
 //      DownsampleRGBD downsampler(2);
@@ -492,7 +492,7 @@ class OnlinePairCalibration
         }
       }
         double extractPlanes_end = pcl::getTime();
-      std::cout << "getPlanesInFrame in " << (extractPlanes_end - extractPlanes_start)*1000 << " ms\n";
+      std::cout << "segmentPlanesInFrame in " << (extractPlanes_end - extractPlanes_start)*1000 << " ms\n";
     }
 
 
@@ -657,14 +657,14 @@ cout << "run1\n";
             #pragma omp parallel num_threads(NUM_SENSORS)
             {
               int sensor_id = omp_get_thread_num();
-              getPlanesInFrame(frameRGBD_[sensor_id], *planes_[sensor_id]);
+              segmentPlanesInFrame(frameRGBD_[sensor_id], *planes_[sensor_id]);
             }
 
             planes_j_orig = planes_j;
             for(unsigned k=0; k < planes_j.vPlanes.size(); k++)
               planes_j.vPlanes[k].transform(calibrator.Rt_estimated);
 
-            cout << "\tgetPlanesInFrame " << endl;
+            cout << "\tsegmentPlanesInFrame " << endl;
 
           updateLock.unlock();
           } // CS_visualize

@@ -30,6 +30,7 @@
  * Author: Eduardo Fernandez-Moral
  */
 
+#include <mrpt/math.h>
 #include <Calibrator.h>
 #include <Frame360.h>
 #include <Frame360_Visualizer.h>
@@ -73,7 +74,7 @@ int main (int argc, char ** argv)
   calibrator.loadConstructionSpecs(); // Get the inital extrinsic matrices for the different sensors
 //      calibrator.Calibrate();
   calibrator.CalibrateRotation(0);
-//  calibrator.CalibrateTranslation(0);
+  calibrator.CalibrateTranslation(0);
 
   #if VISUALIZE_SENSOR_DATA
 //    bool showNewCalibration = true;

@@ -314,7 +314,7 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
 
     //Asign the intensity/depth value to the warped image and compute the difference between the transformed
     //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
-    if( !use_bilinear_ || pyrLevel !=0 )
+    if( !use_bilinear_ || pyrLevel !=0 || method == DEPTH_CONSISTENCY )
     {
         // Warp the image
         ProjModel->projectNN(xyz_src_transf, validPixels_src, warp_pixels_src);
@@ -334,6 +334,9 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
                 //if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
                 if( warp_pixels_src(i) != -1 )
                 {
+
+                    ASSERT_(validPixels_src(i) != -1);
+
                     //cout << i << " validPixels_src " << validPixels_src(i) << " warp_pixel " << warp_pixels_src(i) << endl;
                     ++numVisiblePts;
                     // cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyrLevel].at<float>(r_transf,c_transf)) << " " << fabs(grayTrgGradYPyr[pyrLevel].at<float>(r_transf,c_transf)) << endl;
@@ -396,7 +399,7 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
                         residualsPhoto_src(i) = wEstimPhoto_src(i) * residual;
                         error2_photo += residualsPhoto_src(i) * residualsPhoto_src(i);
                         //v_AD_intensity[i] = fabs(diff);
-                        //cout << i << " warp_pixel " << warp_pixels_src(i) << " weight " << wEstimPhoto_src(i) << " error2_photo " << error2_photo << " diff " << diff << endl;
+                        cout << i << " warp_pixel " << warp_pixels_src(i) << " weight " << wEstimPhoto_src(i) << " error2_photo " << error2_photo << " diff " << diff << endl;
                     }
                 }
             }
@@ -479,8 +482,10 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
     #endif
             for(size_t i=0; i < n_pts; i++)
             {
-                if( warp_pixels_src(i) == -1 )
+                if( warp_pixels_src(i) != -1 )
                 {
+                    ASSERT_(validPixels_src(i) != -1);
+
                     ++numVisiblePts;
                     cv::Point2f warped_pixel(warp_img_src(i,0), warp_img_src(i,1));
                     // cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyrLevel].at<float>(r_transf,c_transf)) << " " << fabs(grayTrgGradYPyr[pyrLevel].at<float>(r_transf,c_transf)) << endl;
@@ -499,7 +504,8 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
                         //cout << i << " warp_pixel " << warp_pixels_src(i) << " weight " << wEstimPhoto_src(i) << " error2_photo " << error2_photo << " diff " << diff << endl;
                     }
 
-                    float depth = ProjModel->bilinearInterp_depth( grayTrgPyr[pyrLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                    float depth = _depthTrgPyr[(int)(warped_pixel.y) * ProjModel->nCols + (int)(warped_pixel.x)];
+//                    float depth = ProjModel->bilinearInterp_depth( grayTrgPyr[pyrLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
                     if(depth > ProjModel->min_depth_) // if(depth > ProjModel->min_depth_) // Make sure this point has depth (not a NaN)
                     {
                         //if( fabs(_depthTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_depth_)
@@ -525,7 +531,7 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
 #endif
             for(size_t i=0; i < n_pts; i++)
             {
-                if( warp_pixels_src(i) == -1 )
+                if( warp_pixels_src(i) != -1 )
                 {
                     ++numVisiblePts;
                     cv::Point2f warped_pixel(warp_img_src(i,0), warp_img_src(i,1));
@@ -543,36 +549,6 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
                         error2_photo += residualsPhoto_src(i) * residualsPhoto_src(i);
                         //v_AD_intensity[i] = fabs(diff);
                         //cout << i << " warp_pixel " << warp_pixels_src(i) << " weight " << wEstimPhoto_src(i) << " error2_photo " << error2_photo << " diff " << diff << endl;
-                    }
-                }
-            }
-        }
-        else if(method == DEPTH_CONSISTENCY)
-        {
-#if ENABLE_OPENMP
-#pragma omp parallel for reduction (+:error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
-#endif
-            for(size_t i=0; i < n_pts; i++)
-            {
-                if( warp_pixels_src(i) == -1 )
-                {
-                    ++numVisiblePts;
-                    cv::Point2f warped_pixel(warp_img_src(i,0), warp_img_src(i,1));
-                    float depth = ProjModel->bilinearInterp_depth( grayTrgPyr[pyrLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
-                    if(depth > ProjModel->min_depth_) // if(depth > ProjModel->min_depth_) // Make sure this point has depth (not a NaN)
-                    {
-                        //if( fabs(_depthTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_depth_)
-                        {
-                            validPixelsDepth_src(i) = 1;
-                            stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
-                            //diff_depth(i) = _depthTrgPyr[warp_pixels_src(i)] - ProjModel->getDepth(xyz);
-                            Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
-                            float residual = (depth - ProjModel->getDepth(xyz)) * stdDevError_inv_src(i);
-                            wEstimDepth_src(i) = sqrt(weightMEstimator(residual));
-                            residualsDepth_src(i) = wEstimDepth_src(i) * residual;
-                            error2_depth += residualsDepth_src(i) * residualsDepth_src(i);
-                            // cout << i << " error2_depth " << error2_depth << " weight " << wEstimDepth_src(i) << " residual " << residual << " stdDevInv " << stdDevError_inv_src(i) << endl;
-                        }
                     }
                 }
             }
@@ -7288,8 +7264,8 @@ void DirectRegistration::regist(const Matrix4f pose_guess, const costFuncType me
         // Make LUT to store the values of the 3D points of the source image
         if(use_salient_pixels_)
         {
-            ProjModel->reconstruct3D_saliency( depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src,
-                                               depthSrcGradXPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], _max_depth_grad,
+            ProjModel->reconstruct3D_saliency( depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src, (int)method,
+                                               depthSrcGradXPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], _max_depth_grad, thres_saliency_depth_,
                                                graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradXPyr[pyrLevel], thres_saliency_gray_);
 
             const size_t n_pts = validPixels_src.rows();
@@ -7319,40 +7295,21 @@ void DirectRegistration::regist(const Matrix4f pose_guess, const costFuncType me
             }
         }
         else
+        {
             ProjModel->reconstruct3D(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
+
+//            Eigen::VectorXi validPixels_src2;
+//            ProjModel->reconstruct3D_saliency( depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src2,
+//                                               depthSrcGradXPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], _max_depth_grad,
+//                                               graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradXPyr[pyrLevel], thres_saliency_gray_);
+
+//            ProjModel->reconstruct3D(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
+//            validPixels_src = -Eigen::VectorXi::Ones(LUT_xyz_source.rows());
+//            cout << " validPixels_src2.rows() " << validPixels_src2.rows() << endl;
+//            for(int i=0; i < validPixels_src2.rows(); i++)
+//                validPixels_src(validPixels_src2(i)) = validPixels_src2(i);
+        }
         //ProjModel->reconstruct3D(depthTrgPyr[pyrLevel], LUT_xyz_target, validPixels_trg);
-
-//        MatrixXf LUT_xyz_source_(imgSize,3);
-//        VectorXi warp_pixels_src_(imgSize);
-//        for(size_t r=0;r<nRows; r++)
-//            for(size_t c=0;c<nCols; c++)
-//            {
-//                size_t i = r*nCols+c;
-//                cout << i << " pt " << LUT_xyz_source.block(i,0,1,3) << " valid " << warp_pixels_src(i) << endl;
-//                //cout << i << " pt " << LUT_xyz_source_.block(i,0,1,3) << " valid " << warp_pixels_src_(i) << endl;
-//                mrpt::system::pause();
-//            }
-
-//        LUT_xyz_source.resize(imgSize,3);
-//        for(size_t r=0;r<nRows; r++)
-//        {
-//            for(size_t c=0;c<nCols; c++)
-//            {
-//                int i = r*nCols + c;
-//                LUT_xyz_source(i,2) = depthSrcPyr[pyrLevel].at<float>(r,c); //LUT_xyz_source(i,2) = 0.001f*depthSrcPyr[pyrLevel].at<unsigned short>(r,c);
-
-//                //Compute the 3D coordinates of the pij of the source frame
-//                //cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << endl;
-//                //cout << depthSrcPyr[pyrLevel].type() << " LUT_xyz_source " << i << " x " << LUT_xyz_source(i,2) << " thres " << ProjModel->min_depth_ << " " << ProjModel->max_depth_ << endl;
-//                if(ProjModel->min_depth_ < LUT_xyz_source(i,2) && LUT_xyz_source(i,2) < ProjModel->max_depth_) //Compute the jacobian only for the valid points
-//                {
-//                    LUT_xyz_source(i,0) = (c - ox) * LUT_xyz_source(i,2) * inv_fx;
-//                    LUT_xyz_source(i,1) = (r - oy) * LUT_xyz_source(i,2) * inv_fy;
-//                }
-//                else
-//                    LUT_xyz_source(i,0) = INVALID_POINT;
-//            }
-//        }
 
 //        double lambda = 0.01; // Levenberg-Marquardt (LM) lambda
 //        double step = 10; // Update step
@@ -7371,6 +7328,7 @@ void DirectRegistration::regist(const Matrix4f pose_guess, const costFuncType me
 //            error = computeError_Occ1(pyrLevel, pose_estim, method);
 //        else if(occlusion == 2)
 //            error = computeError_Occ2(pyrLevel, pose_estim, method);
+
 
         double diff_error = error;
         while(num_iters[pyrLevel] < max_iters_ && update_pose.norm() > tol_update_ && diff_error > tol_residual_) // The LM optimization stops either when the max iterations is reached, or when the alignment converges (error or pose do not change)
