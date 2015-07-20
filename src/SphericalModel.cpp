@@ -611,7 +611,7 @@ void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray
         cv::Point2f warped_pixel = project2Image(pt_xyz);
         pixels2(i,0) = warped_pixel.y;
         pixels2(i,1) = warped_pixel.x;
-        visible2(i) = isInImage(warped_pixel.y) ? -1 : 0;
+        visible2(i) = isInImage(warped_pixel.y) ? 1 : -1;
         //cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << warped_pixel.y << " " << warped_pixel.x << " visible2(i) " << visible2(i) << endl;
 //         mrpt::system::pause();
     }
@@ -630,7 +630,7 @@ void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray
         cv::Point2f warped_pixel = project2Image(pt_xyz);
         pixels(i,0) = warped_pixel.y;
         pixels(i,1) = warped_pixel.x;
-        visible(i) = isInImage(warped_pixel.y) ? -1 : 0;
+        visible(i) = isInImage(warped_pixel.y) ? 1 : -1;
         _warped[i] = bilinearInterp(gray, warped_pixel);
     }
 
@@ -754,7 +754,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
         cv::Point2f warped_pixel = project2Image(pt_xyz);
         pixels2(i,0) = warped_pixel.y;
         pixels2(i,1) = warped_pixel.x;
-        visible2(i) = isInImage(warped_pixel.y) ? -1 : 0;
+        visible2(i) = isInImage(warped_pixel.y) ? 1 : -1;
         //cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << warped_pixel.y << " " << warped_pixel.x << " visible2(i) " << visible2(i) << endl;
 //         mrpt::system::pause();
     }
@@ -773,7 +773,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
         cv::Point2f warped_pixel = project2Image(pt_xyz);
         pixels(i,0) = warped_pixel.y;
         pixels(i,1) = warped_pixel.x;
-        visible(i) = isInImage(warped_pixel.y) ? -1 : 0;
+        visible(i) = isInImage(warped_pixel.y) ? 1 : -1;
     }
 
 #else
@@ -819,13 +819,28 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
         _mm_store_ps(_r+i, __r);
         _mm_store_ps(_c+i, __c);
 
-        //__m128 __v = _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) );
-        __m128 __invalid =  _mm_or_ps( _mm_cmpgt_ps(_zero, __r), _mm_cmpgt_ps(__r, _nRows_1) );
-        _mm_store_ps(_v+i, __invalid);
-//        __m128i __invalid = reinterpret_cast<__m128i>( _mm_and_ps( _mm_cmpgt_ps(_zero, __r), _mm_cmpgt_ps(__r, _nRows_1) ) );
-//        __m128i *_vv = reinterpret_cast<__m128i*>(&visible(i));
+//        //__m128 __v = _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) );
+//        __m128 __invalid =  _mm_or_ps( _mm_cmpgt_ps(_zero, __r), _mm_cmpgt_ps(__r, _nRows_1) );
+//        _mm_store_ps(_v+i, __invalid);
+////        __m128i __invalid = reinterpret_cast<__m128i>( _mm_and_ps( _mm_cmpgt_ps(_zero, __r), _mm_cmpgt_ps(__r, _nRows_1) ) );
+////        __m128i *_vv = reinterpret_cast<__m128i*>(&visible(i));
+//        //cout << "__v_mask " << i << " " << _mm_extract_epi32(__v_mask,0) << " " << _mm_extract_epi32(__v_mask,1) << " " << _mm_extract_epi32(__v_mask,2) << " " << _mm_extract_epi32(__v_mask,3) << endl;
+//        cout << "__invalid " << i << " " << __invalid[0] << " " << __invalid[1] << __invalid[2] << " " << __invalid[3] << " " << endl;
+
+//        for(int j=0; j < 4; j++)
+//            if( !(visible(i+j) == visible2(i+j)) )
+//            {
+//                const int jj = j;
+//                cout << i << " pixels " << pixels(i+j,1) << " " << pixels(i+j,0) << " pixels2 " << pixels2(i+j,1) << " " << pixels2(i+j,0) << " visible " << visible(i+j) << " vs " << __invalid[jj] << " " << visible2(i+j) << " __r " << __r[jj] << endl;
+//                ASSERT_(0);
+//            }
+
+        __m128 __v = _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) );
+        __m128i __v_mask = _mm_or_si128(reinterpret_cast<__m128i>(__v), _mm_set1_epi32(0));
         //cout << "__v_mask " << i << " " << _mm_extract_epi32(__v_mask,0) << " " << _mm_extract_epi32(__v_mask,1) << " " << _mm_extract_epi32(__v_mask,2) << " " << _mm_extract_epi32(__v_mask,3) << endl;
 
+        __m128i *_vv = reinterpret_cast<__m128i*>(&visible(i));
+        _mm_store_si128(_vv, __v_mask);
 
 //        for(int j=0; j < 4; j++)
 //            if( !(visible(i+j) == visible2(i+j)) )
@@ -841,27 +856,23 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
 #if TEST_SIMD
     // Test SSE
     cout << " Check result " << endl;
-    for(int i=0, ii=0; i < pixels.rows(); i++, ii++)
+    for(int i=0; i < pixels.rows(); i++)
     {
-        while( visible(i) != visible2(ii) )
-        {
-            ++ii;
-            ASSERT_(ii < visible2.size());
+        if( visible(i) == -1 )
             continue;
-        }
 
         //cout << " Check result " << i << " " << pixels.size() << endl;
-        if( !(visible(i) == visible2(ii) && AlmostEqual2sComplement(pixels(i,0), pixels2(ii,0), MAX_ULPS) && AlmostEqual2sComplement(pixels(ii,1), pixels2(ii,1), MAX_ULPS) ) )
+        if( !(visible(i) == visible2(i) && AlmostEqual2sComplement(pixels(i,0), pixels2(i,0), MAX_ULPS) && AlmostEqual2sComplement(pixels(i,1), pixels2(i,1), MAX_ULPS) ) )
         {
             Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
             cv::Point2f warped_pixel = project2Image(pt_xyz);
             cout << i << " Pixel transform " //<< i/nCols << " " << i%nCols << " "
                  << " warped_pixel " << warped_pixel.x << " " << warped_pixel.y << endl;
-            cout << i << " pixels " << pixels(i,1) << " " << pixels(i,0) << " visible " << visible(i) << " " << visible2(ii) << endl;
+            cout << i << " pixels " << pixels(i,1) << " " << pixels(i,0) << " visible " << visible(i) << " " << visible2(i) << endl;
         }
-        ASSERT_( AlmostEqual2sComplement(pixels(i,0), pixels2(ii,0), MAX_ULPS) );
-        ASSERT_( AlmostEqual2sComplement(pixels(i,1), pixels2(ii,1), MAX_ULPS) );
-        ASSERT_( visible(i) == visible2(ii) );
+//        ASSERT_( AlmostEqual2sComplement(pixels(i,0), pixels2(i,0), MAX_ULPS) );
+//        ASSERT_( AlmostEqual2sComplement(pixels(i,1), pixels2(i,1), MAX_ULPS) );
+        ASSERT_( visible(i) == visible2(i) );
     }
     mrpt::system::pause();
 #endif

@@ -591,7 +591,7 @@ void PinholeModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray, 
         cv::Point2f warped_pixel = project2Image(pt_xyz);
         pixels(i,0) = warped_pixel.y;
         pixels(i,1) = warped_pixel.x;
-        visible(i) = isInImage(c_transf, r_transf) ? -1 : 0;
+        visible(i) = isInImage(c_transf, r_transf) ? 1 : -1;
     }
 
 #else
@@ -672,7 +672,7 @@ void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels
         cv::Point2f warped_pixel = project2Image(pt_xyz);
         pixels(i,0) = warped_pixel.y;
         pixels(i,1) = warped_pixel.x;
-        visible(i) = isInImage(c_transf, r_transf) ? -1 : 0;
+        visible(i) = isInImage(c_transf, r_transf) ? 1 : -1;
     }
 
 #else
@@ -747,7 +747,7 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & vali
         else
             warped_pixels2(i) = -1;
 //        warped_pixels(i) = r_transf * nCols + c_transf;
-//        visible(i) = isInImage(c_transf, r_transf) ? -1 : 0;
+//        visible(i) = isInImage(c_transf, r_transf) ? 1 : -1;
     }
 #endif
 
