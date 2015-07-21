@@ -621,7 +621,11 @@ void PinholeModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray, 
         //                        _mm_and_ps( _mm_cmplt_ps(_zero, __c), _mm_cmplt_ps(__c, _nCols) ) );
         __m128 __invalid = _mm_or_ps (  _mm_or_ps( _mm_cmpgt_ps(_zero, __r), _mm_cmpgt_ps(__r, _nRows_1) ),
                                         _mm_or_ps( _mm_cmpgt_ps(_zero, __c), _mm_cmpgt_ps(__c, _nCols_1) ) );
-        _mm_store_ps(_v+i, __invalid);
+        //_mm_store_ps(_v+i, __invalid); // Warning, the bit to int conversion is: 00000000 -> nan, 11111111 -> -1
+        __m128i __v_mask = _mm_or_si128(reinterpret_cast<__m128i>(__invalid), _mm_set1_epi32(1));
+        //cout << "__v_mask " << i << " " << _mm_extract_epi32(__v_mask,0) << " " << _mm_extract_epi32(__v_mask,1) << " " << _mm_extract_epi32(__v_mask,2) << " " << _mm_extract_epi32(__v_mask,3) << endl;
+        __m128i *_vv = reinterpret_cast<__m128i*>(&visible(i));
+        _mm_store_si128(_vv, __v_mask);
 
         float warped_pix[4];
         for(int j=0; j < 4; j++)
@@ -702,7 +706,11 @@ void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels
         //                        _mm_and_ps( _mm_cmplt_ps(_zero, __c), _mm_cmplt_ps(__c, _nCols) ) );
         __m128 __invalid = _mm_or_ps (  _mm_or_ps( _mm_cmpgt_ps(_zero, __r), _mm_cmpgt_ps(__r, _nRows_1) ),
                                         _mm_or_ps( _mm_cmpgt_ps(_zero, __c), _mm_cmpgt_ps(__c, _nCols_1) ) );
-        _mm_store_ps(_v+i, __invalid);
+        //_mm_store_ps(_v+i, __invalid); // Warning, the bit to int conversion is: 00000000 -> nan, 11111111 -> -1
+        __m128i __v_mask = _mm_or_si128(reinterpret_cast<__m128i>(__invalid), _mm_set1_epi32(1));
+        //cout << "__v_mask " << i << " " << _mm_extract_epi32(__v_mask,0) << " " << _mm_extract_epi32(__v_mask,1) << " " << _mm_extract_epi32(__v_mask,2) << " " << _mm_extract_epi32(__v_mask,3) << endl;
+        __m128i *_vv = reinterpret_cast<__m128i*>(&visible(i));
+        _mm_store_si128(_vv, __v_mask);
     }
 #endif
 

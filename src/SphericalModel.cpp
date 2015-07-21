@@ -679,10 +679,10 @@ void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray
 
         //__m128 __v = _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) );
         __m128 __invalid =  _mm_or_ps( _mm_cmpgt_ps(_zero, __r), _mm_cmpgt_ps(__r, _nRows_1) );
-        _mm_store_ps(_v+i, __invalid);
-//        __m128i __invalid = reinterpret_cast<__m128i>( _mm_and_ps( _mm_cmpgt_ps(_zero, __r), _mm_cmpgt_ps(__r, _nRows_1) ) );
-//        __m128i *_vv = reinterpret_cast<__m128i*>(&visible(i));
+        __m128i __v_mask = _mm_or_si128(reinterpret_cast<__m128i>(__invalid), _mm_set1_epi32(1));
         //cout << "__v_mask " << i << " " << _mm_extract_epi32(__v_mask,0) << " " << _mm_extract_epi32(__v_mask,1) << " " << _mm_extract_epi32(__v_mask,2) << " " << _mm_extract_epi32(__v_mask,3) << endl;
+        __m128i *_vv = reinterpret_cast<__m128i*>(&visible(i));
+        _mm_store_si128(_vv, __v_mask);
 
         float warped_pix[4];
         for(int j=0; j < 4; j++)
@@ -819,26 +819,11 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
         _mm_store_ps(_r+i, __r);
         _mm_store_ps(_c+i, __c);
 
-//        //__m128 __v = _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) );
-//        __m128 __invalid =  _mm_or_ps( _mm_cmpgt_ps(_zero, __r), _mm_cmpgt_ps(__r, _nRows_1) );
-//        _mm_store_ps(_v+i, __invalid);
-////        __m128i __invalid = reinterpret_cast<__m128i>( _mm_and_ps( _mm_cmpgt_ps(_zero, __r), _mm_cmpgt_ps(__r, _nRows_1) ) );
-////        __m128i *_vv = reinterpret_cast<__m128i*>(&visible(i));
-//        //cout << "__v_mask " << i << " " << _mm_extract_epi32(__v_mask,0) << " " << _mm_extract_epi32(__v_mask,1) << " " << _mm_extract_epi32(__v_mask,2) << " " << _mm_extract_epi32(__v_mask,3) << endl;
-//        cout << "__invalid " << i << " " << __invalid[0] << " " << __invalid[1] << __invalid[2] << " " << __invalid[3] << " " << endl;
-
-//        for(int j=0; j < 4; j++)
-//            if( !(visible(i+j) == visible2(i+j)) )
-//            {
-//                const int jj = j;
-//                cout << i << " pixels " << pixels(i+j,1) << " " << pixels(i+j,0) << " pixels2 " << pixels2(i+j,1) << " " << pixels2(i+j,0) << " visible " << visible(i+j) << " vs " << __invalid[jj] << " " << visible2(i+j) << " __r " << __r[jj] << endl;
-//                ASSERT_(0);
-//            }
-
-        __m128 __v = _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) );
-        __m128i __v_mask = _mm_or_si128(reinterpret_cast<__m128i>(__v), _mm_set1_epi32(0));
+        //__m128 __v = _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) );
+        __m128 __invalid =  _mm_or_ps( _mm_cmpgt_ps(_zero, __r), _mm_cmpgt_ps(__r, _nRows_1) );
+        //_mm_store_ps(_v+i, __invalid); // Warning, the bit to int conversion is: 00000000 -> nan, 11111111 -> -1
+        __m128i __v_mask = _mm_or_si128(reinterpret_cast<__m128i>(__invalid), _mm_set1_epi32(1));
         //cout << "__v_mask " << i << " " << _mm_extract_epi32(__v_mask,0) << " " << _mm_extract_epi32(__v_mask,1) << " " << _mm_extract_epi32(__v_mask,2) << " " << _mm_extract_epi32(__v_mask,3) << endl;
-
         __m128i *_vv = reinterpret_cast<__m128i*>(&visible(i));
         _mm_store_si128(_vv, __v_mask);
 
