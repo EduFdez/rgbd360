@@ -226,11 +226,36 @@ public:
 
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
     virtual void computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
-                                    Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY) = 0;
+                                            Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY) = 0;
 
-    ///*! Compute the 3Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
-    //void computeJacobiansICP(Eigen::MatrixXf & xyz_tf, Eigen::VectorXf & stdDevError_inv, Eigen::VectorXf & wEstimDepth, Eigen::MatrixXf & jacobians);
+    /*! Compute the 3Nx6 jacobian matrices of the ICP using the spherical camera model. */
+    void computeJacobiansICP(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY)
+    {
+    #if PRINT_PROFILING
+        double time_start = pcl::getTime();
+        //for(size_t ii=0; ii<100; ii++)
+        {
+    #endif
 
+        jacobians_depth.resize(3*xyz_tf.rows(), 6);
+
+    //    #if ENABLE_OPENMP
+    //    #pragma omp parallel for
+    //    #endif
+        for(int i=0; i < xyz_tf.rows(); i++)
+        {
+            Eigen::Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
+            Eigen::Matrix<float,3,6> jacobianRt;
+            computeJacobian36_xT_p(pt_xyz, jacobianRt);
+            jacobians_depth.block(3*i,0,3,6) = (weights(i) * stdDevError_inv(i)) * jacobianRt;
+        }
+
+    #if PRINT_PROFILING
+        }
+        double time_end = pcl::getTime();
+        cout << " SphericalModel::computeJacobiansPhoto " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
+    #endif
+    }
 
     /*! Return the value of the bilinear interpolation on the image 'img' given by the floating point indices 'x' and 'y' */
 //    inline cv::Vec3b getColorSubpix(const cv::Mat& img, cv::Point2f pt)

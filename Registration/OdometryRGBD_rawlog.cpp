@@ -230,13 +230,13 @@ public:
             //Set the initial pose (if appropiate)
             if (first_pose == false)
             {
-                transf.setFromValues(0,0,0,0.5*M_PI, -0.5*M_PI, 0);
-                //cout << "transf pose \n" << transf.getHomogeneousMatrixVal() << endl;
-                mrpt::poses::CPose3D ref_mrpt_edu;
-//                ref_mrpt_edu.setFromValues(0,0,0,M_PI,0,0);
-                ref_mrpt_edu.setFromValues(0,0,0,0,-0.5*M_PI,0.5*M_PI);
-                cout << "ref_mrpt_edu \n" << ref_mrpt_edu.getHomogeneousMatrixVal() << endl;
-                transf = transf - ref_mrpt_edu;
+//                transf.setFromValues(0,0,0,0.5*M_PI, -0.5*M_PI, 0);
+//                //cout << "transf pose \n" << transf.getHomogeneousMatrixVal() << endl;
+//                mrpt::poses::CPose3D ref_mrpt_edu;
+////                ref_mrpt_edu.setFromValues(0,0,0,M_PI,0,0);
+//                ref_mrpt_edu.setFromValues(0,0,0,0,-0.5*M_PI,0.5*M_PI);
+//                cout << "ref_mrpt_edu \n" << ref_mrpt_edu.getHomogeneousMatrixVal() << endl;
+//                transf = transf - ref_mrpt_edu;
 
                 cam_pose = gt + transf;
                 first_pose = true;
@@ -365,6 +365,12 @@ public:
         Eigen::Matrix4f relativePoseIC_photo = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f relativePoseIC_depth = Eigen::Matrix4f::Identity();
 
+        Eigen::Matrix4f change_ref_mrpt = Eigen::Matrix4f::Zero();
+        change_ref_mrpt(0,2) = 1.f;
+        change_ref_mrpt(1,0) = -1.f;
+        change_ref_mrpt(2,1) = -1.f;
+        change_ref_mrpt(3,3) = 1.f;
+
         //mrpt::math::CMatrix rangeImage;
         //mrpt::utils::CImage intensityImage;
         cv::Mat intensity_src, intensity_trg;
@@ -376,14 +382,14 @@ public:
         DirectRegistration registerRGBD; // Dense RGB-D alignment
         registerRGBD.setSensorType( DirectRegistration::KINECT ); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
         //registerRGBD.setNumPyr(0);
-        registerRGBD.setNumPyr(5);
+        registerRGBD.setNumPyr(2);
         registerRGBD.setMaxIterations(5);
         registerRGBD.setMaxDepth(8.f);
 //        registerRGBD.useSaliency(true);
 //        registerRGBD.thresSaliencyIntensity(0.f);
 //        registerRGBD.thresSaliencyIntensity(0.f);
 //        registerRGBD.setBilinearInterp(true);
-        registerRGBD.setVisualization(true);
+//        registerRGBD.setVisualization(true);
         registerRGBD.setGrayVariance(8.f/255);
 
         // Initialize ICP
@@ -477,6 +483,9 @@ public:
                 src.getPointCloud();
 
                 gt_firstPose = gt_pose;
+                currentPose = getPoseEigenMatrix(gt_firstPose);
+                currentPose_photo = currentPose;
+                currentPose_depth = currentPose;
                 bFirstFrame = false;
                 continue;
             }
@@ -587,17 +596,17 @@ public:
             registerRGBD.setTargetFrame(intensity_trg, depth_trg);
             registerRGBD.setSourceFrame(intensity_src, depth_src);
 
-            registerRGBD.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            relativePose = registerRGBD.getOptimalPose();
-            cout << "registerRGBD \n" << relativePose << endl;
-
             registerRGBD.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            relativePose_photo = registerRGBD.getOptimalPose();
+            relativePose_photo = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
             cout << "registerRGBD Photo \n" << relativePose_photo << endl;
 
             registerRGBD.regist(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            relativePose_depth = registerRGBD.getOptimalPose();
+            relativePose_depth = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
             cout << "registerRGBD Depth \n" << relativePose_depth << endl;
+
+            registerRGBD.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            relativePose = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
+            cout << "registerRGBD \n" << relativePose << endl;
 
             cout << "\n\n\n";
             //mrpt::system::pause();
@@ -656,17 +665,15 @@ public:
             //currentPoseIC = currentPoseIC * relativePoseIC;
             //            relativePose2 = relativePose2 * Rt_dense_photo;
 
-            std::cout << "currentPose \n " << currentPose << std::endl;
-            std::cout << "currentPose_photo \n " << currentPose_photo << std::endl;
-            std::cout << "currentPose_depth \n " << currentPose_depth << std::endl;
+//            std::cout << "currentPose \n " << currentPose << std::endl;
+//            std::cout << "currentPose_photo \n " << currentPose_photo << std::endl;
+//            std::cout << "currentPose_depth \n " << currentPose_depth << std::endl;
+//            cout << "GT pose \n" << gt_pose.getHomogeneousMatrixVal() << endl;
 
-            mrpt::poses::CPose3D path = -gt_firstPose + gt_pose;
-            cout << "GT path \n" << path.getHomogeneousMatrixVal() << endl;
-            //cout << "GT path " << path << endl;
-//            mrpt::poses::CPose3D path_ref0 = path + ref_mrpt_edu;
-//            cout << "GT path_ref0 \n" << path_ref0.getHomogeneousMatrixVal() << endl;
+//            mrpt::poses::CPose3D path = -gt_firstPose + gt_pose;
+//            cout << "GT path \n" << path.getHomogeneousMatrixVal() << endl;
 
-            std::cout << "relativePose \n " << relativePose_photo << std::endl;
+//            std::cout << "relativePose \n " << relativePose_photo << std::endl;
 
             mrpt::poses::CPose3D pose_diff = -gt_prevPose + gt_pose ;
             cout << "GT pose increment \n" << pose_diff.getHomogeneousMatrixVal() << endl;

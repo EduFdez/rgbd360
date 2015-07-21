@@ -29,6 +29,7 @@
  * Author: Eduardo Fernandez-Moral
  */
 
+#include <config.h>
 #include <transformPts3D.h>
 #include <pcl/common/time.h>
 #include <mrpt/system/os.h> // Only for pause
@@ -55,6 +56,7 @@ using namespace std;
 void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts)
 {
 #if PRINT_PROFILING
+    //cout << " transformPts3D " << input_pts.rows() << " pts \n";
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -63,7 +65,6 @@ void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & R
         size_t n_pts = input_pts.rows();
 
 #if !(_SSE3) // # ifdef __SSE3__
-        //cout << " transformPts3D " << input_pts.rows() << " pts \n";
 
         Eigen::MatrixXf input_xyz_transp = Eigen::MatrixXf::Ones(4,n_pts);
         input_xyz_transp.block(0,0,3,n_pts) = input_pts.block(0,0,n_pts,3).transpose();
@@ -330,7 +331,6 @@ void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & R
 //            assert( output_pts.block(i,0,1,3) == xyz_src_transf2.block(i,0,1,3) );
 //        }
 #endif
-
 
 #if PRINT_PROFILING
     }

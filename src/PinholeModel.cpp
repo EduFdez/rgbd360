@@ -976,7 +976,7 @@ void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const f
     const float *_x = &xyz_tf(0,0);
     const float *_y = &xyz_tf(0,1);
     const float *_z = &xyz_tf(0,2);
-    const float *_weight = &weights(0,0);
+    const float *_weight = &weights(0);
 
 #if TEST_SIMD
     // Test SSE
@@ -1094,7 +1094,7 @@ void PinholeModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const E
     const float *_x = &xyz_tf(0,0);
     const float *_y = &xyz_tf(0,1);
     const float *_z = &xyz_tf(0,2);
-    const float *_weight = &weights(0,0);
+    const float *_weight = &weights(0);
     const float *_stdDevInv = &stdDevError_inv(0);
 
 #if TEST_SIMD
@@ -1223,7 +1223,7 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
     const float *_x = &xyz_tf(0,0);
     const float *_y = &xyz_tf(0,1);
     const float *_z = &xyz_tf(0,2);
-    const float *_weight = &weights(0,0);
+    const float *_weight = &weights(0);
     const float *_stdDevInv = &stdDevError_inv(0);
 
 #if TEST_SIMD

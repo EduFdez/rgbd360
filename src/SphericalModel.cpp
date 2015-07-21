@@ -357,7 +357,8 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
         for(size_t c=0; c<nCols; c++,i++)
         {
             //if(min_depth_ < _depth[i] && _depth[i] < max_depth_) //Compute only for the valid points
-            if(min_depth_ < _depth[i] && _depth[i] < max_depth_ && fabs(_depthGradXPyr[i]) < max_depth_grad && fabs(_depthGradYPyr[i]) < max_depth_grad ) //Compute only for the valid points
+            if( min_depth_ < _depth[i] && _depth[i] < max_depth_ &&
+                fabs(_depthGradXPyr[i]) < max_depth_grad && fabs(_depthGradYPyr[i]) < max_depth_grad ) //Compute only for the valid points
                 if( fabs(_grayGradXPyr[i]) > thres_saliency_gray || fabs(_grayGradYPyr[i]) > thres_saliency_gray  )
                 //    || fabs(_depthGradXPyr[i]) > thres_saliency_depth || fabs(_depthGradYPyr[i]) > thres_saliency_depth )
                 {
@@ -385,7 +386,8 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
         for(size_t c=0;c<nCols;c++,i++)
         {
             //if(min_depth_ < _depth[i] && _depth[i] < max_depth_) //Compute only for the valid points
-            if(min_depth_ < _depth[i] && _depth[i] < max_depth_ && fabs(_depthGradXPyr[i]) < max_depth_grad && fabs(_depthGradYPyr[i]) < max_depth_grad ) //Compute only for the valid points
+            if( min_depth_ < _depth[i] && _depth[i] < max_depth_ &&
+                fabs(_depthGradXPyr[i]) < max_depth_grad && fabs(_depthGradYPyr[i]) < max_depth_grad ) //Compute only for the valid points
                 if( fabs(_grayGradXPyr[i]) > thres_saliency_gray || fabs(_grayGradYPyr[i]) > thres_saliency_gray  )
                 //    || fabs(_depthGradXPyr[i]) > thres_saliency_depth || fabs(_depthGradYPyr[i]) > thres_saliency_depth )
                 {
@@ -432,54 +434,7 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
 //    #if ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
-//        for(int r=0; r < nRows; r++)
-//        {
-//            __m128 sin_phi = _mm_set1_ps(v_sinPhi[r]);
-//            __m128 cos_phi = _mm_set1_ps(v_cosPhi[r]);
 
-//            size_t i = r*nCols;
-//            for(int c=0; c < nCols; c+=4, i+=4)
-//            {
-//                __m128 __depth = _mm_load_ps(_depth+i);
-//                __m128 sin_theta = _mm_load_ps(&v_sinTheta[c]);
-//                __m128 cos_theta = _mm_load_ps(&v_cosTheta[c]);
-
-//                __m128 __x = _mm_mul_ps( __depth, _mm_mul_ps(cos_phi, sin_theta) );
-//                __m128 __y = _mm_mul_ps( __depth, sin_phi );
-//                __m128 __z = _mm_mul_ps( __depth, _mm_mul_ps(cos_phi, cos_theta) );
-//                _mm_store_ps(_x+i, __x);
-//                _mm_store_ps(_y+i, __y);
-//                _mm_store_ps(_z+i, __z);
-
-//                __m128 valid_depth_pts = _mm_and_ps( _mm_cmplt_ps(_min_depth_, __depth), _mm_cmplt_ps(__depth, _max_depth_) );
-//                __m128 __gradDepthX = _mm_load_ps(_depthGradXPyr+i);
-//                __m128 __gradDepthY = _mm_load_ps(_depthGradYPyr+i);
-//                __m128 __gradGrayX = _mm_load_ps(_grayGradXPyr+i);
-//                __m128 __gradGrayY = _mm_load_ps(_grayGradYPyr+i);
-//                __m128 valid_depth_grad = _mm_and_ps(_mm_and_ps( _mm_cmpgt_ps(_max_depth_grad, __gradDepthX), _mm_cmplt_ps(_max_depth_grad_neg, __gradDepthX) ),
-//                                                     _mm_and_ps( _mm_cmpgt_ps(_max_depth_grad, __gradDepthY), _mm_cmplt_ps(_max_depth_grad_neg, __gradDepthY) ) );
-//                //__m128 salient_pts = _mm_or_ps( _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps(__gradDepthX, _depth_saliency_), _mm_cmplt_ps(__gradDepthX, _depth_saliency_neg) ),
-//                //                                           _mm_or_ps( _mm_cmpgt_ps(__gradDepthY, _depth_saliency_), _mm_cmplt_ps(__gradDepthY, _depth_saliency_neg) ) ),
-//                //                                _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( __gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayX, _gray_saliency_neg ) ),
-//                //                                           _mm_or_ps( _mm_cmpgt_ps( __gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayY, _gray_saliency_neg ) ) ) );
-//                //_mm_store_ps(_valid_pt+i, _mm_and_ps( valid_depth_pts, salient_pts ) );
-
-//                __m128 salient_pts;
-//                if(method == 0) // PhotoDepth
-//                    salient_pts = _mm_or_ps(_mm_or_ps( _mm_or_ps( _mm_cmpgt_ps(__gradDepthX, _depth_saliency_), _mm_cmplt_ps(__gradDepthX, _depth_saliency_neg) ),
-//                                                       _mm_or_ps( _mm_cmpgt_ps(__gradDepthY, _depth_saliency_), _mm_cmplt_ps(__gradDepthY, _depth_saliency_neg) ) ),
-//                                            _mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( __gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayX, _gray_saliency_neg ) ),
-//                                                       _mm_or_ps( _mm_cmpgt_ps( __gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayY, _gray_saliency_neg ) ) ) );
-//                else if(method == 1)
-//                    salient_pts =_mm_or_ps( _mm_or_ps( _mm_cmpgt_ps( __gradGrayX, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayX, _gray_saliency_neg ) ),
-//                                            _mm_or_ps( _mm_cmpgt_ps( __gradGrayY, _gray_saliency_ ), _mm_cmplt_ps( __gradGrayY, _gray_saliency_neg ) ) );
-//                else
-//                    salient_pts = _mm_or_ps(_mm_or_ps( _mm_cmpgt_ps(__gradDepthX, _depth_saliency_), _mm_cmplt_ps(__gradDepthX, _depth_saliency_neg) ),
-//                                            _mm_or_ps( _mm_cmpgt_ps(__gradDepthY, _depth_saliency_), _mm_cmplt_ps(__gradDepthY, _depth_saliency_neg) ) );
-
-//                _mm_store_ps(_valid_pt+i, _mm_and_ps( _mm_and_ps(valid_depth_pts, valid_depth_grad), salient_pts ) );
-//            }
-//        }
 //    }
 //    else
     {
@@ -582,7 +537,7 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
 void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray, cv::Mat & warped_gray, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible)
 {
 #if PRINT_PROFILING
-    cout << " SphericalModel::project ... " << xyz.rows() << endl;
+    cout << " SphericalModel::reproject ... " << xyz.rows() << endl;
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -616,8 +571,6 @@ void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray
 //         mrpt::system::pause();
     }
 #endif
-
-    cout << " SphericalModel::project ... " << xyz.rows() << endl;
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
@@ -720,7 +673,7 @@ void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " SphericalModel::project " << xyz.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
+    cout << " SphericalModel::reproject " << xyz.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
@@ -728,7 +681,7 @@ void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray
 void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible)
 {
 #if PRINT_PROFILING
-    cout << " SphericalModel::project ... " << xyz.rows() << endl;
+    //cout << " SphericalModel::project ... " << xyz.rows() << endl;
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -759,8 +712,6 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
 //         mrpt::system::pause();
     }
 #endif
-
-    cout << " SphericalModel::project ... " << xyz.rows() << endl;
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
@@ -840,7 +791,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
 
 #if TEST_SIMD
     // Test SSE
-    cout << " Check result " << endl;
+    //cout << " Check result " << endl;
     for(int i=0; i < pixels.rows(); i++)
     {
         if( visible(i) == -1 )
@@ -859,7 +810,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
 //        ASSERT_( AlmostEqual2sComplement(pixels(i,1), pixels2(i,1), MAX_ULPS) );
         ASSERT_( visible(i) == visible2(i) );
     }
-    mrpt::system::pause();
+    //mrpt::system::pause();
 #endif
 
 #if PRINT_PROFILING
@@ -1144,7 +1095,7 @@ void SphericalModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const
     const float *_x = &xyz_tf(0,0);
     const float *_y = &xyz_tf(0,1);
     const float *_z = &xyz_tf(0,2);
-    const float *_weight = &weights(0,0);
+    const float *_weight = &weights(0);
 
 #if TEST_SIMD
     Eigen::MatrixXf jacobians_photo2(xyz_tf.rows(), 6);
@@ -1266,7 +1217,7 @@ void SphericalModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const
     const float *_x = &xyz_tf(0,0);
     const float *_y = &xyz_tf(0,1);
     const float *_z = &xyz_tf(0,2);
-    const float *_weight = &weights(0,0);
+    const float *_weight = &weights(0);
     const float *_stdDevInv = &stdDevError_inv(0);
 
 #if TEST_SIMD
@@ -1397,7 +1348,7 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
     const float *_x = &xyz_tf(0,0);
     const float *_y = &xyz_tf(0,1);
     const float *_z = &xyz_tf(0,2);
-    const float *_weight = &weights(0,0);
+    const float *_weight = &weights(0);
     const float *_stdDevInv = &stdDevError_inv(0);
 
 #if TEST_SIMD
@@ -1560,8 +1511,8 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
 }
 
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
-void SphericalModel::computeJacobiansPhotoDepth_IC(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
-                                                   double & error2,
+void SphericalModel::computeJacobiansPhotoDepth_IC( const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
+                                                    double & error2,
                                                     Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY)
 {
 #if PRINT_PROFILING
@@ -1580,7 +1531,7 @@ void SphericalModel::computeJacobiansPhotoDepth_IC(const Eigen::MatrixXf & xyz_t
     const float *_x = &xyz_tf(0,0);
     const float *_y = &xyz_tf(0,1);
     const float *_z = &xyz_tf(0,2);
-    const float *_weight = &weights(0,0);
+    const float *_weight = &weights(0);
     const float *_stdDevInv = &stdDevError_inv(0);
 
 #if TEST_SIMD

@@ -215,7 +215,7 @@ public:
         PHOTO_DEPTH,
         PHOTO_CONSISTENCY,
         DEPTH_CONSISTENCY,
-        DEPTH_ICP
+        DIRECT_ICP
     } method;
 
     /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
