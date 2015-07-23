@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2012, Universidad de Málaga - Grupo MAPIR
+ *  Copyright (c) 2013, Universidad de Málaga - Grupo MAPIR
  *
  *  All rights reserved.
  *

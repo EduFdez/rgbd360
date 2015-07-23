@@ -84,6 +84,7 @@ IF(BUILD_REGISTRATION)
                                                 ../include/Miscellaneous.h
                                                 ../include/Calib360.h
                                                 ../include/Frame360.h
+                                                ../include/SequenceStereo360.h
                                                 ../src/Frame360.cpp
                                                 ../include/Map360_Visualizer.h
                                                 ../include/RegisterRGBD360.h

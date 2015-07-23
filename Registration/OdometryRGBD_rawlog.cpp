@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2012, Universidad de Málaga - Grupo MAPIR
+ *  Copyright (c) 2013, Universidad de Málaga - Grupo MAPIR
  *
  *  All rights reserved.
  *
@@ -230,7 +230,7 @@ public:
             //Set the initial pose (if appropiate)
             if (first_pose == false)
             {
-//                transf.setFromValues(0,0,0,0.5*M_PI, -0.5*M_PI, 0);
+                transf.setFromValues(0,0,0,0.5*M_PI, -0.5*M_PI, 0);
 //                //cout << "transf pose \n" << transf.getHomogeneousMatrixVal() << endl;
 //                mrpt::poses::CPose3D ref_mrpt_edu;
 ////                ref_mrpt_edu.setFromValues(0,0,0,M_PI,0,0);
@@ -382,8 +382,8 @@ public:
         DirectRegistration registerRGBD; // Dense RGB-D alignment
         registerRGBD.setSensorType( DirectRegistration::KINECT ); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::register360 for more details)
         //registerRGBD.setNumPyr(0);
-        registerRGBD.setNumPyr(2);
-        registerRGBD.setMaxIterations(5);
+        registerRGBD.setNumPyr(4);
+        registerRGBD.setMaxIterations(20);
         registerRGBD.setMaxDepth(8.f);
 //        registerRGBD.useSaliency(true);
 //        registerRGBD.thresSaliencyIntensity(0.f);
@@ -391,6 +391,8 @@ public:
 //        registerRGBD.setBilinearInterp(true);
 //        registerRGBD.setVisualization(true);
         registerRGBD.setGrayVariance(8.f/255);
+        registerRGBD.setToleranceUpdate(1e-4);
+        registerRGBD.setToleranceRes(1e-4);
 
         // Initialize ICP
         pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
@@ -596,15 +598,15 @@ public:
             registerRGBD.setTargetFrame(intensity_trg, depth_trg);
             registerRGBD.setSourceFrame(intensity_src, depth_src);
 
-            registerRGBD.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            registerRGBD.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePose_photo = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
             cout << "registerRGBD Photo \n" << relativePose_photo << endl;
 
-            registerRGBD.regist(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            registerRGBD.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePose_depth = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
             cout << "registerRGBD Depth \n" << relativePose_depth << endl;
 
-            registerRGBD.regist(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            registerRGBD.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePose = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
             cout << "registerRGBD \n" << relativePose << endl;
 

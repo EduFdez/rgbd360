@@ -221,6 +221,8 @@ public:
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
     virtual void computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_gradX, float *_gradY) = 0;
 
+    virtual void computeJacobiansPhoto2(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXi & warped_pixels, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_gradX, float *_gradY) = 0;
+
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
     virtual void computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_gradDepthX, float *_gradDepthY) = 0;
 

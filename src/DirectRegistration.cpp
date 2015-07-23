@@ -113,6 +113,10 @@ DirectRegistration::DirectRegistration(sensorType sensor) :
     tol_update_trans_ = 1e-3;
     tol_residual_ = 1e-3;
 
+    //        double lambda = 0.01; // Levenberg-Marquardt (LM) lambda
+    //        double step = 10; // Update step
+    //        unsigned LM_max_iters_ = 1;
+
     registered_pose_ = Matrix4f::Identity();
 }
 
@@ -318,6 +322,8 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
     {
         // Warp the image
         ProjModel->projectNN(xyz_src_transf, validPixels_src, warp_pixels_src);
+//        if( method == DIRECT_ICP && pyrLevel ==4 )
+//            cout << "warp_pixels_src: " << warp_pixels_src.transpose() << endl;
 
         if(method == PHOTO_DEPTH)
         {            
@@ -334,8 +340,7 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
                 //if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
                 if( warp_pixels_src(i) != -1 )
                 {
-
-                    ASSERT_(validPixels_src(i) != -1);
+                    //ASSERT_(validPixels_src(i) != -1);
 
                     //cout << i << " validPixels_src " << validPixels_src(i) << " warp_pixel " << warp_pixels_src(i) << endl;
                     ++numVisiblePts;
@@ -364,6 +369,358 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
                             //diff_depth(i) = _depthTrgPyr[warp_pixels_src(i)] - ProjModel->getDepth(xyz);
                             Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
                             float residual = (depth - ProjModel->getDepth(xyz)) * stdDevError_inv_src(i);
+                            wEstimDepth_src(i) = sqrt(weightMEstimator(residual));
+                            residualsDepth_src(i) = wEstimDepth_src(i) * residual;
+                            error2_depth += residualsDepth_src(i) * residualsDepth_src(i);
+                            // cout << i << " error2_depth " << error2_depth << " weight " << wEstimDepth_src(i) << " residual " << residual << " stdDevInv " << stdDevError_inv_src(i) << endl;
+                        }
+                    }
+                    //mrpt::system::pause();
+                }
+                //mrpt::system::pause();
+            }
+        }
+        else if(method == PHOTO_CONSISTENCY)
+        {
+            //cout << " method == PHOTO_CONSISTENCY " << endl;
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+            for(size_t i=0; i < n_pts; i++)
+            {
+                //if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+                if( warp_pixels_src(i) != -1 )
+                {
+                    ++numVisiblePts;
+                    // cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyrLevel].at<float>(r_transf,c_transf)) << " " << fabs(grayTrgGradYPyr[pyrLevel].at<float>(r_transf,c_transf)) << endl;
+                    //if( fabs(_grayTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_gray_)
+                    //if( fabs(_graySrcGradXPyr[validPixels_src(i)]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[validPixels_src(i)]) > thres_saliency_gray_)
+                    {
+                        validPixelsPhoto_src(i) = 1;
+                        float diff = _grayTrgPyr[warp_pixels_src(i)] - _graySrcPyr[validPixels_src(i)];
+                        //diff_photo(i) = _grayTrgPyr[warp_pixels_src(i)] - _graySrcPyr[validPixels_src(i)];
+                        float residual = diff * stdDevPhoto_inv;
+                        wEstimPhoto_src(i) = sqrt(weightMEstimator(residual)); // The weight computed by an M-estimator
+                        residualsPhoto_src(i) = wEstimPhoto_src(i) * residual;
+                        error2_photo += residualsPhoto_src(i) * residualsPhoto_src(i);
+                        //v_AD_intensity[i] = fabs(diff);
+                        //cout << i << " warp_pixel " << warp_pixels_src(i) << " weight " << wEstimPhoto_src(i) << " error2_photo " << error2_photo << " diff " << diff << endl;
+                    }
+                }
+            }
+        }
+        else if(method == DEPTH_CONSISTENCY)
+        {
+            //cout << " method == DEPTH_CONSISTENCY " << endl;
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+            for(size_t i=0; i < n_pts; i++)
+            {
+                //if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+                if( warp_pixels_src(i) != -1 )
+                {
+                    float depth = _depthTrgPyr[warp_pixels_src(i)];
+                    if(depth > ProjModel->min_depth_) // if(depth > ProjModel->min_depth_) // Make sure this point has depth (not a NaN)
+                    {
+                        //if( fabs(_depthTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_depth_)
+                        {
+                            ++numVisiblePts;
+                            validPixelsDepth_src(i) = 1;
+                            stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
+                            //diff_depth(i) = _depthTrgPyr[warp_pixels_src(i)] - ProjModel->getDepth(xyz);
+                            Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
+                            float residual = (depth - ProjModel->getDepth(xyz)) * stdDevError_inv_src(i);
+                            wEstimDepth_src(i) = sqrt(weightMEstimator(residual));
+                            residualsDepth_src(i) = wEstimDepth_src(i) * residual;
+                            error2_depth += residualsDepth_src(i) * residualsDepth_src(i);
+                            // cout << i << " error2_depth " << error2_depth << " weight " << wEstimDepth_src(i) << " residual " << residual << " stdDevInv " << stdDevError_inv_src(i) << endl;
+                        }
+                    }
+                }
+            }
+        }
+        else if(method == DIRECT_ICP) // Fast ICP implementation: the data association is given by the image warping (still to optimize)
+        {
+            cout << " computeError DIRECT_ICP \n";
+            float thres_max_dist = 0.5f;
+    #if ENABLE_OPENMP
+    #pragma omp parallel for reduction (+:error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+    #endif
+            for(size_t i=0; i < n_pts; i++)
+            {
+                //if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+                if( warp_pixels_src(i) != -1 )
+                {
+                    float depth = _depthTrgPyr[warp_pixels_src(i)];
+                    if(depth > ProjModel->min_depth_) // if(depth > ProjModel->min_depth_) // Make sure this point has depth (not a NaN)
+                    {
+                        //if( fabs(_depthTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_depth_)
+                        {
+                            stdDevError_inv_src(i) = 1;
+                            //stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
+                            Vector3f residual3D = (LUT_xyz_source.block(i,0,1,3).transpose() - LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose()) * stdDevError_inv_src(i);
+                            float res_norm = residual3D.norm();
+                            if(res_norm < thres_max_dist)
+                            {
+                                ++numVisiblePts;
+                                validPixelsDepth_src(i) = 1;
+                                float weight2 = 1;
+                                //float weight2 = weightMEstimator(res_norm);
+                                wEstimDepth_src(i) = sqrt(weight2);
+                                residualsDepth_src.block(3*i,0,3,1) = wEstimDepth_src(i) * residual3D;
+                                error2_depth += weight2 * residual3D .dot (residual3D);
+                                // cout << i << " error2_depth " << error2_depth << " weight " << wEstimDepth_src(i) << " residual " << residual3D.transpose() << " stdDevInv " << stdDevError_inv_src(i) << endl;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    else // Bilinear
+    {
+        cout << " BILINEAR TRANSF -> SUBPIXEL TRANSFORMATION " << endl;
+        cout << "poseGuess \n" << poseGuess << endl;
+
+        // Warp the image
+        ProjModel->project(xyz_src_transf, warp_img_src, warp_pixels_src);
+
+        if(method == PHOTO_DEPTH)
+        {
+    #if ENABLE_OPENMP
+    #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+    #endif
+            for(size_t i=0; i < n_pts; i++)
+            {
+                if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+                {
+                    //ASSERT_(validPixels_src(i) != -1);
+
+                    ++numVisiblePts;
+                    cv::Point2f warped_pixel(warp_img_src(i,0), warp_img_src(i,1));
+                    // cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyrLevel].at<float>(r_transf,c_transf)) << " " << fabs(grayTrgGradYPyr[pyrLevel].at<float>(r_transf,c_transf)) << endl;
+                    //if( fabs(_grayTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_gray_)
+                    //if( fabs(_graySrcGradXPyr[warp_pixels_src(i)]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[warp_pixels_src(i)]) > thres_saliency_gray_)
+                    {
+                        validPixelsPhoto_src(i) = 1;
+                        float intensity = ProjModel->bilinearInterp( grayTrgPyr[pyrLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                        float diff = intensity - _graySrcPyr[validPixels_src(i)];
+                        float residual = diff * stdDevPhoto_inv;
+                        //diff_photo(i) = _grayTrgPyr[warp_pixels_src(i)] - _graySrcPyr[validPixels_src(i)];
+                        wEstimPhoto_src(i) = sqrt(weightMEstimator(residual)); // The weight computed by an M-estimator
+                        residualsPhoto_src(i) = wEstimPhoto_src(i) * residual;
+                        error2_photo += residualsPhoto_src(i) * residualsPhoto_src(i);
+                        //v_AD_intensity[i] = fabs(diff);
+                        //cout << i << " warp_pixel " << warp_pixels_src(i) << " weight " << wEstimPhoto_src(i) << " error2_photo " << error2_photo << " diff " << diff << endl;
+                    }
+
+                    float depth = _depthTrgPyr[(int)(warped_pixel.y) * ProjModel->nCols + (int)(warped_pixel.x)];
+//                    float depth = ProjModel->bilinearInterp_depth( grayTrgPyr[pyrLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                    if(depth > ProjModel->min_depth_) // if(depth > ProjModel->min_depth_) // Make sure this point has depth (not a NaN)
+                    {
+                        //if( fabs(_depthTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_depth_)
+                        {
+                            validPixelsDepth_src(i) = 1;
+                            stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
+                            //diff_depth(i) = _depthTrgPyr[validPixels_src(i)] - ProjModel->getDepth(xyz);
+                            Vector3f xyz = xyz_src_transf.block(i,0,1,3).transpose();
+                            float residual = (depth - ProjModel->getDepth(xyz)) * stdDevError_inv_src(i);
+                            wEstimDepth_src(i) = sqrt(weightMEstimator(residual));
+                            residualsDepth_src(i) = wEstimDepth_src(i) * residual;
+                            error2_depth += residualsDepth_src(i) * residualsDepth_src(i);
+                            // cout << i << " error2_depth " << error2_depth << " weight " << wEstimDepth_src(i) << " residual " << residual << " stdDevInv " << stdDevError_inv_src(i) << endl;
+                        }
+                    }
+                }
+            }
+        }
+        else if(method == PHOTO_CONSISTENCY)
+        {
+#if ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+            for(size_t i=0; i < n_pts; i++)
+            {
+                if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+                {
+                    ++numVisiblePts;
+                    cv::Point2f warped_pixel(warp_img_src(i,0), warp_img_src(i,1));
+                    // cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyrLevel].at<float>(r_transf,c_transf)) << " " << fabs(grayTrgGradYPyr[pyrLevel].at<float>(r_transf,c_transf)) << endl;
+                    //if( fabs(_grayTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_gray_)
+                    //if( fabs(_graySrcGradXPyr[validPixels_src(i)]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[validPixels_src(i)]) > thres_saliency_gray_)
+                    {
+                        validPixelsPhoto_src(i) = 1;
+                        float intensity = ProjModel->bilinearInterp( grayTrgPyr[pyrLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                        float diff = intensity - _graySrcPyr[validPixels_src(i)];
+                        float residual = diff * stdDevPhoto_inv;
+                        //diff_photo(i) = _grayTrgPyr[warp_pixels_src(i)] - _graySrcPyr[validPixels_src(i)];
+                        wEstimPhoto_src(i) = sqrt(weightMEstimator(residual)); // The weight computed by an M-estimator
+                        residualsPhoto_src(i) = wEstimPhoto_src(i) * residual;
+                        error2_photo += residualsPhoto_src(i) * residualsPhoto_src(i);
+                        //v_AD_intensity[i] = fabs(diff);
+                        //cout << i << " warp_pixel " << warp_pixels_src(i) << " weight " << wEstimPhoto_src(i) << " error2_photo " << error2_photo << " diff " << diff << endl;
+                    }
+                }
+            }
+        }
+    }
+
+    SSO = (float)numVisiblePts / n_pts;
+    //        cout << "numVisiblePixels " << numVisiblePixels << " imgSize " << imgSize << " sso " << SSO << endl;
+
+    // Compute the median absulute deviation of the projection of reference image onto the target one to update the value of the standard deviation of the intesity error
+//    if(error2_photo > 0 && compute_MAD_stdDev_)
+//    {
+//        cout << " stdDevPhoto PREV " << stdDevPhoto << endl;
+//        size_t count_valid_pix = 0;
+//        std::vector<float> v_AD_intensity(n_ptsPhoto);
+//        for(size_t i=0; i < imgSize; i++)
+//            if( validPixelsPhoto_src(i) ) //Compute the jacobian only for the valid points
+//            {
+//                v_AD_intensity[count_valid_pix] = v_AD_intensity_[i];
+//                ++count_valid_pix;
+//            }
+//        //v_AD_intensity.conservativeResize(n_pts);
+//        v_AD_intensity.conservativeResize(n_ptsPhoto);
+//        float stdDevPhoto_updated = 1.4826 * median(v_AD_intensity);
+//        error2_photo *= stdDevPhoto*stdDevPhoto / (stdDevPhoto_updated*stdDevPhoto_updated);
+//        stdDevPhoto = stdDevPhoto_updated;
+//        cout << " stdDevPhoto_updated    " << stdDevPhoto_updated << endl;
+//    }
+
+    error2 = (error2_photo + error2_depth) / numVisiblePts;
+
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    cout << "Level " << pyrLevel << " computeError took " << double (time_end - time_start)*1000 << " ms. \n";
+#endif
+
+#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
+    cout << "error2 " << error2 << " error2_photo " << error2_photo << " error2_depth " << error2_depth << " numVisiblePts " << numVisiblePts << endl;
+#endif
+
+    return error2;
+}
+
+/*! Compute the residuals with the Inverse compositional formulation */
+double DirectRegistration::computeError_IC( const int pyrLevel, const Matrix4f & poseGuess, const costFuncType method )
+{
+    //cout << " DirectRegistration::computeError \n";
+    double error2 = 0.0;
+    double error2_photo = 0.0;
+    double error2_depth = 0.0;
+    size_t numVisiblePts = 0;
+
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t i=0; i<1000; i++)
+    {
+#endif
+
+//    nRows = graySrcPyr[pyrLevel].rows;
+//    nRows = graySrcPyr[pyrLevel].cols;
+//    imgSize = nRows*nCols;
+    const size_t n_pts = LUT_xyz_source.rows();
+    float stdDevPhoto_inv = 1./stdDevPhoto;
+
+    transformPts3D(LUT_xyz_source, poseGuess, xyz_src_transf);
+
+    warp_pixels_src.resize( n_pts );
+    //warp_img_src.resize( n_pts, 2 );
+    residualsPhoto_src = VectorXf::Zero(n_pts);
+    if(method == DIRECT_ICP)
+        residualsDepth_src = VectorXf::Zero(3*n_pts);
+    else
+        residualsDepth_src = VectorXf::Zero(n_pts);
+    stdDevError_inv_src = VectorXf::Zero(n_pts);
+    wEstimPhoto_src = VectorXf::Zero(n_pts);
+    wEstimDepth_src = VectorXf::Zero(n_pts);
+    validPixelsPhoto_src = VectorXi::Zero(n_pts);
+    validPixelsDepth_src = VectorXi::Zero(n_pts);
+
+//    _residualsPhoto_src = VectorXf::Zero(imgSize);
+//    _residualsDepth_src = VectorXf::Zero(imgSize);
+//    _stdDevError_inv_src = VectorXf::Zero(imgSize);
+//    _wEstimPhoto_src = VectorXf::Zero(imgSize);
+//    _wEstimDepth_src = VectorXf::Zero(imgSize);
+//    _validPixelsPhoto_src = VectorXi::Zero(imgSize);
+//    _validPixelsDepth_src = VectorXi::Zero(imgSize);
+
+    // Container to compute the MAD, which is used to update the intensity (or brightness) standard deviation
+    //std::vector<float> v_AD_intensity(imgSize);
+
+    float *_depthTrgPyr = reinterpret_cast<float*>(depthTrgPyr[pyrLevel].data);
+    float *_graySrcPyr = reinterpret_cast<float*>(graySrcPyr[pyrLevel].data);
+    float *_grayTrgPyr = reinterpret_cast<float*>(grayTrgPyr[pyrLevel].data);
+
+    //    float *_depthTrgGradXPyr = reinterpret_cast<float*>(depthTrgGradXPyr[pyrLevel].data);
+    //    float *_depthTrgGradYPyr = reinterpret_cast<float*>(depthTrgGradYPyr[pyrLevel].data);
+    //    float *_grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyrLevel].data);
+    //    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
+
+//    float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
+//    float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
+//    float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
+//    float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
+
+    //cout << " use_salient_pixels_ " << use_salient_pixels_ << " use_bilinear_ " << use_bilinear_ << " pts " << LUT_xyz_source.rows()  << endl;
+
+    //Asign the intensity/depth value to the warped image and compute the difference between the transformed
+    //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
+    if( !use_bilinear_ || pyrLevel !=0 || method == DEPTH_CONSISTENCY || method == DIRECT_ICP ) // Only range registration is always performed with nearest-neighbour
+    {
+        // Warp the image
+        ProjModel->projectNN(xyz_src_transf, validPixels_src, warp_pixels_src);
+//        if( method == DIRECT_ICP && pyrLevel ==4 )
+//            cout << "warp_pixels_src: " << warp_pixels_src.transpose() << endl;
+
+        if(method == PHOTO_DEPTH)
+        {
+            //cout << " method == PHOTO_DEPTH " << endl;
+
+//            Eigen::VectorXf diff_photo(n_pts); //= Eigen::VectorXf::Zero(n_pts);
+//            Eigen::VectorXf diff_depth(n_pts);
+    #if ENABLE_OPENMP
+    #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+    #endif
+            for(size_t i=0; i < n_pts; i++)
+            {
+                //cout << i << " validPixels_src " << validPixels_src(i) << " warp_pixel " << warp_pixels_src(i) << endl;
+                //if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+                if( warp_pixels_src(i) != -1 )
+                {
+                    //ASSERT_(validPixels_src(i) != -1);
+
+                    //cout << i << " validPixels_src " << validPixels_src(i) << " warp_pixel " << warp_pixels_src(i) << endl;
+                    ++numVisiblePts;
+                    // cout << thres_saliency_gray_ << " Grad " << fabs(grayTrgGradXPyr[pyrLevel].at<float>(r_transf,c_transf)) << " " << fabs(grayTrgGradYPyr[pyrLevel].at<float>(r_transf,c_transf)) << endl;
+                    //if( fabs(_grayTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_gray_ || fabs(_grayTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_gray_)
+                    //if( fabs(_graySrcGradXPyr[validPixels_src(i)]) > thres_saliency_gray_ || fabs(_graySrcGradYPyr[validPixels_src(i)]) > thres_saliency_gray_)
+                    {
+                        validPixelsPhoto_src(i) = 1;
+                        float diff = _grayTrgPyr[warp_pixels_src(i)] - _graySrcPyr[validPixels_src(i)];
+                        //diff_photo(i) = _grayTrgPyr[warp_pixels_src(i)] - _graySrcPyr[validPixels_src(i)];
+                        float residual = diff * stdDevPhoto_inv;
+                        wEstimPhoto_src(i) = sqrt(weightMEstimator(residual)); // The weight computed by an M-estimator
+                        residualsPhoto_src(i) = wEstimPhoto_src(i) * residual;
+                        error2_photo += residualsPhoto_src(i) * residualsPhoto_src(i);
+                        //v_AD_intensity[i] = fabs(diff);
+                        //cout << i << " warp_pixel " << warp_pixels_src(i) << " weight " << wEstimPhoto_src(i) << " error2_photo " << error2_photo << " diff " << diff << endl;
+                    }
+
+                    float depth = _depthTrgPyr[warp_pixels_src(i)];
+                    if(depth > ProjModel->min_depth_) // if(depth > ProjModel->min_depth_) // Make sure this point has depth (not a NaN)
+                    {
+                        //if( fabs(_depthTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_depth_)
+                        {
+                            validPixelsDepth_src(i) = 1;
+                            stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
+                            //diff_depth(i) = _depthTrgPyr[warp_pixels_src(i)] - ProjModel->getDepth(xyz);
+                            Vector3f xyz_src = LUT_xyz_source.block(i,0,1,3).transpose();
+                            Vector3f xyz_trg = LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose();
+                            float residual = (poseGuess_inv(2,0)*xyz_trg(0)+poseGuess_inv(2,1)*xyz_trg(1)+poseGuess_inv(2,2)*xyz_trg(2) + poseGuess_inv(2,3) - xyz_src(2)) * stdDevError_inv_src(i);
                             wEstimDepth_src(i) = sqrt(weightMEstimator(residual));
                             residualsDepth_src(i) = wEstimDepth_src(i) * residual;
                             error2_depth += residualsDepth_src(i) * residualsDepth_src(i);
@@ -628,10 +985,10 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
     float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
     float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
 
-//    float *_depthTrgGradXPyr = reinterpret_cast<float*>(depthTrgGradXPyr[pyrLevel].data);
-//    float *_depthTrgGradYPyr = reinterpret_cast<float*>(depthTrgGradYPyr[pyrLevel].data);
-//    float *_grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyrLevel].data);
-//    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
+    float *_depthTrgGradXPyr = reinterpret_cast<float*>(depthTrgGradXPyr[pyrLevel].data);
+    float *_depthTrgGradYPyr = reinterpret_cast<float*>(depthTrgGradYPyr[pyrLevel].data);
+    float *_grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyrLevel].data);
+    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
 
     // Build the aligned versions of the image derivatives, so that we can benefit from SIMD performance
     if(use_salient_pixels_)
@@ -652,10 +1009,12 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
     if(method == PHOTO_DEPTH)
     {
         ProjModel->computeJacobiansPhotoDepth(xyz_src_transf, stdDevPhoto_inv, stdDevError_inv_src, wEstimDepth_src, jacobiansPhoto, jacobiansDepth, _depthSrcGradXPyr, _depthSrcGradYPyr, _graySrcGradXPyr, _graySrcGradYPyr);
+//        ProjModel->computeJacobiansPhotoDepth(xyz_src_transf, stdDevPhoto_inv, stdDevError_inv_src, wEstimDepth_src, jacobiansPhoto, jacobiansDepth, _depthTrgGradXPyr, _depthTrgGradYPyr, _grayTrgGradXPyr, _grayTrgGradYPyr);
     }
     else if(method == PHOTO_CONSISTENCY)
     {
-        ProjModel->computeJacobiansPhoto(xyz_src_transf, stdDevPhoto_inv, wEstimPhoto_src, jacobiansPhoto, _graySrcGradXPyr, _graySrcGradYPyr);
+//        ProjModel->computeJacobiansPhoto(xyz_src_transf, stdDevPhoto_inv, wEstimPhoto_src, jacobiansPhoto, _graySrcGradXPyr, _graySrcGradYPyr);
+        ProjModel->computeJacobiansPhoto2(xyz_src_transf, warp_pixels_src, stdDevPhoto_inv, wEstimPhoto_src, jacobiansPhoto, _grayTrgGradXPyr, _grayTrgGradYPyr);
     }
     else if(method == DEPTH_CONSISTENCY)
     {
@@ -668,7 +1027,7 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 
     if(visualize_)
     {
-//        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
         {
             warped_gray = cv::Mat::zeros(graySrcPyr[pyrLevel].rows, graySrcPyr[pyrLevel].cols, graySrcPyr[pyrLevel].type());
             if(!use_bilinear_)
@@ -6960,20 +7319,14 @@ void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
  *  This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
  *  between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
  */
-void DirectRegistration::regist(const Matrix4f pose_guess, const costFuncType method, const int occlusion )
+void DirectRegistration::doRegistration(const Matrix4f pose_guess, const costFuncType method, const int occlusion )
 {
 #if PRINT_PROFILING
-    cout << " DirectRegistration::regist ... \n";
+    cout << " DirectRegistration::doRegistration ... \n";
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
     {
 #endif
-
-//    if(occlusion == 2)
-//    {
-//        min_depth_Outliers = 2*stdDevDepth; // in meters
-//        thresDepthOutliers = max_depth_Outliers;
-//    }
 
     string win_name_diffPhoto = "Intensity Abs. Difference";
     string win_name_diffDepth = "Depth Abs. Difference";
@@ -7051,24 +7404,9 @@ void DirectRegistration::regist(const Matrix4f pose_guess, const costFuncType me
         if(method == DIRECT_ICP)
             ProjModel->reconstruct3D(depthTrgPyr[pyrLevel], LUT_xyz_target, validPixels_trg);
 
-//        double lambda = 0.01; // Levenberg-Marquardt (LM) lambda
-//        double step = 10; // Update step
-//        unsigned LM_max_iters_ = 1;
-
-//        int max_iters_ = 10;
-//        double tol_residual_ = 1e-3;
-//        double tol_update_ = 1e-4;
         Matrix<float,6,1> update_pose; update_pose << 1, 1, 1, 1, 1, 1;
         //double error_IC = computeError_IC(pyrLevel, pose_estim, method);
         double error = computeError(pyrLevel, pose_estim, method);
-//        double error, new_error;
-//        if(occlusion == 0)
-//            error = computeError(pyrLevel, pose_estim, method);
-//        else if(occlusion == 1)
-//            error = computeError_Occ1(pyrLevel, pose_estim, method);
-//        else if(occlusion == 2)
-//            error = computeError_Occ2(pyrLevel, pose_estim, method);
-
 
         double diff_error = error;
         while(num_iters[pyrLevel] < max_iters_ && update_pose.norm() > tol_update_ && diff_error > tol_residual_) // The LM optimization stops either when the max iterations is reached, or when the alignment converges (error or pose do not change)
@@ -7079,14 +7417,6 @@ void DirectRegistration::regist(const Matrix4f pose_guess, const costFuncType me
             hessian.setZero();
             gradient.setZero();
             calcHessGrad(pyrLevel, method);
-//            if(occlusion == 0)
-//                calcHessGrad(pyrLevel, method);
-//            else if(occlusion == 1)
-//                calcHessGrad_Occ1(pyrLevel, pose_estim, method);
-//            else if(occlusion == 2)
-//                calcHessGrad_Occ2(pyrLevel, pose_estim, method);
-//            else
-//                assert(false);
 
             //                assert(hessian.rank() == 6); // Make sure that the problem is observable
             if( hessian.rank() != 6 )
@@ -7104,19 +7434,13 @@ void DirectRegistration::regist(const Matrix4f pose_guess, const costFuncType me
             //                update_pose = -(hessian + lambda*getDiagonalMatrix(hessian)).inverse() * gradient;
             Matrix<double,6,1> update_pose_d = update_pose.cast<double>();
             pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d)).getHomogeneousMatrixVal().cast<float>() * pose_estim;
-            cout << "update_pose \n" << update_pose.transpose() << endl;
+            //cout << "pose_estim_temp \n" << pose_estim_temp << endl;
 
             //double error_IC = computeError_IC(pyrLevel, pose_estim_temp, method);
             double new_error = computeError(pyrLevel, pose_estim_temp, method);
-//            if(occlusion == 0)
-//                new_error = computeError(pyrLevel, pose_estim_temp, method);
-//            else if(occlusion == 1)
-//                new_error = computeError_Occ1(pyrLevel, pose_estim_temp, method);
-//            else if(occlusion == 2)
-//                new_error = computeError_Occ2(pyrLevel, pose_estim_temp, method);
 
             diff_error = error - new_error;
-            if(diff_error > 0)
+            if(diff_error > 0) //  > -1e-2)
             {
                 // cout << "pose_estim \n" << pose_estim << "\n pose_estim_temp \n" << pose_estim_temp << endl;
                 //lambda /= step;
@@ -7186,34 +7510,7 @@ void DirectRegistration::regist(const Matrix4f pose_guess, const costFuncType me
 //                    //cv::namedWindow("Depth-consistency", cv::WINDOW_AUTOSIZE );// Create a window for display.
 //                    cv::imshow("Depth-consistency", DispImage);
                 }
-                //if(occlusion == 2)
-                //{
-                //    // Draw the segmented features: pixels moving forward and backward and occlusions
-                //    cv::Mat segmentedSrcImg = colorSrcPyr[pyrLevel].clone(); // cv::Mat segmentedSrcImg(colorSrcPyr[pyrLevel],true); // Both should be the same
-                //    //cout << "imgSize  " << imgSize << " nRows*nCols " << nRows << "x" << nCols << " types " << segmentedSrcImg.type() << " " << CV_8UC3 << endl;
-                //    for(unsigned i=0; i < ProjModel->imgSize; i++)
-                //    {
-                //        if(mask_dynamic_occlusion.at<uchar>(i) == 255) // Draw in Red (BGR)
-                //        {
-                //            segmentedSrcImg.at<cv::Vec3b>(i)[0] = 0;
-                //            segmentedSrcImg.at<cv::Vec3b>(i)[1] = 0;
-                //            segmentedSrcImg.at<cv::Vec3b>(i)[2] = 255;
-                //        }
-                //        else if(mask_dynamic_occlusion.at<uchar>(i) == 155)
-                //        {
-                //            segmentedSrcImg.at<cv::Vec3b>(i)[0] = 0;
-                //            segmentedSrcImg.at<cv::Vec3b>(i)[1] = 255;
-                //            segmentedSrcImg.at<cv::Vec3b>(i)[2] = 0;
-                //        }
-                //        else if(mask_dynamic_occlusion.at<uchar>(i) == 55)
-                //        {
-                //            segmentedSrcImg.at<cv::Vec3b>(i)[0] = 255;
-                //            segmentedSrcImg.at<cv::Vec3b>(i)[1] = 0;
-                //            segmentedSrcImg.at<cv::Vec3b>(i)[2] = 0;
-                //        }
-                //    }
-                //    cv::imshow("SegmentedSRC", segmentedSrcImg);
-                //}
+
                 cout << "visualize_\n";
                 cv::waitKey(0);
             }
@@ -7240,7 +7537,230 @@ void DirectRegistration::regist(const Matrix4f pose_guess, const costFuncType me
 #if PRINT_PROFILING
     }
     double time_end = pcl::getTime();
-    cout << " register took " << double (time_end - time_start)*1000 << " ms. \n";
+    cout << " doRegistration took " << double (time_end - time_start)*1000 << " ms. \n";
+#endif
+}
+
+/*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
+ *  This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
+ *  between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
+ */
+void DirectRegistration::doRegistration_IC(const Matrix4f pose_guess, const costFuncType method, const int occlusion )
+{
+#if PRINT_PROFILING
+    cout << " DirectRegistration::doRegistration_IC ... \n";
+    double time_start = pcl::getTime();
+    //for(size_t i=0; i<1000; i++)
+    {
+#endif
+
+    string win_name_diffPhoto = "Intensity Abs. Difference";
+    string win_name_diffDepth = "Depth Abs. Difference";
+    if(visualize_)
+    {
+        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+        {
+            cv::namedWindow(win_name_diffPhoto, cv::WINDOW_AUTOSIZE );// Create a window for display.
+            cv::moveWindow(win_name_diffPhoto, 10, 50);
+        }
+        if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+        {
+            cv::namedWindow(win_name_diffDepth, cv::WINDOW_AUTOSIZE );// Create a window for display.
+            cv::moveWindow(win_name_diffDepth, 610, 50);
+        }
+    }
+
+    num_iters.resize(nPyrLevels+1); // Store the number of iterations
+    std::fill(num_iters.begin(), num_iters.end(), 0);
+    Matrix4f pose_estim_temp, pose_estim = pose_guess;
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
+    {
+        // Set the camera calibration parameters
+        ProjModel->scaleCameraParams(depthSrcPyr, pyrLevel);
+
+        // Make LUT to store the values of the 3D points of the source image
+        if(use_salient_pixels_)
+        {
+            ProjModel->reconstruct3D_saliency( depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src, (int)method,
+                                               depthSrcGradXPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], _max_depth_grad, thres_saliency_depth_,
+                                               graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradXPyr[pyrLevel], thres_saliency_gray_);
+
+            const size_t n_pts = validPixels_src.rows();
+            if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+            {
+                float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
+                float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
+                grayGradX_sal.resize(n_pts);
+                grayGradY_sal.resize(n_pts);
+                for(size_t i=0; i < n_pts; i++)
+                {
+                    grayGradX_sal(i) = _graySrcGradXPyr[validPixels_src(i)];
+                    grayGradY_sal(i) = _graySrcGradYPyr[validPixels_src(i)];
+                }
+            }
+            if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+            {
+                float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
+                float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
+                depthGradX_sal.resize(n_pts);
+                depthGradY_sal.resize(n_pts);
+                for(size_t i=0; i < n_pts; i++)
+                {
+                    depthGradX_sal(i) = _depthSrcGradXPyr[validPixels_src(i)];
+                    depthGradY_sal(i) = _depthSrcGradYPyr[validPixels_src(i)];
+                }
+            }
+        }
+        else
+        {
+            ProjModel->reconstruct3D(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
+
+//            Eigen::VectorXi validPixels_src2;
+//            ProjModel->reconstruct3D_saliency( depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src2,
+//                                               depthSrcGradXPyr[pyrLevel], depthSrcGradXPyr[pyrLevel], _max_depth_grad,
+//                                               graySrcPyr[pyrLevel], graySrcGradXPyr[pyrLevel], graySrcGradXPyr[pyrLevel], thres_saliency_gray_);
+
+//            ProjModel->reconstruct3D(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels_src);
+//            validPixels_src = -Eigen::VectorXi::Ones(LUT_xyz_source.rows());
+//            cout << " validPixels_src2.rows() " << validPixels_src2.rows() << endl;
+//            for(int i=0; i < validPixels_src2.rows(); i++)
+//                validPixels_src(validPixels_src2(i)) = validPixels_src2(i);
+        }
+
+        if(method == DIRECT_ICP)
+            ProjModel->reconstruct3D(depthTrgPyr[pyrLevel], LUT_xyz_target, validPixels_trg);
+
+        Matrix<float,6,1> update_pose; update_pose << 1, 1, 1, 1, 1, 1;
+        double error = calcHessGrad_IC(pyrLevel, pose_estim, method);
+
+        double diff_error = error;
+        while(num_iters[pyrLevel] < max_iters_ && update_pose.norm() > tol_update_ && diff_error > tol_residual_) // The LM optimization stops either when the max iterations is reached, or when the alignment converges (error or pose do not change)
+        {
+            cv::TickMeter tm; tm.start();
+
+            cout << "calcHessianAndGradient_sphere " << endl;
+            hessian.setZero();
+            gradient.setZero();
+            calcHessGrad(pyrLevel, method);
+
+            //                assert(hessian.rank() == 6); // Make sure that the problem is observable
+            if( hessian.rank() != 6 )
+            //if((hessian + lambda*getDiagonalMatrix(hessian)).rank() != 6)
+            {
+                cout << "\t The problem is ILL-POSED \n";
+                cout << "hessian \n" << hessian << endl;
+                cout << "gradient \n" << gradient.transpose() << endl;
+                registered_pose_ = pose_estim;
+                return;
+            }
+
+            // Compute the pose update
+            update_pose = -hessian.inverse() * gradient;
+            //                update_pose = -(hessian + lambda*getDiagonalMatrix(hessian)).inverse() * gradient;
+            Matrix<double,6,1> update_pose_d = update_pose.cast<double>();
+            pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d)).getHomogeneousMatrixVal().cast<float>() * pose_estim;
+            //cout << "pose_estim_temp \n" << pose_estim_temp << endl;
+
+            double new_error = computeError_IC(pyrLevel, pose_estim_temp, method);
+            diff_error = error - new_error;
+            if(diff_error > 0) //  > -1e-2)
+            {
+                // cout << "pose_estim \n" << pose_estim << "\n pose_estim_temp \n" << pose_estim_temp << endl;
+                //lambda /= step;
+                pose_estim = pose_estim_temp;
+                error = new_error;
+                ++num_iters[pyrLevel];
+            }
+
+#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
+            tm.stop();
+            cout << "Iterations " << num_iters[pyrLevel] << " time = " << tm.getTimeSec()*1000 << " ms" << endl;
+            cout << "update_pose \n" << update_pose.transpose() << endl;
+            cout << "diff_error " << diff_error << endl;
+#endif
+
+            if(visualize_ && diff_error > 0)
+            {
+                //cout << "visualize_\n";
+//                if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                {
+                    cv::Mat imgDiff = cv::Mat::zeros(grayTrgPyr[pyrLevel].rows, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].type());
+                    //cv::absdiff(grayTrgPyr[pyrLevel], warped_gray, imgDiff);
+                    cv::absdiff(graySrcPyr[pyrLevel], warped_gray, imgDiff);
+                    // cout << "imgDiff " << imgDiff.at<float>(20,20) << " " << grayTrgPyr[pyrLevel].at<float>(20,20) << " " << warped_gray.at<float>(20,20) << endl;
+                    // cout << "type " << grayTrgPyr[pyrLevel].type() << " " << warped_gray.type() << endl;
+
+                    //cv::imshow("orig", grayTrgPyr[pyrLevel]);
+                    //cv::imshow("src", graySrcPyr[pyrLevel]);
+                    cv::imshow(win_name_diffPhoto, imgDiff);
+                    //cv::imshow("warp", warped_gray);
+
+//                    // Save Abs Diff image
+//                    cv::Mat imgDiff_show, img_warped;
+//                    imgDiff.convertTo(imgDiff_show, CV_8UC1, 255);
+//                    warped_gray.convertTo(img_warped, CV_8UC1, 255);
+//                    cv::imwrite(mrpt::format("/home/efernand/tmp/pyr_intensity_AD_%d_%d.png", pyrLevel, num_iters[pyrLevel]), imgDiff_show);
+//                    cv::imwrite(mrpt::format("/home/efernand/tmp/warped_intensity_%d_%d.png", pyrLevel, num_iters[pyrLevel]), img_warped);
+
+//                    cv::Mat DispImage = cv::Mat(2*grayTrgPyr[pyrLevel].rows+4, 2*grayTrgPyr[pyrLevel].cols+4, grayTrgPyr[pyrLevel].type(), cv::Scalar(255)); // cv::Scalar(100, 100, 200)
+//                    grayTrgPyr[pyrLevel].copyTo(DispImage(cv::Rect(0, 0, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    graySrcPyr[pyrLevel].copyTo(DispImage(cv::Rect(grayTrgPyr[pyrLevel].cols+4, 0, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    warped_gray.copyTo(DispImage(cv::Rect(0, grayTrgPyr[pyrLevel].rows+4, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    imgDiff.copyTo(DispImage(cv::Rect(grayTrgPyr[pyrLevel].cols+4, grayTrgPyr[pyrLevel].rows+4, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    //cv::namedWindow("Photoconsistency", cv::WINDOW_AUTOSIZE );// Create a window for display.
+//                    cv::imshow("Photoconsistency", DispImage);
+                }
+                if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                {
+                    //cout << "sizes " << nRows << " " << nCols << " " << "sizes " << depthTrgPyr[pyrLevel].rows << " " << depthTrgPyr[pyrLevel].cols << " " << "sizes " << warped_depth.rows << " " << warped_depth.cols << " " << grayTrgPyr[pyrLevel].type() << endl;
+                    cv::Mat depthDiff = cv::Mat::zeros(depthTrgPyr[pyrLevel].rows, depthTrgPyr[pyrLevel].cols, depthTrgPyr[pyrLevel].type());
+                    cv::absdiff(depthTrgPyr[pyrLevel], warped_depth, depthDiff);
+                    cv::imshow(win_name_diffDepth, depthDiff);
+
+//                    // Save Abs Diff image
+//                    cv::Mat img_show;
+//                    const float viz_factor_meters = 82.5;
+//                    depthDiff.convertTo(img_show, CV_8U, viz_factor_meters);
+//                    cv::imwrite(mrpt::format("/home/efernand/tmp/pyr_depth_AD_%d_%d.png", pyrLevel, num_iters[pyrLevel]), img_show);
+
+//                    cv::Mat DispImage = cv::Mat(2*grayTrgPyr[pyrLevel].rows+4, 2*grayTrgPyr[pyrLevel].cols+4, grayTrgPyr[pyrLevel].type(), cv::Scalar(255)); // cv::Scalar(100, 100, 200)
+//                    depthTrgPyr[pyrLevel].copyTo(DispImage(cv::Rect(0, 0, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    depthSrcPyr[pyrLevel].copyTo(DispImage(cv::Rect(grayTrgPyr[pyrLevel].cols+4, 0, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    warped_depth.copyTo(DispImage(cv::Rect(0, grayTrgPyr[pyrLevel].rows+4, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    weightedError.copyTo(DispImage(cv::Rect(grayTrgPyr[pyrLevel].cols+4, grayTrgPyr[pyrLevel].rows+4, grayTrgPyr[pyrLevel].cols, grayTrgPyr[pyrLevel].rows)));
+//                    DispImage.convertTo(DispImage, CV_8U, 22.5);
+
+//                    //cv::namedWindow("Depth-consistency", cv::WINDOW_AUTOSIZE );// Create a window for display.
+//                    cv::imshow("Depth-consistency", DispImage);
+                }
+
+                cout << "visualize_\n";
+                cv::waitKey(0);
+            }
+        }
+    }
+
+    if(visualize_)
+    {
+        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+            cv::destroyWindow(win_name_diffPhoto);
+        if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+            cv::destroyWindow(win_name_diffDepth);
+    }
+
+    //#if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
+    cout << "Iterations: ";
+    for(int pyrLevel = nPyrLevels; pyrLevel >= 0; pyrLevel--)
+        cout << num_iters[pyrLevel] << " ";
+    cout << endl;
+    //#endif
+
+    registered_pose_ = pose_estim;
+
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    cout << " doRegistration_IC took " << double (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 

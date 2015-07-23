@@ -47,11 +47,11 @@
 #include <iterator>
 #include <algorithm>
 //#include <vector>
-
 //#include <Eigen/Core>
 //#include <Eigen/SVD>
 //#include <iostream>
 //#include <fstream>
+#include <dirent.h>
 
 /*! Generate a skew-symmetric matrix from a 3D vector */
 template<typename dataType> inline Eigen::Matrix<dataType,3,3> skew(const Eigen::Matrix<dataType,3,1> &vec)
@@ -320,6 +320,53 @@ inline void convertRange_mrpt2cvMat(const mrpt::math::CMatrix &range_mrpt, cv::M
     //Eigen::MatrixXf range_eigen(range_mrpt.getMatrix());
     Eigen::MatrixXf range_eigen(range_mrpt.eval());
     cv::eigen2cv(range_eigen, depthImage);
+}
+
+void getListOfFiles(const std::string & path_folder, std::vector<std::string> & path_files)
+{
+    DIR *dir = opendir (path_folder.c_str());
+    struct dirent *file;
+    if( dir != NULL )
+    {
+        /* print all the files and directories within directory */
+        while ((file = readdir (dir)) != NULL)
+        {
+            path_files.push_back(file->d_name);
+            //printf ("%s\n", file->d_name);
+        }
+        closedir (dir);
+    } else
+    {
+        /* could not open directory */
+        perror ("");
+        return;
+    }
+}
+
+void getListOfFilesByType(const std::string & path_folder, const std::string & file_type, std::vector<std::string> & path_files)
+{
+    DIR *dir = opendir (path_folder.c_str());
+    struct dirent *file;
+    if( dir != NULL )
+    {
+        /* print all the files and directories within directory */
+        while((file = readdir (dir)) != NULL)
+        {
+            std::string file_name = file->d_name;
+            if( file_name.length() > file_type.length() &&
+                file_type.compare( file_name.substr(file_name.length()-file_type.length()) ) == 0  )
+            {
+                path_files.push_back(file->d_name);
+                //printf("%s\n", file->d_name);
+            }
+        }
+        closedir (dir);
+    } else
+    {
+        /* could not open directory */
+        perror ("");
+        return;
+    }
 }
 
 #endif

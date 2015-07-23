@@ -334,7 +334,7 @@ public:
     };
 
     /*! Returns the optimal SE(3) rigid transformation matrix between the source and target frame.
-     * This method has to be called after calling the regist() method.*/
+     * This method has to be called after calling the doRegistration() method.*/
     inline Eigen::Matrix4f getOptimalPose()
     {
         return registered_pose_;
@@ -516,7 +516,12 @@ public:
     /*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
       * This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
       * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution. */
-    void regist( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(), costFuncType method = PHOTO_CONSISTENCY, const int occlusion = 0);
+    void doRegistration( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(), costFuncType method = PHOTO_CONSISTENCY, const int occlusion = 0);
+
+    /*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
+      * This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
+      * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution. */
+    void doRegistration_IC( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(), costFuncType method = PHOTO_CONSISTENCY, const int occlusion = 0);
 
     void register_InvDepth ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
                                  costFuncType method = PHOTO_CONSISTENCY,

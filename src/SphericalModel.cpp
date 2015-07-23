@@ -108,7 +108,7 @@ void SphericalModel::reconstruct3D_unitSphere()
 void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, VectorXi & validPixels) // , std::vector<int> & validPixels)
 {
 #if PRINT_PROFILING
-    cout << "SphericalModel::reconstruct3D... " << depth_img.rows*depth_img.cols << " pts \n";
+    //cout << "SphericalModel::reconstruct3D... " << depth_img.rows*depth_img.cols << " pts \n";
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -1205,6 +1205,42 @@ void SphericalModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const
 }
 
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
+void SphericalModel::computeJacobiansPhoto2(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXi & warped_pixels, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_photo, float *_grayGradX, float *_grayGradY)
+{
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t ii=0; ii<100; ii++)
+    {
+#endif
+
+    jacobians_photo.resize(xyz_tf.rows(), 6);
+    const float *_x = &xyz_tf(0,0);
+    const float *_y = &xyz_tf(0,1);
+    const float *_z = &xyz_tf(0,2);
+    const float *_weight = &weights(0);
+
+//    #if ENABLE_OPENMP
+//    #pragma omp parallel for
+//    #endif
+    for(int i=0; i < xyz_tf.rows(); i++)
+    {
+        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
+        Matrix<float,2,6> jacobianWarpRt;
+        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
+        Matrix<float,1,2> img_gradient;
+        img_gradient(0,0) = _grayGradX[warped_pixels(i)];
+        img_gradient(0,1) = _grayGradY[warped_pixels(i)];
+        jacobians_photo.block(i,0,1,6) = ((weights(i) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
+    }
+
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    cout << " SphericalModel::computeJacobiansPhoto " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
+#endif
+}
+
+/*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
 void SphericalModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY)
 {
 #if PRINT_PROFILING
@@ -1511,9 +1547,9 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
 }
 
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
-void SphericalModel::computeJacobiansPhotoDepth_IC( const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
-                                                    double & error2,
-                                                    Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY)
+void SphericalModel::computeErrorAndJacobians_IC (  const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
+                                                    cv::Mat & warped_depth,
+                                                    double & error2, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY)
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();

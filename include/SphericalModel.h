@@ -94,7 +94,7 @@ class SphericalModel : public ProjectionModel
         float theta = atan2(xyz(0),xyz(2));
         float transformed_r = phi*pixel_angle_inv + row_phi_start;
         //float transformed_r = phi*pixel_angle_inv + start_row;
-        float transformed_c = half_width + theta*pixel_angle_inv; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
+        float transformed_c = theta*pixel_angle_inv + half_width; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
         assert(transformed_c < nCols);
         assert(transformed_c >= 0);
         //cout << "project2Image " << transformed_c << " " << transformed_r << " phi " << phi << " start_row " << start_row << " theta " << theta << " half_width " << half_width << endl;
@@ -280,6 +280,7 @@ class SphericalModel : public ProjectionModel
 
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
     void computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_photo, float *_grayGradX, float *_grayGradY);
+    void computeJacobiansPhoto2(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXi & warped_pixels, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_photo, float *_grayGradX, float *_grayGradY);
 
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
     void computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY);
