@@ -426,6 +426,14 @@ public:
     //    return _mm_cvtsi128_si32(out);
     //#endif
     //}
+
+    virtual double computeError_IC( const int pyrLevel, const Matrix4f & poseGuess, const int method, const bool use_bilinear,
+                                    Eigen::MatrixXf & LUT_xyz_source, Eigen::MatrixXf & xyz_src_transf, validPixels_src, Eigen::VectorXi & Eigen::MatrixXf & warp_img_src, Eigen::VectorXi & warp_pixels_src,
+                                    const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad, const float thres_saliency_depth,
+                                    const float stdDevDepth, Eigen::VectorXf & stdDevError_inv_src, Eigen::VectorXf & residualsDepth_src, Eigen::VectorXf & wEstimDepth_src, Eigen::VectorXi & validPixelsDepth_src,
+                                    const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray,
+                                    const float stdDevPhoto, Eigen::VectorXf & residualsPhoto_src, Eigen::VectorXf & wEstimPhoto_src, Eigen::VectorXi & validPixelsPhoto_src
+                                   ) = 0;
 };
 
 #endif

@@ -46,6 +46,7 @@ const bool EXTENDED_SURF = false;
 
 void getListOfFiles(const std::string & path_folder, std::vector<std::string> & path_files)
 {
+    path_files.clear();
     DIR *dir = opendir (path_folder.c_str());
     struct dirent *file;
     if( dir != NULL )
@@ -67,6 +68,7 @@ void getListOfFiles(const std::string & path_folder, std::vector<std::string> & 
 
 void getListOfFilesByType(const std::string & path_folder, const std::string & file_type, std::vector<std::string> & path_files)
 {
+    path_files.clear();
     DIR *dir = opendir (path_folder.c_str());
     struct dirent *file;
     if( dir != NULL )
@@ -168,9 +170,9 @@ void loadFeatures(vector<vector<vector<float> > > &features, const std::string p
     cout << "Extracting SURF features..." << endl;
     for(size_t i=0; i < img_names.size(); i++ )
     {
-        //cout << "img: " << img_names[i] << endl;
         string img_path = path_folder + "/" + img_names[i];
-        cv::Mat image = cv::imread(img_names[i], 0);
+        //cout << "img: " << img_path << endl;
+        cv::Mat image = cv::imread(img_path, 0);
         cv::Mat mask;
         vector<cv::KeyPoint> keypoints;
         vector<float> descriptors;
@@ -300,11 +302,11 @@ int main (int argc, char ** argv)
     //const string path_img_folder_query = string( argv[3] );
 
     string file_type = ".png";
-    std::vector<std::string> images_voc, images_datab;
-    getListOfFilesByType(path_img_folder_voc, file_type, images_voc);
+    std::vector<std::string> images;
+    getListOfFilesByType(path_img_folder_voc, file_type, images);
 
     vector<vector<vector<float> > > features_voc, features_database;
-    loadFeatures(features_voc, path_img_folder_voc, images_voc);
+    loadFeatures(features_voc, path_img_folder_voc, images);
 
     wait();
 
@@ -312,8 +314,8 @@ int main (int argc, char ** argv)
 
     wait();
 
-    getListOfFilesByType(path_img_folder_voc, file_type, images_voc);
-    loadFeatures(features_database, path_img_folder_database, images_datab);
+    getListOfFilesByType(path_img_folder_voc, file_type, images);
+    loadFeatures(features_database, path_img_folder_database, images);
     testDatabase(features_database);
 
     return 0;

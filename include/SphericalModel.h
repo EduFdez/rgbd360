@@ -69,6 +69,19 @@ class SphericalModel : public ProjectionModel
         return xyz.norm();
     }
 
+//    /*! Return the depth value of the 3D point projected on the image.*/
+//    inline float reProjDepth(const Eigen::Vector3f &xyz_src, const Eigen::Vector3f &xyz_trg)
+//    {
+//        return xyz.norm();
+//    }
+
+//    Vector3f xyz_src = LUT_xyz_source.block(i,0,1,3).transpose();
+//    Vector3f xyz_trg = LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose();
+//    float residual = (poseGuess_inv(2,0)*xyz_trg(0)+poseGuess_inv(2,1)*xyz_trg(1)+poseGuess_inv(2,2)*xyz_trg(2) + poseGuess_inv(2,3) - xyz_src(2)) * stdDevError_inv_src(i);
+
+//    float residual = (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
+
+
 //    /*! Check if a pixel is within the image limits. */
 //    template<typename T>
 //    inline bool isInImage(const T x, const T y)
@@ -294,4 +307,11 @@ class SphericalModel : public ProjectionModel
                                                        double & error2,
                                                         Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY);
 
+    double computeError_IC( const int pyrLevel, const Matrix4f & poseGuess, const int method, const bool use_bilinear_,
+                            Eigen::MatrixXf & LUT_xyz_source, Eigen::MatrixXf & xyz_src_transf, validPixels_src, Eigen::VectorXi & Eigen::MatrixXf & warp_img_src, Eigen::VectorXi & warp_pixels_src,
+                            const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad, const float thres_saliency_depth,
+                            const float stdDevDepth, Eigen::VectorXf & stdDevError_inv_src, Eigen::VectorXf & residualsDepth_src, Eigen::VectorXf & wEstimDepth_src, Eigen::VectorXi & validPixelsDepth_src,
+                            const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray,
+                            const float stdDevPhoto, Eigen::VectorXf & residualsPhoto_src, Eigen::VectorXf & wEstimPhoto_src, Eigen::VectorXi & validPixelsPhoto_src
+                           );
 };

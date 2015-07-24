@@ -459,7 +459,7 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
                         {
                             stdDevError_inv_src(i) = 1;
                             //stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
-                            Vector3f residual3D = (LUT_xyz_source.block(i,0,1,3).transpose() - LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose()) * stdDevError_inv_src(i);
+                            Vector3f residual3D = (LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose() - LUT_xyz_source.block(i,0,1,3).transpose()) * stdDevError_inv_src(i);
                             float res_norm = residual3D.norm();
                             if(res_norm < thres_max_dist)
                             {
@@ -604,7 +604,7 @@ double DirectRegistration::computeError( const int pyrLevel, const Matrix4f & po
     return error2;
 }
 
-/*! Compute the residuals with the Inverse compositional formulation */
+/*! Compute the residuals using the Inverse Compositional (IC) formulation (the formulation is the same for the photometric error, it changes only for the depth error) */
 double DirectRegistration::computeError_IC( const int pyrLevel, const Matrix4f & poseGuess, const costFuncType method )
 {
     //cout << " DirectRegistration::computeError \n";
@@ -640,25 +640,12 @@ double DirectRegistration::computeError_IC( const int pyrLevel, const Matrix4f &
     validPixelsPhoto_src = VectorXi::Zero(n_pts);
     validPixelsDepth_src = VectorXi::Zero(n_pts);
 
-//    _residualsPhoto_src = VectorXf::Zero(imgSize);
-//    _residualsDepth_src = VectorXf::Zero(imgSize);
-//    _stdDevError_inv_src = VectorXf::Zero(imgSize);
-//    _wEstimPhoto_src = VectorXf::Zero(imgSize);
-//    _wEstimDepth_src = VectorXf::Zero(imgSize);
-//    _validPixelsPhoto_src = VectorXi::Zero(imgSize);
-//    _validPixelsDepth_src = VectorXi::Zero(imgSize);
-
     // Container to compute the MAD, which is used to update the intensity (or brightness) standard deviation
     //std::vector<float> v_AD_intensity(imgSize);
 
     float *_depthTrgPyr = reinterpret_cast<float*>(depthTrgPyr[pyrLevel].data);
     float *_graySrcPyr = reinterpret_cast<float*>(graySrcPyr[pyrLevel].data);
     float *_grayTrgPyr = reinterpret_cast<float*>(grayTrgPyr[pyrLevel].data);
-
-    //    float *_depthTrgGradXPyr = reinterpret_cast<float*>(depthTrgGradXPyr[pyrLevel].data);
-    //    float *_depthTrgGradYPyr = reinterpret_cast<float*>(depthTrgGradYPyr[pyrLevel].data);
-    //    float *_grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyrLevel].data);
-    //    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
 
 //    float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
 //    float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
@@ -710,17 +697,24 @@ double DirectRegistration::computeError_IC( const int pyrLevel, const Matrix4f &
                         //cout << i << " warp_pixel " << warp_pixels_src(i) << " weight " << wEstimPhoto_src(i) << " error2_photo " << error2_photo << " diff " << diff << endl;
                     }
 
-                    float depth = _depthTrgPyr[warp_pixels_src(i)];
+                    float dist_src = _depthSrcPyr[validPixels_src(i)];
+                    //float depth = _depthTrgPyr[warp_pixels_src(i)];
                     if(depth > ProjModel->min_depth_) // if(depth > ProjModel->min_depth_) // Make sure this point has depth (not a NaN)
                     {
                         //if( fabs(_depthTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_depth_)
                         {
                             validPixelsDepth_src(i) = 1;
-                            stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
+                            stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(dist_src*dist_src), stdDevDepth);
                             //diff_depth(i) = _depthTrgPyr[warp_pixels_src(i)] - ProjModel->getDepth(xyz);
                             Vector3f xyz_src = LUT_xyz_source.block(i,0,1,3).transpose();
                             Vector3f xyz_trg = LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose();
                             float residual = (poseGuess_inv(2,0)*xyz_trg(0)+poseGuess_inv(2,1)*xyz_trg(1)+poseGuess_inv(2,2)*xyz_trg(2) + poseGuess_inv(2,3) - xyz_src(2)) * stdDevError_inv_src(i);
+
+                            float residual = (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
+
+                            float residual = (depth - ProjModel->getDepth(xyz)) * stdDevError_inv_src(i);
+
+
                             wEstimDepth_src(i) = sqrt(weightMEstimator(residual));
                             residualsDepth_src(i) = wEstimDepth_src(i) * residual;
                             error2_depth += residualsDepth_src(i) * residualsDepth_src(i);
@@ -811,7 +805,7 @@ double DirectRegistration::computeError_IC( const int pyrLevel, const Matrix4f &
                         {
                             stdDevError_inv_src(i) = 1;
                             //stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
-                            Vector3f residual3D = (LUT_xyz_source.block(i,0,1,3).transpose() - LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose()) * stdDevError_inv_src(i);
+                            Vector3f residual3D = (LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose() - LUT_xyz_source.block(i,0,1,3).transpose()) * stdDevError_inv_src(i);
                             float res_norm = residual3D.norm();
                             if(res_norm < thres_max_dist)
                             {
@@ -957,9 +951,9 @@ double DirectRegistration::computeError_IC( const int pyrLevel, const Matrix4f &
 }
 
 /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-        This is done following the work in:
-        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
-        in Computer Vision Workshops (ICCV Workshops), 2011. */
+    This is done following the work in:
+    Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
+    in Computer Vision Workshops (ICCV Workshops), 2011. */
 void DirectRegistration::calcHessGrad( int pyrLevel, const costFuncType method )
 {
 #if PRINT_PROFILING
