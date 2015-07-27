@@ -39,13 +39,15 @@
 #include <Eigen/Core>
 //#include "/usr/local/include/eigen3/Eigen/Core"
 
+#include "MEstimator.h"
+
 /*! This class encapsulates different projection models including both perspective and spherical.
  *  It implements the functionality to project and reproject from the image domain to 3D and viceversa.
  *
  * TODO: This class could be split using polymorphism, now it uses function pointers and it is compatible with C.
  * Polymorphism has the advantage that the code is easier to read and tu reuse, but it may have a lower performance.
  */
-class SphericalModel : public ProjectionModel
+class SphericalModel : public ProjectionModel , MEstimator
 {
   protected:
 
@@ -77,9 +79,9 @@ class SphericalModel : public ProjectionModel
 
 //    Vector3f xyz_src = LUT_xyz_source.block(i,0,1,3).transpose();
 //    Vector3f xyz_trg = LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose();
-//    float residual = (poseGuess_inv(2,0)*xyz_trg(0)+poseGuess_inv(2,1)*xyz_trg(1)+poseGuess_inv(2,2)*xyz_trg(2) + poseGuess_inv(2,3) - xyz_src(2)) * stdDevError_inv_src(i);
+//    float residual = (pose_guess_inv(2,0)*xyz_trg(0)+pose_guess_inv(2,1)*xyz_trg(1)+pose_guess_inv(2,2)*xyz_trg(2) + pose_guess_inv(2,3) - xyz_src(2)) * stdDevError_inv_src(i);
 
-//    float residual = (((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
+//    float residual = (((xyz_src .dot (xyz_trg - pose_guess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
 
 
 //    /*! Check if a pixel is within the image limits. */
@@ -118,7 +120,7 @@ class SphericalModel : public ProjectionModel
 
     /*! Project pixel spherical */
     inline void warp_pixel ( const int nCols, const int nRows, const float phi_FoV, const int c, const int r, const float depth,
-                              const Eigen::Matrix4f & poseGuess,
+                              const Eigen::Matrix4f & pose_guess,
                               int transformed_r_int, int transformed_c_int) // output parameters
     {
         float phi = r*(2*phi_FoV/nRows);
@@ -132,7 +134,7 @@ class SphericalModel : public ProjectionModel
         point3D(3) = 1;
 
         //Transform the 3D point using the transformation matrix Rt
-        Eigen::Vector4f xyz = poseGuess*point3D;
+        Eigen::Vector4f xyz = pose_guess*point3D;
         float depth_trg = sqrt(xyz(0)*xyz(0) + xyz(1)*xyz(1) + xyz(2)*xyz(2));
 
         //Project the 3D point to the S2 sphere
@@ -270,7 +272,7 @@ class SphericalModel : public ProjectionModel
     }
 
     /*! Warp the image according to a given geometric transformation. */
-    //void warpImage ( const int pyrLevel, const Eigen::Matrix4f &poseGuess, costFuncType method );
+    //void warpImage ( const int pyrLevel, const Eigen::Matrix4f &pose_guess, costFuncType method );
 
 ///*! Compute the 2x6 jacobian matrices of the composition (warping+rigidTransformation) using the spherical camera model. */
 //void computeJacobians26(Eigen::MatrixXf & xyz_tf, Eigen::MatrixXf & jacobians_aligned);
@@ -302,16 +304,24 @@ class SphericalModel : public ProjectionModel
     void computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
                                     Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY);
 
-    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
-    void computeJacobiansPhotoDepth_IC(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
-                                                       double & error2,
-                                                        Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY);
+//    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
+//    void computeJacobiansPhotoDepth_IC(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
+//                                                       double & error2,
+//                                                        Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY);
 
-    double computeError_IC( const int pyrLevel, const Matrix4f & poseGuess, const int method, const bool use_bilinear_,
-                            Eigen::MatrixXf & LUT_xyz_source, Eigen::MatrixXf & xyz_src_transf, validPixels_src, Eigen::VectorXi & Eigen::MatrixXf & warp_img_src, Eigen::VectorXi & warp_pixels_src,
-                            const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad, const float thres_saliency_depth,
-                            const float stdDevDepth, Eigen::VectorXf & stdDevError_inv_src, Eigen::VectorXf & residualsDepth_src, Eigen::VectorXf & wEstimDepth_src, Eigen::VectorXi & validPixelsDepth_src,
-                            const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray,
-                            const float stdDevPhoto, Eigen::VectorXf & residualsPhoto_src, Eigen::VectorXf & wEstimPhoto_src, Eigen::VectorXi & validPixelsPhoto_src
+    double computeError_IC(const int pyrLevel, const Eigen::Matrix4f & pose_guess, const int method, const bool use_bilinear_,
+                            Eigen::MatrixXf & LUT_xyz_source, Eigen::MatrixXf & xyz_src_transf, Eigen::MatrixXf &LUT_xyz_target,  Eigen::VectorXi & validPixels_src, Eigen::MatrixXf & warp_img_src, Eigen::VectorXi & warp_pixels_src,
+                            const cv::Mat & depth_src, const cv::Mat & depth_trg, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad, const float thres_saliency_depth,
+                            const float stdDevDepth, Eigen::VectorXf & stdDevError_inv_src, Eigen::VectorXf & residualsDepth_src, Eigen::VectorXf & wEstimDepth_src, Eigen::VectorXi & validPixelsDepth_src, Eigen::MatrixXf & jacobians_depth,
+                            const cv::Mat & gray_src, const cv::Mat & gray_trg, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray,
+                            const float stdDevPhoto, Eigen::VectorXf & residualsPhoto_src, Eigen::VectorXf & wEstimPhoto_src, Eigen::VectorXi & validPixelsPhoto_src, Eigen::MatrixXf & jacobians_photo
                            );
+
+    double computeErrorJac_IC(const int pyrLevel, const Eigen::Matrix4f & pose_guess, const int method, const bool use_bilinear_,
+                              Eigen::MatrixXf & LUT_xyz_source, Eigen::MatrixXf & xyz_src_transf, Eigen::MatrixXf & LUT_xyz_target,  Eigen::VectorXi & validPixels_src, Eigen::MatrixXf & warp_img_src, Eigen::VectorXi & warp_pixels_src,
+                              const cv::Mat & depth_src, const cv::Mat & depth_trg, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad, const float thres_saliency_depth,
+                              const float stdDevDepth, Eigen::VectorXf & stdDevError_inv_src, Eigen::VectorXf & residualsDepth_src, Eigen::VectorXf & wEstimDepth_src, Eigen::VectorXi & validPixelsDepth_src, Eigen::MatrixXf & jacobians_depth,
+                              const cv::Mat & gray_src, const cv::Mat & gray_trg, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray,
+                              const float stdDevPhoto, Eigen::VectorXf & residualsPhoto_src, Eigen::VectorXf & wEstimPhoto_src, Eigen::VectorXi & validPixelsPhoto_src, Eigen::MatrixXf & jacobians_photo
+                             );
 };
