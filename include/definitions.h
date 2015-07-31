@@ -32,9 +32,7 @@
 #ifndef DEFINITIONS_H
 #define DEFINITIONS_H
 
-
-#define NUM_ASUS_SENSORS 8
-#define USE_INTRINSICS 1
-
+#define NUM_ASUS_SENSORS    8
+#define USE_INTRINSIC_CALIB 1
 
 #endif

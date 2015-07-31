@@ -385,7 +385,7 @@ void Frame360::buildSphereCloud_rgbd360()
     {
         //        int sensor_id = omp_get_thread_num();
         //            cout << "build " << sensor_id << endl;
-#if USE_INTRINSICS
+#if USE_INTRINSIC_CALIB
     #if DOWNSAMPLE_160
         DownsampleRGBD downsampler(2);
         frameRGBD_[sensor_id].setPointCloud(downsampler.downsamplePointCloud(frameRGBD_[sensor_id].getPointCloudUndist()));

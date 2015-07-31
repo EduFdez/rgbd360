@@ -427,22 +427,6 @@ public:
     //#endif
     //}
 
-    virtual double computeError_IC(const int pyrLevel, const Eigen::Matrix4f & pose_guess, const int method, const bool use_bilinear_,
-                                   Eigen::MatrixXf & LUT_xyz_source, Eigen::MatrixXf & xyz_src_transf, Eigen::MatrixXf & LUT_xyz_target,  Eigen::VectorXi & validPixels_src, Eigen::MatrixXf & warp_img_src, Eigen::VectorXi & warp_pixels_src,
-                                   const cv::Mat & depth_src, const cv::Mat & depth_trg, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad, const float thres_saliency_depth,
-                                   const float stdDevDepth, Eigen::VectorXf & stdDevError_inv_src, Eigen::VectorXf & residualsDepth_src, Eigen::VectorXf & wEstimDepth_src, Eigen::VectorXi & validPixelsDepth_src, Eigen::MatrixXf & jacobians_depth,
-                                   const cv::Mat & gray_src, const cv::Mat & gray_trg, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray,
-                                   const float stdDevPhoto, Eigen::VectorXf & residualsPhoto_src, Eigen::VectorXf & wEstimPhoto_src, Eigen::VectorXi & validPixelsPhoto_src, Eigen::MatrixXf & jacobians_photo
-                                  ) = 0;
-
-    virtual double computeErrorJac_IC(const int pyrLevel, const Eigen::Matrix4f & pose_guess, const int method, const bool use_bilinear_,
-                                      Eigen::MatrixXf & LUT_xyz_source, Eigen::MatrixXf & xyz_src_transf, Eigen::MatrixXf & LUT_xyz_target,  Eigen::VectorXi & validPixels_src, Eigen::MatrixXf & warp_img_src, Eigen::VectorXi & warp_pixels_src,
-                                      const cv::Mat & depth_src, const cv::Mat & depth_trg, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad, const float thres_saliency_depth,
-                                      const float stdDevDepth, Eigen::VectorXf & stdDevError_inv_src, Eigen::VectorXf & residualsDepth_src, Eigen::VectorXf & wEstimDepth_src, Eigen::VectorXi & validPixelsDepth_src, Eigen::MatrixXf & jacobians_depth,
-                                      const cv::Mat & gray_src, const cv::Mat & gray_trg, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray,
-                                      const float stdDevPhoto, Eigen::VectorXf & residualsPhoto_src, Eigen::VectorXf & wEstimPhoto_src, Eigen::VectorXi & validPixelsPhoto_src, Eigen::MatrixXf & jacobians_photo
-                                     ) = 0;
-
 };
 
 #endif

@@ -250,6 +250,10 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/OpenNI2_Grabber/third_party/cvSerializ
 
 # Set the path to this project' sources
 ADD_DEFINITIONS(-DPROJECT_SOURCE_PATH="${PROJECT_SOURCE_DIR}")
+SET( NUM_ASUS_SENSORS 8 CACHE INTERNAL "Number of ASUS sensors in the rig")
+add_definitions(-D_NUM_ASUS_SENSORS=${NUM_ASUS_SENSORS})
+SET( USE_INTRINSIC_CALIB ON CACHE BOOL "Use the intrinsic calibration of the sensor to denoise depth data")
+add_definitions(-D_USE_INTRINSIC_CALIB=${USE_INTRINSIC_CALIB})
 
 #OpenNI2
 LINK_DIRECTORIES(${CMAKE_BINARY_DIR})

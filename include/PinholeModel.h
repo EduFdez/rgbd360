@@ -186,25 +186,6 @@ class PinholeModel : public ProjectionModel
     /*! Warp the image according to a given geometric transformation. */
     //void warpImage ( const int pyrLevel, const Eigen::Matrix4f &pose_guess, costFuncType method );
 
-///*! Compute the 2x6 jacobian matrices of the composition (warping+rigidTransformation) using the pinhole camera model. */
-//void computeJacobians26(Eigen::MatrixXf & xyz_tf, Eigen::MatrixXf & jacobians_aligned);
-
-//inline void getJacobian(Eigen::MatrixXf & jacobians_aligned, const int i, Eigen::Matrix<float,2,6> & jacobianWarpRt)
-//{
-//    jacobianWarpRt(0,0) = jacobians_aligned(i,0);
-//    jacobianWarpRt(1,0) = 0.f;
-//    jacobianWarpRt(0,1) = 0.f;
-//    jacobianWarpRt(1,1) = jacobians_aligned(i,1);
-//    jacobianWarpRt(0,2) = jacobians_aligned(i,2);
-//    jacobianWarpRt(1,2) = jacobians_aligned(i,3);
-//    jacobianWarpRt(0,3) = jacobians_aligned(i,4);
-//    jacobianWarpRt(1,3) = jacobians_aligned(i,5);
-//    jacobianWarpRt(0,4) = jacobians_aligned(i,6);
-//    jacobianWarpRt(1,4) = jacobians_aligned(i,7);
-//    jacobianWarpRt(0,5) = jacobians_aligned(i,8);
-//    jacobianWarpRt(1,5) = jacobians_aligned(i,9);
-//}
-
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
     void computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_grayGradX, float *_grayGradY);
 
@@ -216,20 +197,4 @@ class PinholeModel : public ProjectionModel
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
     void computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
                                     Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY);
-
-    double computeError_IC(const int pyrLevel, const Eigen::Matrix4f & pose_guess, const int method, const bool use_bilinear_,
-                           Eigen::MatrixXf & LUT_xyz_source, Eigen::MatrixXf & xyz_src_transf, Eigen::MatrixXf & LUT_xyz_target,  Eigen::VectorXi & validPixels_src, Eigen::MatrixXf & warp_img_src, Eigen::VectorXi & warp_pixels_src,
-                           const cv::Mat & depth_src, const cv::Mat & depth_trg, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad, const float thres_saliency_depth,
-                           const float stdDevDepth, Eigen::VectorXf & stdDevError_inv_src, Eigen::VectorXf & residualsDepth_src, Eigen::VectorXf & wEstimDepth_src, Eigen::VectorXi & validPixelsDepth_src, Eigen::MatrixXf & jacobians_depth,
-                           const cv::Mat & gray_src, const cv::Mat & gray_trg, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray,
-                           const float stdDevPhoto, Eigen::VectorXf & residualsPhoto_src, Eigen::VectorXf & wEstimPhoto_src, Eigen::VectorXi & validPixelsPhoto_src, Eigen::MatrixXf & jacobians_photo
-                          ){};
-
-    double computeErrorJac_IC(const int pyrLevel, const Eigen::Matrix4f & pose_guess, const int method, const bool use_bilinear_,
-                              Eigen::MatrixXf & LUT_xyz_source, Eigen::MatrixXf & xyz_src_transf, Eigen::MatrixXf & LUT_xyz_target,  Eigen::VectorXi & validPixels_src, Eigen::MatrixXf & warp_img_src, Eigen::VectorXi & warp_pixels_src,
-                              const cv::Mat & depth_src, const cv::Mat & depth_trg, const cv::Mat & depth_gradX, const cv::Mat & depth_gradY, const float max_depth_grad, const float thres_saliency_depth,
-                              const float stdDevDepth, Eigen::VectorXf & stdDevError_inv_src, Eigen::VectorXf & residualsDepth_src, Eigen::VectorXf & wEstimDepth_src, Eigen::VectorXi & validPixelsDepth_src, Eigen::MatrixXf & jacobians_depth,
-                              const cv::Mat & gray_src, const cv::Mat & gray_trg, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray,
-                              const float stdDevPhoto, Eigen::VectorXf & residualsPhoto_src, Eigen::VectorXf & wEstimPhoto_src, Eigen::VectorXi & validPixelsPhoto_src, Eigen::MatrixXf & jacobians_photo
-                             ){};
 };

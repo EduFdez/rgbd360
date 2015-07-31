@@ -339,8 +339,7 @@ void Pyramid::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gra
             __m128 res = _mm_div_ps(num, den);
             //__m128 res = _mm_div_ps(_mm_mul_ps(scalar2, mul), den);
             //_mm_store_ps(_pixel_gradX+b, res);
-            __m128 mask = _mm_or_ps(
-                                    _mm_and_ps( _mm_cmplt_ps(block_x_1, block_), _mm_cmplt_ps(block_, block_x1) ),
+            __m128 mask = _mm_or_ps(_mm_and_ps( _mm_cmplt_ps(block_x_1, block_), _mm_cmplt_ps(block_, block_x1) ),
                                     _mm_and_ps( _mm_cmplt_ps(block_x1, block_), _mm_cmplt_ps(block_, block_x_1) ) );
             //_mm_maskstore_ps(_pixel_gradX+b, mask, res);
             __m128 gradX = _mm_and_ps(mask, res);
@@ -397,9 +396,8 @@ void Pyramid::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gra
             __m128 res = _mm_div_ps(num, den);
             //__m128 res = _mm_div_ps(_mm_mul_ps(scalar2, mul), den);
             //_mm_store_ps(_pixel_gradX+b, res);
-            __m128 mask = _mm_or_ps(
-                        _mm_and_ps( _mm_cmplt_ps(block_x_1, block_), _mm_cmplt_ps(block_, block_x1) ),
-                        _mm_and_ps( _mm_cmplt_ps(block_x1, block_), _mm_cmplt_ps(block_, block_x_1) ) );
+            __m128 mask = _mm_or_ps(_mm_and_ps( _mm_cmplt_ps(block_x_1, block_), _mm_cmplt_ps(block_, block_x1) ),
+                                    _mm_and_ps( _mm_cmplt_ps(block_x1, block_), _mm_cmplt_ps(block_, block_x_1) ) );
             //_mm_maskstore_ps(_pixel_gradX+b, mask, res);
             __m128 gradX = _mm_and_ps(mask, res);
             _mm_store_ps(_pixel_gradX+b, gradX);
@@ -419,6 +417,7 @@ void Pyramid::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gra
             //_mm_maskstore_ps(_pixel_gradY+b, mask, res);
             __m128 gradY = _mm_and_ps(mask, res);
             _mm_store_ps(_pixel_gradY+b, gradY);
+            //cout << b << " gradY " << gradY[0] << " " << gradY[1] << " " << gradY[2] << " " << gradY[3] << endl;
         }
         // Compute the gradint at the image border
         for(int r=1; r < src.rows-1; ++r)
