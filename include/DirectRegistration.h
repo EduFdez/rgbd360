@@ -417,6 +417,7 @@ public:
     double computeReprojError_perspective(const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY, const int direction = 1);//, const bool use_bilinear = false);
 
     /*! Compute the depth error with Forward Compositional. */
+//    float calcDepthErrorFC(const Eigen::Matrix4f & poseGues0_invs, const size_t pt_idx, const float* depth_src, const float* depth_trg)
     float calcDepthErrorFC(const Eigen::Matrix4f & poseGuess, const size_t pt_idx, const float* depth_src, const float* depth_trg)
     {
         Eigen::Vector3f xyz = xyz_src_transf.block(pt_idx,0,1,3).transpose();
@@ -425,17 +426,21 @@ public:
     }
 
     /*! Compute the depth error with Inverse Compositional. */
-    float calcDepthErrorIC(const Eigen::Matrix4f & poseGuess_inv, const size_t pt_idx, const float* depth_src, const float* depth_trg) // poseGuess_inv
+    float calcDepthErrorIC(const Eigen::Matrix4f & poseGuess, const size_t pt_idx, const float* depth_src, const float* depth_trg) // poseGuess_inv
+    //float calcDepthErrorIC(const Eigen::Matrix4f & poseGuess_inv, const size_t pt_idx, const float* depth_src, const float* depth_trg) // poseGuess_inv
     {
+        Eigen::Matrix4f poseGuess_inv = poseGuess.inverse();
         Eigen::Vector3f xyz_trg = LUT_xyz_target.block(warp_pixels_src(pt_idx),0,1,3).transpose();
 //        Eigen::Vector3f xyz_trg2src = poseGuess_inv.block(0,0,3,3)*xyz_trg + poseGuess_inv.block(0,3,3,1);
 //        float diff = ProjModel->getDepth(xyz_trg2src) - depth_src[validPixels_src(pt_idx)];
 
         float dist_src = depth_src[validPixels_src(pt_idx)];
         Eigen::Vector3f xyz_src = LUT_xyz_source.block(pt_idx,0,1,3).transpose();
-        Eigen::Matrix4f poseGuess = poseGuess_inv.inverse();
-        float diff = ((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src;
+//        Eigen::Matrix4f poseGuess = poseGuess_inv.inverse();
+        //float diff2 = ((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src;
+        float diff = ((xyz_src .dot (xyz_trg - poseGuess_inv.block(0,3,3,1))) / dist_src) - dist_src;
         //std::cout << "diff " << diff << " diff2 " << diff2 << endl;
+        //std::cout << "diff " << diff << " dist_src " << dist_src << " xyz_src " << xyz_src.transpose() << " xyz_trg " << xyz_trg.transpose() << " trans " << poseGuess.block(0,3,3,1).transpose() << endl;
 
         return diff;
     }
