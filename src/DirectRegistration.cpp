@@ -473,19 +473,20 @@ double DirectRegistration::computeError(const Matrix4f & poseGuess)
                     {
                         //if( fabs(_depthTrgGradXPyr[warp_pixels_src(i)]) > thres_saliency_depth_ || fabs(_depthTrgGradYPyr[warp_pixels_src(i)]) > thres_saliency_depth_)
                         {
-                            stdDevError_inv_src(i) = 1;
-                            //stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
-                            Vector3f residual3D = (LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose() - LUT_xyz_source.block(i,0,1,3).transpose()) * stdDevError_inv_src(i);
+                            //stdDevError_inv_src(i) = 1;
+                            stdDevError_inv_src(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
+//                            Vector3f residual3D = (LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose() - xyz_src_transf.block(i,0,1,3).transpose());
+                            Vector3f residual3D = (xyz_src_transf.block(i,0,1,3) - LUT_xyz_target.block(warp_pixels_src(i),0,1,3)).transpose();
                             float res_norm = residual3D.norm();
-                            if(res_norm < thres_max_dist)
+                            //if(res_norm < thres_max_dist)
                             {
                                 ++numVisiblePts;
                                 validPixelsDepth_src(i) = 1;
-                                float weight2 = 1;
                                 //float weight2 = weightMEstimator(res_norm);
-                                wEstimDepth_src(i) = sqrt(weight2);
-                                residualsDepth_src.block(3*i,0,3,1) = wEstimDepth_src(i) * residual3D;
-                                error2_depth += weight2 * residual3D .dot (residual3D);
+                                //wEstimDepth_src(i) = sqrt(weight2);
+                                wEstimDepth_src(i) = 1;
+                                residualsDepth_src.block(3*i,0,3,1) = wEstimDepth_src(i) * stdDevError_inv_src(i) * residual3D;
+                                error2_depth += residual3D .dot (residual3D);
                                 // cout << i << " error2_depth " << error2_depth << " weight " << wEstimDepth_src(i) << " residual " << residual3D.transpose() << " stdDevInv " << stdDevError_inv_src(i) << endl;
                             }
                         }
@@ -879,17 +880,21 @@ double DirectRegistration::calcHessGradError_IC(const Eigen::Matrix4f & poseGues
                             depth_gradient(0,0) = _depthSrcGradXPyr[validPixels_src(i)];
                             depth_gradient(0,1) = _depthSrcGradYPyr[validPixels_src(i)];
                             // cout << "depth_gradient \n " << depth_gradient << endl;
-                            jacobiansDepth.block(i,0,1,6) = ((wEstimDepth_src(i)*stdDevError_inv_src(i)) * depth_gradient) * jacobianWarpRt;
+                            //jacobiansDepth.block(i,0,1,6) = ((wEstimDepth_src(i)*stdDevError_inv_src(i)) * depth_gradient) * jacobianWarpRt;
 
-//                            Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
+                            Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
+                            Eigen::Matrix<float,1,3> xyz_trg2src_rot = LUT_xyz_target.block(warp_pixels_src(i),0,1,3) - poseGuess.block(0,3,3,1).transpose();
+                            jacobian16_depthT.block(0,0,1,3) = xyz_trg2src_rot / xyz_trg2src_rot.norm();
+                            Vector3f jacDepthProj_trans = jacobian16_depthT.block(0,0,1,3).transpose();
+                            Vector3f translation = poseGuess.block(0,3,3,1);
+                            jacobian16_depthT.block(0,3,1,3) = translation. cross (jacDepthProj_trans);
 //                            jacobian16_depthT.block(0,0,1,3) = (1 / _depthSrcPyr[validPixels_src(i)]) * LUT_xyz_source.block(i,0,1,3);
-//                            Vector3f jacDepthProj_trans = jacobian16_depthT.block(0,0,1,3).transpose();
-//                            Vector3f proj_bad = LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose() - poseGuess.block(0,3,3,1);
-//                            Vector3f jacDepthProj_rot = proj_bad. cross (jacDepthProj_trans);
+//                            Vector3f xyz_trg2src_rot = LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose() - poseGuess.block(0,3,3,1);
+//                            Vector3f jacDepthProj_rot = xyz_trg2src_rot. cross (jacDepthProj_trans);
 //                            jacobian16_depthT.block(0,3,1,3) = jacDepthProj_rot.transpose();
-//                            jacobian16_depthT.block(0,3,1,3) = proj_bad.transpose() * skew(jacDepthProj_trans);
-//                            //jacobiansDepth.block(i,0,1,6) = stdDevError_inv_src(i)*(depth_gradient * jacobianWarpRt - jacobian16_depthT);
-//                            jacobiansDepth.block(i,0,1,6) = wEstimDepth_src(i)*((stdDevError_inv_src(i) * depth_gradient) * jacobianWarpRt - jacobian16_depthT);
+//                            jacobian16_depthT.block(0,3,1,3) = xyz_trg2src_rot.transpose() * skew(jacDepthProj_trans);
+                            //jacobiansDepth.block(i,0,1,6) = stdDevError_inv_src(i)*(depth_gradient * jacobianWarpRt - jacobian16_depthT);
+                            jacobiansDepth.block(i,0,1,6) = (wEstimDepth_src(i)*stdDevError_inv_src(i)) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
 
 //                             cout << i << " error2_depth " << error2_depth << " weight " << wEstimDepth_src(i) << " residual " << residual << " stdDevInv " << stdDevError_inv_src(i) << endl;
 //                              cout << "jacobiansDepth: " << jacobiansDepth.block(i,0,1,6) << endl;
@@ -984,18 +989,21 @@ double DirectRegistration::calcHessGradError_IC(const Eigen::Matrix4f & poseGues
                             Matrix<float,1,2> depth_gradient; // This is an approximation of the gradient of the warped image
                             depth_gradient(0,0) = _depthSrcGradXPyr[validPixels_src(i)];
                             depth_gradient(0,1) = _depthSrcGradYPyr[validPixels_src(i)];
-                            jacobiansDepth.block(i,0,1,6) = ((wEstimDepth_src(i)*stdDevError_inv_src(i)) * depth_gradient) * jacobianWarpRt;
+                            //jacobiansDepth.block(i,0,1,6) = ((wEstimDepth_src(i)*stdDevError_inv_src(i)) * depth_gradient) * jacobianWarpRt;
 
-//                            Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
-//                            jacobian16_depthT.block(0,0,1,3) = (1 / depth_src) * LUT_xyz_source.block(i,0,1,3);
-//                            Vector3f jacDepthProj_trans = jacobian16_depthT.block(0,0,1,3).transpose();
-//                            Vector3f proj_bad = LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose() - poseGuess.block(0,3,3,1);
-//                            Vector3f jacDepthProj_rot = proj_bad. cross (jacDepthProj_trans);
+                            Matrix<float,1,6> jacobian16_depthT = Matrix<float,1,6>::Zero();
+                            Eigen::Matrix<float,1,3> xyz_trg2src_rot = LUT_xyz_target.block(warp_pixels_src(i),0,1,3) - poseGuess.block(0,3,3,1).transpose();
+                            jacobian16_depthT.block(0,0,1,3) = xyz_trg2src_rot / xyz_trg2src_rot.norm();
+                            Vector3f jacDepthProj_trans = jacobian16_depthT.block(0,0,1,3).transpose();
+                            Vector3f translation = poseGuess.block(0,3,3,1);
+                            jacobian16_depthT.block(0,3,1,3) = translation. cross (jacDepthProj_trans);
+                            jacobian16_depthT.block(0,0,1,3) = (1 / _depthSrcPyr[validPixels_src(i)]) * LUT_xyz_source.block(i,0,1,3);
+//                            Vector3f xyz_trg2src_rot = LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose() - poseGuess.block(0,3,3,1);
+//                            Vector3f jacDepthProj_rot = xyz_trg2src_rot. cross (jacDepthProj_trans);
 //                            jacobian16_depthT.block(0,3,1,3) = jacDepthProj_rot.transpose();
-//                            jacobian16_depthT.block(0,3,1,3) = proj_bad.transpose() * skew(jacDepthProj_trans);
-//                            jacobiansDepth.block(i,0,1,6) = wEstimDepth_src(i)*((stdDevError_inv_src(i) * depth_gradient) * jacobianWarpRt - jacobian16_depthT);
-//                            //jacobiansDepth.block(i,0,1,6) = stdDevError_inv_src(i)*(depth_gradient * jacobianWarpRt - jacobian16_depthT);
-//                            //jacobiansDepth.block(i,0,1,6) = (stdDevError_inv_src(i) * depth_gradient) * jacobianWarpRt;
+//                            jacobian16_depthT.block(0,3,1,3) = xyz_trg2src_rot.transpose() * skew(jacDepthProj_trans);
+                            //jacobiansDepth.block(i,0,1,6) = stdDevError_inv_src(i)*(depth_gradient * jacobianWarpRt - jacobian16_depthT);
+                            jacobiansDepth.block(i,0,1,6) = (wEstimDepth_src(i)*stdDevError_inv_src(i)) * (depth_gradient * jacobianWarpRt - jacobian16_depthT);
 
 //                            cout << i << " error2_depth " << error2_depth << " diff " << diff << " weight " << wEstimDepth_src(i) << " residual " << residual << " stdDevInv " << stdDevError_inv_src(i) << endl;
 //                            cout << "validPixels_src(i) " << validPixels_src(i) << endl;
@@ -7308,9 +7316,9 @@ void DirectRegistration::doRegistration(const Matrix4f pose_guess, const costFun
                 cout << "hessian \n" << hessian << endl;
                 cout << "gradient \n" << gradient.transpose() << endl;
                 //cout << "jacobiansDepth \n" << jacobiansDepth << endl;
-                cout << "residualsDepth_src: " << residualsDepth_src.transpose() << endl;
-                cout << "wEstimDepth_src: " << wEstimDepth_src.transpose() << endl;
-                cout << "validPixelsDepth_src: " << validPixelsDepth_src.transpose() << endl;
+//                cout << "residualsDepth_src: " << residualsDepth_src.transpose() << endl;
+//                cout << "wEstimDepth_src: " << wEstimDepth_src.transpose() << endl;
+//                cout << "validPixelsDepth_src: " << validPixelsDepth_src.transpose() << endl;
                 registered_pose = pose_estim;
                 return;
             }
