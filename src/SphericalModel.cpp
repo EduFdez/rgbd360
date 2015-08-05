@@ -990,99 +990,6 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
 #endif
 }
 
-///*! Compute the 2x6 jacobian matrices of the composition (warping+rigidTransformation) using the spherical camera model. */
-//void SphericalModel::computeJacobians26(Eigen::MatrixXf & xyz_tf, Eigen::MatrixXf & jacobians_aligned)
-//{
-//    jacobians_aligned.resize(xyz_tf.rows(), 11); // It has 10 columns instead of 10 because the positions (1,0) and (0,1) of the 2x6 jacobian are alwatys 0
-
-//    float *_x = &xyz_tf(0,0);
-//    float *_y = &xyz_tf(0,1);
-//    float *_z = &xyz_tf(0,2);
-
-//#if !(_SSE3) // # ifdef !__SSE3__
-
-////    #if ENABLE_OPENMP
-////    #pragma omp parallel for
-////    #endif
-//    for(int i=0; i < xyz_tf.rows(); i++)
-//    {
-//        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
-//        float inv_transf_z = 1.0/pt_xyz(2);
-
-//        float dist = pt_xyz.norm();
-//        float dist2 = dist * dist;
-//        float x2_z2 = dist2 - pt_xyz(1)*pt_xyz(1);
-//        float x2_z2_sqrt = sqrt(x2_z2);
-//        float commonDer_c = pixel_angle_inv / x2_z2;
-//        float commonDer_r = -pixel_angle_inv / ( dist2 * x2_z2_sqrt );
-
-//        jacobians_aligned(i,0) = commonDer_c * pt_xyz(2);
-//        //jacobianWarpRt(0,1) = 0.f;
-//        jacobians_aligned(i,3) = -commonDer_c * pt_xyz(0);
-//    //        jacobianWarpRt(1,0) = commonDer_r * pt_xyz(0) * pt_xyz(1);
-//        jacobians_aligned(i,2) =-commonDer_r * x2_z2;
-//    //        jacobianWarpRt(1,2) = commonDer_r * pt_xyz(2) * pt_xyz(1);
-//        float commonDer_r_y = commonDer_r * pt_xyz(1);
-//        jacobians_aligned(i,1) = commonDer_r_y * pt_xyz(0);
-//        jacobians_aligned(i,4) = commonDer_r_y * pt_xyz(2);
-
-//        jacobians_aligned(i,5) = jacobians_aligned(i,3) * pt_xyz(1);
-//        jacobians_aligned(i,7) = jacobians_aligned(i,0) * pt_xyz(2) - jacobians_aligned(i,3) * pt_xyz(0);
-//        jacobians_aligned(i,9) =-jacobians_aligned(i,0) * pt_xyz(1);
-//        jacobians_aligned(i,6) =-jacobians_aligned(i,2) * pt_xyz(2) + jacobians_aligned(i,4) * pt_xyz(1);
-//        jacobians_aligned(1,8) = jacobians_aligned(i,1) * pt_xyz(2) - jacobians_aligned(i,4) * pt_xyz(0);
-//        jacobians_aligned(1,10) =-jacobians_aligned(i,1) * pt_xyz(1) + jacobians_aligned(i,2) * pt_xyz(0);
-//    }
-
-//#else
-//    // Pointers to the jacobian elements
-//    float *_j00 = &jacobians_aligned(0,0);
-//    float *_j10 = &jacobians_aligned(0,1);
-//    float *_j11 = &jacobians_aligned(0,2);
-//    float *_j02 = &jacobians_aligned(0,3);
-//    float *_j12 = &jacobians_aligned(0,4);
-//    float *_j03 = &jacobians_aligned(0,5);
-//    float *_j13 = &jacobians_aligned(0,6);
-//    float *_j04 = &jacobians_aligned(0,7);
-//    float *_j14 = &jacobians_aligned(0,8);
-//    float *_j05 = &jacobians_aligned(0,9);
-//    float *_j15 = &jacobians_aligned(0,10);
-
-//    __m128 _pixel_angle_inv = _mm_set1_ps(pixel_angle_inv);
-//    for(int i=0; i < xyz_tf.rows(); i+=4)
-//    {
-//        __m128 __x = _mm_load_ps(_x+i);
-//        __m128 __y = _mm_load_ps(_y+i);
-//        __m128 __z = _mm_load_ps(_z+i);
-//        __m128 _x2_z2 = _mm_add_ps(_mm_mul_ps(__x, __x), _mm_mul_ps(__z, __z) );
-//        __m128 _x2_z2_sqrt = _mm_sqrt_ps(_x2_z2);
-//        __m128 _dist2 = _mm_add_ps(_mm_mul_ps(__y, __y), _x2_z2 );
-//        __m128 _dist = _mm_sqrt_ps(_dist2);
-//        __m128 _commonDer_c = _mm_div_ps(_pixel_angle_inv, _x2_z2);
-//        __m128 _commonDer_r = _mm_xor_ps( _mm_div_ps(_pixel_angle_inv, _mm_mul_ps(_dist2, _x2_z2_sqrt) ), _mm_set1_ps(-0.f) );
-//        __m128 _commonDer_r_y = _mm_mul_ps(_commonDer_r, __y);
-
-//        __m128 __j00 = _mm_mul_ps(_commonDer_c, __z);
-//        __m128 __j10 = _mm_mul_ps(_commonDer_r_y, __x);
-//        __m128 __j11 = _mm_xor_ps( _mm_mul_ps(_commonDer_r, _x2_z2), _mm_set1_ps(-0.f) );
-//        __m128 __j02 = _mm_xor_ps( _mm_mul_ps(_commonDer_c, __x), _mm_set1_ps(-0.f));
-//        __m128 __j12 = _mm_mul_ps(_commonDer_r_y, __z );
-
-//        _mm_store_ps(_j00+i, __j00 );
-//        _mm_store_ps(_j10+i, __j10 );
-//        _mm_store_ps(_j11+i, __j11 );
-//        _mm_store_ps(_j02+i, __j02 );
-//        _mm_store_ps(_j12+i, __j12 );
-//        _mm_store_ps(_j03+i, _mm_mul_ps( __j02, __y ) );
-//        _mm_store_ps(_j13+i, _mm_sub_ps(_mm_mul_ps(__j12, __y), _mm_mul_ps(__j11, __z) ) );
-//        _mm_store_ps(_j04+i, _mm_sub_ps(_mm_mul_ps(__j00, __z), _mm_mul_ps(__j02, __x) ) );
-//        _mm_store_ps(_j14+i, _mm_sub_ps(_mm_mul_ps(__j10, __z), _mm_mul_ps(__j12, __x) ) );
-//        _mm_store_ps(_j05+i, _mm_xor_ps( _mm_mul_ps(__j00, __y), _mm_set1_ps(-0.f) ) );
-//        _mm_store_ps(_j15+i, _mm_sub_ps(_mm_mul_ps(__j11, __x), _mm_mul_ps(__j10, __y) ) );
-//    }
-//#endif
-//}
-
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
 void SphericalModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_photo, float *_grayGradX, float *_grayGradY)
 {
@@ -1547,137 +1454,78 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
 #endif
 }
 
-///*! Warp the image according to a given geometric transformation. */
-//void SphericalModel::warpImage(cv::Mat img,                // The original image
-//                                const Matrix4f & Rt,        // The relative pose of the robot between the two frames
-//                                const costFuncType method ) //,  const bool use_bilinear )
-//{
-//    cout << " SphericalModel::warpImage \n";
+/*! Warp the input images (gray and/or depth) according to a given geometric transformation Rt. */
+void SphericalModel::warpImage( const cv::Mat gray,               // The original image
+                                cv::Mat  & warped_gray,        // The warped image
+                                const cv::Mat depth,               // The original image
+                                cv::Mat & warped_depth,        // The warped image
+                                const Eigen::Matrix4f & Rt,        // The relative pose of the robot between the two frames
+                                const bool bilinear,
+                                const int method )
+{
+    cout << " SphericalModel::warpImage \n";
 
-//#if PRINT_PROFILING
-//    double time_start = pcl::getTime();
-//    //for(size_t i=0; i<1000; i++)
-//    {
-//#endif
+#if PRINT_PROFILING
+    double time_start = pcl::getTime();
+    //for(size_t i=0; i<1000; i++)
+    {
+#endif
 
-//    nRows = graySrcPyr[pyrLevel].rows;
-//    nRows = graySrcPyr[pyrLevel].cols;
-//    imgSize = graySrcPyr[pyrLevel].size().area();
-//    const float pixel_angle = 2*PI/nCols;
-//    const float pixel_angle_inv = 1/pixel_angle;
-//    const float half_width = nCols/2 - 0.5f;
+    MatrixXf LUT_xyz_source, xyz_src_transf;
+    VectorXi validPixels_src, warp_pixels_src;
+    reconstruct3D(depth, LUT_xyz_source, validPixels_src);
+    transformPts3D(LUT_xyz_source, Rt, xyz_src_transf);
 
-//    float row_phi_start = -(0.5f*nRows-0.5f)*pixel_angle;
-////    float row_phi_start;
-////    if(sensor_type == RGBD360_INDOOR)
-////        row_phi_start = -(0.5f*nRows-0.5f)*pixel_angle;
-////    else
-////        row_phi_start = float(174-512)/512 *PI/2 + 0.5f*pixel_angle; // The images must be 640 pixels height to compute the pyramids efficiently (we substract 8 pixels from the top and 7 from the lower part)
+    //if(method == 0 || method == 1)
+        warped_gray = cv::Mat(nRows, nCols, gray.type(), -1000);
+    //if(method == 0 || method == 2)
+        warped_depth = cv::Mat(nRows, nCols, depth.type(), -1000);
 
-//    // depthComponentGain = cv::mean(target_grayImg).val[0]/cv::mean(target_depthImg).val[0];
+    float *_gray = reinterpret_cast<float*>(gray.data);
+    float *_depth = reinterpret_cast<float*>(depth.data);
+    float *_warped_gray = reinterpret_cast<float*>(warped_gray.data);
+    float *_warped_depth = reinterpret_cast<float*>(warped_depth.data);
 
-//    //reconstruct3D(depthSrcPyr[pyrLevel], LUT_xyz_source, validPixels);
-//    transformPts3D(LUT_xyz_source, Rt, pt_xyz);
+    if( !bilinear )
+    {
+         cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << endl;
+         projectNN(xyz_src_transf, validPixels_src, warp_pixels_src);
 
-//    //float *_depthTrgPyr = reinterpret_cast<float*>(depthTrgPyr[pyrLevel].data);
-//    float *_graySrcPyr = reinterpret_cast<float*>(graySrcPyr[pyrLevel].data);
-//    //float *_grayTrgPyr = reinterpret_cast<float*>(grayTrgPyr[pyrLevel].data);
+#if ENABLE_OPENMP
+#pragma omp parallel for
+#endif
+         for(size_t i=0; i < imgSize; i++)
+         {
+             if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+             {
+                _warped_gray[i] = _gray[warp_pixels_src(i)];
+                _warped_depth[i] = _depth[warp_pixels_src(i)];
+             }
+        }
+    }
+    else
+    {
+        cout << " Bilinear interp " << LUT_xyz_source.rows() << endl;
+        Eigen::MatrixXf warp_img_src;
+        project(xyz_src_transf, warp_img_src, warp_pixels_src);
 
-//    //    float *_depthTrgGradXPyr = reinterpret_cast<float*>(depthTrgGradXPyr[pyrLevel].data);
-//    //    float *_depthTrgGradYPyr = reinterpret_cast<float*>(depthTrgGradYPyr[pyrLevel].data);
-//    //    float *_grayTrgGradXPyr = reinterpret_cast<float*>(grayTrgGradXPyr[pyrLevel].data);
-//    //    float *_grayTrgGradYPyr = reinterpret_cast<float*>(grayTrgGradYPyr[pyrLevel].data);
+#if ENABLE_OPENMP
+#pragma omp parallel for
+#endif
+        for(size_t i=0; i < imgSize; i++)
+        {
+            if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+            {
+                cv::Point2f warped_pixel(warp_img_src(i,0), warp_img_src(i,1));
+               _warped_gray[i] = bilinearInterp( gray, warped_pixel );
+               _warped_depth[i] = bilinearInterp_depth( depth, warped_pixel );
+            }
+       }
+    }
 
-//    //float *_depthSrcGradXPyr = reinterpret_cast<float*>(depthSrcGradXPyr[pyrLevel].data);
-//    //float *_depthSrcGradYPyr = reinterpret_cast<float*>(depthSrcGradYPyr[pyrLevel].data);
-//    //float *_graySrcGradXPyr = reinterpret_cast<float*>(graySrcGradXPyr[pyrLevel].data);
-//    //float *_graySrcGradYPyr = reinterpret_cast<float*>(graySrcGradYPyr[pyrLevel].data);
-
-//    if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
-//        //warped_gray = cv::Mat::zeros(nRows,nCols,graySrcPyr[pyrLevel].type());
-//        warped_gray = cv::Mat(nRows,nCols,graySrcPyr[pyrLevel].type(),-1000);
-//    if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
-//        //warped_depth = cv::Mat::zeros(nRows,nCols,depthSrcPyr[pyrLevel].type());
-//        warped_depth = cv::Mat(nRows,nCols,depthSrcPyr[pyrLevel].type(),-1000);
-
-//    float *_warpedGray = reinterpret_cast<float*>(warped_gray.data);
-//    float *_warpedDepth = reinterpret_cast<float*>(warped_depth.data);
-
-////    if( use_bilinear_ )
-////    {
-////         cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << endl;
-////#if ENABLE_OPENMP
-////#pragma omp parallel for
-////#endif
-////        for(size_t i=0; i < imgSize; i++)
-////        {
-////            //Transform the 3D point using the transformation matrix Rt
-////            Vector3f xyz = pt_xyz.block(i,0,1,3).transpose();
-////            // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << pt_xyz.block(i,0,1,3) << endl;
-
-////            //Project the 3D point to the S2 sphere
-////            float dist = xyz.norm();
-////            float dist_inv = 1.f / dist;
-////            float phi = asin(xyz(1)*dist_inv);
-////            float transformed_r = phi*pixel_angle_inv + row_phi_start;
-////            int transformed_r_int = round(transformed_r);
-////            // cout << "Pixel transform " << i << " transformed_r_int " << transformed_r_int << " " << nRows << endl;
-////            //Asign the intensity value to the warped image and compute the difference between the transformed
-////            //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
-////            if( transformed_r_int>=0 && transformed_r_int < nRows) // && transformed_c_int < nCols )
-////            {
-////                //visible_pixels(i) = 1;
-////                float theta = atan2(xyz(0),xyz(2));
-////                float transformed_c = half_width + theta*pixel_angle_inv; ASSERT_(transformed_c <= nCols_1); //transformed_c -= half_width;
-////                int transformed_c_int = int(round(transformed_c)); ASSERT_(transformed_c_int<nCols);// % half_width;
-////                cv::Point2f warped_pixel(transformed_r, transformed_c);
-
-////                size_t warped_i = transformed_r_int * nCols + transformed_c_int;
-////                if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
-////                    _warpedGray[warped_i] = bilinearInterp( grayTrgPyr[pyrLevel], warped_pixel );
-////                if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
-////                    _warpedDepth[warped_i] = dist;
-////            }
-////        }
-////    }
-////    else
-//    {
-//         cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << endl;
-//#if ENABLE_OPENMP
-//#pragma omp parallel for
-//#endif
-//        for(size_t i=0; i < imgSize; i++)
-//        {
-//            //Transform the 3D point using the transformation matrix Rt
-//            Vector3f xyz = pt_xyz.block(i,0,1,3).transpose();
-//            // cout << "3D pts " << LUT_xyz_source.block(i,0,1,3) << " transformed " << pt_xyz.block(i,0,1,3) << endl;
-
-//            //Project the 3D point to the S2 sphere
-//            float dist = xyz.norm();
-//            float dist_inv = 1.f / dist;
-//            float phi = asin(xyz(1)*dist_inv);
-//            //int transformed_r_int = half_height + int(round(phi*pixel_angle_inv));
-//            int transformed_r_int = int(round((phi-row_phi_start)*pixel_angle_inv));
-//            // cout << "Pixel transform " << i << " transformed_r_int " << transformed_r_int << " " << nRows << endl;
-//            //Asign the intensity value to the warped image and compute the difference between the transformed
-//            //pixel of the source frame and the corresponding pixel of target frame. Compute the error function
-//            if( transformed_r_int>=0 && transformed_r_int < nRows) // && transformed_c_int < nCols )
-//            {
-//                //visible_pixels(i) = 1;
-//                float theta = atan2(xyz(0),xyz(2));
-//                int transformed_c_int = int(round(half_width + theta*pixel_angle_inv)) % nCols; //ASSERT_(transformed_c_int<nCols); //ASSERT_(transformed_c_int<nCols);
-//                size_t warped_i = transformed_r_int * nCols + transformed_c_int;
-//                if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
-//                    _warpedGray[warped_i] = _graySrcPyr[i];
-//                if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
-//                    _warpedDepth[warped_i] = dist;
-//            }
-//        }
-//    }
-
-//#if PRINT_PROFILING
-//    }
-//    double time_end = pcl::getTime();
-//    cout << pyrLevel << " SphericalModel::warpImage took " << double (time_end - time_start)*1000 << " ms. \n";
-//#endif
-//}
+#if PRINT_PROFILING
+    }
+    double time_end = pcl::getTime();
+    cout << " SphericalModel::warpImage (size) " << imgSize << " took " << double (time_end - time_start)*1000 << " ms. \n";
+#endif
+}

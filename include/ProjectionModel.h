@@ -148,6 +148,15 @@ public:
     /*! Project 3D points XYZ. */
     virtual inline cv::Point2f project2Image(Eigen::Vector3f & xyz) = 0;
 
+    /*! Warp the input images (gray and/or depth) according to a given geometric transformation Rt. */
+    virtual void warpImage( const cv::Mat gray,               // The original image
+                            cv::Mat  & warped_gray,        // The warped image
+                            const cv::Mat depth,               // The original image
+                            cv::Mat & warped_depth,        // The warped image
+                            const Eigen::Matrix4f & Rt,        // The relative pose of the robot between the two frames
+                            const bool bilinear,
+                            const int method ) = 0;
+
     /*! Re-project the warping image into the reference one. The input points 'xyz' represent the reference point cloud as seen by the target image. */
     virtual void reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray, cv::Mat & warped_gray, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible) = 0;
 
@@ -231,6 +240,7 @@ public:
                                             Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY) = 0;
 
     /*! Compute the 3Nx6 jacobian matrices of the ICP using the spherical camera model. */
+    //void computeJacobiansICP(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & residualsDepth, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY)
     void computeJacobiansICP(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY)
     {
     #if PRINT_PROFILING
@@ -239,6 +249,7 @@ public:
         {
     #endif
 
+        //jacobians_depth.resize(xyz_tf.rows(), 6);
         jacobians_depth.resize(3*xyz_tf.rows(), 6);
 
     //    #if ENABLE_OPENMP
@@ -250,12 +261,13 @@ public:
             Eigen::Matrix<float,3,6> jacobianRt;
             computeJacobian36_xT_p(pt_xyz, jacobianRt);
             jacobians_depth.block(3*i,0,3,6) = (weights(i) * stdDevError_inv(i)) * jacobianRt;
+            //jacobians_depth.block(i,0,3,6) = jacobianRt * residualsDepth.block(3*i,0,3,1);
         }
 
     #if PRINT_PROFILING
         }
         double time_end = pcl::getTime();
-        cout << " SphericalModel::computeJacobiansPhoto " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
+        cout << " SphericalModel::computeJacobiansICP " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
     #endif
     }
 

@@ -185,7 +185,8 @@ int main (int argc, char ** argv)
     
     dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     cout << "Pose Dense Saliency DEPTH_CONSISTENCY \n" << dir_reg.getOptimalPose() << endl;
-    
+    rigidTransf_dense = dir_reg.getOptimalPose();
+
 //    dir_reg.useSaliency(false);
 //    dir_reg.regist_inv(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //    cout << "Pose Dense Inv \n" << dir_reg.getOptimalPose() << endl;
@@ -276,7 +277,6 @@ int main (int argc, char ** argv)
 
     dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     cout << "Pose Dense IC Depth \n" << dir_reg.getOptimalPose() << endl;
-    rigidTransf_dense = dir_reg.getOptimalPose();
 
     dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     cout << "Pose Dense IC \n" << dir_reg.getOptimalPose() << endl;

@@ -93,6 +93,16 @@ class PinholeModel : public ProjectionModel
         return pixel;
     };
 
+    /*! Warp the input images (gray and/or depth) according to a given geometric transformation Rt. */
+    void warpImage( const cv::Mat gray,               // The original image
+                    cv::Mat  & warped_gray,        // The warped image
+                    const cv::Mat depth,               // The original image
+                    cv::Mat & warped_depth,        // The warped image
+                    const Eigen::Matrix4f & Rt,        // The relative pose of the robot between the two frames
+                    const bool bilinear,
+                    const int method )
+    {};
+
     /*! Re-project the warping image into the reference one. The input points 'xyz' represent the reference point cloud as seen by the target image. */
     void reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray, cv::Mat & warped_gray, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible);
 
