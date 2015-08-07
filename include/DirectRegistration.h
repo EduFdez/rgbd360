@@ -3,9 +3,9 @@
  *
  *  All rights reserved.
  *
- *  Redistribution and use in source and binary forms, with or without
+ *  Redistribution and use in ref and binary forms, with or without
  *  modification, are permitted provided that the following conditions are met:
- *      * Redistributions of source code must retain the above copyright
+ *      * Redistributions of ref code must retain the above copyright
  *        notice, this list of conditions and the following disclaimer.
  *      * Redistributions in binary form must reproduce the above copyright
  *        notice, this list of conditions and the following disclaimer in the
@@ -43,6 +43,59 @@
 
 #include <mrpt/system/os.h>
 
+/*! This class stores the data structures for direct registration of a RGBD frame.
+ *  It contains the different pyramidal resolutions of the gray(RGB) and depth images together with the image gradients and the 3D LUT point clouds. */
+struct FramePyrRGBD
+{
+    // sensor_type;
+
+    /*! Intensity (gray) image pyramid.*/
+    std::vector<cv::Mat> grayPyr;
+
+    /*! Intensity (gray) gradient image pyramids.*/
+    std::vector<cv::Mat> grayPyr_GradX, grayPyr_GradY;
+
+    /*! Depth image pyramid.*/
+    std::vector<cv::Mat> depthPyr;
+
+    /*! Depth gradient image pyramids.*/
+    std::vector<cv::Mat> depthPyr_GradX, depthPyr_GradY;
+
+    //std::vector<cv::Mat> colorPyr;
+};
+
+//struct WarpedFrameRGBD;
+
+/*! Intermediate data for each iteration: jacobians, residuals, weights, validPts and 3D LUT point clouds. */
+struct IterationData
+{
+    /*! LUT of 3D points of the ref image.*/
+    Eigen::MatrixXf xyz;
+    Eigen::MatrixXf xyz_tf;
+
+    std::vector<size_t> salient_pixels_;
+    std::vector<size_t> salient_pixels_photo;
+    std::vector<size_t> salient_pixels_depth;
+
+    /*! Store a copy of the residuals and the weights to speed-up the registration. (Before they were computed twice: in the error function and the Jacobian)*/
+    Eigen::MatrixXf warp_img;
+    Eigen::VectorXi warp_pixels;
+    Eigen::VectorXf residualsPhoto;
+    Eigen::VectorXf residualsDepth;
+    //Eigen::MatrixXf residualsDepth3D;
+    Eigen::MatrixXf jacobiansPhoto;
+    Eigen::MatrixXf jacobiansDepth;
+    Eigen::VectorXf stdDevError_inv;
+    Eigen::VectorXf wEstimPhoto;
+    Eigen::VectorXf wEstimDepth;
+
+    /*! If set to true, only the pixels with high gradient in the gray image are used (for both photo and depth minimization) */
+    Eigen::VectorXi validPixels;
+    //Eigen::VectorXi visible_pixels;
+    Eigen::VectorXi validPixelsPhoto;
+    Eigen::VectorXi validPixelsDepth;
+};
+
 /*! This class performs dense registration (also called direct registration) minimizing a cost function based on either intensity, depth or both.
  *  Refer to the last chapter of my thesis dissertation for more details:
  * "Contributions to metric-topological localization and mapping in mobile robotics" 2014. Eduardo Fernández-Moral.
@@ -51,24 +104,29 @@ class DirectRegistration : public Pyramid, MEstimator
 {
 //public:
 
-//    PinholeModel pinhole_model;
-//    SphericalModel spherical_model;
-    ProjectionModel *ProjModel;
+    /*! The projection model of the sensor: spherical (Asus3 RGBD60 or OmniStereo) or pinhole (perspective camera) */
+    ProjectionModel *ProjModel; // PinholeModel or SphericalModel are available
 
-    /*! The reference intensity image */
-    cv::Mat graySrc;
-    cv::Mat rgbSrc;
+    /*! The projection model of the reference frame and the target one may be different when the map has been created
+     *  with a different sensor than the one being used to localise in that map. */
+    bool bDifSensors;
 
-    /*! The target intensity image */
-    cv::Mat grayTrg;
+    /*! The projection model of the sensor used to build the map. */
+    ProjectionModel *ProjModel_ref;
+    /*! The projection model of the sensor to localise (current camera). */
+    ProjectionModel *ProjModel_trg;
 
-    /*! The reference depth image */
-    cv::Mat depthSrc;
+    /*! The reference frame (map). */
+    FramePyrRGBD ref;
 
-    /*! The target depth image */
-    cv::Mat depthTrg;
+    /*! The target frame (current camera). */
+    FramePyrRGBD trg;
 
-    /*! The relative pose between source and target RGB-D images */
+    /*! Iteration data. */
+    IterationData itRef;
+    IterationData itTrg;
+
+    /*! The relative pose between ref and target RGB-D images */
     Eigen::Matrix4f registered_pose;
 
     /*! The Hessian matrix of the optimization problem. At the solution it represents the inverse of the covariance matrix of the relative pose */
@@ -139,51 +197,11 @@ class DirectRegistration : public Pyramid, MEstimator
     cv::Mat warped_depth;
     cv::Mat warped_depth_gradX, warped_depth_gradY;
 
-    /*! Vector containing the indices of the pixels that move (forward-backward) or are occluded in the target image to the source image.*/
+    /*! Vector containing the indices of the pixels that move (forward-backward) or are occluded in the target image to the ref image.*/
     cv::Mat mask_dynamic_occlusion;
 
 //    /*! LUT of 3D points of the spherical image.*/
 //    std::vector<Eigen::Vector3f> unit_sphere_;
-
-    /*! LUT of 3D points of the source image.*/
-    Eigen::MatrixXf LUT_xyz_source;
-    Eigen::MatrixXf LUT_xyz_target;
-    Eigen::MatrixXf xyz_src_transf;
-    Eigen::MatrixXf xyz_trg_transf;
-
-    std::vector<size_t> salient_pixels_;
-    std::vector<size_t> salient_pixels_photo;
-    std::vector<size_t> salient_pixels_depth;
-
-    /*! Store a copy of the residuals and the weights to speed-up the registration. (Before they were computed twice: in the error function and the Jacobian)*/
-    Eigen::MatrixXf warp_img_src;
-    Eigen::VectorXi warp_pixels_src;
-    Eigen::VectorXf residualsPhoto_src;
-    Eigen::VectorXf residualsDepth_src;
-    Eigen::MatrixXf residualsDepth3D_src;
-    Eigen::MatrixXf jacobiansPhoto;
-    Eigen::MatrixXf jacobiansDepth;
-    Eigen::VectorXf stdDevError_inv_src;
-    Eigen::VectorXf wEstimPhoto_src;
-    Eigen::VectorXf wEstimDepth_src;
-
-    /*! If set to true, only the pixels with high gradient in the gray image are used (for both photo and depth minimization) */    
-    Eigen::VectorXi validPixels_src;
-    //Eigen::VectorXi visible_pixels_src;
-    Eigen::VectorXi validPixelsPhoto_src;
-    Eigen::VectorXi validPixelsDepth_src;
-
-    Eigen::MatrixXf warp_img_trg;
-    Eigen::VectorXi warp_pixels_trg;
-    Eigen::VectorXf residualsPhoto_trg;
-    Eigen::VectorXf residualsDepth_trg;
-    Eigen::VectorXf stdDevError_inv_trg;
-    Eigen::VectorXf wEstimPhoto_trg;
-    Eigen::VectorXf wEstimDepth_trg;
-
-    Eigen::VectorXi validPixels_trg;
-    Eigen::VectorXi validPixelsPhoto_trg;
-    Eigen::VectorXi validPixelsDepth_trg;
 
     /*! Number of iterations in each pyramid level.*/
     std::vector<int> num_iters;
@@ -211,7 +229,7 @@ public:
         RGBD360_INDOOR = 0,
         STEREO_OUTDOOR,
         KINECT // Same for Asus XPL
-    } sensor_type;
+    } sensor_type, sensor_type_ref, sensor_type_trg;
 
     /*! Optimization method (cost function). The options are: 0=Photoconsistency, 1=Depth consistency (ICP like), 2= A combination of photo-depth consistency */
     enum costFuncType
@@ -233,12 +251,6 @@ public:
     /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
     float SSO;
 
-    /*! Intensity (gray), depth and gradient image pyramids. Each pyramid has 'numpyramidLevels' levels.*/
-    std::vector<cv::Mat> graySrcPyr, grayTrgPyr, depthSrcPyr, depthTrgPyr;
-    std::vector<cv::Mat> grayTrgGradXPyr, grayTrgGradYPyr, depthTrgGradXPyr, depthTrgGradYPyr;
-    std::vector<cv::Mat> graySrcGradXPyr, graySrcGradYPyr, depthSrcGradXPyr, depthSrcGradYPyr;
-    std::vector<cv::Mat> colorSrcPyr;
-
     DirectRegistration(sensorType sensor = KINECT);
 
     ~DirectRegistration();
@@ -252,6 +264,18 @@ public:
             ProjModel = new PinholeModel;
         else //RGBD360_INDOOR, STEREO_OUTDOOR
             ProjModel = new SphericalModel;
+    };
+
+    /*! Set Projection Model.*/
+    inline void setProjectionModel_ref(ProjectionModel *pm)
+    {
+        ProjModel_ref = pm;
+    };
+
+    /*! Set Projection Model.*/
+    inline void setProjectionModel_trg(ProjectionModel *pm)
+    {
+        ProjModel_trg = pm;
     };
 
     /*! Set the number of pyramid levels.*/
@@ -369,7 +393,7 @@ public:
     /*! Visualize optimization progress. */
     void closeWindows();
 
-    /*! Returns the optimal SE(3) rigid transformation matrix between the source and target frame.
+    /*! Returns the optimal SE(3) rigid transformation matrix between the ref and target frame.
      * This method has to be called after calling the doRegistration() method.*/
     inline Eigen::Matrix4f getOptimalPose()
     {
@@ -388,20 +412,20 @@ public:
         return gradient;
     }
 
-    /*! Sets the source (Intensity+Depth) frame. */
+    /*! Sets the ref (Intensity+Depth) frame. */
     void setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
 
-    /*! Sets the source (Intensity+Depth) frame. Depth image is ignored. */
+    /*! Sets the ref (Intensity+Depth) frame. Depth image is ignored. */
     void setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
 
     /*! Build the pyramid levels from the intensity images. */
     inline void buildGrayPyramids()
     {
-        buildPyramid(graySrc, graySrcPyr, nPyrLevels);
-        buildPyramid(grayTrg, graySrcPyr, nPyrLevels);
+        buildPyramid(ref.grayPyr[0], ref.grayPyr, nPyrLevels);
+        buildPyramid(trg.grayPyr[0], trg.grayPyr, nPyrLevels);
     };
 
-    /*! Swap the source and target images */
+    /*! Swap the ref and target images */
     void swapSourceTarget();
 
     /*! Get a list of salient points from a list of Jacobians corresponding to a set of 3D points */
@@ -412,36 +436,32 @@ public:
                          costFuncType method,
                          std::vector<size_t> &salient_pixels, std::vector<size_t> &salient_pixels_photo, std::vector<size_t> &salient_pixels_depth);
 
-    /*! Re-project the source image onto the target one according to the input relative pose 'poseGuess' to compute the error.
-     *  If the parameter 'direction' is -1, then the reprojection is computed from the target to the source images. */
-    double computeReprojError_perspective(const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY, const int direction = 1);//, const bool use_bilinear = false);
-
     /*! Compute the depth error with Forward Compositional. */
-    float calcDepthErrorFC(const Eigen::Matrix4f & poseGuess, const size_t pt_idx, const float* depth_src, const float* depth_trg)
+    float calcDepthErrorFC(const Eigen::Matrix4f & poseGuess, const size_t pt_idx, const float* depth_ref, const float* depth_trg)
     {
-        Eigen::Vector3f xyz = xyz_src_transf.block(pt_idx,0,1,3).transpose();
-        float diff = depth_trg[warp_pixels_src(pt_idx)] - ProjModel->getDepth(xyz);
+        Eigen::Vector3f xyz_pt = itRef.xyz_tf.block(pt_idx,0,1,3).transpose();
+        float diff = depth_trg[itRef.warp_pixels(pt_idx)] - ProjModel_trg->getDepth(xyz_pt);
         return diff;
     }
 
     /*! Compute the depth error with Inverse Compositional. */
-    float calcDepthErrorIC(const Eigen::Matrix4f & poseGuess, const size_t pt_idx, const float* depth_src, const float* depth_trg) // poseGuess_inv
-    //float calcDepthErrorIC(const Eigen::Matrix4f & poseGuess_inv, const size_t pt_idx, const float* depth_src, const float* depth_trg) // poseGuess_inv
+    float calcDepthErrorIC(const Eigen::Matrix4f & poseGuess, const size_t pt_idx, const float* depth_ref, const float* depth_trg) // poseGuess_inv
+    //float calcDepthErrorIC(const Eigen::Matrix4f & poseGuess_inv, const size_t pt_idx, const float* depth_ref, const float* depth_trg) // poseGuess_inv
     {
         //Eigen::Matrix4f poseGuess_inv = poseGuess.inverse();
         //Eigen::Matrix4f poseGuess = poseGuess_inv.inverse();
 
-        Eigen::Vector3f xyz_trg = LUT_xyz_target.block(warp_pixels_src(pt_idx),0,1,3).transpose();
-//        Eigen::Vector3f xyz_trg2src = poseGuess_inv.block(0,0,3,3)*xyz_trg + poseGuess_inv.block(0,3,3,1);
-//        float diff = ProjModel->getDepth(xyz_trg2src) - depth_src[validPixels_src(pt_idx)];
+        Eigen::Vector3f xyz_trg = itTrg.xyz.block(itRef.warp_pixels(pt_idx),0,1,3).transpose();
+//        Eigen::Vector3f xyz_trg2ref = poseGuess_inv.block(0,0,3,3)*xyz_trg + poseGuess_inv.block(0,3,3,1);
+//        float diff = ProjModel->getDepth(xyz_trg2ref) - depth_ref[itRef.validPixels(pt_idx)];
 
-        float dist_src = depth_src[validPixels_src(pt_idx)];
-//        Eigen::Vector3f xyz_trg2src_rot = xyz_trg - poseGuess.block(0,3,3,1);
-//        float diff = xyz_trg2src_rot.norm() - dist_src;
-        Eigen::Vector3f xyz_src = LUT_xyz_source.block(pt_idx,0,1,3).transpose();
-        float diff = ((xyz_src .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_src) - dist_src; // This is an approximation
+        float dist_ref = depth_ref[itRef.validPixels(pt_idx)];
+//        Eigen::Vector3f xyz_trg2ref_rot = xyz_trg - poseGuess.block(0,3,3,1);
+//        float diff = xyz_trg2ref_rot.norm() - dist_ref;
+        Eigen::Vector3f xyz_ref = itRef.xyz.block(pt_idx,0,1,3).transpose();
+        float diff = ((xyz_ref .dot (xyz_trg - poseGuess.block(0,3,3,1))) / dist_ref) - dist_ref; // This is an approximation
         //std::cout << "diff " << diff << " diff2 " << diff2 << endl;
-        //std::cout << "diff " << diff << " dist_src " << dist_src << " xyz_src " << xyz_src.transpose() << " xyz_trg " << xyz_trg.transpose() << " trans " << poseGuess.block(0,3,3,1).transpose() << endl;
+        //std::cout << "diff " << diff << " dist_ref " << dist_ref << " xyz_ref " << xyz_ref.transpose() << " xyz_trg " << xyz_trg.transpose() << " trans " << poseGuess.block(0,3,3,1).transpose() << endl;
 
         return diff;
     }
@@ -452,131 +472,12 @@ public:
         in Computer Vision Workshops (ICCV Workshops), 2011. */
     double computeError(const Eigen::Matrix4f & poseGuess);
 
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
-        This is done following the work in:
-        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
-        in Computer Vision Workshops (ICCV Workshops), 2011. */
-    double computeError_inv( const int pyrLevel, const Eigen::Matrix4f & poseGuess, const costFuncType method = PHOTO_CONSISTENCY);//, const bool use_bilinear = false);
-
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-        This is done following the work in:
-        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
-        in Computer Vision Workshops (ICCV Workshops), 2011. */
+    /*! Compute the jacobians and the gradients for each iteration of the dense alignemnt method to build the Hessian and Gradient with Forward Compositional. See:
+        "Direct iterative closest point for real-time visual odometry". Tykkala, Tommi and Audras, Cédric and Comport, Andrew I. In Computer Vision Workshops (ICCV Workshops), 2011. */
     void calcHessGrad();
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient with Inverse Compositional */
     double calcHessGradError_IC(const Eigen::Matrix4f & poseGuess);
-
-    double calcHessGrad_IC(const int pyrLevel,
-                           const Eigen::Matrix4f & poseGuess,
-                           const costFuncType method = PHOTO_CONSISTENCY );
-
-//    /* Compute the Jacobian matrices which are used to select the salient pixels. */
-//    void computeJacobian(int pyrLevel,
-//                        const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-//                        const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
-
-    /*! Compute the averaged squared error of the salient points. */
-    double computeErrorHessGrad_salient(std::vector<size_t> & salient_pixels, costFuncType method );
-
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-        This is done following the work in:
-        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
-        in Computer Vision Workshops (ICCV Workshops), 2011. */
-    void calcHessGrad_inv( const int pyrLevel,
-                           const Eigen::Matrix4f & poseGuess,
-                           const costFuncType method = PHOTO_CONSISTENCY );
-
-    /*! Re-project the source image onto the target one according to the input relative pose 'poseGuess' to compute the error.
-     *  If the parameter 'direction' is -1, then the reprojection is computed from the target to the source images. */
-    double computeReprojError_spherical(int pyrLevel,
-                                        const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
-                                        const costFuncType method = PHOTO_CONSISTENCY,
-                                        const int direction = 1 ) ;//,const bool use_bilinear = false );
-
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-    This is done following the work in:
-    Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
-    in Computer Vision Workshops (ICCV Workshops), 2011. */
-    double computeError_sphere (  const int pyrLevel,
-                                const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
-                                const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
-
-    double computeErrorWarp_sphere (  int pyrLevel,
-                                    const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
-                                    const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
-
-    /*! This function do the same as 'computeError_sphere'. But applying inverse compositional, which only affects the depth error */
-    double computeErrorIC_sphere( const int pyrLevel,
-                                const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
-                                const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
-
-    double computeErrorInv_sphere(const int pyrLevel,
-                                const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
-                                const costFuncType method = PHOTO_CONSISTENCY); //,const bool use_bilinear = false );
-
-    double computeError_sphere_bidirectional (const int pyrLevel,
-                                            const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
-                                            const costFuncType method = PHOTO_CONSISTENCY); //,const bool use_bilinear = false );
-
-    double computeJacobian_sphere ( const int pyrLevel,
-                                    const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
-                                    const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
-
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-    This is done following the work in:
-    Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
-    in Computer Vision Workshops (ICCV Workshops), 2011. */
-    void calcHessGrad_sphere (  const int pyrLevel,
-                                const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
-                                const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
-
-    void calcHessGrad_warp_sphere ( const int pyrLevel,
-                                    const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
-                                    const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
-
-    void calcHessGrad_side_sphere ( const int pyrLevel,
-                                    const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
-                                    const costFuncType method = PHOTO_CONSISTENCY,
-                                    const int side = 0 ); // side is an aproximation parameter, 0 -> optimization starts at the identity and gradients are computed at the source; 1 at the target
-
-    void calcHessGradRot_sphere(const int pyrLevel,
-                                const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
-                                const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
-
-    double calcHessGradIC_sphere (  const int pyrLevel,
-                                    const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
-                                    const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
-
-    void calcHessGradInv_sphere(const int pyrLevel,
-                                const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
-                                const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
-
-    void calcHessGrad_sphere_bidirectional (const int pyrLevel,
-                                            const Eigen::Matrix4f & poseGuess, // The relative pose of the robot between the two frames
-                                            const costFuncType method = PHOTO_CONSISTENCY );//,const bool use_bilinear = false );
-
-//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-//        Occlusions are taken into account by a Z-buffer. */
-//    double computeError_sphereOcc1(int pyrLevel,
-//                                    const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
-//                                    costFuncType method = PHOTO_CONSISTENCY );
-//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-//        This function takes into account the occlusions by storing a Z-buffer */
-//    void calcHessGrad_sphereOcc1( int pyrLevel,
-//                                    const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-//                                    costFuncType method = PHOTO_CONSISTENCY );
-//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-//        Occlusions are taken into account by a Z-buffer. */
-//    double computeError_sphereOcc2(int pyrLevel,
-//                                    const Eigen::Matrix4f &poseGuess, // The relative pose of the robot between the two frames
-//                                    costFuncType method = PHOTO_CONSISTENCY );
-
-//    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-//        This function takes into account the occlusions and the moving pixels by applying a filter on the maximum depth error */
-//    void calcHessGrad_sphereOcc2( int pyrLevel,
-//                                    const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-//                                    costFuncType method = PHOTO_CONSISTENCY );
 
     /*! Build a matrix with the image gradients of the salient points for efficient SIMD operations. */
     void extractGradSalient(Eigen::VectorXi & valid_pixels);
@@ -586,65 +487,8 @@ public:
 
     /*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
       * This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
-      * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution. */
+      * between the ref and target frames. This process is performed sequentially on a pyramid of image with increasing resolution. */
     void doRegistration( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(), costFuncType method = PHOTO_CONSISTENCY);
-
-    void register_InvDepth ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                                 costFuncType method = PHOTO_CONSISTENCY,
-                                 const int occlusion = 0);
-
-    void register_IC(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                         costFuncType method = PHOTO_CONSISTENCY,
-                         const int occlusion = 0);
-
-    void register_inv ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                            costFuncType method = PHOTO_CONSISTENCY,
-                            const int occlusion = 0);
-
-    void register_bidirectional ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                            costFuncType method = PHOTO_CONSISTENCY,
-                            const int occlusion = 0);
-
-    /*! Search for the best alignment of a pair of RGB-D frames based on photoconsistency and depthICP.
-      * This pose is obtained from an optimization process using Levenberg-Marquardt which is maximizes the photoconsistency and depthCOnsistency
-      * between the source and target frames. This process is performed sequentially on a pyramid of image with increasing resolution.
-      * The input parameter occlusion stands for: (0->Regular dense registration, 1->Occlusion1, 2->Occlusion2)
-    */
-    void register360 ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                        costFuncType method = PHOTO_CONSISTENCY,
-                        const int occlusion = 0);
-
-    void register360_warp ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                            costFuncType method = PHOTO_CONSISTENCY,
-                            const int occlusion = 0);
-
-    void register360_side ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                            costFuncType method = PHOTO_CONSISTENCY,
-                            const int occlusion = 0);
-
-    void register360_rot ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                        costFuncType method = PHOTO_CONSISTENCY,
-                        const int occlusion = 0);
-
-    void register360_salientJ ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                                costFuncType method = PHOTO_CONSISTENCY,
-                                const int occlusion = 0);
-
-    void register360_IC(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                        costFuncType method = PHOTO_CONSISTENCY,
-                        const int occlusion = 0);
-
-    void register360_depthPyr(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                                costFuncType method = PHOTO_CONSISTENCY,
-                                const int occlusion = 0);
-
-    void register360_inv(const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                            costFuncType method = PHOTO_CONSISTENCY,
-                            const int occlusion = 0);
-
-    void register360_bidirectional ( const Eigen::Matrix4f pose_guess = Eigen::Matrix4f::Identity(),
-                                        costFuncType method = PHOTO_CONSISTENCY,
-                                        const int occlusion = 0);
 
     /*! Calculate entropy of the planar matching. This is the differential entropy of a multivariate normal distribution given
       by the matched planes. This is calculated with the formula used in the paper ["Dense Visual SLAM for RGB-D Cameras",
@@ -662,24 +506,6 @@ public:
     /*! Align depth frames applying ICP in different pyramid scales. */
     double alignPyramidICP(Eigen::Matrix4f poseGuess);
 
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
-        This is done following the work in:
-        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
-        in Computer Vision Workshops (ICCV Workshops), 2011. */
-    double calcDenseError_rgbd360_singlesensor(int pyrLevel,
-                                   const Eigen::Matrix4f poseGuess,
-                                   const Eigen::Matrix4f &poseCamRobot,
-                                   costFuncType method = PHOTO_CONSISTENCY);
-
-    /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method to build the Hessian and Gradient.
-        This is done following the work in:
-        Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
-        in Computer Vision Workshops (ICCV Workshops), 2011. */
-    void calcHessGrad_rgbd360_singlesensor( int pyrLevel,
-                                    const Eigen::Matrix4f poseGuess, // The relative pose of the robot between the two frames
-                                    const Eigen::Matrix4f &poseCamRobot, // The pose of the camera wrt to the Robot (fixed beforehand through calibration) // Maybe calibration can be computed at the same time
-                                    costFuncType method = PHOTO_CONSISTENCY);
-
     /*! Update the Hessian and the Gradient from a list of jacobians and residuals. */
     void updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels);
     void updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXf & pixel_weights, const Eigen::MatrixXi & valid_pixels);
@@ -688,6 +514,7 @@ public:
 
 //    void updateHessianAndGradient(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi &warp_pixels);
 
+    /*! Update gradient (for IC compositional). */
     void updateGrad(const Eigen::MatrixXf & pixel_jacobians, const Eigen::MatrixXf & pixel_residuals, const Eigen::MatrixXi & valid_pixels);
 
 };

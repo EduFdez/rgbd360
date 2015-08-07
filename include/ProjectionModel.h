@@ -241,7 +241,7 @@ public:
 
     /*! Compute the 3Nx6 jacobian matrices of the ICP using the spherical camera model. */
     //void computeJacobiansICP(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & residualsDepth, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY)
-    void computeJacobiansICP(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY)
+    void computeJacobiansICP(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_depth) //, float *_depthGradX, float *_depthGradY)
     {
     #if PRINT_PROFILING
         double time_start = pcl::getTime();

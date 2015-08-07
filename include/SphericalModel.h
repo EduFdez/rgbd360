@@ -72,16 +72,16 @@ class SphericalModel : public ProjectionModel , MEstimator
     }
 
 //    /*! Return the depth value of the 3D point projected on the image.*/
-//    inline float reProjDepth(const Eigen::Vector3f &xyz_src, const Eigen::Vector3f &xyz_trg)
+//    inline float reProjDepth(const Eigen::Vector3f &xyz_ref, const Eigen::Vector3f &xyz_trg)
 //    {
 //        return xyz.norm();
 //    }
 
-//    Vector3f xyz_src = LUT_xyz_source.block(i,0,1,3).transpose();
-//    Vector3f xyz_trg = LUT_xyz_target.block(warp_pixels_src(i),0,1,3).transpose();
-//    float residual = (pose_guess_inv(2,0)*xyz_trg(0)+pose_guess_inv(2,1)*xyz_trg(1)+pose_guess_inv(2,2)*xyz_trg(2) + pose_guess_inv(2,3) - xyz_src(2)) * stdDevError_inv_src(i);
+//    Vector3f xyz_ref = LUT_xyz_source.block(i,0,1,3).transpose();
+//    Vector3f xyz_trg = LUT_xyz_target.block(warp_pixels_ref(i),0,1,3).transpose();
+//    float residual = (pose_guess_inv(2,0)*xyz_trg(0)+pose_guess_inv(2,1)*xyz_trg(1)+pose_guess_inv(2,2)*xyz_trg(2) + pose_guess_inv(2,3) - xyz_ref(2)) * stdDevError_inv_ref(i);
 
-//    float residual = (((xyz_src .dot (xyz_trg - pose_guess.block(0,3,3,1))) / dist_src) - dist_src) * stdDevError_inv;
+//    float residual = (((xyz_ref .dot (xyz_trg - pose_guess.block(0,3,3,1))) / dist_ref) - dist_ref) * stdDevError_inv;
 
 
 //    /*! Check if a pixel is within the image limits. */

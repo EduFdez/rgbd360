@@ -90,7 +90,6 @@ Frame360::Frame360(Calib360 *calib360) :
     {
         cloud_[sensor_id].reset(new pcl::PointCloud<PointT>());
     }
-
 }
 
 /*! Return the total area of the planar patches from this frame */
@@ -1280,7 +1279,7 @@ void Frame360::loadDepth (const string &binaryDepthFile, const cv::Mat * mask)
         //cv::Rect region_of_interest = cv::Rect(8, 0, 640, width_); // Select only a portion of the image with height = 640 to facilitate the pyramid constructions
         sphereDepth.create(512, width_, sphereDepth_aux.type() );
         cv::Rect region_of_interest_transp = cv::Rect(90, 0, 512, width_); // Select only a portion of the image with height = width/4 (90 deg) with the FOV centered at the equator. This increases the performance of dense registration at the cost of losing some details from the upper/lower part of the images, which generally capture the sky and the floor.
-        cv::transpose(sphereDepth_aux(region_of_interest_transp), sphereDepth); // The savecd image is transposed wrt to the RGB img!
+        cv::transpose(sphereDepth_aux(region_of_interest_transp), sphereDepth); // The saved image is transposed wrt to the RGB img!
 
         //cv::imshow( "sphereDepth", sphereDepth );
         //cv::waitKey(0);
@@ -1320,6 +1319,7 @@ void Frame360::loadRGB(string &fileNamePNG)
         //            sphereRGB = cv::imread (fileNamePNG.c_str(), CV_LOAD_IMAGE_COLOR); // Full size 665x2048
 
         cv::Mat sphereRGB_aux = cv::imread (fileNamePNG.c_str(), CV_LOAD_IMAGE_COLOR);
+        width_ = sphereRGB_aux.cols;
         sphereRGB.create(512, width_, sphereRGB_aux.type ());
         //sphereRGB.create(640, width_, sphereRGB_aux.type () );
         cv::Rect region_of_interest = cv::Rect(0,90, width_, 512); // Select only a portion of the image with height = width/4 (90 deg) with the FOV centered at the equator. This increases the performance of dense registration at the cost of losing some details from the upper/lower part of the images, which generally capture the sky and the floor.

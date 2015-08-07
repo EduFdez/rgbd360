@@ -27,6 +27,26 @@ IF(BUILD_REGISTRATION)
 		   		)
 
 	# Declare the target (an executable)
+	ADD_EXECUTABLE(Register360_indoor_outdoor Register360_indoor_outdoor.cpp
+						../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
+						../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
+						../include/Miscellaneous.h
+						../include/Calib360.h
+						../include/Frame360.h
+                                                ../src/Frame360.cpp
+                                                ../include/Map360_Visualizer.h
+						../include/RegisterRGBD360.h
+	)
+
+	TARGET_LINK_LIBRARIES(Register360_indoor_outdoor DR
+							${MRPT_LIBS}
+							${OpenCV_LIBS}
+							${PCL_LIBRARIES}
+							${Boost_SERIALIZATION_LIBRARY}
+		   		)
+
+
+	# Declare the target (an executable)
 	ADD_EXECUTABLE(RegisterPairRGBD360_PbMap RegisterPairRGBD360_PbMap.cpp
 						../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
 						../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h

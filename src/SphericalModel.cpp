@@ -3,9 +3,9 @@
  *
  *  All rights reserved.
  *
- *  Redistribution and use in source and binary forms, with or without
+ *  Redistribution and use in ref and binary forms, with or without
  *  modification, are permitted provided that the following conditions are met:
- *      * Redistributions of source code must retain the above copyright
+ *      * Redistributions of ref code must retain the above copyright
  *        notice, this list of conditions and the following disclaimer.
  *      * Redistributions in binary form must reproduce the above copyright
  *        notice, this list of conditions and the following disclaimer in the
@@ -70,7 +70,7 @@ void SphericalModel::scaleCameraParams(std::vector<cv::Mat> & depthPyr, const in
 /*! Compute the unit sphere for the given spherical image dimmensions. This serves as a LUT to speed-up calculations. */
 void SphericalModel::reconstruct3D_unitSphere()
 {
-    // Make LUT to store the values of the 3D points of the source sphere
+    // Make LUT to store the values of the 3D points of the ref sphere
     Eigen::MatrixXf unit_sphere;
     unit_sphere.resize(nRows*nCols,3);
     const float pixel_angle = 2*PI/nCols;
@@ -344,7 +344,7 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
     float *_grayGradXPyr = reinterpret_cast<float*>(intensity_gradX.data);
     float *_grayGradYPyr = reinterpret_cast<float*>(intensity_gradY.data);
 
-    //Compute the 3D coordinates of the 3D points in source frame
+    //Compute the 3D coordinates of the 3D points in ref frame
     validPixels.resize(imgSize);
     xyz.resize(imgSize,3);
     float *_depth = reinterpret_cast<float*>(depth_img.data);
@@ -413,7 +413,7 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
 //#elif !(_AVX) // # ifdef __AVX__
     cout << " reconstruct3D _SSE3 " << imgSize << " pts \n";
 
-    //Compute the 3D coordinates of the pij of the source frame
+    //Compute the 3D coordinates of the pij of the ref frame
     Eigen::MatrixXf xyz_tmp(imgSize,3);
     VectorXi validPixels_tmp(imgSize);
     float *_x = &xyz_tmp(0,0);
@@ -489,7 +489,7 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
     }
     // Select only the salient points
     size_t count_valid_pixels = 0;
-    //cout << " " << LUT_xyz_source.rows() << " " << xyz_tmp.rows() << " size \n";
+    //cout << " " << LUT_xyz_ref.rows() << " " << xyz_tmp.rows() << " size \n";
     for(size_t i=0; i < imgSize; i++)
     {
         if( validPixels_tmp(i) )
@@ -739,6 +739,8 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
     __m128 _nRows = _mm_set1_ps(nRows);
     __m128 _nRows_1 = _mm_set1_ps(nRows-1);
     __m128 _zero = _mm_set1_ps(0.f);
+    __m128i _minus_one = _mm_set1_epi32(-1);
+    __m128i __one = _mm_set1_epi32(1);
     for(int i=0; i < pixels.rows(); i+=4)
     {
         __m128 __x = _mm_load_ps(_x+i);
@@ -771,13 +773,16 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
         _mm_store_ps(_r+i, __r);
         _mm_store_ps(_c+i, __c);
 
-        //__m128 __v = _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) );
-        __m128 __invalid =  _mm_or_ps( _mm_cmpgt_ps(_zero, __r), _mm_cmpgt_ps(__r, _nRows_1) );
-        //_mm_store_ps(_v+i, __invalid); // Warning, the bit to int conversion is: 00000000 -> nan, 11111111 -> -1
-        __m128i __v_mask = _mm_or_si128(reinterpret_cast<__m128i>(__invalid), _mm_set1_epi32(1));
+        __m128 __valid = _mm_and_ps( _mm_cmplt_ps(_zero, __r), _mm_cmplt_ps(__r, _nRows) );
+//        __m128i __v_mask = _mm_and_si128(reinterpret_cast<__m128i>(__valid), _minus_one);
+//        __m128 __invalid =  _mm_or_ps( _mm_cmpgt_ps(_zero, __r), _mm_cmpgt_ps(__r, _nRows_1) );
+//        //_mm_store_ps(_v+i, __invalid); // Warning, the bit to int conversion is: 00000000 -> nan, 11111111 -> -1
+//        __m128i __v_mask = _mm_or_si128(reinterpret_cast<__m128i>(__invalid), __one);
+        __m128i __v_mask = _mm_or_si128( _mm_xor_si128(reinterpret_cast<__m128i>(__valid), _minus_one), __one);
         //cout << "__v_mask " << i << " " << _mm_extract_epi32(__v_mask,0) << " " << _mm_extract_epi32(__v_mask,1) << " " << _mm_extract_epi32(__v_mask,2) << " " << _mm_extract_epi32(__v_mask,3) << endl;
         __m128i *_vv = reinterpret_cast<__m128i*>(&visible(i));
         _mm_store_si128(_vv, __v_mask);
+        //cout << "visible " << i << " " << visible(i) << " " << visible(i+1) << " " << visible(i+2) << " " << visible(i+3) << endl;
 
 //        for(int j=0; j < 4; j++)
 //            if( !(visible(i+j) == visible2(i+j)) )
@@ -803,7 +808,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
         {
             Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
             cv::Point2f warped_pixel = project2Image(pt_xyz);
-            cout << i << " Pixel transform " //<< i/nCols << " " << i%nCols << " "
+            cout << i << " pt_xyz " << pt_xyz.transpose() << " Pixel transform " //<< i/nCols << " " << i%nCols << " "
                  << " warped_pixel " << warped_pixel.x << " " << warped_pixel.y << endl;
             cout << i << " pixels " << pixels(i,1) << " " << pixels(i,0) << " visible " << visible(i) << " " << visible2(i) << endl;
         }
@@ -1471,10 +1476,10 @@ void SphericalModel::warpImage( const cv::Mat gray,               // The origina
     {
 #endif
 
-    MatrixXf LUT_xyz_source, xyz_src_transf;
-    VectorXi validPixels_src, warp_pixels_src;
-    reconstruct3D(depth, LUT_xyz_source, validPixels_src);
-    transformPts3D(LUT_xyz_source, Rt, xyz_src_transf);
+    MatrixXf LUT_xyz_ref, xyz_ref_transf;
+    VectorXi validPixels_ref, warp_pixels_ref;
+    reconstruct3D(depth, LUT_xyz_ref, validPixels_ref);
+    transformPts3D(LUT_xyz_ref, Rt, xyz_ref_transf);
 
     //if(method == 0 || method == 1)
         warped_gray = cv::Mat(nRows, nCols, gray.type(), -1000);
@@ -1488,35 +1493,35 @@ void SphericalModel::warpImage( const cv::Mat gray,               // The origina
 
     if( !bilinear )
     {
-         cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_source.rows() << endl;
-         projectNN(xyz_src_transf, validPixels_src, warp_pixels_src);
+         cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_ref.rows() << endl;
+         projectNN(xyz_ref_transf, validPixels_ref, warp_pixels_ref);
 
 #if ENABLE_OPENMP
 #pragma omp parallel for
 #endif
          for(size_t i=0; i < imgSize; i++)
          {
-             if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+             if( validPixels_ref(i) != -1 && warp_pixels_ref(i) != -1 )
              {
-                _warped_gray[i] = _gray[warp_pixels_src(i)];
-                _warped_depth[i] = _depth[warp_pixels_src(i)];
+                _warped_gray[i] = _gray[warp_pixels_ref(i)];
+                _warped_depth[i] = _depth[warp_pixels_ref(i)];
              }
         }
     }
     else
     {
-        cout << " Bilinear interp " << LUT_xyz_source.rows() << endl;
-        Eigen::MatrixXf warp_img_src;
-        project(xyz_src_transf, warp_img_src, warp_pixels_src);
+        cout << " Bilinear interp " << LUT_xyz_ref.rows() << endl;
+        Eigen::MatrixXf warp_img_ref;
+        project(xyz_ref_transf, warp_img_ref, warp_pixels_ref);
 
 #if ENABLE_OPENMP
 #pragma omp parallel for
 #endif
         for(size_t i=0; i < imgSize; i++)
         {
-            if( validPixels_src(i) != -1 && warp_pixels_src(i) != -1 )
+            if( validPixels_ref(i) != -1 && warp_pixels_ref(i) != -1 )
             {
-                cv::Point2f warped_pixel(warp_img_src(i,0), warp_img_src(i,1));
+                cv::Point2f warped_pixel(warp_img_ref(i,0), warp_img_ref(i,1));
                _warped_gray[i] = bilinearInterp( gray, warped_pixel );
                _warped_depth[i] = bilinearInterp_depth( depth, warped_pixel );
             }
