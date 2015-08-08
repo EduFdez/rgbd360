@@ -237,7 +237,7 @@ int main (int argc, char ** argv)
 
 
             // Visualize cloud
-            frame360.buildSphereCloud_rgbd360();
+            frame360.buildPointCloud_rgbd360();
             frame360.segmentPlanes();
             Frame360_Visualizer sphereViewer(&frame360);
             while (!sphereViewer.viewer.wasStopped() )

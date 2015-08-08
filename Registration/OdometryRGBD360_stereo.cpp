@@ -121,7 +121,7 @@ public:
         {
             frame_src->loadDepth(depth_raw, &maskCar);
             frame_src->loadRGB(rgb);
-//            frame_src->buildSphereCloud();
+//            frame_src->buildPointCloud();
 //            frame_src->filterCloudBilateral_stereo();
 //            frame_src->segmentPlanesStereo();
             //  //cv::namedWindow( "sphereRGB", WINDOW_AUTOSIZE );// Create a window for display.
@@ -130,7 +130,7 @@ public:
 
             frame_src_fused->loadDepth(depth_fused, &maskCar);
             frame_src_fused->loadRGB(rgb);
-            frame_src_fused->buildSphereCloud();
+            frame_src_fused->buildPointCloud();
 //            frame_src_fused->filterCloudBilateral_stereo();
 //            frame_src_fused->segmentPlanesStereo();
         }
@@ -274,7 +274,7 @@ public:
             {
                 frame_src->loadDepth(depth_raw, &maskCar);
                 frame_src->loadRGB(rgb);
-//                frame_src->buildSphereCloud();
+//                frame_src->buildPointCloud();
 //                frame_src->filterCloudBilateral_stereo();
 //                frame_src->segmentPlanesStereo();
                 //  //cv::namedWindow( "sphereRGB", WINDOW_AUTOSIZE );// Create a window for display.
@@ -283,7 +283,7 @@ public:
 
                 frame_src_fused->loadDepth(depth_fused, &maskCar);
                 frame_src_fused->loadRGB(rgb);
-                frame_src_fused->buildSphereCloud();
+                frame_src_fused->buildPointCloud();
 //                frame_src_fused->filterCloudBilateral_stereo();
 //                frame_src_fused->segmentPlanesStereo();
                 //cout << "frame_trg_fused " << frame_trg_fused->sphereCloud->width << " " << frame_trg_fused->sphereCloud->height << " " << frame_trg_fused->sphereCloud->is_dense << " " << endl;

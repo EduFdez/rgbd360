@@ -183,7 +183,7 @@ cout << "Create sphere 1\n";
   frame360_1.loadFrame(file360_1);
   frame360_1.undistort();
   frame360_1.stitchSphericalImage();
-  frame360_1.buildSphereCloud_rgbd360();
+  frame360_1.buildPointCloud_rgbd360();
   frame360_1.segmentPlanes();
 
 //  frame360_1.load_PbMap_Cloud(path, id_frame1);
@@ -194,7 +194,7 @@ cout << "Create sphere 2\n";
   frame360_2.loadFrame(file360_2);
   frame360_2.undistort();
   frame360_2.stitchSphericalImage();
-  frame360_2.buildSphereCloud_rgbd360();
+  frame360_2.buildPointCloud_rgbd360();
   frame360_2.segmentPlanes();
 
 //  frame360_2.load_PbMap_Cloud(path, id_frame2);

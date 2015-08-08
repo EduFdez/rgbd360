@@ -295,7 +295,7 @@ cout << "Get eigen depth\n";
 
 
     //  frame360->undistort();
-//      frame360->buildSphereCloud_rgbd360();
+//      frame360->buildPointCloud_rgbd360();
 //      frame360->segmentPlanes();
 //cout << "Get eigen depth\n";
 
@@ -325,8 +325,8 @@ cout << "Get eigen depth\n";
         else if(mode == 3 || mode == 4)
         {
           frame360->undistort();
-cout << "frame360->buildSphereCloud\n";
-          frame360->buildSphereCloud_rgbd360();
+cout << "frame360->buildPointCloud\n";
+          frame360->buildPointCloud_rgbd360();
 //          frame360->segmentPlanes();
 
           if(mode == 3)
@@ -343,7 +343,7 @@ cout << "frame360->buildSphereCloud\n";
         }
         else if(mode == 5)
         {
-          frame360->buildSphereCloud_fast();
+          frame360->buildPointCloud_fast();
           boost::mutex::scoped_lock updateLock(SphereViewer->visualizationMutex);
           delete SphereViewer->frame360;
           SphereViewer->frame360 = frame360;
@@ -360,7 +360,7 @@ cout << "frame360->buildSphereCloud\n";
         mrpt::system::pause();
       }
 //      {
-////        frame360->buildSphereCloud_fast();
+////        frame360->buildPointCloud_fast();
 //        boost::mutex::scoped_lock updateLock(SphereViewer->visualizationMutex);
 //        delete SphereViewer->frame360;
 //        SphereViewer->frame360 = frame360;

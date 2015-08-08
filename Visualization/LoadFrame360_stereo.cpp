@@ -117,8 +117,8 @@ int main (int argc, char ** argv)
 //  cv::imshow( "sphereRGB", frame360.sphereRGB );
 //  cv::waitKey(0);
 
-  frame360.buildSphereCloud();
-  //frame360.buildSphereCloud_old();
+  frame360.buildPointCloud();
+  //frame360.buildPointCloud_old();
   frame360.filterCloudBilateral_stereo();
   frame360.segmentPlanesStereo();
 //  frame360.segmentPlanesStereoRANSAC();

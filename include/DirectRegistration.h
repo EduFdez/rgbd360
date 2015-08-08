@@ -466,6 +466,15 @@ public:
         return diff;
     }
 
+    /*! Warp the input images (gray and/or depth) according to a given geometric transformation Rt. */
+    void warpImage( const cv::Mat gray,               // The original image
+                    cv::Mat  & warped_gray,        // The warped image
+                    const cv::Mat depth,               // The original image
+                    cv::Mat & warped_depth,        // The warped image
+                    const Eigen::Matrix4f & Rt,        // The relative pose of the robot between the two frames
+                    //const bool bilinear,
+                    const sensorType method );
+
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
         This is done following the work in:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.

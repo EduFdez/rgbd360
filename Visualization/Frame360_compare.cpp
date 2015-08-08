@@ -123,7 +123,7 @@ int main (int argc, char ** argv)
   cv::waitKey(0);
   cv::destroyWindow("sphereRGB");
 
-  frame360.buildSphereCloud();
+  frame360.buildPointCloud();
   frame360.filterCloudBilateral_stereo();
   frame360.segmentPlanesStereo();
 //  frame360.segmentPlanesStereoRANSAC();
@@ -141,7 +141,7 @@ int main (int argc, char ** argv)
   Frame360 frame360_fusion;
   frame360_fusion.loadDepth(fileDepth_fused, &maskCar);
   frame360_fusion.loadRGB(fileRGB);
-  frame360_fusion.buildSphereCloud();
+  frame360_fusion.buildPointCloud();
   frame360_fusion.filterCloudBilateral_stereo();
   frame360_fusion.segmentPlanesStereo();
 //  frame360_fusion.segmentPlanesStereoRANSAC();

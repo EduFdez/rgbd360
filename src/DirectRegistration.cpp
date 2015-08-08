@@ -241,6 +241,81 @@ void DirectRegistration::swapSourceTarget()
 #endif
 }
 
+/*! Warp the input images (gray and/or depth) according to a given geometric transformation Rt. */
+void DirectRegistration::warpImage( const cv::Mat gray,               // The original image
+                                    cv::Mat  & warped_gray,        // The warped image
+                                    const cv::Mat depth,               // The original image
+                                    cv::Mat & warped_depth,        // The warped image
+                                    const Eigen::Matrix4f & Rt,        // The relative pose of the robot between the two frames
+                                    //const bool bilinear,
+                                    const sensorType method )
+{
+#if PRINT_PROFILING
+    cout << " DirectRegistration::warpImage... \n";
+    double time_start = pcl::getTime();
+    //for(size_t i=0; i<1000; i++)
+    {
+#endif
+
+//    MatrixXf LUT_xyz_ref, xyz_ref_transf;
+//    VectorXi validPixels_ref, warp_pixels_ref;
+//    ProjModel->reconstruct3D(depth, LUT_xyz_ref, validPixels_ref);
+//    transformPts3D(LUT_xyz_ref, Rt, xyz_ref_transf);
+
+//    //if(method == 0 || method == 1)
+//        warped_gray = cv::Mat(nRows, nCols, gray.type(), -1000);
+//    //if(method == 0 || method == 2)
+//        warped_depth = cv::Mat(nRows, nCols, depth.type(), -1000);
+
+//    float *_gray = reinterpret_cast<float*>(gray.data);
+//    float *_depth = reinterpret_cast<float*>(depth.data);
+//    float *_warped_gray = reinterpret_cast<float*>(warped_gray.data);
+//    float *_warped_depth = reinterpret_cast<float*>(warped_depth.data);
+
+//    if( !use_bilinear )
+//    {
+//         cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_ref.rows() << endl;
+//         ProjModel->projectNN(xyz_ref_transf, validPixels_ref, warp_pixels_ref);
+
+//#if ENABLE_OPENMP
+//#pragma omp parallel for
+//#endif
+//         for(size_t i=0; i < imgSize; i++)
+//         {
+//             if( validPixels_ref(i) != -1 && warp_pixels_ref(i) != -1 )
+//             {
+//                _warped_gray[i] = _gray[warp_pixels_ref(i)];
+//                _warped_depth[i] = _depth[warp_pixels_ref(i)];
+//             }
+//        }
+//    }
+//    else
+//    {
+//        cout << " Bilinear interp " << LUT_xyz_ref.rows() << endl;
+//        Eigen::MatrixXf warp_img_ref;
+//        ProjModel->project(xyz_ref_transf, warp_img_ref, warp_pixels_ref);
+
+//#if ENABLE_OPENMP
+//#pragma omp parallel for
+//#endif
+//        for(size_t i=0; i < imgSize; i++)
+//        {
+//            if( validPixels_ref(i) != -1 && warp_pixels_ref(i) != -1 )
+//            {
+//                cv::Point2f warped_pixel(warp_img_ref(i,0), warp_img_ref(i,1));
+//               _warped_gray[i] = bilinearInterp( gray, warped_pixel );
+//               _warped_depth[i] = bilinearInterp_depth( depth, warped_pixel );
+//            }
+//       }
+//    }
+
+//#if PRINT_PROFILING
+//    }
+//    double time_end = pcl::getTime();
+//    cout << " SphericalModel::warpImage (size) " << imgSize << " took " << double (time_end - time_start)*1000 << " ms. \n";
+//#endif
+}
+
 /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
     This is done following the work in:
     Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.

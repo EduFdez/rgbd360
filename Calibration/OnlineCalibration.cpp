@@ -460,7 +460,7 @@ class OnlineCalibration
 
         cout << "Build point cloud\n";
           // Get spherical point cloud for visualization
-          frame360.buildSphereCloud();
+          frame360.buildPointCloud();
 
           { boost::mutex::scoped_lock updateLock(visualizationMutex);
 
@@ -725,7 +725,7 @@ class OnlineCalibration
             #endif
 
             // Get spherical point cloud for visualization
-            frame360.buildSphereCloud();
+            frame360.buildPointCloud();
 
             { boost::mutex::scoped_lock updateLock(visualizationMutex);
 

@@ -248,14 +248,15 @@ public:
     void buildCloud_id(int sensor_id);
 
     /*! Build the spherical point cloud by superimposing the NUM_ASUS_SENSORS point clouds from the NUM_ASUS_SENSORS Asus XPL*/
-    void buildSphereCloud_rgbd360();
+    void buildPointCloud_rgbd360();
 
-    /*! Fast version of the method 'buildSphereCloud'. This one performs more poorly for plane segmentation. */
-    void buildSphereCloud_fast();
+    /*! Fast version of the method 'buildPointCloud'. This one performs more poorly for plane segmentation. */
+    void buildPointCloud_fast();
 
     /*! Build the spherical point cloud. The reference system is the one used by the INRIA SphericalStereo sensor. Z points forward, X points to the right and Y points downwards */
-    void buildSphereCloud();
-    void buildSphereCloud_old();
+    void buildPointCloud();
+    void buildPointCloud2();
+    void buildPointCloud_old();
 
     /*! Create the PbMap of the spherical point cloud */
     void segmentPlanes();

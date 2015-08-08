@@ -42,7 +42,10 @@ IF(BUILD_VISUALIZATION)
 					../include/Calib360.h
 					../include/Frame360.h
                                         ../src/Frame360.cpp
-					../include/Frame360_Visualizer.h
+                                        ../include/ProjectionModel.h
+                                        ../include/SphericalModel.h
+                                        ../src/SphericalModel.cpp
+                                        ../include/Frame360_Visualizer.h
 					../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
 					../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
 	)

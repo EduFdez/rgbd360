@@ -132,7 +132,7 @@ int main (int argc, char ** argv)
     frame360.loadFrame(fileName);
     if(useIntrinsicModel == 1)
       frame360.undistort();
-    frame360.buildSphereCloud();
+    frame360.buildPointCloud();
     frame360.getPlanes();
 
     // Filter the spherical point cloud

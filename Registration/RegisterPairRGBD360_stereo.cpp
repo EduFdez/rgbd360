@@ -117,7 +117,7 @@ int main (int argc, char ** argv)
 //  cv::waitKey(0);
 //  cout << "frame360_1.sphereDepth " << frame360_1.sphereRGB.rows << "x" << frame360_1.sphereRGB.cols << " " << frame360_1.sphereDepth.rows << "x" << frame360_1.sphereDepth.cols << endl;
 
-  frame360_1.buildSphereCloud();
+  frame360_1.buildPointCloud();
 //  frame360_1.filterCloudBilateral_stereo();
 //  frame360_1.segmentPlanesStereo();
 
@@ -136,7 +136,7 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
 //  frame360_2.loadDepth(depth2);
   frame360_2.loadDepth(depth2, &maskCar);
   frame360_2.loadRGB(rgb2);
-  frame360_2.buildSphereCloud();
+  frame360_2.buildPointCloud();
 //  frame360_2.filterCloudBilateral_stereo();
 //  frame360_2.segmentPlanesStereo();
 

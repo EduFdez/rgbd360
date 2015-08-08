@@ -341,7 +341,7 @@ class GetControlPlanes
 
       cout << "Build point cloud\n";
         // Get spherical point cloud for visualization
-        frame360.buildSphereCloud();
+        frame360.buildPointCloud();
 
         #if VISUALIZE_POINT_CLOUD
           sphere_cloud = frame360.sphereCloud;

@@ -31,9 +31,10 @@
  */
 
 #include <config.h>
-#include "Frame360.h"
-#include "Miscellaneous.h"
-#include "params_plane_segmentation.h"
+#include <Frame360.h>
+#include <SphericalModel.h>
+#include <Miscellaneous.h>
+#include <params_plane_segmentation.h>
 
 #include <mrpt/system/os.h>
 
@@ -370,7 +371,7 @@ void Frame360::buildCloud_id(int sensor_id)
 /*! Build the spherical point cloud by superimposing the NUM_ASUS_SENSORS point clouds from the NUM_ASUS_SENSORS Asus XPL
  * Z -> Forward, X -> Upwards, X -> Rightwards
  */
-void Frame360::buildSphereCloud_rgbd360()
+void Frame360::buildPointCloud_rgbd360()
 {
     //    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
     //      return;
@@ -444,8 +445,8 @@ void Frame360::buildSphereCloud_rgbd360()
 
 }
 
-/*! Fast version of the method 'buildSphereCloud'. This one performs more poorly for plane segmentation. */
-void Frame360::buildSphereCloud_fast()
+/*! Fast version of the method 'buildPointCloud'. This one performs more poorly for plane segmentation. */
+void Frame360::buildPointCloud_fast()
 {
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -474,19 +475,19 @@ void Frame360::buildSphereCloud_fast()
 
 #if PRINT_PROFILING
     double time_end = pcl::getTime();
-    cout << "buildSphereCloud_fast took " << double (time_end - time_start) << endl;
+    cout << "buildPointCloud_fast took " << double (time_end - time_start) << endl;
 #endif
 
 }
 
 /*! Build the spherical point cloud. The reference system is the one used by the INRIA SphericalStereo sensor. Z points forward, X points to the right and Y points downwards */
-void Frame360::buildSphereCloud()
+void Frame360::buildPointCloud()
 {
 //    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
 //      return;
 
 #if PRINT_PROFILING
-    cout << " Frame360_stereo::buildSphereCloud... " << endl;
+    cout << " Frame360_stereo::buildPointCloud... " << endl;
     double time_start = pcl::getTime();
 #endif
 
@@ -517,10 +518,11 @@ void Frame360::buildSphereCloud()
     float *cosTheta = &v_cosTheta[0];
     for(int col_theta=-half_width; col_theta < half_width; ++col_theta)
     {
-        float theta = col_theta*pixel_angle_;
+        float theta = (col_theta+0.5f)*pixel_angle_;
         *(sinTheta++) = sin(theta);
         *(cosTheta++) = cos(theta);
     }
+    size_t start_row = (sphereRGB.cols-sphereRGB.rows) / 2;
 
 //    //  Efficiency: store the values of the trigonometric functions
 //    Eigen::VectorXf v_sinTheta(sphereDepth.cols);
@@ -534,6 +536,7 @@ void Frame360::buildSphereCloud()
 //        *(cosTheta++) = cos(theta);
 //    }
 
+
     float *depth = sphereDepth.ptr<float>(0);
     cv::Vec3b *intensity = sphereRGB.ptr<cv::Vec3b>(0);
     const int minus_half_height = -half_height;        
@@ -541,13 +544,12 @@ void Frame360::buildSphereCloud()
     #pragma omp parallel for
 #endif
     //for(int row_phi=0; row_phi < sphereDepth.rows; row_phi++)
-    for(int row_phi=half_height, pixel_index=0; row_phi > minus_half_height; --row_phi)//, row_phi += width_SphereImg)
+    for(int row_phi=0, pixel_index=0; row_phi < sphereDepth.rows; row_phi++)//, row_phi += width_SphereImg)
     {
         //float phi = offset_phi - row_phi*angle_pixel_inv;// + PI/2;   // RGBD360
         //const float phi = (row_phi+phi_start_pixel_)*step_phi - PI/2;
-        float phi = (row_phi-half_height)*step_phi;
-        float sin_phi = sin(phi);
-        float cos_phi = cos(phi);
+        float sin_phi = v_sinTheta[start_row+row_phi];
+        float cos_phi = v_cosTheta[start_row+row_phi];
 
         int col_count = 0;
         for(int col_theta=-half_width; col_theta < half_width; ++col_theta, ++pixel_index, ++col_count)
@@ -575,17 +577,74 @@ void Frame360::buildSphereCloud()
 
 #if PRINT_PROFILING
     double time_end = pcl::getTime();
-    cout << "Frame360::buildSphereCloud() took " << double (time_end - time_start) << endl;
+    cout << "Frame360::buildPointCloud() took " << double (time_end - time_start) << endl;
 #endif
 }
 
 /*! Build the spherical point cloud. The reference system is the one used by the INRIA SphericalStereo sensor. Z points forward, X points to the right and Y points downwards */
-void Frame360::buildSphereCloud_old()
+void Frame360::buildPointCloud2()
+{
+//    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
+//      return;
+
+#if PRINT_PROFILING
+    cout << " Frame360_stereo::buildPointCloud2... " << endl;
+    double time_start = pcl::getTime();
+#endif
+
+    sphereCloud->resize(sphereRGB.rows*sphereRGB.cols);
+    sphereCloud->height = sphereRGB.rows;
+    sphereCloud->width = sphereRGB.cols;
+    sphereCloud->is_dense = false;
+    size_t img_size = sphereRGB.rows * sphereRGB.cols;
+
+    SphericalModel proj;
+    Eigen::MatrixXf xyz;
+    Eigen::VectorXi validPixels;
+    proj.reconstruct3D(sphereDepth, xyz, validPixels);
+
+    //float *depth = sphereDepth.ptr<float>(0);
+    cv::Vec3b *rgb = sphereRGB.ptr<cv::Vec3b>(0);
+
+#if ENABLE_OPENMP
+    #pragma omp parallel for
+#endif
+    for(size_t i=0; i < img_size; i++)//, row_phi += width_SphereImg)
+    {
+        //if(validPixels(i) >= 0)
+        if(validPixels(i) != -1)
+        {
+            //cout << min_depth << " depth " << *depth << " max_depth " << max_depth << endl;
+            sphereCloud->points[i].x = xyz(i,0);
+            sphereCloud->points[i].y = xyz(i,1);
+            sphereCloud->points[i].z = xyz(i,2);
+            sphereCloud->points[i].r = (*rgb)[2];
+            sphereCloud->points[i].g = (*rgb)[1];
+            sphereCloud->points[i].b = (*rgb)[0];
+        }
+        else
+        {
+            sphereCloud->points[i].x = numeric_limits<float>::quiet_NaN ();
+            sphereCloud->points[i].y = numeric_limits<float>::quiet_NaN ();
+            sphereCloud->points[i].z = numeric_limits<float>::quiet_NaN ();
+        }
+        //++depth;
+        ++rgb;
+    }
+
+#if PRINT_PROFILING
+    double time_end = pcl::getTime();
+    cout << "Frame360::buildPointCloud2() took " << double (time_end - time_start) << endl;
+#endif
+}
+
+/*! Build the spherical point cloud. The reference system is the one used by the INRIA SphericalStereo sensor. Z points forward, X points to the right and Y points downwards */
+void Frame360::buildPointCloud_old()
 {
     //    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
     //      return;
 
-    //        cout << " Frame360_stereo::buildSphereCloud_rgbd360() " << endl;
+    //        cout << " Frame360_stereo::buildPointCloud_rgbd360() " << endl;
 
 #if PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -651,7 +710,7 @@ void Frame360::buildSphereCloud_old()
     }
 
     //    bSphereCloudBuilt = true;
-    //cout << " Frame360::buildSphereCloud_rgbd360() finished" << endl;
+    //cout << " Frame360::buildPointCloud_rgbd360() finished" << endl;
 
 #if PRINT_PROFILING
     double time_end = pcl::getTime();

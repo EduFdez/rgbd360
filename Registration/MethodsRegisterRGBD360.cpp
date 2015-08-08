@@ -225,7 +225,7 @@ int main (int argc, char ** argv)
     Frame360 frame360_1(&calib);
     frame360_1.loadFrame(file360_1);
     frame360_1.undistort();
-    frame360_1.buildSphereCloud_rgbd360();
+    frame360_1.buildPointCloud_rgbd360();
 
 //    // Save images
 //    {
@@ -262,7 +262,7 @@ int main (int argc, char ** argv)
     Frame360 frame360_2(&calib);
     frame360_2.loadFrame(file360_2);
     frame360_2.undistort();
-    frame360_2.buildSphereCloud_rgbd360();
+    frame360_2.buildPointCloud_rgbd360();
 
     time_start = pcl::getTime();
     RegisterRGBD360 registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH));
@@ -480,8 +480,8 @@ int main (int argc, char ** argv)
     //    cout << "Superimpose cloud\n";
     Map360 Map;
     Matrix4f pose = Matrix4f::Identity();
-//    frame360_1.buildSphereCloud_fromImage();
-//    frame360_2.buildSphereCloud_fromImage();
+//    frame360_1.buildPointCloud_fromImage();
+//    frame360_2.buildPointCloud_fromImage();
     Map.addKeyframe(&frame360_1, pose );
     Map.addKeyframe(&frame360_2, relPosePbMap );
     Map.vOptimizedPoses = Map.vTrajectoryPoses;

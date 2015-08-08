@@ -65,7 +65,7 @@ int main (int argc, char ** argv)
   Frame360 frame360(&calib);
   frame360.loadFrame(fileName);
   frame360.undistort();
-  frame360.buildSphereCloud_rgbd360();
+  frame360.buildPointCloud_rgbd360();
   frame360.segmentPlanes();
 
 //  frame360.stitchSphericalImage();
