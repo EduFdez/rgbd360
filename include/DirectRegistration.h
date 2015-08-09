@@ -162,9 +162,6 @@ class DirectRegistration : public Pyramid, MEstimator
     float varDepth;
     float stdDevDepth;
 
-    /*! Depth component gain. This variable is used to scale the depth values so that depth components are similar to intensity values.*/
-    float depthComponentGain;
-
     /*! If set to true, only the pixels with high gradient in the gray image are used (for both photo and depth minimization) */
     bool use_salient_pixels;
 
@@ -467,13 +464,11 @@ public:
     }
 
     /*! Warp the input images (gray and/or depth) according to a given geometric transformation Rt. */
-    void warpImage( const cv::Mat gray,               // The original image
-                    cv::Mat  & warped_gray,        // The warped image
-                    const cv::Mat depth,               // The original image
-                    cv::Mat & warped_depth,        // The warped image
-                    const Eigen::Matrix4f & Rt,        // The relative pose of the robot between the two frames
-                    //const bool bilinear,
-                    const sensorType method );
+    void warpImage( const cv::Mat gray,        // The warped image
+                    const cv::Mat depth,        // The warped image
+                    const Eigen::Matrix4f & Rt,               // The original image
+                    cv::Mat & warped_gray,               // The original image
+                    cv::Mat & warped_depth );
 
     /*! Compute the residuals and the jacobians for each iteration of the dense alignemnt method.
         This is done following the work in:

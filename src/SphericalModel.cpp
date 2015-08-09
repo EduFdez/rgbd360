@@ -547,7 +547,7 @@ void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray
     float *_r = &pixels(0,0);
     float *_c = &pixels(0,1);
     visible.resize(xyz.rows());
-    float *_v = reinterpret_cast<float*>(&visible(0));
+    //float *_v = reinterpret_cast<float*>(&visible(0));
 
     const float *_x = &xyz(0,0);
     const float *_y = &xyz(0,1);

@@ -499,17 +499,9 @@ void Frame360::buildPointCloud()
     const float max_depth = 20.f;
 
     const float pixel_angle_ = 2*PI / sphereDepth.cols;
-    //const float step_theta = pixel_angle_;
     const float step_phi = pixel_angle_;
-    //int phi_start_pixel_ = 166, end_phi = 166 + sphereDepth.rows; // For images of 665x2048
-    //const int phi_start_pixel_ = 174; // end_phi = 174 + sphereDepth.rows; // For images of 640x2048
-    //const float offset_phi = PI*31.5/180; // height_SphereImg((width_SphereImg/2) * 63.0/180), // RGBD360
     const int half_height = sphereDepth.rows/2;
     const int half_width = sphereDepth.cols/2;
-
-//    cout << "half_height " << half_height << endl;
-//    cout << "half_width " << half_width << endl;
-//    cout << "ENABLE_OPENMP " << ENABLE_OPENMP << endl;
 
     //  Efficiency: store the values of the trigonometric functions
     Eigen::VectorXf v_sinTheta(sphereDepth.cols);
@@ -524,30 +516,14 @@ void Frame360::buildPointCloud()
     }
     size_t start_row = (sphereRGB.cols-sphereRGB.rows) / 2;
 
-//    //  Efficiency: store the values of the trigonometric functions
-//    Eigen::VectorXf v_sinTheta(sphereDepth.cols);
-//    Eigen::VectorXf v_cosTheta(sphereDepth.cols);
-//    float *sinTheta = &v_sinTheta[0];
-//    float *cosTheta = &v_cosTheta[0];
-//    for(int col_theta=-half_width; col_theta < half_width; ++col_theta)
-//    {
-//        float theta = col_theta*pixel_angle_;
-//        *(sinTheta++) = sin(theta);
-//        *(cosTheta++) = cos(theta);
-//    }
-
-
     float *depth = sphereDepth.ptr<float>(0);
     cv::Vec3b *intensity = sphereRGB.ptr<cv::Vec3b>(0);
-    const int minus_half_height = -half_height;        
 #if ENABLE_OPENMP
     #pragma omp parallel for
 #endif
     //for(int row_phi=0; row_phi < sphereDepth.rows; row_phi++)
     for(int row_phi=0, pixel_index=0; row_phi < sphereDepth.rows; row_phi++)//, row_phi += width_SphereImg)
     {
-        //float phi = offset_phi - row_phi*angle_pixel_inv;// + PI/2;   // RGBD360
-        //const float phi = (row_phi+phi_start_pixel_)*step_phi - PI/2;
         float sin_phi = v_sinTheta[start_row+row_phi];
         float cos_phi = v_cosTheta[start_row+row_phi];
 
@@ -577,7 +553,7 @@ void Frame360::buildPointCloud()
 
 #if PRINT_PROFILING
     double time_end = pcl::getTime();
-    cout << "Frame360::buildPointCloud() took " << double (time_end - time_start) << endl;
+    cout << "Frame360::buildPointCloud() took " << double (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
@@ -634,87 +610,7 @@ void Frame360::buildPointCloud2()
 
 #if PRINT_PROFILING
     double time_end = pcl::getTime();
-    cout << "Frame360::buildPointCloud2() took " << double (time_end - time_start) << endl;
-#endif
-}
-
-/*! Build the spherical point cloud. The reference system is the one used by the INRIA SphericalStereo sensor. Z points forward, X points to the right and Y points downwards */
-void Frame360::buildPointCloud_old()
-{
-    //    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
-    //      return;
-
-    //        cout << " Frame360_stereo::buildPointCloud_rgbd360() " << endl;
-
-#if PRINT_PROFILING
-    double time_start = pcl::getTime();
-#endif
-
-    sphereCloud->resize(sphereRGB.rows*sphereRGB.cols);
-    sphereCloud->height = sphereRGB.rows;
-    sphereCloud->width = sphereRGB.cols;
-    sphereCloud->is_dense = false;
-    float min_depth = 0.4f;
-    float max_depth = 20.f;
-
-    pixel_angle_ = 2*PI / sphereDepth.cols;
-    float step_theta = pixel_angle_;
-    float step_phi = pixel_angle_;
-    //int phi_start_pixel_ = 166, end_phi = 166 + sphereDepth.rows; // For images of 665x2048
-    //int phi_start_pixel_ = 174, end_phi = 174 + sphereDepth.rows; // For images of 640x2048
-    //float offset_phi = PI*31.5/180; // height_SphereImg((width_SphereImg/2) * 63.0/180), // RGBD360
-    const int half_height = sphereDepth.rows/2;
-
-#if ENABLE_OPENMP
-    #pragma omp parallel for
-#endif
-    for(int row_phi=0; row_phi < sphereDepth.rows; row_phi++)//, row_phi += width_SphereImg)
-    {
-        //float phi = offset_phi - row_phi*angle_pixel_inv;// + PI/2;   // RGBD360
-        float phi = (row_phi-half_height)*step_phi;
-        float cos_phi = cos(phi);
-        float sin_phi = sin(phi);
-
-        int index_row = row_phi*sphereDepth.cols;
-        for(int col_theta=0, pixel_index=index_row; col_theta < sphereDepth.cols; ++col_theta, ++pixel_index)
-        {
-            float depth = sphereDepth.at<float> (row_phi, col_theta);
-            //cout << pixel_index << " " << depth << endl;
-
-            //                    // RGBD360
-            //float theta_i = col_theta*angle_pixel_inv; // - PI;
-            //float depth = 0.001f * sphereDepth.at<unsigned short>(row_phi,col_theta);
-
-            if(depth > min_depth && depth < max_depth)
-            {
-                //                    // RGBD360
-                //                    sphereCloud->points[row_pixels+col_theta].x = sin_phi * depth;
-                //                    sphereCloud->points[row_pixels+col_theta].y = -cos_phi * sin(theta_i) * depth;
-                //                    sphereCloud->points[row_pixels+col_theta].z = -cos_phi * cos(theta_i) * depth;
-
-                float theta = col_theta*step_theta - PI;
-                sphereCloud->points[pixel_index].x = depth * cos_phi * sin(theta);
-                sphereCloud->points[pixel_index].y = depth* sin_phi;
-                sphereCloud->points[pixel_index].z = depth * cos_phi * cos(theta);
-                sphereCloud->points[pixel_index].r = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[2];
-                sphereCloud->points[pixel_index].g = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[1];
-                sphereCloud->points[pixel_index].b = sphereRGB.at<cv::Vec3b>(row_phi,col_theta)[0];
-            }
-            else
-            {
-                sphereCloud->points[pixel_index].x = numeric_limits<float>::quiet_NaN ();
-                sphereCloud->points[pixel_index].y = numeric_limits<float>::quiet_NaN ();
-                sphereCloud->points[pixel_index].z = numeric_limits<float>::quiet_NaN ();
-            }
-        }
-    }
-
-    //    bSphereCloudBuilt = true;
-    //cout << " Frame360::buildPointCloud_rgbd360() finished" << endl;
-
-#if PRINT_PROFILING
-    double time_end = pcl::getTime();
-    cout << "PointCloud sphere construction OLD took " << double (time_end - time_start) << endl;
+    cout << "Frame360::buildPointCloud2() took " << double (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 

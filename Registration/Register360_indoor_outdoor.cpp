@@ -43,6 +43,7 @@
 #define VISUALIZE_POINT_CLOUD 1
 
 using namespace std;
+using namespace mrpt::utils;
 
 void print_help(char ** argv)
 {
@@ -128,24 +129,24 @@ int main (int argc, char ** argv)
     }
     cout << "frame360_2->sphereDepth " << frame360_2->sphereRGB.rows << "x" << frame360_2->sphereRGB.cols << " " << frame360_2->sphereDepth.rows << "x" << frame360_2->sphereDepth.cols << endl;
 
-    // Visualize images
-    {
-        cv::Mat sphDepthVis1;
-        frame360_1->sphereDepth.convertTo( sphDepthVis1, CV_8U, 10 ); //CV_16UC1
-        cv::imshow( "sphereDepth1", sphDepthVis1 );
-        cv::imshow( "frame360_1", frame360_1->sphereRGB );
+//    // Visualize images
+//    {
+//        cv::Mat sphDepthVis1;
+//        frame360_1->sphereDepth.convertTo( sphDepthVis1, CV_8U, 10 ); //CV_16UC1
+//        cv::imshow( "sphereDepth1", sphDepthVis1 );
+//        cv::imshow( "frame360_1", frame360_1->sphereRGB );
 
-        cv::Mat sphDepthVis2;
-        frame360_2->sphereDepth.convertTo( sphDepthVis2, CV_8U, 10 ); //CV_16UC1
-        cv::imshow( "sphereDepth2", sphDepthVis2 );
-        cv::imshow( "frame360_2", frame360_2->sphereRGB );
-        cv::waitKey(0);
+//        cv::Mat sphDepthVis2;
+//        frame360_2->sphereDepth.convertTo( sphDepthVis2, CV_8U, 10 ); //CV_16UC1
+//        cv::imshow( "sphereDepth2", sphDepthVis2 );
+//        cv::imshow( "frame360_2", frame360_2->sphereRGB );
+//        cv::waitKey(0);
 
-        cv::destroyWindow("sphereDepth1");
-        cv::destroyWindow("frame360_1");
-        cv::destroyWindow("sphereDepth2");
-        cv::destroyWindow("frame360_2");
-    }
+//        cv::destroyWindow("sphereDepth1");
+//        cv::destroyWindow("frame360_1");
+//        cv::destroyWindow("sphereDepth2");
+//        cv::destroyWindow("frame360_2");
+//    }
 
     
 //    //  double time_start = pcl::getTime();
@@ -164,10 +165,15 @@ int main (int argc, char ** argv)
 //    cout << "Pose \n" << rigidTransf_pbmap << endl;
     
 
+    Eigen::Matrix4f init_guess = Eigen::Matrix4f::Identity();
+//    init_guess(1,3) = -0.3;
+//    float angle_offset = 42.5; //45
+//    init_guess(0,0) = init_guess(2,2) = cos(DEG2RAD(angle_offset)); init_guess(0,2) = -sin(DEG2RAD(angle_offset)); init_guess(2,0) = -init_guess(0,2);
+
     //dir_reg.setSensorType(DirectRegistration::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::regist for more details)
-    dir_reg.setNumPyr(5);
+    dir_reg.setNumPyr(4);
     dir_reg.useSaliency(false);
-    // dir_reg.setVisualization(true);
+    dir_reg.setVisualization(true);
     dir_reg.setGrayVariance(4.f/255);
     dir_reg.setSaliencyThreshodIntensity(0.04f);
     dir_reg.setSaliencyThreshodDepth(0.05f);
@@ -176,7 +182,7 @@ int main (int argc, char ** argv)
     dir_reg.setProjectionModel_trg(&pm_trg);
     dir_reg.setTargetFrame(frame360_1->sphereRGB, frame360_1->sphereDepth);
     dir_reg.setSourceFrame(frame360_2->sphereRGB, frame360_2->sphereDepth);
-    dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    dir_reg.doRegistration(init_guess, DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     //  Eigen::Matrix4f initTransf_dense = rot_offset * poseRegPbMap * rot_offset.inverse();
     //  dir_reg.doRegistration(initTransf_dense, DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     Eigen::Matrix4f rigidTransf_dense = dir_reg.getOptimalPose();
