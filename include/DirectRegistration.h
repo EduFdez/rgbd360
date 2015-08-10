@@ -463,9 +463,18 @@ public:
         return diff;
     }
 
+    /*! Compute the depth error with Forward Compositional. */
+    float calcDepthErrorWarpFC(const Eigen::Matrix4f & poseGuess, const size_t pt_idx, const float* depth_ref, const float* depth_trg)
+    {
+        Eigen::Vector3f xyz_pt = itRef.xyz_tf.block(pt_idx,0,1,3).transpose();
+        float diff = depth_trg[itRef.validPixels(pt_idx)] - ProjModel_trg->getDepth(xyz_pt);
+        return diff;
+    }
+
     /*! Warp the input images (gray and/or depth) according to a given geometric transformation Rt. */
-    void warpImage( const cv::Mat gray,        // The warped image
-                    const cv::Mat depth,        // The warped image
+    void warpImage( const cv::Mat gray_ref,        // The warped image
+                    const cv::Mat depth_ref,
+                    const cv::Mat gray_trg, const cv::Mat depth_trg,        // The warped image
                     const Eigen::Matrix4f & Rt,               // The original image
                     cv::Mat & warped_gray,               // The original image
                     cv::Mat & warped_depth );
@@ -475,6 +484,7 @@ public:
         Direct iterative closest point for real-time visual odometry. Tykkala, Tommi and Audras, Cédric and Comport, Andrew I.
         in Computer Vision Workshops (ICCV Workshops), 2011. */
     double computeError(const Eigen::Matrix4f & poseGuess);
+    double computeErrorWarp(const Eigen::Matrix4f & poseGuess);
 
     /*! Compute the jacobians and the gradients for each iteration of the dense alignemnt method to build the Hessian and Gradient with Forward Compositional. See:
         "Direct iterative closest point for real-time visual odometry". Tykkala, Tommi and Audras, Cédric and Comport, Andrew I. In Computer Vision Workshops (ICCV Workshops), 2011. */

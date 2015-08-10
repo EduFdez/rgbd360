@@ -65,6 +65,27 @@ class PinholeModel : public ProjectionModel
         return xyz(2);
     }
 
+    /*! Get a 3D points corresponding to the pixel "idx" in the given range image.*/
+    inline void getPoint3D(const float *depth_img, const int idx, Eigen::Vector3f & xyz)
+    //inline void getPoint3D(const float *depth_img, const float row, const float col, Eigen::Vector3f & xyz)
+    {
+        float depth = depth_img[idx];
+        float row = idx / nCols;
+        float col = idx % nCols;
+        xyz(0) = depth * (col - ox) * inv_fx;
+        xyz(1) = depth * (row - oy) * inv_fy;
+        xyz(2) = depth;
+    }
+
+    /*! Get a 3D points corresponding to the pixel "idx" in the given range image.*/
+    inline void getPoint3D(const cv::Mat & depth_img, cv::Point2f warped_pixel, Eigen::Vector3f & xyz)
+    {
+        float depth = bilinearInterp_depth(depth_img, warped_pixel);
+        xyz(0) = depth * (warped_pixel.x - ox) * inv_fx;
+        xyz(1) = depth * (warped_pixel.y - oy) * inv_fy;
+        xyz(2) = depth;
+    }
+
     /*! Set the 3x3 matrix of (pinhole) camera intrinsic parameters used to obtain the 3D colored point cloud from the RGB and depth images.*/
     inline void setCameraMatrix(const Eigen::Matrix3f & camMat)
     {

@@ -60,6 +60,8 @@ void SphericalModel::scaleCameraParams(std::vector<cv::Mat> & depthPyr, const in
     nCols = depthPyr[0].cols*scaleFactor;
     imgSize = nRows*nCols;
 
+    pixel_angle = 2*PI/nCols;
+    pixel_angle_inv = 1/pixel_angle;
     row_phi_start = 0.5f*nRows-0.5f;
 
     assert(nRows == depthPyr[pyrLevel].rows);
@@ -121,9 +123,9 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
     pixel_angle = 2*PI/nCols;
     pixel_angle_inv = 1/pixel_angle;
     int half_width_int = nCols/2;
-    half_width = half_width_int -0.5f;
+    float half_width = half_width_int - 0.5f;
     //row_phi_start = 0.5f*nRows-0.5f;
-    start_row = (nCols-nRows) / 2;
+    const size_t start_row = (nCols-nRows) / 2;
 
     float *_depth = reinterpret_cast<float*>(depth_img.data);
     xyz.resize(imgSize,3);
@@ -140,7 +142,6 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
     float *cosTheta = &v_cosTheta[0];
     for(int col_theta=-half_width_int; col_theta < half_width_int; ++col_theta)
     {
-        //float theta = col_theta*pixel_angle;
         float theta = (col_theta+0.5f)*pixel_angle;
         *(sinTheta++) = sin(theta);
         *(cosTheta++) = cos(theta);
@@ -318,7 +319,7 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
     pixel_angle = 2*PI/nCols;
     pixel_angle_inv = 1/pixel_angle;
     int half_width_int = nCols/2;
-    half_width = half_width_int -0.5f;
+    float half_width = half_width_int -0.5f;
     //row_phi_start = 0.5f*nRows-0.5f;
 
     // Compute the Unit Sphere: store the values of the trigonometric functions
@@ -591,6 +592,7 @@ void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray
 
     ASSERT_(__SSE4_1__); // For _mm_extract_epi32
 
+    float half_width = nCols/2 -0.5f;
     __m128 _row_phi_start = _mm_set1_ps(row_phi_start);
     __m128 _half_width = _mm_set1_ps(half_width);
     __m128 _pixel_angle_inv = _mm_set1_ps(pixel_angle_inv);
@@ -731,6 +733,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
 
     ASSERT_(__SSE4_1__); // For _mm_extract_epi32
 
+    float half_width = nCols/2 -0.5f;
     __m128 _row_phi_start = _mm_set1_ps(row_phi_start);
     __m128 _half_width = _mm_set1_ps(half_width);
     __m128 _pixel_angle_inv = _mm_set1_ps(pixel_angle_inv);
@@ -868,9 +871,9 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
-//    #if ENABLE_OPENMP
-//    #pragma omp parallel for
-//    #endif
+    #if ENABLE_OPENMP
+    #pragma omp parallel for
+    #endif
     for(int i=0; i < warped_pixels.size(); i++)
     {
         if(valid_pixels(i) == -1)
@@ -886,7 +889,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
             warped_pixels(i) = r_transf * nCols + c_transf;
         else
             warped_pixels(i) = -1;
-        // cout << i << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << endl;
+        // cout << i << " valid " << valid_pixels(i) << " Pixel transform " << i/nCols << " " << i%nCols << " " << r_transf << " " << c_transf << endl;
 //        visible(i) = isInImage(r_transf) ? 1 : 0;
     }
 
@@ -894,6 +897,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
 
     ASSERT_(__SSE4_1__); // For _mm_extract_epi32
 
+    float half_width = nCols/2 -0.5f;
     __m128i _nCols = _mm_set1_epi32(nCols);
     //__m128i _nRows = _mm_set1_epi32(nRows);
     __m128i _nRows_1 = _mm_set1_epi32(nRows-1);
@@ -901,7 +905,6 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
     __m128i _zero = _mm_set1_epi32(0);
     //__m128 _nCols = _mm_set1_ps(nCols);
     __m128 _row_phi_start = _mm_set1_ps(row_phi_start);
-    __m128 _start_row = _mm_set1_ps(start_row);
     __m128 _half_width = _mm_set1_ps(half_width);
     __m128 _pixel_angle_inv = _mm_set1_ps(pixel_angle_inv);
     for(int i=0; i < warped_pixels.size(); i+=4)
@@ -926,12 +929,12 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
         __m128 __r = _mm_add_ps( _mm_mul_ps(_phi, _pixel_angle_inv ), _row_phi_start);
         __m128 __c = _mm_add_ps( _mm_mul_ps(_theta, _pixel_angle_inv ), _half_width );
         //__m128 __p = _mm_add_epi32( _mm_cvtps_epi32(_nCols, __r ), __c);
-//        cout << "__r " << i << " " << __r[0] << " " << __r[1] << " " << __r[2] << " " << __r[3] << endl;
+        //cout << "__r " << i << " " << __r[0] << " " << __r[1] << " " << __r[2] << " " << __r[3] << endl;
 //        cout << "__c " << i << " " << __c[0] << " " << __c[1] << " " << __c[2] << " " << __c[3] << endl;
 
         __m128i __r_int = _mm_cvtps_epi32( _mm_round_ps(__r, 0x0) );
         __m128i __c_int = _mm_cvtps_epi32( _mm_round_ps(__c, 0x0) );
-//        cout << "__r_int " << i << " " << _mm_extract_epi32(__r_int,0) << " " << _mm_extract_epi32(__r_int,1) << " " << _mm_extract_epi32(__r_int,2) << " " << _mm_extract_epi32(__r_int,3) << endl;
+        //cout << "__r_int " << i << " " << _mm_extract_epi32(__r_int,0) << " " << _mm_extract_epi32(__r_int,1) << " " << _mm_extract_epi32(__r_int,2) << " " << _mm_extract_epi32(__r_int,3) << endl;
 //        cout << "__c_int " << i << " " << _mm_extract_epi32(__c_int,0) << " " << _mm_extract_epi32(__c_int,1) << " " << _mm_extract_epi32(__c_int,2) << " " << _mm_extract_epi32(__c_int,3) << endl;
 
         __m128i __p = _mm_add_epi32( _mm_mullo_epi32(_nCols, __r_int ), __c_int );
@@ -958,7 +961,23 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
 //        cout << "stored warped __p  " << i << " " << warped_pixels(i) << " " << warped_pixels(i+1) << " " << warped_pixels(i+2) << " " << warped_pixels(i+3) << endl;
 //        mrpt::system::pause();
 
-//        __m128i __v = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) );
+        if( warped_pixels(i) != warped_pixels2(i) ||
+            warped_pixels(i+1) != warped_pixels2(i+1) ||
+            warped_pixels(i+2) != warped_pixels2(i+2) ||
+            warped_pixels(i+3) != warped_pixels2(i+3) )
+        {
+            cout << "__y " << i << " " << __y[0] << " " << __y[1] << " " << __y[2] << " " << __y[3] << endl;
+            cout << "__z " << i << " " << __z[0] << " " << __z[1] << " " << __z[2] << " " << __z[3] << endl;
+            cout << "_y_dist " << i << " " << _y_dist[0] << " " << _y_dist[1] << " " << _y_dist[2] << " " << _y_dist[3] << endl;
+            cout << "phi " << i << " " << phi[0] << " " << phi[1] << " " << phi[2] << " " << phi[3] << endl;
+            cout << "theta " << i << " " << theta[0] << " " << theta[1] << " " << theta[2] << " " << theta[3] << endl;
+            cout << "__c " << i << " " << __c[0] << " " << __c[1] << " " << __c[2] << " " << __c[3] << endl;
+            cout << "__c_int " << i << " " << _mm_extract_epi32(__c_int,0) << " " << _mm_extract_epi32(__c_int,1) << " " << _mm_extract_epi32(__c_int,2) << " " << _mm_extract_epi32(__c_int,3) << endl;
+            cout << "__r " << i << " " << __r[0] << " " << __r[1] << " " << __r[2] << " " << __r[3] << endl;
+            cout << "__r_int " << i << " " << _mm_extract_epi32(__r_int,0) << " " << _mm_extract_epi32(__r_int,1) << " " << _mm_extract_epi32(__r_int,2) << " " << _mm_extract_epi32(__r_int,3) << endl;
+        }
+
+            //        __m128i __v = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) );
 ////        __m128i valid_row = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) );
 ////        __m128i valid_col = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __c_int), _mm_cmplt_epi32(__c_int, _nCols) );
 ////        cout << "valid_row " << " " << _mm_extract_epi32(valid_row,0) << " " << _mm_extract_epi32(valid_row,1) << " " << _mm_extract_epi32(valid_row,2) << " " << _mm_extract_epi32(valid_row,3) << endl;
@@ -969,23 +988,31 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
 
 #endif
 
-//#if TEST_SIMD
-//    // Test SSE
-//    for(int i=0; i < pixels.size(); i++)
-//    {
-//        if( pixels(i) != warped_pixels2(i) )
-//        {
-//            Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
-//            cv::Point2f warped_pixel = project2Image(pt_xyz);
-//            int r_transf = round(warped_pixel.y);
-//            int c_transf = round(warped_pixel.x);
-//            cout << i << " Pixel transform " //<< i/nCols << " " << i%nCols << " "
-//                 << r_transf << " " << c_transf << " warped_pixel " << warped_pixel.x << " " << warped_pixel.y << endl;
-//            cout << i << " pixels " << pixels(i) << " " << warped_pixels2(i) << endl; // << " visible " << visible(i) << " " << visible2(i) <<
-//        }
-//        ASSERT_( pixels(i) == warped_pixels2(i) );
-//    }
-//#endif
+#if TEST_SIMD
+    // Test SSE
+    for(int i=0; i < warped_pixels.rows(); i++)
+    {
+        if( warped_pixels(i) != warped_pixels2(i) )
+        {
+            Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
+            cv::Point2f warped_pixel = project2Image(pt_xyz);
+            int r_transf = round(warped_pixel.y);
+            int c_transf = round(warped_pixel.x);
+            cout << i << " Pixel transform " //<< i/nCols << " " << i%nCols << " "
+                 << c_transf << " " << r_transf << " warped_pixel " << warped_pixel.x << " " << warped_pixel.y << endl;
+            cout << i << " warped_pixels " << warped_pixels(i) << " " << warped_pixels2(i) << endl; // << " visible " << visible(i) << " " << visible2(i) <<
+            cout << " pt_xyz " << pt_xyz.transpose() << endl; // << " visible " << visible(i) << " " << visible2(i) <<
+
+            float dist_inv = 1.f / pt_xyz.norm();
+            float phi = asin(pt_xyz(1)*dist_inv);
+            float theta = atan2(pt_xyz(0),pt_xyz(2));
+            float transformed_r = phi*pixel_angle_inv + row_phi_start;
+            float transformed_c = theta*pixel_angle_inv + nCols/2; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
+            cout << " _y_dist " << pt_xyz(1)*dist_inv << " phi " << phi << " theta " << theta  << " project2Image " << transformed_c << " " << transformed_r << endl;
+        }
+        ASSERT_( warped_pixels(i) == warped_pixels2(i) );
+    }
+#endif
 
 #if PRINT_PROFILING
     }

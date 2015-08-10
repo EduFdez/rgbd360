@@ -145,6 +145,10 @@ public:
     /*! Return the depth value of the 3D point projected on the image.*/
     virtual float getDepth(const Eigen::Vector3f &xyz) = 0;
 
+    /*! Get a 3D points corresponding to the pixel "idx" in the given range image.*/
+    virtual inline void getPoint3D(const float *depth_img, const int idx, Eigen::Vector3f & xyz) = 0;
+    virtual inline void getPoint3D(const cv::Mat & depth_img, const cv::Point2f warped_pixel, Eigen::Vector3f & xyz) = 0;
+
     /*! Project 3D points XYZ. */
     virtual inline cv::Point2f project2Image(Eigen::Vector3f & xyz) = 0;
 

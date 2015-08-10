@@ -54,9 +54,7 @@ class SphericalModel : public ProjectionModel , MEstimator
     /*! Spherical model parameters */
     float pixel_angle;
     float pixel_angle_inv;
-    float half_width;
     float row_phi_start;
-    size_t start_row;
 
   public:
 
@@ -69,6 +67,33 @@ class SphericalModel : public ProjectionModel , MEstimator
     inline float getDepth(const Eigen::Vector3f &xyz)
     {
         return xyz.norm();
+    }
+
+    /*! Get a 3D points corresponding to the pixel "idx" in the given range image.*/
+    inline void getPoint3D(const float *depth_img, const int idx, Eigen::Vector3f & xyz)
+    //inline void getPoint3D(const float *depth_img, const float row, const float col, Eigen::Vector3f & xyz)
+    {
+        float depth = depth_img[idx];
+        float row = idx / nCols;
+        float col = idx % nCols;
+        float theta = (col-nCols/2+0.5f)*pixel_angle;
+        float phi = (row-nRows/2+0.5f)*pixel_angle;
+        float cos_phi = cos(phi);
+        xyz(0) = depth * cos_phi * sin(theta);
+        xyz(1) = depth* sin(phi);
+        xyz(2) = depth * cos_phi * cos(theta);
+    }
+
+    /*! Get a 3D points corresponding to the pixel "idx" in the given range image.*/
+    inline void getPoint3D(const cv::Mat & depth_img, cv::Point2f warped_pixel, Eigen::Vector3f & xyz)
+    {
+        float depth = bilinearInterp_depth(depth_img, warped_pixel);
+        float theta = (warped_pixel.x-nCols/2+0.5f)*pixel_angle;
+        float phi = (warped_pixel.y-nRows/2+0.5f)*pixel_angle;
+        float cos_phi = cos(phi);
+        xyz(0) = depth * cos_phi * sin(theta);
+        xyz(1) = depth* sin(phi);
+        xyz(2) = depth * cos_phi * cos(theta);
     }
 
 //    /*! Return the depth value of the 3D point projected on the image.*/
@@ -108,11 +133,11 @@ class SphericalModel : public ProjectionModel , MEstimator
         float phi = asin(xyz(1)*dist_inv);
         float theta = atan2(xyz(0),xyz(2));
         float transformed_r = phi*pixel_angle_inv + row_phi_start;
-        //float transformed_r = phi*pixel_angle_inv + start_row;
-        float transformed_c = theta*pixel_angle_inv + half_width; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
+        float transformed_c = theta*pixel_angle_inv + nCols/2; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
         assert(transformed_c < nCols);
         assert(transformed_c >= 0);
-        //cout << "project2Image " << transformed_c << " " << transformed_r << " phi " << phi << " start_row " << start_row << " theta " << theta << " half_width " << half_width << endl;
+//        cout << " xyz " << xyz.transpose() << " project2Image " << transformed_c << " " << transformed_r
+//             << " phi " << phi << " row_phi_start " << row_phi_start << " pixel_angle_inv " << pixel_angle_inv << " theta " << theta << endl;
 
         cv::Point2f pixel(transformed_c, transformed_r);
         return pixel;
