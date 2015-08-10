@@ -62,7 +62,7 @@ void SphericalModel::scaleCameraParams(std::vector<cv::Mat> & depthPyr, const in
 
     pixel_angle = 2*PI/nCols;
     pixel_angle_inv = 1/pixel_angle;
-    row_phi_start = 0.5f*nRows-0.5f;
+    row_phi_start = 0.5f*nRows;//-0.5f;
 
     assert(nRows == depthPyr[pyrLevel].rows);
     ASSERT_(nRows == depthPyr[pyrLevel].rows);
@@ -83,7 +83,7 @@ void SphericalModel::reconstruct3D_unitSphere()
         v_sinTheta[c] = sin(theta);
         v_cosTheta[c] = cos(theta);
     }
-    const float half_height = 0.5*nRows-0.5;
+    const float half_height = 0.5f*nRows;//-0.5f;
     for(int r=0; r < nRows; r++)
     {
         float phi = (half_height-r)*pixel_angle;
@@ -123,8 +123,7 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
     pixel_angle = 2*PI/nCols;
     pixel_angle_inv = 1/pixel_angle;
     int half_width_int = nCols/2;
-    float half_width = half_width_int - 0.5f;
-    //row_phi_start = 0.5f*nRows-0.5f;
+    float half_width = half_width_int;// - 0.5f;
     const size_t start_row = (nCols-nRows) / 2;
 
     float *_depth = reinterpret_cast<float*>(depth_img.data);
@@ -142,7 +141,8 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
     float *cosTheta = &v_cosTheta[0];
     for(int col_theta=-half_width_int; col_theta < half_width_int; ++col_theta)
     {
-        float theta = (col_theta+0.5f)*pixel_angle;
+//        float theta = (col_theta+0.5f)*pixel_angle;
+        float theta = col_theta*pixel_angle;
         *(sinTheta++) = sin(theta);
         *(cosTheta++) = cos(theta);
         //cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << endl;
@@ -319,8 +319,7 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
     pixel_angle = 2*PI/nCols;
     pixel_angle_inv = 1/pixel_angle;
     int half_width_int = nCols/2;
-    float half_width = half_width_int -0.5f;
-    //row_phi_start = 0.5f*nRows-0.5f;
+    float half_width = half_width_int;// - 0.5f;
 
     // Compute the Unit Sphere: store the values of the trigonometric functions
     Eigen::VectorXf v_sinTheta(nCols);
@@ -329,8 +328,8 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
     float *cosTheta = &v_cosTheta[0];
     for(int col_theta=-half_width_int; col_theta < half_width_int; ++col_theta)
     {
-        //float theta = col_theta*pixel_angle;
-        float theta = (col_theta+0.5f)*pixel_angle;
+        float theta = col_theta*pixel_angle;
+//        float theta = (col_theta+0.5f)*pixel_angle;
         *(sinTheta++) = sin(theta);
         *(cosTheta++) = cos(theta);
         //cout << " theta " << theta << " phi " << phi << " rc " << r << " " << c << endl;
@@ -592,7 +591,7 @@ void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray
 
     ASSERT_(__SSE4_1__); // For _mm_extract_epi32
 
-    float half_width = nCols/2 -0.5f;
+    float half_width = 0.5f*nCols;// -0.5f;
     __m128 _row_phi_start = _mm_set1_ps(row_phi_start);
     __m128 _half_width = _mm_set1_ps(half_width);
     __m128 _pixel_angle_inv = _mm_set1_ps(pixel_angle_inv);
@@ -733,7 +732,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
 
     ASSERT_(__SSE4_1__); // For _mm_extract_epi32
 
-    float half_width = nCols/2 -0.5f;
+    float half_width = 0.5f*nCols;// - 0.5f;
     __m128 _row_phi_start = _mm_set1_ps(row_phi_start);
     __m128 _half_width = _mm_set1_ps(half_width);
     __m128 _pixel_angle_inv = _mm_set1_ps(pixel_angle_inv);
@@ -897,7 +896,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
 
     ASSERT_(__SSE4_1__); // For _mm_extract_epi32
 
-    float half_width = nCols/2 -0.5f;
+    float half_width = 0.5f*nCols;// - 0.5f;
     __m128i _nCols = _mm_set1_epi32(nCols);
     //__m128i _nRows = _mm_set1_epi32(nRows);
     __m128i _nRows_1 = _mm_set1_epi32(nRows-1);
@@ -961,22 +960,6 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
 //        cout << "stored warped __p  " << i << " " << warped_pixels(i) << " " << warped_pixels(i+1) << " " << warped_pixels(i+2) << " " << warped_pixels(i+3) << endl;
 //        mrpt::system::pause();
 
-        if( warped_pixels(i) != warped_pixels2(i) ||
-            warped_pixels(i+1) != warped_pixels2(i+1) ||
-            warped_pixels(i+2) != warped_pixels2(i+2) ||
-            warped_pixels(i+3) != warped_pixels2(i+3) )
-        {
-            cout << "__y " << i << " " << __y[0] << " " << __y[1] << " " << __y[2] << " " << __y[3] << endl;
-            cout << "__z " << i << " " << __z[0] << " " << __z[1] << " " << __z[2] << " " << __z[3] << endl;
-            cout << "_y_dist " << i << " " << _y_dist[0] << " " << _y_dist[1] << " " << _y_dist[2] << " " << _y_dist[3] << endl;
-            cout << "phi " << i << " " << phi[0] << " " << phi[1] << " " << phi[2] << " " << phi[3] << endl;
-            cout << "theta " << i << " " << theta[0] << " " << theta[1] << " " << theta[2] << " " << theta[3] << endl;
-            cout << "__c " << i << " " << __c[0] << " " << __c[1] << " " << __c[2] << " " << __c[3] << endl;
-            cout << "__c_int " << i << " " << _mm_extract_epi32(__c_int,0) << " " << _mm_extract_epi32(__c_int,1) << " " << _mm_extract_epi32(__c_int,2) << " " << _mm_extract_epi32(__c_int,3) << endl;
-            cout << "__r " << i << " " << __r[0] << " " << __r[1] << " " << __r[2] << " " << __r[3] << endl;
-            cout << "__r_int " << i << " " << _mm_extract_epi32(__r_int,0) << " " << _mm_extract_epi32(__r_int,1) << " " << _mm_extract_epi32(__r_int,2) << " " << _mm_extract_epi32(__r_int,3) << endl;
-        }
-
             //        __m128i __v = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) );
 ////        __m128i valid_row = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __r_int), _mm_cmplt_epi32(__r_int, _nRows) );
 ////        __m128i valid_col = _mm_and_si128( _mm_cmplt_epi32(_minus_one, __c_int), _mm_cmplt_epi32(__c_int, _nCols) );
@@ -1001,16 +984,16 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
             cout << i << " Pixel transform " //<< i/nCols << " " << i%nCols << " "
                  << c_transf << " " << r_transf << " warped_pixel " << warped_pixel.x << " " << warped_pixel.y << endl;
             cout << i << " warped_pixels " << warped_pixels(i) << " " << warped_pixels2(i) << endl; // << " visible " << visible(i) << " " << visible2(i) <<
-            cout << " pt_xyz " << pt_xyz.transpose() << endl; // << " visible " << visible(i) << " " << visible2(i) <<
-
-            float dist_inv = 1.f / pt_xyz.norm();
-            float phi = asin(pt_xyz(1)*dist_inv);
-            float theta = atan2(pt_xyz(0),pt_xyz(2));
-            float transformed_r = phi*pixel_angle_inv + row_phi_start;
-            float transformed_c = theta*pixel_angle_inv + nCols/2; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
-            cout << " _y_dist " << pt_xyz(1)*dist_inv << " phi " << phi << " theta " << theta  << " project2Image " << transformed_c << " " << transformed_r << endl;
+//            cout << " pt_xyz " << pt_xyz.transpose() << endl; // << " visible " << visible(i) << " " << visible2(i) <<
+//            float dist_inv = 1.f / pt_xyz.norm();
+//            float phi = asin(pt_xyz(1)*dist_inv);
+//            float theta = atan2(pt_xyz(0),pt_xyz(2));
+//            float transformed_r = phi*pixel_angle_inv + row_phi_start;
+//            float transformed_c = theta*pixel_angle_inv + nCols/2; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
+//            cout << " pixel_angle_inv " << pixel_angle_inv << " pixel_angle_inv " << pixel_angle_inv << " theta " << theta  << " project2Image " << transformed_c << " " << transformed_r << endl;
+//            cout << " _y_dist " << pt_xyz(1)*dist_inv << " phi " << phi << " theta " << theta  << " project2Image " << transformed_c << " " << transformed_r << endl;
         }
-        ASSERT_( warped_pixels(i) == warped_pixels2(i) );
+        //ASSERT_( warped_pixels(i) == warped_pixels2(i) );
     }
 #endif
 

@@ -76,8 +76,10 @@ class SphericalModel : public ProjectionModel , MEstimator
         float depth = depth_img[idx];
         float row = idx / nCols;
         float col = idx % nCols;
-        float theta = (col-nCols/2+0.5f)*pixel_angle;
-        float phi = (row-nRows/2+0.5f)*pixel_angle;
+//        float theta = (col-nCols/2+0.5f)*pixel_angle;
+//        float phi = (row-nRows/2+0.5f)*pixel_angle;
+        float theta = (col-nCols/2)*pixel_angle;
+        float phi = (row-nRows/2)*pixel_angle;
         float cos_phi = cos(phi);
         xyz(0) = depth * cos_phi * sin(theta);
         xyz(1) = depth* sin(phi);
@@ -88,8 +90,10 @@ class SphericalModel : public ProjectionModel , MEstimator
     inline void getPoint3D(const cv::Mat & depth_img, cv::Point2f warped_pixel, Eigen::Vector3f & xyz)
     {
         float depth = bilinearInterp_depth(depth_img, warped_pixel);
-        float theta = (warped_pixel.x-nCols/2+0.5f)*pixel_angle;
-        float phi = (warped_pixel.y-nRows/2+0.5f)*pixel_angle;
+//        float theta = (warped_pixel.x-nCols/2+0.5f)*pixel_angle;
+//        float phi = (warped_pixel.y-nRows/2+0.5f)*pixel_angle;
+        float theta = (warped_pixel.x-nCols/2)*pixel_angle;
+        float phi = (warped_pixel.y-nRows/2)*pixel_angle;
         float cos_phi = cos(phi);
         xyz(0) = depth * cos_phi * sin(theta);
         xyz(1) = depth* sin(phi);
@@ -133,9 +137,14 @@ class SphericalModel : public ProjectionModel , MEstimator
         float phi = asin(xyz(1)*dist_inv);
         float theta = atan2(xyz(0),xyz(2));
         float transformed_r = phi*pixel_angle_inv + row_phi_start;
-        float transformed_c = theta*pixel_angle_inv + nCols/2; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
-        assert(transformed_c < nCols);
+        float transformed_c = theta*pixel_angle_inv + 0.5f*nCols;// - 0.5f; //assert(transformed_c_int<nCols); //assert(transformed_c_int<nCols);
+        //assert(transformed_c < nCols);
         assert(transformed_c >= 0);
+//        if(transformed_c < 0)
+//            transformed_c += nCols;
+        if(transformed_c > nCols)
+            transformed_c -= nCols;
+
 //        cout << " xyz " << xyz.transpose() << " project2Image " << transformed_c << " " << transformed_r
 //             << " phi " << phi << " row_phi_start " << row_phi_start << " pixel_angle_inv " << pixel_angle_inv << " theta " << theta << endl;
 
