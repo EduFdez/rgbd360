@@ -289,8 +289,8 @@ void DirectRegistration::warpImage( const cv::Mat gray_ref,         // The origi
 #endif
          for(size_t i=0; i < imgSize; i++)
          {
-             cout << i << " Pixel transform " << validPixels_ref(i) << " -> " << warp_pixels_ref(i)
-                  << " x/y " << warp_pixels_ref(i)/ProjModel_trg->nCols << " " << warp_pixels_ref(i)%ProjModel_trg->nCols << " " << endl;
+//             cout << i << " Pixel transform " << validPixels_ref(i) << " -> " << warp_pixels_ref(i)
+//                  << " x/y " << warp_pixels_ref(i)/ProjModel_trg->nCols << " " << warp_pixels_ref(i)%ProjModel_trg->nCols << " " << endl;
              if( validPixels_ref(i) != -1 && warp_pixels_ref(i) != -1 )
              {
                 _warped_gray[i] = _gray_trg[warp_pixels_ref(i)];

@@ -166,12 +166,12 @@ int main (int argc, char ** argv)
     
 
     Eigen::Matrix4f init_guess = Eigen::Matrix4f::Identity();
-//    init_guess(1,3) = -0.3;
-//    float angle_offset = 42.5; //45
-//    init_guess(0,0) = init_guess(2,2) = cos(DEG2RAD(angle_offset)); init_guess(0,2) = -sin(DEG2RAD(angle_offset)); init_guess(2,0) = -init_guess(0,2);
+    init_guess(1,3) = -0.3;
+    float angle_offset = 42.5; //45
+    init_guess(0,0) = init_guess(2,2) = cos(DEG2RAD(angle_offset)); init_guess(0,2) = -sin(DEG2RAD(angle_offset)); init_guess(2,0) = -init_guess(0,2);
 
     //dir_reg.setSensorType(DirectRegistration::RGBD360_INDOOR); // This is use to adapt some features/hacks for each type of image (see the implementation of DirectRegistration::regist for more details)
-    dir_reg.setNumPyr(4);
+    dir_reg.setNumPyr(2);
     dir_reg.useSaliency(false);
     dir_reg.setVisualization(true);
     dir_reg.setGrayVariance(4.f/255);

@@ -981,9 +981,10 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
             cv::Point2f warped_pixel = project2Image(pt_xyz);
             int r_transf = round(warped_pixel.y);
             int c_transf = round(warped_pixel.x);
-            cout << i << " Pixel transform " //<< i/nCols << " " << i%nCols << " "
-                 << c_transf << " " << r_transf << " warped_pixel " << warped_pixel.x << " " << warped_pixel.y << endl;
-            cout << i << " warped_pixels " << warped_pixels(i) << " " << warped_pixels2(i) << endl; // << " visible " << visible(i) << " " << visible2(i) <<
+//            cout << i << " Pixel transform " //<< i/nCols << " " << i%nCols << " "
+//                 << c_transf << " " << r_transf << " warped_pixel " << warped_pixel.x << " " << warped_pixel.y << endl;
+//            cout << i << " warped_pixels " << warped_pixels(i) << " " << warped_pixels2(i) << endl; // << " visible " << visible(i) << " " << visible2(i) <<
+
 //            cout << " pt_xyz " << pt_xyz.transpose() << endl; // << " visible " << visible(i) << " " << visible2(i) <<
 //            float dist_inv = 1.f / pt_xyz.norm();
 //            float phi = asin(pt_xyz(1)*dist_inv);
