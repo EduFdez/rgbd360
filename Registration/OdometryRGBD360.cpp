@@ -94,7 +94,7 @@ public:
         align360.useSaliency(true);
 //        align360.setVisualization(true);
         align360.setGrayVariance(8.f/255);
-        align360.setSourceFrame(frame360_2->sphereRGB, frame360_2->sphereDepth);
+        align360.setReferenceFrame(frame360_2->sphereRGB, frame360_2->sphereDepth);
 
 //        // ICP alignement
 //        pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
@@ -215,7 +215,7 @@ public:
                 cout << "Align Sphere " << endl;
                 align360.swapSourceTarget();
                 //align360.setTargetFrame(frame360_1->sphereRGB, frame360_1->sphereDepth);
-                align360.setSourceFrame(frame360_2->sphereRGB, frame360_2->sphereDepth);
+                align360.setReferenceFrame(frame360_2->sphereRGB, frame360_2->sphereDepth);
                 time_start += pcl::getTime();
                 align360.register360(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
                 //align360.register360(prev_motion, DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();

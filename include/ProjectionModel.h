@@ -43,7 +43,7 @@
     #include <pcl/common/time.h>
 #endif
 
-#if TEST_SIMD
+#if _TEST_SIMD
     #include <mrpt/system/os.h>
     #include <mrpt/utils/mrpt_macros.h>
     //#include <assert.h>
@@ -225,8 +225,6 @@ public:
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
     virtual void computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_gradX, float *_gradY) = 0;
 
-    virtual void computeJacobiansPhoto2(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXi & warped_pixels, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_gradX, float *_gradY) = 0;
-
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
     virtual void computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_gradDepthX, float *_gradDepthY) = 0;
 
@@ -247,7 +245,7 @@ public:
         //jacobians_depth.resize(xyz_tf.rows(), 6);
         jacobians_depth.resize(3*xyz_tf.rows(), 6);
 
-    //    #if ENABLE_OPENMP
+    //    #if _ENABLE_OPENMP
     //    #pragma omp parallel for
     //    #endif
         for(int i=0; i < xyz_tf.rows(); i++)

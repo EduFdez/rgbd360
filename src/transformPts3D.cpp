@@ -29,7 +29,6 @@
  * Author: Eduardo Fernandez-Moral
  */
 
-#include <config.h>
 #include <transformPts3D.h>
 #include <pcl/common/time.h>
 #include <mrpt/system/os.h> // Only for pause
@@ -55,7 +54,7 @@ using namespace std;
 /*! Transform 'input_pts', a set of 3D points according to the given rigid transformation 'Rt'. The output set of points is 'output_pts' */
 void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & Rt, Eigen::MatrixXf & output_pts)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     //cout << " transformPts3D " << input_pts.rows() << " pts \n";
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -122,7 +121,7 @@ void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & R
 
         if(block_end > 1e2)
         {
-#if ENABLE_OPENMP
+#if _ENABLE_OPENMP
 #pragma omp parallel for
 #endif
             for(size_t b=0; b < n_pts; b+=4)
@@ -250,7 +249,7 @@ void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & R
 
 //        if(block_end > 1e2)
 //        {
-////    #if ENABLE_OPENMP
+////    #if _ENABLE_OPENMP
 ////    #pragma omp parallel for
 ////    #endif
 //            for(size_t b=0; b < n_pts; b+=8)
@@ -332,7 +331,7 @@ void transformPts3D(const Eigen::MatrixXf & input_pts, const Eigen::Matrix4f & R
 //        }
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " RegisterDense::transformPts3D " << input_pts.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";

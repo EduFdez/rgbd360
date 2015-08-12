@@ -29,9 +29,8 @@
  * Author: Eduardo Fernandez-Moral
  */
 
-#include <config.h>
 #include <SphericalModel.h>
-//#include "/usr/local/include/eigen3/Eigen/Core"
+#include <pcl/common/time.h>
 
 #if _SSE2
     #include <emmintrin.h>
@@ -109,7 +108,7 @@ void SphericalModel::reconstruct3D_unitSphere()
  */
 void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, VectorXi & validPixels) // , std::vector<int> & validPixels)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     //cout << "SphericalModel::reconstruct3D... " << depth_img.rows*depth_img.cols << " pts \n";
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -150,7 +149,7 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
     Eigen::VectorXf v_sinPhi( v_sinTheta.block(start_row,0,nRows,1) );
     Eigen::VectorXf v_cosPhi( v_cosTheta.block(start_row,0,nRows,1) );
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     Eigen::MatrixXf xyz2(imgSize,3);
     Eigen::VectorXi validPixels2(imgSize);
@@ -180,7 +179,7 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
 //Compute the 3D coordinates of the depth image
 #if !(_SSE3) // # ifdef __SSE3__
 
-    #if ENABLE_OPENMP
+    #if _ENABLE_OPENMP
     #pragma omp parallel for
     #endif
     for(int r=0, i=0; r < nRows;r++)
@@ -220,7 +219,7 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
     __m128 _max_depth_ = _mm_set1_ps(max_depth_);
 //    if(imgSize > 1e5)
 //    {
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
 
@@ -276,7 +275,7 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
 
 #endif
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     for(int i=0; i < validPixels.size(); i++)
         if(validPixels(i) != -1)
@@ -293,7 +292,7 @@ void SphericalModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & 
         }
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " SphericalModel::reconstruct3D " << depth_img.rows*depth_img.cols << " (" << depth_img.rows << "x" << depth_img.cols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
@@ -306,7 +305,7 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
                                              const cv::Mat & intensity_img, const cv::Mat & intensity_gradX, const cv::Mat & intensity_gradY, const float thres_saliency_gray
                                            ) // TODO extend this function to employ only depth
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -348,7 +347,7 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
     xyz.resize(imgSize,3);
     float *_depth = reinterpret_cast<float*>(depth_img.data);
 
-#if TEST_SIMD
+#if _TEST_SIMD
     Eigen::VectorXf validPixels2(imgSize);
     Eigen::MatrixXf xyz2(imgSize,3);
     size_t count_valid_pixels2 = 0;
@@ -431,7 +430,7 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
 
 //    if(imgSize > 1e5)
 //    {
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
 
@@ -505,7 +504,7 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
 
 #endif
 
-//#if TEST_SIMD
+//#if _TEST_SIMD
 //    // Test SSE
 //    for(int i=0, ii=0; i < validPixels.size(); i++, ii++)
 //    {
@@ -526,7 +525,7 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
 //    }
 //#endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " SphericalModel::reconstruct3D_saliency " << depth_img.rows*depth_img.cols << " (" << depth_img.rows << "x" << depth_img.cols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
@@ -536,7 +535,7 @@ void SphericalModel::reconstruct3D_saliency( const cv::Mat & depth_img, Eigen::M
 /*! Project 3D points XYZ according to the spherical camera model. */
 void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray, cv::Mat & warped_gray, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     cout << " SphericalModel::reproject ... " << xyz.rows() << endl;
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -556,7 +555,7 @@ void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray
     warped_gray = cv::Mat(gray.rows, gray.cols, CV_32FC1);
     float *_warped = reinterpret_cast<float*>(warped_gray.data);
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     Eigen::VectorXi visible2(xyz.rows());
     Eigen::MatrixXf pixels2(xyz.rows(),2);
@@ -574,7 +573,7 @@ void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
     for(size_t i=0; i < pixels.size(); i++)
@@ -651,7 +650,7 @@ void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray
 
 #endif
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     cout << " Check result " << endl;
     for(int i=0; i < pixels.rows(); i++)
@@ -671,7 +670,7 @@ void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray
     }
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " SphericalModel::reproject " << xyz.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
@@ -681,7 +680,7 @@ void SphericalModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray
 /*! Project 3D points XYZ according to the spherical camera model. */
 void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     //cout << " SphericalModel::project ... " << xyz.rows() << endl;
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -698,7 +697,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
     const float *_y = &xyz(0,1);
     const float *_z = &xyz(0,2);
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     Eigen::VectorXi visible2(xyz.rows());
     Eigen::MatrixXf pixels2(xyz.rows(),2);
@@ -716,7 +715,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
     for(size_t i=0; i < pixels.size(); i++)
@@ -796,7 +795,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
 
 #endif
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     //cout << " Check result " << endl;
     for(int i=0; i < pixels.rows(); i++)
@@ -820,7 +819,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
     //mrpt::system::pause();
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " SphericalModel::project " << xyz.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
@@ -830,7 +829,7 @@ void SphericalModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixe
 /*! Project 3D points XYZ according to the spherical camera model. */
 void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pixels, VectorXi & warped_pixels)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     //cout << " SphericalModel::projectNN ... " << xyz.rows() << " points. \n";
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -845,7 +844,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
     const float *_y = &xyz(0,1);
     const float *_z = &xyz(0,2);
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     Eigen::VectorXi warped_pixels2(xyz.rows());
     for(int i=0; i < warped_pixels.size(); i++)
@@ -870,7 +869,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
-    #if ENABLE_OPENMP
+    #if _ENABLE_OPENMP
     #pragma omp parallel for
     #endif
     for(int i=0; i < warped_pixels.size(); i++)
@@ -971,7 +970,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
 
 #endif
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     for(int i=0; i < warped_pixels.rows(); i++)
     {
@@ -998,7 +997,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
     }
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " SphericalModel::projectNN " << xyz.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
@@ -1008,7 +1007,7 @@ void SphericalModel::projectNN(const Eigen::MatrixXf & xyz, VectorXi & valid_pix
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
 void SphericalModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_photo, float *_grayGradX, float *_grayGradY)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -1020,7 +1019,7 @@ void SphericalModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const
     const float *_z = &xyz_tf(0,2);
     const float *_weight = &weights(0);
 
-#if TEST_SIMD
+#if _TEST_SIMD
     Eigen::MatrixXf jacobians_photo2(xyz_tf.rows(), 6);
     for(int i=0; i < xyz_tf.rows(); i++)
     {
@@ -1036,7 +1035,7 @@ void SphericalModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
     for(int i=0; i < xyz_tf.rows(); i++)
@@ -1102,7 +1101,7 @@ void SphericalModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const
     }
 #endif
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     for(int i=0; i < xyz_tf.rows(); i++)
     {
@@ -1120,43 +1119,7 @@ void SphericalModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const
     //mrpt::system::pause();
 #endif
 
-#if PRINT_PROFILING
-    }
-    double time_end = pcl::getTime();
-    cout << " SphericalModel::computeJacobiansPhoto " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
-#endif
-}
-
-/*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
-void SphericalModel::computeJacobiansPhoto2(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXi & warped_pixels, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_photo, float *_grayGradX, float *_grayGradY)
-{
-#if PRINT_PROFILING
-    double time_start = pcl::getTime();
-    //for(size_t ii=0; ii<100; ii++)
-    {
-#endif
-
-    jacobians_photo.resize(xyz_tf.rows(), 6);
-    const float *_x = &xyz_tf(0,0);
-    const float *_y = &xyz_tf(0,1);
-    const float *_z = &xyz_tf(0,2);
-    const float *_weight = &weights(0);
-
-//    #if ENABLE_OPENMP
-//    #pragma omp parallel for
-//    #endif
-    for(int i=0; i < xyz_tf.rows(); i++)
-    {
-        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
-        Matrix<float,2,6> jacobianWarpRt;
-        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
-        Matrix<float,1,2> img_gradient;
-        img_gradient(0,0) = _grayGradX[warped_pixels(i)];
-        img_gradient(0,1) = _grayGradY[warped_pixels(i)];
-        jacobians_photo.block(i,0,1,6) = ((weights(i) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
-    }
-
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " SphericalModel::computeJacobiansPhoto " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
@@ -1166,7 +1129,7 @@ void SphericalModel::computeJacobiansPhoto2(const Eigen::MatrixXf & xyz_tf, cons
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
 void SphericalModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -1179,7 +1142,7 @@ void SphericalModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const
     const float *_weight = &weights(0);
     const float *_stdDevInv = &stdDevError_inv(0);
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     Eigen::MatrixXf jacobians_depth2(xyz_tf.rows(), 6);
     for(int i=0; i < xyz_tf.rows(); i++)
@@ -1198,7 +1161,7 @@ void SphericalModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
     for(int i=0; i < xyz_tf.rows(); i++)
@@ -1267,7 +1230,7 @@ void SphericalModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const
     }
 #endif
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     for(int i=0; i < xyz_tf.rows(); i++)
     {
@@ -1285,7 +1248,7 @@ void SphericalModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const
     //mrpt::system::pause();
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " SphericalModel::computeJacobiansPhoto " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
@@ -1296,7 +1259,7 @@ void SphericalModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const
 void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
                                                 Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -1310,7 +1273,7 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
     const float *_weight = &weights(0);
     const float *_stdDevInv = &stdDevError_inv(0);
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     Eigen::MatrixXf jacobians_photo2(xyz_tf.rows(), 6);
     Eigen::MatrixXf jacobians_depth2(xyz_tf.rows(), 6);
@@ -1338,7 +1301,7 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
     for(int i=0; i < xyz_tf.rows(); i++)
@@ -1441,7 +1404,7 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
     }
 #endif
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     for(int i=0; i < xyz_tf.rows(); i++)
     {
@@ -1462,7 +1425,7 @@ void SphericalModel::computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, 
     }
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " SphericalModel::computeJacobiansPhotoDepth " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";

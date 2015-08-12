@@ -98,6 +98,20 @@ IF(BUILD_REGISTRATION)
                                 )
 
         # Declare the target (an executable)
+        ADD_EXECUTABLE(OdometryRGBD_rawlog2sphere OdometryRGBD_rawlog2sphere.cpp
+                                            ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
+                                            ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h
+        )
+
+        TARGET_LINK_LIBRARIES(OdometryRGBD_rawlog2sphere   
+							DR
+							${MRPT_LIBS}
+							${OpenCV_LIBS}
+							${PCL_LIBRARIES}
+							${Boost_SERIALIZATION_LIBRARY}
+                                )
+
+        # Declare the target (an executable)
         ADD_EXECUTABLE(OdometryRGBD360_stereo OdometryRGBD360_stereo.cpp
                                                 ../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
                                                 ../OpenNI2_Grabber/third_party/CLAMS/include/clams/discrete_depth_distortion_model.h

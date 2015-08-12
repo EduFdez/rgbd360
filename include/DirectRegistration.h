@@ -54,12 +54,14 @@ struct FramePyrRGBD
 
     /*! Intensity (gray) gradient image pyramids.*/
     std::vector<cv::Mat> grayPyr_GradX, grayPyr_GradY;
+    cv::Mat grayGradX, grayGradY;
 
     /*! Depth image pyramid.*/
     std::vector<cv::Mat> depthPyr;
 
     /*! Depth gradient image pyramids.*/
     std::vector<cv::Mat> depthPyr_GradX, depthPyr_GradY;
+    cv::Mat depthGradX, depthGradY;
 
     //std::vector<cv::Mat> colorPyr;
 };
@@ -410,7 +412,7 @@ public:
     }
 
     /*! Sets the ref (Intensity+Depth) frame. */
-    void setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
+    void setReferenceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);
 
     /*! Sets the ref (Intensity+Depth) frame. Depth image is ignored. */
     void setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth);

@@ -33,7 +33,6 @@
 #ifndef REGISTER_RGBD360_H
 #define REGISTER_RGBD360_H
 
-#include "config.h"
 #include "Frame360.h"
 #include "params_plane_segmentation.h"
 #include "DirectRegistration.h"
@@ -274,7 +273,7 @@ public:
         3(PLANAR_ODOMETRY_3DoF): odometry + planar movement (small displacementes + the camera is fixed in height) */
     bool RegisterPbMap(Frame360 *frame1 = NULL, Frame360 *frame2 = NULL, const size_t max_match_planes = 0, registrationType registMode = DEFAULT_6DoF)
     {
-        std::cout << "RegisterPbMap..." << PRINT_PROFILING << "\n";
+        std::cout << "RegisterPbMap... \n";
 //        double time_start = pcl::getTime();
 
         if(frame1) // Create the subgraphs corresponding to input frames for plane matching
@@ -283,7 +282,7 @@ public:
         if(frame2) // Create the subgraphs corresponding to input frames for plane matching
             setTarget(frame2, max_match_planes);
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
         double time_start = pcl::getTime();
         std::cout << "set source and target subgraphs \n";
         std::cout << "Number of planes in Ref " << refGraph.subgraphPlanesIdx.size() << " Trg " << trgGraph.subgraphPlanesIdx.size() << " limit " << max_match_planes << endl;
@@ -294,7 +293,7 @@ public:
         bestMatch = matcher.compareSubgraphs(refGraph, trgGraph, registMode);
         areaMatched = matcher.calcAreaMatched(bestMatch);
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
         double time_end = pcl::getTime();
         std::cout << "compareSubgraphs took " << double (time_end - time_start)*1000 << " ms\n";
 
@@ -375,7 +374,7 @@ public:
 //        {
 //            //      int sensor_id = omp_get_thread_num();
 //            alignSensorID[sensor_id].setCameraMatrix(camIntrinsicMat);
-//            alignSensorID[sensor_id].setSourceFrame(frame2->frameRGBD_[sensor_id].getRGBImage(), frame2->frameRGBD_[sensor_id].getDepthImage());
+//            alignSensorID[sensor_id].setReferenceFrame(frame2->frameRGBD_[sensor_id].getRGBImage(), frame2->frameRGBD_[sensor_id].getDepthImage());
 //            alignSensorID[sensor_id].setTargetFrame(frame1->frameRGBD_[sensor_id].getRGBImage(), frame1->frameRGBD_[sensor_id].getDepthImage());
 //        }
 ////std::cout << "Set the frames." << std::endl;

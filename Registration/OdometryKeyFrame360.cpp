@@ -244,7 +244,7 @@ public:
             cout << "Align Spheres " << frame360_1->id << " and " << frame360_2->id << endl;
                 double time_start_dense = pcl::getTime();
                 align360.setTargetFrame(frame360_1->sphereRGB, frame360_1->sphereDepth);
-                align360.setSourceFrame(frame360_2->sphereRGB, frame360_2->sphereDepth);
+                align360.setReferenceFrame(frame360_2->sphereRGB, frame360_2->sphereDepth);
 //                align360.register360(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
                 if(bGoodRegistration)
                     initTransf_dense = rotOffset * poseRegPbMap * rotOffset.inverse();

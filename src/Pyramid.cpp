@@ -30,7 +30,6 @@
  */
 
 #include <Pyramid.h>
-#include <config.h>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -60,7 +59,7 @@ using namespace std;
  * The resolution of each layer is 2x2 times the resolution of its image above.*/
 void Pyramid::buildPyramid(const cv::Mat & img, std::vector<cv::Mat> & pyramid, const int nPyrLevels)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     cout << "Pyramid::buildPyramid... \n";
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
@@ -90,7 +89,7 @@ void Pyramid::buildPyramid(const cv::Mat & img, std::vector<cv::Mat> & pyramid, 
 //        cv::imshow("pyramid", pyramid[level]);
 //        cv::waitKey(0);
     }
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << "Pyramid::buildPyramid " << (time_end - time_start)*1000 << " ms. \n";
@@ -101,7 +100,7 @@ void Pyramid::buildPyramid(const cv::Mat & img, std::vector<cv::Mat> & pyramid, 
      * The resolution of each layer is 2x2 times the resolution of its image above.*/
 void Pyramid::buildPyramidRange(const cv::Mat & img, std::vector<cv::Mat> & pyramid, const int nPyrLevels)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     cout << "Pyramid::buildPyramidRange... \n";
     double time_start = pcl::getTime();\
     //for(size_t i=0; i<1000; i++)
@@ -127,7 +126,7 @@ void Pyramid::buildPyramidRange(const cv::Mat & img, std::vector<cv::Mat> & pyra
         float *_z_sub = reinterpret_cast<float*>(pyramid[level].data);
 //        if(img_size > 4*1e4) // Apply multicore only to the bigger images
 //        {
-#if ENABLE_OPENMP
+#if _ENABLE_OPENMP
 #pragma omp parallel for
 #endif
             for(size_t r=0; r < nRows; r+=2)
@@ -200,7 +199,7 @@ void Pyramid::buildPyramidRange(const cv::Mat & img, std::vector<cv::Mat> & pyra
 //        img_show.setTo(0, mask);
 //        cv::imwrite(mrpt::format("/home/efernand/pyr_depth_%d.png",level), img_show);
     }
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << "Pyramid::buildPyramidRange " << (time_end - time_start)*1000 << " ms. \n";
@@ -211,7 +210,7 @@ void Pyramid::buildPyramidRange(const cv::Mat & img, std::vector<cv::Mat> & pyra
 /*! Calculate the image gradients in X and Y. This gradientes are calculated through weighted first order approximation (as adviced by Mariano Jaimez). */
 void Pyramid::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gradY)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
     {
@@ -233,7 +232,7 @@ void Pyramid::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gra
 
     if(img_size > 4*1e4) // Apply multicore only to the bigger images
     {
-        #if ENABLE_OPENMP
+        #if _ENABLE_OPENMP
         #pragma omp parallel for // schedule(static) // schedule(dynamic)
         #endif
         for(size_t r=1; r < src.rows-1; ++r)
@@ -266,7 +265,7 @@ void Pyramid::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gra
         }
         // Compute the gradint at the image border
         size_t last_row_pix = (src.rows - 1) * src.cols;
-        #if ENABLE_OPENMP
+        #if _ENABLE_OPENMP
         #pragma omp parallel for // schedule(static) // schedule(dynamic)
         #endif
         for(int c=1; c < src.cols-1; ++c)
@@ -323,7 +322,7 @@ void Pyramid::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gra
     const __m128 scalar2 = _mm_set1_ps(2.f); //float f2 = 2.f;
     if(img_size > 4*1e4) // Apply multicore only to the bigger images
     {
-        #if ENABLE_OPENMP
+        #if _ENABLE_OPENMP
         #pragma omp parallel for // schedule(static) // schedule(dynamic)
         #endif
         for(size_t b=block_start; b < block_end; b+=4)
@@ -362,7 +361,7 @@ void Pyramid::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gra
             _mm_store_ps(_pixel_gradY+b, gradY);
         }
         // Compute the gradint at the image border
-        #if ENABLE_OPENMP
+        #if _ENABLE_OPENMP
         #pragma omp parallel for // schedule(static) // schedule(dynamic)
         #endif
         for(int r=1; r < src.rows-1; ++r)
@@ -372,7 +371,7 @@ void Pyramid::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gra
             _pixel_gradX[row_pix+src.cols-1] = _pixel[row_pix+src.cols-1] - _pixel[row_pix+src.cols-2];
         }
         size_t last_row_pix = (src.rows - 1) * src.cols;
-        #if ENABLE_OPENMP
+        #if _ENABLE_OPENMP
         #pragma omp parallel for // schedule(static) // schedule(dynamic)
         #endif
         for(int c=1; c < src.cols-1; ++c)
@@ -444,7 +443,7 @@ void Pyramid::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gra
 //    const __m256 scalar2 = _mm256_set1_ps(2.f); //float f2 = 2.f;
 //    if(img_size > 8*1e4) // Apply multicore only to the bigger images
 //    {
-//        #if ENABLE_OPENMP
+//        #if _ENABLE_OPENMP
 //        #pragma omp parallel for // schedule(static) // schedule(dynamic)
 //        #endif
 //        for(size_t b=block_start; b < block_end; b+=8)
@@ -505,7 +504,7 @@ void Pyramid::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gra
 //            _mm256_store_ps(_pixel_gradY+b, gradY);
 //        }
 //        // Compute the gradint at the image border
-//        #if ENABLE_OPENMP
+//        #if _ENABLE_OPENMP
 //        #pragma omp parallel for // schedule(static) // schedule(dynamic)
 //        #endif
 //        for(int r=1; r < src.rows-1; ++r)
@@ -515,7 +514,7 @@ void Pyramid::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gra
 //            _pixel_gradX[row_pix+src.cols-1] = _pixel[row_pix+src.cols-1] - _pixel[row_pix+src.cols-2];
 //        }
 //        size_t last_row_pix = (src.rows - 1) * src.cols;
-//        #if ENABLE_OPENMP
+//        #if _ENABLE_OPENMP
 //        #pragma omp parallel for // schedule(static) // schedule(dynamic)
 //        #endif
 //        for(int c=1; c < src.cols-1; ++c)
@@ -583,7 +582,7 @@ void Pyramid::calcGradientXY(const cv::Mat & src, cv::Mat & gradX, cv::Mat & gra
 //    cv::imshow("DerX", gradX);
 //    cv::waitKey(0);
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << src.rows << "rows. Pyramid::calcGradientXY _SSE3 " << _SSE3 << " " << (time_end - time_start)*1000 << " ms. \n";
@@ -621,7 +620,7 @@ void Pyramid::buildGradientPyramids(const std::vector<cv::Mat> & grayPyr, std::v
                                     const std::vector<cv::Mat> & depthPyr, std::vector<cv::Mat> & depthGradXPyr, std::vector<cv::Mat> & depthGradYPyr,
                                     const int nPyrLevels)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
 #endif
@@ -644,7 +643,7 @@ void Pyramid::buildGradientPyramids(const std::vector<cv::Mat> & grayPyr, std::v
 
         calcGradientXY(grayPyr[level], grayGradXPyr[level], grayGradYPyr[level]);
 
-//#if PRINT_PROFILING
+//#if _PRINT_PROFILING
 //        double time_end_ = pcl::getTime();
 //        cout << level << " PyramidPhoto " << (time_end_ - time_start_) << endl;
 
@@ -653,7 +652,7 @@ void Pyramid::buildGradientPyramids(const std::vector<cv::Mat> & grayPyr, std::v
 
         calcGradientXY(depthPyr[level], depthGradXPyr[level], depthGradYPyr[level]);
 
-//#if PRINT_PROFILING
+//#if _PRINT_PROFILING
 //        time_end_ = pcl::getTime();
 //        cout << level << " PyramidDepth " << (time_end_ - time_start_) << endl;
 //#endif
@@ -690,7 +689,7 @@ void Pyramid::buildGradientPyramids(const std::vector<cv::Mat> & grayPyr, std::v
         //            cv::imwrite(mrpt::format("/home/edu/gray_%d.png",level), grayPyr[level]);
     }
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_end = pcl::getTime();
     cout << "Pyramid::buildGradientPyramids " << (time_end - time_start)*1000 << " ms. \n";
 #endif

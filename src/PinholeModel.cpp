@@ -30,7 +30,7 @@
  */
 
 #include <PinholeModel.h>
-//#include "/usr/local/include/eigen3/Eigen/Core"
+#include <pcl/common/time.h>
 
 #if _SSE2
     #include <emmintrin.h>
@@ -88,7 +88,7 @@ void PinholeModel::scaleCameraParams(std::vector<cv::Mat> & depthPyr, const int 
 /*! Compute the 3D points XYZ according to the pinhole camera model. */
 void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xyz, Eigen::VectorXi & validPixels)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -108,7 +108,7 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
     validPixels.resize(imgSize);
     //float *_valid_pt = reinterpret_cast<float*>(&validPixels(0));
 
-#ifdef TEST_SIMD
+#ifdef _TEST_SIMD
     Eigen::MatrixXf xyz2(imgSize,3);
     Eigen::VectorXi validPixels2(imgSize);
     for(int r=0; r < nRows; r++)
@@ -134,7 +134,7 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
-    #if ENABLE_OPENMP
+    #if _ENABLE_OPENMP
     #pragma omp parallel for
     #endif
     for(int r=0; r < nRows; r++)
@@ -423,7 +423,7 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
 //#endif // endif vectorization options
 #endif // endif vectorization
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     //cout << "float MAX_ULPS " << float(const_cast<float>(int(MAX_ULPS))) << endl;
     for(int i=0; i < validPixels.size(); i++)
@@ -440,7 +440,7 @@ void PinholeModel::reconstruct3D(const cv::Mat & depth_img, Eigen::MatrixXf & xy
         }
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " PinholeModel::reconstruct3D " << depth_img.rows*depth_img.cols << " (" << depth_img.rows << "x" << depth_img.cols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
@@ -456,7 +456,7 @@ void PinholeModel::reconstruct3D_saliency ( const cv::Mat & depth_img, Eigen::Ma
     ASSERT_(0); // TODO: implement regular (non SSE)
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -550,7 +550,7 @@ void PinholeModel::reconstruct3D_saliency ( const cv::Mat & depth_img, Eigen::Ma
         }
     }
 
-    #if PRINT_PROFILING
+    #if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " PinholeModel::reconstruct3D_sse SALIENT " << depth_img.rows*depth_img.cols << " (" << depth_img.rows << "x" << depth_img.cols << ")" << " took " << (time_end - time_start)*1000 << " ms. \n";
@@ -561,7 +561,7 @@ void PinholeModel::reconstruct3D_saliency ( const cv::Mat & depth_img, Eigen::Ma
 /*! Project 3D points XYZ according to the pinhole camera model. */
 void PinholeModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray, cv::Mat & warped_gray, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -582,7 +582,7 @@ void PinholeModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray, 
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
     for(size_t i=0; i < pixels.size(); i++)
@@ -639,7 +639,7 @@ void PinholeModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray, 
     }
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " PinholeModel::project " << xyz.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
@@ -649,7 +649,7 @@ void PinholeModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray, 
 /*! Project 3D points XYZ according to the pinhole camera model. */
 void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -667,7 +667,7 @@ void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
     for(size_t i=0; i < pixels.size(); i++)
@@ -714,7 +714,7 @@ void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels
     }
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " PinholeModel::project " << xyz.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
@@ -724,7 +724,7 @@ void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels
 /*! Project 3D points XYZ according to the pinhole camera model. */
 void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & valid_pixels, Eigen::VectorXi & warped_pixels) //, Eigen::VectorXi & visible)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     //cout << " PinholeModel::projectNN ... " << endl;
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
@@ -740,7 +740,7 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & vali
     const float *_y = &xyz(0,1);
     const float *_z = &xyz(0,2);
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     Eigen::VectorXi warped_pixels2(xyz.rows());
     for(int i=0; i < warped_pixels.size(); i++)
@@ -761,7 +761,7 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & vali
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
     for(int i=0; i < warped_pixels.size(); i++)
@@ -859,7 +859,7 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & vali
     }
 #endif
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     for(int i=0; i < warped_pixels.size(); i++)
     {
@@ -869,7 +869,7 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & vali
     }
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " PinholeModel::projectNN " << xyz.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
@@ -887,7 +887,7 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & vali
 
 //#if !(_SSE3) // # ifdef !__SSE3__
 
-////    #if ENABLE_OPENMP
+////    #if _ENABLE_OPENMP
 ////    #pragma omp parallel for
 ////    #endif
 //    for(int i=0; i < xyz_tf.rows(); i++)
@@ -963,47 +963,10 @@ void PinholeModel::projectNN(const Eigen::MatrixXf & xyz, Eigen::VectorXi & vali
 //#endif
 //}
 
-
-/*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
-void PinholeModel::computeJacobiansPhoto2(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXi & warped_pixels, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_photo, float *_grayGradX, float *_grayGradY)
-{
-#if PRINT_PROFILING
-    double time_start = pcl::getTime();
-    //for(size_t ii=0; ii<100; ii++)
-    {
-#endif
-
-    jacobians_photo.resize(xyz_tf.rows(), 6);
-    const float *_x = &xyz_tf(0,0);
-    const float *_y = &xyz_tf(0,1);
-    const float *_z = &xyz_tf(0,2);
-    const float *_weight = &weights(0);
-
-//    #if ENABLE_OPENMP
-//    #pragma omp parallel for
-//    #endif
-    for(int i=0; i < xyz_tf.rows(); i++)
-    {
-        Vector3f pt_xyz = xyz_tf.block(i,0,1,3).transpose();
-        Matrix<float,2,6> jacobianWarpRt;
-        computeJacobian26_wT(pt_xyz, jacobianWarpRt);
-        Matrix<float,1,2> img_gradient;
-        img_gradient(0,0) = _grayGradX[warped_pixels(i)];
-        img_gradient(0,1) = _grayGradY[warped_pixels(i)];
-        jacobians_photo.block(i,0,1,6) = ((weights(i) * stdDevPhoto_inv ) * img_gradient) * jacobianWarpRt;
-    }
-
-#if PRINT_PROFILING
-    }
-    double time_end = pcl::getTime();
-    cout << " SphericalModel::computeJacobiansPhoto " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
-#endif
-}
-
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
 void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_grayGradX, float *_grayGradY)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -1015,7 +978,7 @@ void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const f
     const float *_z = &xyz_tf(0,2);
     const float *_weight = &weights(0);
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     Eigen::MatrixXf jacobians2(xyz_tf.rows(), 6);
     for(int i=0; i < xyz_tf.rows(); i++)
@@ -1032,7 +995,7 @@ void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const f
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
     for(int i=0; i < xyz_tf.rows(); i++)
@@ -1093,7 +1056,7 @@ void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const f
     }
 #endif
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     for(int i=0; i < xyz_tf.rows(); i++)
     {
@@ -1111,7 +1074,7 @@ void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const f
     //mrpt::system::pause();
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " PinholeModel::computeJacobiansPhoto " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
@@ -1121,7 +1084,7 @@ void PinholeModel::computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const f
 /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the pinhole camera model. */
 void PinholeModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_depthGradX, float *_depthGradY)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -1134,7 +1097,7 @@ void PinholeModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const E
     const float *_weight = &weights(0);
     const float *_stdDevInv = &stdDevError_inv(0);
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     Eigen::MatrixXf jacobians2(xyz_tf.rows(), 6);
     for(int i=0; i < xyz_tf.rows(); i++)
@@ -1155,7 +1118,7 @@ void PinholeModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const E
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
     for(int i=0; i < xyz_tf.rows(); i++)
@@ -1220,7 +1183,7 @@ void PinholeModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const E
     }
 #endif
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     for(int i=0; i < xyz_tf.rows(); i++)
     {
@@ -1238,7 +1201,7 @@ void PinholeModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const E
     //mrpt::system::pause();
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " PinholeModel::computeJacobiansDepth " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";
@@ -1249,7 +1212,7 @@ void PinholeModel::computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const E
 void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
                                                Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -1263,7 +1226,7 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
     const float *_weight = &weights(0);
     const float *_stdDevInv = &stdDevError_inv(0);
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     Eigen::MatrixXf jacobians_photo2(xyz_tf.rows(), 6);
     Eigen::MatrixXf jacobians_depth2(xyz_tf.rows(), 6);
@@ -1291,7 +1254,7 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
 
 #if !(_SSE3) // # ifdef !__SSE3__
 
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for
 //    #endif
     for(int i=0; i < xyz_tf.rows(); i++)
@@ -1384,7 +1347,7 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
     }
 #endif
 
-#if TEST_SIMD
+#if _TEST_SIMD
     // Test SSE
     for(int i=0; i < xyz_tf.rows(); i++)
     {
@@ -1405,7 +1368,7 @@ void PinholeModel::computeJacobiansPhotoDepth (const Eigen::MatrixXf & xyz_tf, c
     }
 #endif
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " PinholeModel::computeJacobiansPhotoDepth " << xyz_tf.rows() << " points took " << (time_end - time_start)*1000 << " ms. \n";

@@ -307,7 +307,7 @@ public:
 
             //cout << "DirectRegistration \n";
             align360.setTargetFrame(frame_trg_fused->sphereRGB, frame_trg_fused->sphereDepth);
-            align360.setSourceFrame(frame_src_fused->sphereRGB, frame_src_fused->sphereDepth);
+            align360.setReferenceFrame(frame_src_fused->sphereRGB, frame_src_fused->sphereDepth);
             align360.register360(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             Rt_dense_fused = align360.getOptimalPose();
 //            align360.register360(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
@@ -318,7 +318,7 @@ public:
 //            Rt_dense = align360.getOptimalPose();
 
             align360.setTargetFrame(frame_trg->sphereRGB, frame_trg->sphereDepth);
-            align360.setSourceFrame(frame_src->sphereRGB, frame_src->sphereDepth);
+            align360.setReferenceFrame(frame_src->sphereRGB, frame_src->sphereDepth);
             align360.register360(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             Rt_dense = align360.getOptimalPose();
 //            align360.register360(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();

@@ -338,7 +338,7 @@ int main (int argc, char ** argv)
 
     time_start = pcl::getTime();
     alignSingleFrames.setTargetFrame(frame360_1.frameRGBD_[sensorID].getRGBImage(), frame360_1.frameRGBD_[sensorID].getDepthImage());
-    alignSingleFrames.setSourceFrame(frame360_2.frameRGBD_[sensorID].getRGBImage(), frame360_2.frameRGBD_[sensorID].getDepthImage());
+    alignSingleFrames.setReferenceFrame(frame360_2.frameRGBD_[sensorID].getRGBImage(), frame360_2.frameRGBD_[sensorID].getDepthImage());
 //    alignSingleFrames.setVisualization(true);
     double time_start1 = pcl::getTime();
 //    alignSingleFrames.alignFrames(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / PHOTO_DEPTH / DEPTH_CONSISTENCY
@@ -354,7 +354,7 @@ int main (int argc, char ** argv)
 //    time_start = pcl::getTime();
 //    alignSingleFrames.useSaliency(true);
 //    alignSingleFrames.setTargetFrame(frame360_1.frameRGBD_[sensorID].getRGBImage(), frame360_1.frameRGBD_[sensorID].getDepthImage());
-//    alignSingleFrames.setSourceFrame(frame360_2.frameRGBD_[sensorID].getRGBImage(), frame360_2.frameRGBD_[sensorID].getDepthImage());
+//    alignSingleFrames.setReferenceFrame(frame360_2.frameRGBD_[sensorID].getRGBImage(), frame360_2.frameRGBD_[sensorID].getDepthImage());
 //    alignSingleFrames.alignFrames(sensorID_relPosePbMap, DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY
 //    time_end = pcl::getTime();
 //    std::cout << "Dense alignment Single Frame took " << double (time_end - time_start) << std::endl;
@@ -380,7 +380,7 @@ int main (int argc, char ** argv)
 
 //    time_start = pcl::getTime();
 //    alignSingleFrames.setTargetFrame(frame360_1.frameRGBD_[sensorID].getRGBImage(), frame360_1.frameRGBD_[sensorID].getDepthImage());
-//    alignSingleFrames.setSourceFrame(frame360_2.frameRGBD_[sensorID].getRGBImage(), frame360_2.frameRGBD_[sensorID].getDepthImage());
+//    alignSingleFrames.setReferenceFrame(frame360_2.frameRGBD_[sensorID].getRGBImage(), frame360_2.frameRGBD_[sensorID].getDepthImage());
 ////    alignSingleFrames.setVisualization(true);
 //    alignSingleFrames.alignFrames(sensorID_relPosePbMap, DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / PHOTO_DEPTH / DEPTH_CONSISTENCY
 
@@ -414,7 +414,7 @@ int main (int argc, char ** argv)
     frame360_2.stitchSphericalImage();
     align360.useSaliency(false);
     align360.setTargetFrame(frame360_1.sphereRGB, frame360_1.sphereDepth);
-    align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
+    align360.setReferenceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
 
 //    cv::Mat rgb_transposed, rgb_rotated, depth_transposed, depth_rotated;
 //    cv::transpose(frame360_1.sphereRGB, rgb_transposed);
@@ -430,7 +430,7 @@ int main (int argc, char ** argv)
 //    cv::flip(rgb_transposed, rgb_rotated, 0);
 //    cv::transpose(frame360_2.sphereDepth, depth_transposed);
 //    cv::flip(depth_transposed, depth_rotated, 0);
-//    align360.setSourceFrame(depth_rotated, depth_transposed);
+//    align360.setReferenceFrame(depth_rotated, depth_transposed);
 
     // The reference of the spherical image and the point Clouds are not the same! I should always use the same coordinate system (TODO)
     float angleOffset = 157.5;

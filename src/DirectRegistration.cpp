@@ -31,7 +31,6 @@
 
 #include <DirectRegistration.h>
 #include <transformPts3D.h>
-#include <config.h>
 #include <definitions.h>
 
 #include <opencv2/core/core.hpp>
@@ -139,9 +138,9 @@ DirectRegistration::~DirectRegistration()
 }
 
 /*! Sets the ref (Intensity+Depth) frame.*/
-void DirectRegistration::setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
+void DirectRegistration::setReferenceFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
 {
-    #if PRINT_PROFILING
+    #if _PRINT_PROFILING
     double time_start = pcl::getTime();
     #endif
 
@@ -164,9 +163,9 @@ void DirectRegistration::setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDep
 //    rgbRef = imgRGB;
 //    buildPyramid(rgbRef, colorRef, nPyrLevels);
 
-    #if PRINT_PROFILING
+    #if _PRINT_PROFILING
     double time_end = pcl::getTime();
-    cout << "DirectRegistration::setSourceFrame construction " << (time_end - time_start)*1000 << " ms. \n";
+    cout << "DirectRegistration::setReferenceFrame construction " << (time_end - time_start)*1000 << " ms. \n";
     #endif
 }
 
@@ -174,7 +173,7 @@ void DirectRegistration::setSourceFrame(const cv::Mat & imgRGB, cv::Mat & imgDep
 void DirectRegistration::setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDepth)
 {
     //cout << "DirectRegistration::setTargetFrame() \n";
-    #if PRINT_PROFILING
+    #if _PRINT_PROFILING
     double time_start = pcl::getTime();
     #endif
 
@@ -204,7 +203,7 @@ void DirectRegistration::setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDep
     //        cv::imshow("GradX_d ", depthTrgGrad[0]);
     //        cv::waitKey(0);
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_end = pcl::getTime();
     cout << "DirectRegistration::setTargetFrame construction " << (time_end - time_start)*1000 << " ms. \n";
 #endif
@@ -213,7 +212,7 @@ void DirectRegistration::setTargetFrame(const cv::Mat & imgRGB, cv::Mat & imgDep
 /*! Swap the ref and target images */
 void DirectRegistration::swapSourceTarget()
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
     {
@@ -234,7 +233,7 @@ void DirectRegistration::swapSourceTarget()
 //    cv::imshow( "sphereDepth2", depthTrg[3] );
 //    cv::waitKey(0);
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << "DirectRegistration::swapSourceTarget took " << (time_end - time_start)*1000 << " ms. \n";
@@ -253,7 +252,7 @@ void DirectRegistration::warpImage( const cv::Mat gray_ref,         // The origi
                                     //const sensorType method
                                     )
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     cout << " DirectRegistration::warpImage... \n";
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
@@ -284,7 +283,7 @@ void DirectRegistration::warpImage( const cv::Mat gray_ref,         // The origi
          cout << " Standart Nearest-Neighbor LUT " << LUT_xyz_ref.rows() << endl;
          ProjModel_trg->projectNN(xyz_ref_transf, validPixels_ref, warp_pixels_ref);
 
-#if ENABLE_OPENMP
+#if _ENABLE_OPENMP
 #pragma omp parallel for
 #endif
          for(size_t i=0; i < imgSize; i++)
@@ -307,7 +306,7 @@ void DirectRegistration::warpImage( const cv::Mat gray_ref,         // The origi
         Eigen::MatrixXf warp_img_ref;
         ProjModel_trg->project(xyz_ref_transf, warp_img_ref, warp_pixels_ref);
 
-#if ENABLE_OPENMP
+#if _ENABLE_OPENMP
 #pragma omp parallel for
 #endif
         for(size_t i=0; i < imgSize; i++)
@@ -324,7 +323,7 @@ void DirectRegistration::warpImage( const cv::Mat gray_ref,         // The origi
        }
     }
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " SphericalModel::warpImage (size) " << gray_ref.rows*gray_ref.cols << " took " << double (time_end - time_start)*1000 << " ms. \n";
@@ -343,7 +342,7 @@ double DirectRegistration::computeError(const Matrix4f & poseGuess)
     double error2_depth = 0.0;
     size_t numVisiblePts = 0;
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
     {
@@ -398,7 +397,7 @@ double DirectRegistration::computeError(const Matrix4f & poseGuess)
 
 //            Eigen::VectorXf diff_photo(n_pts); //= Eigen::VectorXf::Zero(n_pts);
 //            Eigen::VectorXf diff_depth(n_pts);
-    #if ENABLE_OPENMP
+    #if _ENABLE_OPENMP
     #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
     #endif
             for(size_t i=0; i < n_pts; i++)
@@ -451,7 +450,7 @@ double DirectRegistration::computeError(const Matrix4f & poseGuess)
 //        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
         {
             //cout << " method == PHOTO_CONSISTENCY " << endl;
-#if ENABLE_OPENMP
+#if _ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
             for(size_t i=0; i < n_pts; i++)
@@ -481,7 +480,7 @@ double DirectRegistration::computeError(const Matrix4f & poseGuess)
 //        if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
         {
             //cout << " method == DEPTH_CONSISTENCY " << endl;
-#if ENABLE_OPENMP
+#if _ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
             for(size_t i=0; i < n_pts; i++)
@@ -513,7 +512,7 @@ double DirectRegistration::computeError(const Matrix4f & poseGuess)
         {
             cout << " computeError DIRECT_ICP \n";
             float thres_max_dist = 0.5f;
-    #if ENABLE_OPENMP
+    #if _ENABLE_OPENMP
     #pragma omp parallel for reduction (+:error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
     #endif
             for(size_t i=0; i < n_pts; i++)
@@ -558,7 +557,7 @@ double DirectRegistration::computeError(const Matrix4f & poseGuess)
 
         if(method == PHOTO_DEPTH)
         {
-    #if ENABLE_OPENMP
+    #if _ENABLE_OPENMP
     #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
     #endif
             for(size_t i=0; i < n_pts; i++)
@@ -609,7 +608,7 @@ double DirectRegistration::computeError(const Matrix4f & poseGuess)
         }
         else if(method == PHOTO_CONSISTENCY)
         {
-#if ENABLE_OPENMP
+#if _ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
             for(size_t i=0; i < n_pts; i++)
@@ -663,7 +662,7 @@ double DirectRegistration::computeError(const Matrix4f & poseGuess)
 
     error2 = (error2_photo + error2_depth) / numVisiblePts;
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << "Level " << currPyrLevel << " computeError took " << double (time_end - time_start)*1000 << " ms. \n";
@@ -685,7 +684,7 @@ double DirectRegistration::computeErrorWarp(const Matrix4f & poseGuess)
     double error2_depth = 0.0;
     size_t numVisiblePts = 0;
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
     {
@@ -741,7 +740,7 @@ double DirectRegistration::computeErrorWarp(const Matrix4f & poseGuess)
 
 //            Eigen::VectorXf diff_photo(n_pts); //= Eigen::VectorXf::Zero(n_pts);
 //            Eigen::VectorXf diff_depth(n_pts);
-    #if ENABLE_OPENMP
+    #if _ENABLE_OPENMP
     #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
     #endif
             for(size_t i=0; i < n_pts; i++)
@@ -777,8 +776,8 @@ double DirectRegistration::computeErrorWarp(const Matrix4f & poseGuess)
                         {
                             itRef.validPixelsDepth(i) = 1;
                             itRef.stdDevError_inv(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
-                            float diff = _depthWarp[itRef.validPixels(i)] - _depthRef[itRef.validPixels(i)];
-                            //float diff = (this->*calcDepthError)(poseGuess_inv, i, _depthRef, _depthWarp);
+                            //float diff = _depthWarp[itRef.validPixels(i)] - _depthRef[itRef.validPixels(i)];
+                            float diff = (this->*calcDepthError)(poseGuess, i, _depthRef, _depthWarp);
                             float residual = diff * itRef.stdDevError_inv(i);
                             itRef.wEstimDepth(i) = sqrt(weightMEstimator(residual));
                             itRef.residualsDepth(i) = itRef.wEstimDepth(i) * residual;
@@ -795,7 +794,7 @@ double DirectRegistration::computeErrorWarp(const Matrix4f & poseGuess)
 //        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
         {
             //cout << " method == PHOTO_CONSISTENCY " << endl;
-#if ENABLE_OPENMP
+#if _ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
             for(size_t i=0; i < n_pts; i++)
@@ -825,7 +824,7 @@ double DirectRegistration::computeErrorWarp(const Matrix4f & poseGuess)
 //        if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
         {
             //cout << " method == DEPTH_CONSISTENCY " << endl;
-#if ENABLE_OPENMP
+#if _ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
             for(size_t i=0; i < n_pts; i++)
@@ -842,8 +841,8 @@ double DirectRegistration::computeErrorWarp(const Matrix4f & poseGuess)
                             itRef.validPixelsDepth(i) = 1;
                             itRef.stdDevError_inv(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
                             //diff_depth(i) = _depthWarp[itRef.warp_pixels(i)] - ProjModel->getDepth(xyz);
-                            float diff = _depthWarp[itRef.validPixels(i)] - _depthRef[itRef.validPixels(i)];
-                            //float diff = (this->*calcDepthError)(poseGuess_inv, i, _depthRef, _depthWarp);
+                            //float diff = _depthWarp[itRef.validPixels(i)] - _depthRef[itRef.validPixels(i)];
+                            float diff = (this->*calcDepthError)(poseGuess, i, _depthRef, _depthWarp);
                             float residual = diff * itRef.stdDevError_inv(i);
                             itRef.wEstimDepth(i) = sqrt(weightMEstimator(residual));
                             itRef.residualsDepth(i) = itRef.wEstimDepth(i) * residual;
@@ -880,7 +879,7 @@ double DirectRegistration::computeErrorWarp(const Matrix4f & poseGuess)
 
     error2 = (error2_photo + error2_depth) / numVisiblePts;
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << "Level " << currPyrLevel << " computeError took " << double (time_end - time_start)*1000 << " ms. \n";
@@ -899,7 +898,7 @@ double DirectRegistration::computeErrorWarp(const Matrix4f & poseGuess)
     in Computer Vision Workshops (ICCV Workshops), 2011. */
 void DirectRegistration::calcHessGrad() //( const costFuncType method )
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
     {
@@ -1001,7 +1000,7 @@ void DirectRegistration::calcHessGrad() //( const costFuncType method )
     //cout << "hessian \n" << hessian << endl;
     //cout << "gradient \n" << gradient.transpose() << endl;
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << currPyrLevel << " pyr calcHessGrad took " << double (time_end - time_start)*1000 << " ms. \n";
@@ -1020,7 +1019,7 @@ double DirectRegistration::calcHessGradError_IC(const Eigen::Matrix4f & poseGues
     double error2_depth = 0.0;
     size_t numVisiblePts = 0;
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
     {
@@ -1048,14 +1047,6 @@ double DirectRegistration::calcHessGradError_IC(const Eigen::Matrix4f & poseGues
     itRef.wEstimDepth = VectorXf::Zero(n_pts);
     itRef.validPixelsPhoto = VectorXi::Zero(n_pts);
     itRef.validPixelsDepth = VectorXi::Zero(n_pts);
-
-//    _itRef.residualsPhoto = VectorXf::Zero(imgSize);
-//    _itRef.residualsDepth = VectorXf::Zero(imgSize);
-//    _itRef.stdDevError_inv = VectorXf::Zero(imgSize);
-//    _itRef.wEstimPhoto = VectorXf::Zero(imgSize);
-//    _itRef.wEstimDepth = VectorXf::Zero(imgSize);
-//    _itRef.validPixelsPhoto = VectorXi::Zero(imgSize);
-//    _itRef.validPixelsDepth = VectorXi::Zero(imgSize);
 
     // Container to compute the MAD, which is used to update the intensity (or brightness) standard deviation
     //std::vector<float> v_AD_intensity(imgSize);
@@ -1087,7 +1078,7 @@ double DirectRegistration::calcHessGradError_IC(const Eigen::Matrix4f & poseGues
 
 //            Eigen::VectorXf diff_photo(n_pts); //= Eigen::VectorXf::Zero(n_pts);
 //            Eigen::VectorXf diff_depth(n_pts);
-    #if ENABLE_OPENMP
+    #if _ENABLE_OPENMP
     #pragma omp parallel for reduction (+:error2_photo,error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
     #endif
             for(size_t i=0; i < n_pts; i++)
@@ -1182,7 +1173,7 @@ double DirectRegistration::calcHessGradError_IC(const Eigen::Matrix4f & poseGues
 //        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
         {
             //cout << " method == PHOTO_CONSISTENCY " << endl;
-#if ENABLE_OPENMP
+#if _ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_photo,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
             for(size_t i=0; i < n_pts; i++)
@@ -1229,7 +1220,7 @@ double DirectRegistration::calcHessGradError_IC(const Eigen::Matrix4f & poseGues
 //            for(size_t i=0; i < n_pts; i++)
 //                cout << itRef.validPixels(i) << " depth_gradient " << _depthRefGradX[itRef.validPixels(i)] << " " << _depthRefGradY[itRef.validPixels(i)] << endl;
 
-#if ENABLE_OPENMP
+#if _ENABLE_OPENMP
 #pragma omp parallel for reduction (+:error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
 #endif
             for(size_t i=0; i < n_pts; i++)
@@ -1297,7 +1288,7 @@ double DirectRegistration::calcHessGradError_IC(const Eigen::Matrix4f & poseGues
         {
             cout << " computeError DIRECT_ICP \n";
             float thres_max_dist = 0.5f;
-    #if ENABLE_OPENMP
+    #if _ENABLE_OPENMP
     #pragma omp parallel for reduction (+:error2_depth,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
     #endif
             for(size_t i=0; i < n_pts; i++)
@@ -1321,18 +1312,21 @@ double DirectRegistration::calcHessGradError_IC(const Eigen::Matrix4f & poseGues
                             {
                                 ++numVisiblePts;
                                 itRef.validPixelsDepth(i) = 1;
+
                                 float weight2 = 1;
                                 //float weight2 = weightMEstimator(res_norm);
                                 itRef.wEstimDepth(i) = sqrt(weight2);
                                 residual3D = itRef.wEstimDepth(i) * itRef.stdDevError_inv(i) * residual3D;
                                 itRef.residualsDepth.block(3*i,0,3,1) = residual3D;
                                 error2_depth += residual3D .dot (residual3D);
+                                //cout << i << " error2_depth " << error2_depth << " weight " << itRef.wEstimDepth(i) << " residual " << residual3D.transpose() << " stdDevInv " << itRef.stdDevError_inv(i) << endl;
 
                                 Matrix<float,3,6> jacobianRt, jacobianRt_inv;
                                 ProjModel->computeJacobian36_xT_p(xyz_ref, jacobianRt);
                                 ProjModel->computeJacobian36_xT_p(xyz_trg2ref, jacobianRt_inv);
-                                itRef.jacobiansDepth.block(3*i,0,1,6) = (itRef.wEstimDepth(i) * itRef.stdDevError_inv(i)) * jacobianRt + jacobianRt_inv;
+                                itRef.jacobiansDepth.block(3*i,0,3,6) = (itRef.wEstimDepth(i) * itRef.stdDevError_inv(i)) * (jacobianRt + jacobianRt_inv);
                                 // cout << i << " error2_depth " << error2_depth << " weight " << itRef.wEstimDepth(i) << " residual " << residual3D.transpose() << " stdDevInv " << itRef.stdDevError_inv(i) << endl;
+                                //cout << "itRef.jacobiansDepth.block(3*i,0,3,6) \n" << itRef.jacobiansDepth.block(3*i,0,3,6) << endl;
                             }
                         }
                     }
@@ -1378,7 +1372,7 @@ double DirectRegistration::calcHessGradError_IC(const Eigen::Matrix4f & poseGues
 
     error2 = (error2_photo + error2_depth) / numVisiblePts;
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << "Level " << currPyrLevel << " calcHessGradError_IC took " << double (time_end - time_start)*1000 << " ms. \n";
@@ -1414,7 +1408,7 @@ void DirectRegistration::initWindows()
 
 void DirectRegistration::showImgDiff()
 {
-    //cout << "DirectRegistration::showImgDiff ...\n";
+    cout << "DirectRegistration::showImgDiff ...\n";
     if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
     {
         cv::Mat imgDiff = cv::Mat::zeros(trg.grayPyr[currPyrLevel].rows, trg.grayPyr[currPyrLevel].cols, trg.grayPyr[currPyrLevel].type());
@@ -1447,7 +1441,7 @@ void DirectRegistration::showImgDiff()
     {
         //cout << "sizes " << nRows << " " << nCols << " " << "sizes " << trg.depthPyr[currPyrLevel].rows << " " << trg.depthPyr[currPyrLevel].cols << " " << "sizes " << warped_depth.rows << " " << warped_depth.cols << " " << trg.grayPyr[currPyrLevel].type() << endl;
         cv::Mat depthDiff = cv::Mat::zeros(trg.depthPyr[currPyrLevel].rows, trg.depthPyr[currPyrLevel].cols, trg.depthPyr[currPyrLevel].type());
-        cv::absdiff(trg.depthPyr[currPyrLevel], warped_depth, depthDiff);
+        cv::absdiff(ref.depthPyr[currPyrLevel], warped_depth, depthDiff);
         cv::imshow(win_name_depth_diff, depthDiff);
 
 //                    // Save Abs Diff image
@@ -1514,14 +1508,14 @@ void DirectRegistration::maskJoints_RGBD360(const int fringeFraction)
     cout << " DirectRegistration::maskJoints_RGBD360 ... \n";
 
     int minBlackFringe = 2;
-    int width_sensor = ProjModel->nCols / NUM_ASUS_SENSORS;
+    int width_sensor = ProjModel_ref->nCols / NUM_ASUS_SENSORS;
     int nPixBlackFringe = max(minBlackFringe, width_sensor/fringeFraction);
     for(int sensor_id = 0; sensor_id < NUM_ASUS_SENSORS; sensor_id++)
     {
         //cout << "region_of_interest " << int((0.5f+sensor_id)*width_sensor)-nPixBlackFringe/2 << " " << 0 << " " << nPixBlackFringe << " " << ProjModel->nRows << endl;
         //cv::Rect region_of_interest = cv::Rect(int((0.5f+sensor_id)*width_sensor)-nPixBlackFringe/2, 0, nPixBlackFringe, ProjModel->nRows);
-        cv::Rect region_of_interest = cv::Rect((0.5f+sensor_id)*width_sensor-nPixBlackFringe/2, 0, nPixBlackFringe, ProjModel->nRows);
-        ref.depthPyr[currPyrLevel](region_of_interest) = cv::Mat::zeros(ProjModel->nRows,nPixBlackFringe, ref.depthPyr[currPyrLevel].type());
+        cv::Rect region_of_interest = cv::Rect((0.5f+sensor_id)*width_sensor-nPixBlackFringe/2, 0, nPixBlackFringe, ProjModel_ref->nRows);
+        ref.depthPyr[currPyrLevel](region_of_interest) = cv::Mat::zeros(ProjModel_ref->nRows,nPixBlackFringe, ref.depthPyr[currPyrLevel].type());
         //trg.depthPyr[currPyrLevel](region_of_interest) = cv::Mat::zeros(ProjModel->nRows,nPixBlackFringe, ref.depthPyr[currPyrLevel].type());
     }
 }
@@ -1532,7 +1526,7 @@ void DirectRegistration::maskJoints_RGBD360(const int fringeFraction)
  */
 void DirectRegistration::doRegistration(const Matrix4f pose_guess, const costFuncType method) //, const int occlusion )
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     cout << " DirectRegistration::doRegistration ... \n";
     double time_start = pcl::getTime();
     //for(size_t i=0; i<1000; i++)
@@ -1556,7 +1550,7 @@ void DirectRegistration::doRegistration(const Matrix4f pose_guess, const costFun
         //ProjModel_trg->scaleCameraParams(trg.grayPyr, currPyrLevel);
 
         //if(sensor_type == RGBD360_INDOOR)
-        if(sensor_type_ref == STEREO_OUTDOOR)
+        if(sensor_type_ref == RGBD360_INDOOR)
             maskJoints_RGBD360();
 
         // Make LUT to store the values of the 3D points of the ref image
@@ -1582,22 +1576,29 @@ void DirectRegistration::doRegistration(const Matrix4f pose_guess, const costFun
         else
             error = calcHessGradError_IC(pose_estim);
 
-        warpImage(ref.grayPyr[currPyrLevel], ref.depthPyr[currPyrLevel], trg.grayPyr[currPyrLevel], trg.depthPyr[currPyrLevel], pose_estim, warped_gray, warped_depth);
-        cv::imshow("warped", warped_gray);
-        cv::imshow("ref", ref.grayPyr[currPyrLevel]);
-        cv::imshow("trg", trg.grayPyr[currPyrLevel]);
-        cv::Mat imgDiff = cv::Mat::zeros(warped_gray.rows, warped_gray.cols, warped_gray.type());
-        cv::absdiff(ref.grayPyr[currPyrLevel], warped_gray, imgDiff);
-        cv::imshow("imgDiff", imgDiff);
-        double error2 = cv::norm(imgDiff);
-        cout << "Photo error " << error2 << endl;
-        cv::waitKey(0);
+//        warpImage(ref.grayPyr[currPyrLevel], ref.depthPyr[currPyrLevel], trg.grayPyr[currPyrLevel], trg.depthPyr[currPyrLevel], pose_estim, warped_gray, warped_depth);
+//        cv::imshow("warped", warped_gray);
+//        cv::imshow("ref", ref.grayPyr[currPyrLevel]);
+//        cv::imshow("trg", trg.grayPyr[currPyrLevel]);
+//        cv::Mat imgDiff = cv::Mat::zeros(warped_gray.rows, warped_gray.cols, warped_gray.type());
+//        cv::absdiff(ref.grayPyr[currPyrLevel], warped_gray, imgDiff);
+//        cv::imshow("imgDiff", imgDiff);
+
+//        float residual = diff * stdDevPhoto_inv;
+//        itRef.wEstimPhoto(i) = sqrt(weightMEstimator(residual)); // The weight computed by an M-estimator
+
+//        cv::Mat weights;
+//        cv::multiply(imgDiff, , weights, 1./stdDevPhoto);
+
+//        double error2 = cv::norm(imgDiff);
+//        cout << "Photo error " << error2 << endl;
+//        cv::waitKey(0);
 
         double diff_error = error;
         Matrix<float,6,1> update_pose; update_pose << 1, 1, 1, 1, 1, 1;
         while(num_iters[currPyrLevel] < max_iters_ && update_pose.norm() > tol_update_ && diff_error > tol_residual_) // The LM optimization stops either when the max iterations is reached, or when the alignment converges (error or pose do not change)
         {
-            cv::TickMeter tm; tm.start();
+            double it_start = pcl::getTime();
 
             //cout << "calcHessianAndGradient_sphere " << endl;
             if(compositional != IC)
@@ -1644,8 +1645,9 @@ void DirectRegistration::doRegistration(const Matrix4f pose_guess, const costFun
             update_pose = -hessian.inverse() * gradient;
             // update_pose = -(hessian + lambda*getDiagonalMatrix(hessian)).inverse() * gradient;
             Matrix<double,6,1> update_pose_d = update_pose.cast<double>();
-            if(update_pose.norm() > tol_update_)
-                break;
+
+//            if(update_pose.norm() > tol_update_)
+//                break;
 
             if(compositional != IC)
                 pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d)).getHomogeneousMatrixVal().cast<float>() * pose_estim;
@@ -1668,14 +1670,15 @@ void DirectRegistration::doRegistration(const Matrix4f pose_guess, const costFun
             }
 
 #if ENABLE_PRINT_CONSOLE_OPTIMIZATION_PROGRESS
-            tm.stop();
-            cout << "Iterations " << num_iters[currPyrLevel] << " time = " << tm.getTimeSec()*1000 << " ms" << endl;
+            double it_end = pcl::getTime();
+            cout << "Iterations " << num_iters[currPyrLevel] << " time = " << (it_end - it_start)*1000 << " ms" << endl;
             cout << "update_pose \n" << update_pose.transpose() << endl;
             cout << "diff_error " << diff_error << endl;
 #endif
 
             if(visualize && diff_error > 0)
                 showImgDiff();
+            cout << "showImgDiff " << endl;
         }
     }
 
@@ -1691,7 +1694,7 @@ void DirectRegistration::doRegistration(const Matrix4f pose_guess, const costFun
 
     registered_pose = pose_estim;
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " doRegistration took " << double (time_end - time_start)*1000 << " ms. \n";
@@ -1701,7 +1704,7 @@ void DirectRegistration::doRegistration(const Matrix4f pose_guess, const costFun
 /*! Update the Hessian and the Gradient from a list of jacobians and residuals. */
 void DirectRegistration::updateHessianAndGradient(const MatrixXf & pixel_jacobians, const MatrixXf & pixel_residuals, const MatrixXi & valid_pixels)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -1715,7 +1718,7 @@ void DirectRegistration::updateHessianAndGradient(const MatrixXf & pixel_jacobia
 
 //    if(use_salient_pixels)
 //    {
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for reduction (+:h11,h12,h13,h14,h15,h16,h22,h23,h24,h25,h26,h33,h34,h35,h36,h44,h45,h46,h55,h56,h66,g1,g2,g3,g4,g5,g6) // Cannot reduce on Eigen types
 //    #endif
 //        for(int i=0; i < pixel_jacobians.rows(); i++)
@@ -1752,7 +1755,7 @@ void DirectRegistration::updateHessianAndGradient(const MatrixXf & pixel_jacobia
 //    }
 //    else
     {
-    #if ENABLE_OPENMP
+    #if _ENABLE_OPENMP
     #pragma omp parallel for reduction (+:h11,h12,h13,h14,h15,h16,h22,h23,h24,h25,h26,h33,h34,h35,h36,h44,h45,h46,h55,h56,h66,g1,g2,g3,g4,g5,g6) // Cannot reduce on Eigen types
     #endif
         for(int i=0; i < pixel_jacobians.rows(); i++)
@@ -1836,7 +1839,7 @@ void DirectRegistration::updateHessianAndGradient(const MatrixXf & pixel_jacobia
     gradient(4) += g5;
     gradient(5) += g6;
 
-    #if PRINT_PROFILING
+    #if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " DirectRegistration::updateHessianAndGradient " << pixel_jacobians.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
@@ -1846,7 +1849,7 @@ void DirectRegistration::updateHessianAndGradient(const MatrixXf & pixel_jacobia
 /*! Update the Hessian and the Gradient from a list of jacobians and residuals. */
 void DirectRegistration::updateHessianAndGradient(const MatrixXf & pixel_jacobians, const MatrixXf & pixel_residuals, const MatrixXf & pixel_weights, const MatrixXi & valid_pixels)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -1859,7 +1862,7 @@ void DirectRegistration::updateHessianAndGradient(const MatrixXf & pixel_jacobia
     float h11=0,h12=0,h13=0,h14=0,h15=0,h16=0,h22=0,h23=0,h24=0,h25=0,h26=0,h33=0,h34=0,h35=0,h36=0,h44=0,h45=0,h46=0,h55=0,h56=0,h66=0;
     float g1=0,g2=0,g3=0,g4=0,g5=0,g6=0;
 
-    #if ENABLE_OPENMP
+    #if _ENABLE_OPENMP
     #pragma omp parallel for reduction (+:h11,h12,h13,h14,h15,h16,h22,h23,h24,h25,h26,h33,h34,h35,h36,h44,h45,h46,h55,h56,h66,g1,g2,g3,g4,g5,g6) // Cannot reduce on Eigen types
     #endif
         for(int i=0; i < pixel_jacobians.rows(); i++)
@@ -1948,7 +1951,7 @@ void DirectRegistration::updateHessianAndGradient(const MatrixXf & pixel_jacobia
     gradient(4) += g5;
     gradient(5) += g6;
 
-    #if PRINT_PROFILING
+    #if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " DirectRegistration::updateHessianAndGradient " << pixel_jacobians.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
@@ -1957,7 +1960,7 @@ void DirectRegistration::updateHessianAndGradient(const MatrixXf & pixel_jacobia
 
 //void DirectRegistration::updateHessianAndGradient(const MatrixXf & pixel_jacobians, const MatrixXf & pixel_residuals, const MatrixXi & warp_pixels)
 //{
-//#if PRINT_PROFILING
+//#if _PRINT_PROFILING
 //    double time_start = pcl::getTime();
 //    //for(size_t ii=0; ii<100; ii++)
 //    {
@@ -1969,7 +1972,7 @@ void DirectRegistration::updateHessianAndGradient(const MatrixXf & pixel_jacobia
 //    float h11=0,h12=0,h13=0,h14=0,h15=0,h16=0,h22=0,h23=0,h24=0,h25=0,h26=0,h33=0,h34=0,h35=0,h36=0,h44=0,h45=0,h46=0,h55=0,h56=0,h66=0;
 //    float g1=0,g2=0,g3=0,g4=0,g5=0,g6=0;
 
-//    #if ENABLE_OPENMP
+//    #if _ENABLE_OPENMP
 //    #pragma omp parallel for reduction (+:h11,h12,h13,h14,h15,h16,h22,h23,h24,h25,h26,h33,h34,h35,h36,h44,h45,h46,h55,h56,h66,g1,g2,g3,g4,g5,g6) // Cannot reduce on Eigen types
 //    #endif
 //    for(int i=0; i < pixel_jacobians.rows(); i++)
@@ -2052,7 +2055,7 @@ void DirectRegistration::updateHessianAndGradient(const MatrixXf & pixel_jacobia
 //    gradient(4) += g5;
 //    gradient(5) += g6;
 
-//    #if PRINT_PROFILING
+//    #if _PRINT_PROFILING
 //    }
 //    double time_end = pcl::getTime();
 //    cout << " DirectRegistration::updateHessianAndGradient " << pixel_jacobians.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
@@ -2061,7 +2064,7 @@ void DirectRegistration::updateHessianAndGradient(const MatrixXf & pixel_jacobia
 
 void DirectRegistration::updateHessianAndGradient3D(const MatrixXf & pixel_jacobians, const MatrixXf & pixel_residuals, const MatrixXi & valid_pixels)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -2079,7 +2082,7 @@ void DirectRegistration::updateHessianAndGradient3D(const MatrixXf & pixel_jacob
             //gradient += jacobian.transpose() * pixel_residuals.block(i*3,0,3,1).norm();
         }
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " DirectRegistration::updateHessianAndGradient3D " << valid_pixels.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
@@ -2088,7 +2091,7 @@ void DirectRegistration::updateHessianAndGradient3D(const MatrixXf & pixel_jacob
 
 void DirectRegistration::updateHessianAndGradient3D(const MatrixXf & pixel_jacobians, const MatrixXf & pixel_residuals, const MatrixXf & pixel_weights, const MatrixXi & valid_pixels)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -2106,7 +2109,7 @@ void DirectRegistration::updateHessianAndGradient3D(const MatrixXf & pixel_jacob
             //cout << i << " hessian \n" << hessian.transpose() << endl << "gradient \n" << gradient.transpose() << endl;
         }
 
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " DirectRegistration::updateHessianAndGradient3D " << valid_pixels.rows() << " took " << (time_end - time_start)*1000 << " ms. \n";
@@ -2115,7 +2118,7 @@ void DirectRegistration::updateHessianAndGradient3D(const MatrixXf & pixel_jacob
 
 void DirectRegistration::updateGrad(const MatrixXf & pixel_jacobians, const MatrixXf & pixel_residuals, const MatrixXi & valid_pixels)
 {
-    #if PRINT_PROFILING
+    #if _PRINT_PROFILING
         double time_start = pcl::getTime();
         //for(size_t ii=0; ii<100; ii++)
         {
@@ -2126,7 +2129,7 @@ void DirectRegistration::updateGrad(const MatrixXf & pixel_jacobians, const Matr
 
     float g1=0,g2=0,g3=0,g4=0,g5=0,g6=0;
 
-    #if ENABLE_OPENMP
+    #if _ENABLE_OPENMP
     #pragma omp parallel for reduction (+:g1,g2,g3,g4,g5,g6) // Cannot reduce on Eigen types
     #endif
     for(int i=0; i < pixel_jacobians.rows(); i++)
@@ -2150,7 +2153,7 @@ void DirectRegistration::updateGrad(const MatrixXf & pixel_jacobians, const Matr
     gradient(4) += g5;
     gradient(5) += g6;
 
-    #if PRINT_PROFILING
+    #if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " DirectRegistration::updateGrad " << pixel_jacobians.rows() << " pts took " << (time_end - time_start)*1000 << " ms. \n";
@@ -2161,7 +2164,7 @@ void DirectRegistration::updateGrad(const MatrixXf & pixel_jacobians, const Matr
 //void DirectRegistration::getSalientPts(const MatrixXf & jacobians, std::vector<size_t> & salient_pixels, const float r_salient )
 //{
 //    //cout << " DirectRegistration::getSalientPts " << input_pts.rows() << " pts \n";
-//#if PRINT_PROFILING
+//#if _PRINT_PROFILING
 //    double time_start = pcl::getTime();
 //    //for(size_t ii=0; ii<100; ii++)
 //    {
@@ -2313,7 +2316,7 @@ void DirectRegistration::updateGrad(const MatrixXf & pixel_jacobians, const Matr
 
 //    delete [] mask;
 
-//    #if PRINT_PROFILING
+//    #if _PRINT_PROFILING
 //    }
 //    double time_end = pcl::getTime();
 //    cout << " DirectRegistration::getSalientPts " << jacobians.rows() << " pts took " << (time_end - time_start)*1000 << " ms. \n";
@@ -2379,7 +2382,7 @@ float histogram_value_from_idx(const int idx,min_max &scale)
 void DirectRegistration::getSalientPts(const MatrixXf & jacobians, std::vector<size_t> & salient_pixels, const float r_salient )
 {
     //cout << " DirectRegistration::getSalientPts " << input_pts.rows() << " pts \n";
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //for(size_t ii=0; ii<100; ii++)
     {
@@ -2447,7 +2450,7 @@ void DirectRegistration::getSalientPts(const MatrixXf & jacobians, std::vector<s
     }
     delete [] mask;
 
-   #if PRINT_PROFILING
+   #if _PRINT_PROFILING
    }
    double time_end = pcl::getTime();
    cout << " DirectRegistration::getSalientPts HISTOGRAM APPROXIMATION " << jacobians.rows() << " pts took " << (time_end - time_start)*1000 << " ms. \n";
@@ -2459,7 +2462,7 @@ void DirectRegistration::trimValidPoints(MatrixXf & LUT_xyz, VectorXi & validPix
                                         const costFuncType method,
                                         std::vector<size_t> &salient_pixels, std::vector<size_t> &salient_pixels_photo, std::vector<size_t> &salient_pixels_depth)
 {
-#if PRINT_PROFILING
+#if _PRINT_PROFILING
     double time_start = pcl::getTime();
     //cout << " DirectRegistration::trimValidPoints pts " << LUT_xyz.rows() << " pts " << validPixelsPhoto.rows() << " pts "<< salient_pixels_photo.size()<< " - " << salient_pixels_depth.size() << endl;
     //for(size_t ii=0; ii<100; ii++)
@@ -2559,7 +2562,7 @@ void DirectRegistration::trimValidPoints(MatrixXf & LUT_xyz, VectorXi & validPix
         }
     }
 
-    #if PRINT_PROFILING
+    #if _PRINT_PROFILING
     }
     double time_end = pcl::getTime();
     cout << " DirectRegistration::trimValidPoints took " << (time_end - time_start)*1000 << " ms. \n";

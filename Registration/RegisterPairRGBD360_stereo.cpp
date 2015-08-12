@@ -168,7 +168,7 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
 //  align360.setVisualization(true);
   align360.setGrayVariance(8.f/255);
   align360.setTargetFrame(frame360_1.sphereRGB, frame360_1.sphereDepth);
-  align360.setSourceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
+  align360.setReferenceFrame(frame360_2.sphereRGB, frame360_2.sphereDepth);
   cout << "DirectRegistration \n";
   time_start = pcl::getTime();
 //  for(size_t i=0; i < 20; i++)

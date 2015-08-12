@@ -195,7 +195,7 @@ int main (int argc, char ** argv)
             Frame360 frame360(&calib);
             frame360.setTimeStamp(obsRGBD[0]->timestamp);
 
-            #if ENABLE_OPENMP
+            #if _ENABLE_OPENMP
                 #pragma omp parallel num_threads(NUM_ASUS_SENSORS)
                 {
                     int sensor_id = omp_get_thread_num();

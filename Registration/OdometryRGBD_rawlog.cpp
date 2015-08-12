@@ -478,7 +478,7 @@ public:
                 intensity_src = cv::Mat(obsRGBD->intensityImage.getAs<IplImage>());
                 //intensity_src = cv::cvarrToMat(obsRGBD->intensityImage.getAs<IplImage>());
                 convertRange_mrpt2cvMat(obsRGBD->rangeImage, depth_src);
-                //registerRGBD.setSourceFrame(intensity_src, depth_src);
+                //registerRGBD.setReferenceFrame(intensity_src, depth_src);
 
                 src.setRGBImage(intensity_src);
                 src.setDepthImage(depth_src);
@@ -596,7 +596,7 @@ public:
             // Forward compositional
             //registerRGBD.swapSourceTarget();
             registerRGBD.setTargetFrame(intensity_trg, depth_trg);
-            registerRGBD.setSourceFrame(intensity_src, depth_src);
+            registerRGBD.setReferenceFrame(intensity_src, depth_src);
 
             registerRGBD.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePose_photo = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();

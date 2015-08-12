@@ -210,11 +210,30 @@ endif()
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/include)
 INCLUDE_DIRECTORIES( ${OpenCV_INCLUDE_DIRS} )
 
-configure_file(${PROJECT_SOURCE_DIR}/config.h.in ${PROJECT_SOURCE_DIR}/include/config.h) 
+SET( CMAKE_TEST_SIMD OFF CACHE BOOL "Enable/disable SIMD tests (SSE, AVX): check that the SIMD functions produce the same result than the standard functions")
+IF (CMAKE_TEST_SIMD)
+	add_definitions(-D_TEST_SIMD=1)
+ELSE (CMAKE_TEST_SIMD)
+	add_definitions(-D_TEST_SIMD=0)
+ENDIF (CMAKE_TEST_SIMD)
+
+SET( CMAKE_ENABLE_OPENMP OFF CACHE BOOL "Enable/disable OpenMP")
+IF (CMAKE_ENABLE_OPENMP)
+	add_definitions(-D_ENABLE_OPENMP=1)
+ELSE (CMAKE_ENABLE_OPENMP)
+	add_definitions(-D_ENABLE_OPENMP=0)
+ENDIF (CMAKE_ENABLE_OPENMP)
+
+SET( CMAKE_PRINT_PROFILING ON CACHE BOOL "Enable/disable Profiling: print the time costs of the functions")
+IF (CMAKE_PRINT_PROFILING)
+	add_definitions(-D_PRINT_PROFILING=1)
+ELSE (CMAKE_PRINT_PROFILING)
+	add_definitions(-D_PRINT_PROFILING=0)
+ENDIF (CMAKE_PRINT_PROFILING)
+#configure_file(${PROJECT_SOURCE_DIR}/config.h.in ${PROJECT_SOURCE_DIR}/include/config.h) 
 
 # Create the DR library (Direct Registration)
 ADD_LIBRARY(DR
-            ${PROJECT_SOURCE_DIR}/include/config.h
             ${PROJECT_SOURCE_DIR}/include/DirectRegistration.h
             ${PROJECT_SOURCE_DIR}/src/DirectRegistration.cpp
             ${PROJECT_SOURCE_DIR}/include/MEstimator.h
