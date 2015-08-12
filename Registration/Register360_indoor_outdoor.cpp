@@ -109,7 +109,7 @@ int main (int argc, char ** argv)
         //cout << "depth_img " << depth_img << endl;
         ASSERT_(fexists(depth_img.c_str()));
         frame360_1->loadDepth(depth_img);
-        //frame360_1->buildPointCloud();
+        frame360_1->buildPointCloud();
     }
     cout << "frame360_1->sphereDepth " << frame360_1->sphereRGB.rows << "x" << frame360_1->sphereRGB.cols << " "
                                        << frame360_1->sphereDepth.rows << "x" << frame360_1->sphereDepth.cols << endl;
