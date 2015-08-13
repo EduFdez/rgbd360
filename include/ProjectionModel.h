@@ -221,16 +221,28 @@ public:
     //Eigen::Matrix<float,2,6>
     computeJacobian26_wTTx(const Eigen::Matrix4f & Rt, const Eigen::Vector3f & xyz, const Eigen::Vector3f & xyz_transf, Eigen::Matrix<float,2,6> &jacobianWarpRt) = 0;
 
+    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
+    virtual void computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_grayGradX, float *_grayGradY) = 0;
 
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
-    virtual void computeJacobiansPhoto(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_gradX, float *_gradY) = 0;
-
-    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
-    virtual void computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_gradDepthX, float *_gradDepthY) = 0;
+    virtual void computeJacobiansDepth(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians, float *_depthGradX, float *_depthGradY) = 0;
 
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
     virtual void computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
                                             Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY) = 0;
+
+    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
+    virtual void computeJacobiansPhotoESM(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians,
+                                          float *_grayGradX, float *_grayGradY, float *_grayWarpGradX, float *_grayWarpGradY) = 0;
+
+    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
+    virtual void computeJacobiansDepthESM(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians,
+                                          float *_depthGradX, float *_depthGradY, float *_depthWarpGradX, float *_depthWarpGradY) = 0;
+
+    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
+    virtual void computeJacobiansPhotoDepthESM(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
+                                                Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY,
+                                                float *_depthWarpGradX, float *_depthWarpGradY, float *_grayWarpGradX, float *_grayWarpGradY) = 0;
 
     /*! Compute the 3Nx6 jacobian matrices of the ICP using the spherical camera model. */
     //void computeJacobiansICP(const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & residualsDepth, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY)

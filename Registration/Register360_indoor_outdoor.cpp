@@ -199,7 +199,7 @@ int main (int argc, char ** argv)
 //    dir_reg.regist_IC(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //    cout << "Pose Dense IC \n" << dir_reg.getOptimalPose() << endl;
 
-    dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    dir_reg.doRegistration(init_guess, DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     cout << "Pose Dense Photo \n" << dir_reg.getOptimalPose() << endl;
     rigidTransf_dense = dir_reg.getOptimalPose();
 
@@ -209,52 +209,53 @@ int main (int argc, char ** argv)
 //    dir_reg.doRegistration(rigidTransf_dense, DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
 //    cout << "Pose Dense Depth Init \n" << dir_reg.getOptimalPose() << endl;
 
-    dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    dir_reg.doRegistration(init_guess, DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     cout << "Pose Dense Depth \n" << dir_reg.getOptimalPose() << endl;
 
-    dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::DIRECT_ICP); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    dir_reg.doRegistration(init_guess, DirectRegistration::DIRECT_ICP); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     cout << "Pose Dense ICP \n" << dir_reg.getOptimalPose() << endl;
 
     
-//    // ICP alignement
-//    double time_start = pcl::getTime();
-//    //  pcl::IterativeClosestPoint<PointT,PointT> icp;
-//    pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
-//    //  pcl::IterativeClosestPointNonLinear<PointT,PointT> icp;
+    // ICP alignement
+    double time_start = pcl::getTime();
+    //  pcl::IterativeClosestPoint<PointT,PointT> icp;
+    pcl::GeneralizedIterativeClosestPoint<PointT,PointT> icp;
+    //  pcl::IterativeClosestPointNonLinear<PointT,PointT> icp;
     
-//    icp.setMaxCorrespondenceDistance (0.4);
-//    icp.setMaximumIterations (10);
-//    icp.setTransformationEpsilon (1e-9);
-//    //  icp.setEuclideanFitnessEpsilon (1);
-//    icp.setRANSACOutlierRejectionThreshold (0.1);
+    icp.setMaxCorrespondenceDistance (0.4);
+    icp.setMaximumIterations (10);
+    icp.setTransformationEpsilon (1e-9);
+    //  icp.setEuclideanFitnessEpsilon (1);
+    icp.setRANSACOutlierRejectionThreshold (0.1);
     
-//    //  // Transformation function
-//    //  boost::shared_ptr<pcl::registration::WarpPointRigid3D<PointT, PointT> > warp_fcn(new pcl::registration::WarpPointRigid3D<PointT, PointT>);
-//    //
-//    //  // Create a TransformationEstimationLM object, and set the warp to it
-//    //  boost::shared_ptr<pcl::registration::TransformationEstimationLM<PointT, PointT> > te(new pcl::registration::TransformationEstimationLM<PointT, PointT>);
-//    //  te->setWarpFunction(warp_fcn);
-//    //
-//    //  // Pass the TransformationEstimation objec to the ICP algorithm
-//    //  icp.setTransformationEstimation (te);
+    //  // Transformation function
+    //  boost::shared_ptr<pcl::registration::WarpPointRigid3D<PointT, PointT> > warp_fcn(new pcl::registration::WarpPointRigid3D<PointT, PointT>);
+    //
+    //  // Create a TransformationEstimationLM object, and set the warp to it
+    //  boost::shared_ptr<pcl::registration::TransformationEstimationLM<PointT, PointT> > te(new pcl::registration::TransformationEstimationLM<PointT, PointT>);
+    //  te->setWarpFunction(warp_fcn);
+    //
+    //  // Pass the TransformationEstimation objec to the ICP algorithm
+    //  icp.setTransformationEstimation (te);
     
-//    // ICP
-//    // Filter the point clouds and remove nan points
-//    FilterPointCloud<PointT> filter(0.1);
-//    filter.filterVoxel(frame360_1->sphereCloud);
-//    filter.filterVoxel(frame360_2->sphereCloud);
+    // ICP
+    // Filter the point clouds and remove nan points
+    FilterPointCloud<PointT> filter(0.1);
+    pcl::PointCloud<PointT>::Ptr sphere_ref(new pcl::PointCloud<PointT>()), sphere_trg(new pcl::PointCloud<PointT>());
+    filter.filterVoxel(frame360_1->sphereCloud, sphere_trg);
+    filter.filterVoxel(frame360_2->sphereCloud, sphere_ref);
     
-//    icp.setInputSource(frame360_2->sphereCloud);
-//    icp.setInputTarget(frame360_1->sphereCloud);
-//    pcl::PointCloud<PointT>::Ptr alignedICP(new pcl::PointCloud<PointT>);
-//    //  Eigen::Matrix4d initRigidTransf = registerer.getPose();
-//    Eigen::Matrix4f initRigidTransf = Eigen::Matrix4f::Identity();
-//    icp.align(*alignedICP, initRigidTransf);
-//    double time_end = pcl::getTime();
-//    std::cout << "ICP took " << double (time_end - time_start) << std::endl;
-//    //std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
-//    Eigen::Matrix4f icpTransformation = icp.getFinalTransformation(); //.cast<double>();
-//    cout << "ICP transformation:\n" << icpTransformation << endl;
+    icp.setInputSource(sphere_ref);
+    icp.setInputTarget(sphere_trg);
+    pcl::PointCloud<PointT>::Ptr alignedICP(new pcl::PointCloud<PointT>);
+    //  Eigen::Matrix4d initRigidTransf = registerer.getPose();
+    Eigen::Matrix4f initRigidTransf = init_guess;
+    icp.align(*alignedICP, initRigidTransf);
+    double time_end = pcl::getTime();
+    std::cout << "ICP took " << double (time_end - time_start) << std::endl;
+    //std::cout << "has converged:" << icp.hasConverged() << " iterations " << icp.countIterations() << " score: " << icp.getFitnessScore() << std::endl;
+    Eigen::Matrix4f icpTransformation = icp.getFinalTransformation(); //.cast<double>();
+    cout << "ICP transformation:\n" << icpTransformation << endl;
     
     // Visualize
 #if VISUALIZE_POINT_CLOUD
@@ -264,7 +265,6 @@ int main (int argc, char ** argv)
     Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
     Map.addKeyframe(frame360_1, pose );
     pose = init_guess;//.cast<double>();
-    pose = rigidTransf_dense;
     Map.addKeyframe(frame360_2, pose );
     Map.vOptimizedPoses = Map.vTrajectoryPoses;
     Map.vOptimizedPoses[1] = rigidTransf_dense;

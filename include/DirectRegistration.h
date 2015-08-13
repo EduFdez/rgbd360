@@ -181,6 +181,8 @@ class DirectRegistration : public Pyramid, MEstimator
     /*! Image gradients on salient pixels (for SIMD computation).*/
     Eigen::VectorXf grayGradX_sal, grayGradY_sal;
     Eigen::VectorXf depthGradX_sal, depthGradY_sal;
+    Eigen::VectorXf grayWarpGradX_sal, grayWarpGradY_sal;
+    Eigen::VectorXf depthWarpGradX_sal, depthWarpGradY_sal;
 
 //    /*! Sensed-Space-Overlap of the registered frames. This is the relation between the co-visible pixels and the total number of pixels in the image.*/
 //    float SSO;

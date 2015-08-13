@@ -906,50 +906,80 @@ void DirectRegistration::calcHessGrad() //( const costFuncType method )
 
     const size_t n_pts = itRef.xyz.rows();
 
-    float stdDevPhoto_inv = 1./stdDevPhoto;
-
-    float *_depthRefGradX = reinterpret_cast<float*>(ref.depthPyr_GradX[currPyrLevel].data);
-    float *_depthRefGradY = reinterpret_cast<float*>(ref.depthPyr_GradY[currPyrLevel].data);
-    float *_grayRefGradX = reinterpret_cast<float*>(ref.grayPyr_GradX[currPyrLevel].data);
-    float *_grayRefGradY = reinterpret_cast<float*>(ref.grayPyr_GradY[currPyrLevel].data);
-
-//    float *_depthTrgGradX = reinterpret_cast<float*>(trg.depthPyr_GradX[currPyrLevel].data);
-//    float *_depthTrgGradY = reinterpret_cast<float*>(trg.depthPyr_GradY[currPyrLevel].data);
-//    float *_grayTrgGradX = reinterpret_cast<float*>(trg.grayPyr_GradX[currPyrLevel].data);
-//    float *_grayTrgGradY = reinterpret_cast<float*>(trg.grayPyr_GradY[currPyrLevel].data);
-
-    // Build the aligned versions of the image derivatives, so that we can benefit from SIMD performance
-    if(use_salient_pixels)
-    {
-        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
-        {
-            _grayRefGradX = &grayGradX_sal(0);
-            _grayRefGradY = &grayGradY_sal(0);
-        }
-        if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
-        {
-            _depthRefGradX = &depthGradX_sal(0);
-            _depthRefGradY = &depthGradY_sal(0);
-        }
-    }
-
     // Compute the Jacobians
-    if(method == PHOTO_DEPTH)
-    {
-        ProjModel_trg->computeJacobiansPhotoDepth(itRef.xyz_tf, stdDevPhoto_inv, itRef.stdDevError_inv, itRef.wEstimDepth, itRef.jacobiansPhoto, itRef.jacobiansDepth,
-                                                    _depthRefGradX, _depthRefGradY, _grayRefGradX, _grayRefGradY);
-    }
-    else if(method == PHOTO_CONSISTENCY)
-    {
-        ProjModel_trg->computeJacobiansPhoto(itRef.xyz_tf, stdDevPhoto_inv, itRef.wEstimPhoto, itRef.jacobiansPhoto, _grayRefGradX, _grayRefGradY);
-    }
-    else if(method == DEPTH_CONSISTENCY)
-    {
-        ProjModel_trg->computeJacobiansDepth(itRef.xyz_tf, itRef.stdDevError_inv, itRef.wEstimDepth, itRef.jacobiansDepth, _depthRefGradX, _depthRefGradY);
-    }
-    else if(method == DIRECT_ICP)
+    if(method == DIRECT_ICP)
     {
         ProjModel_trg->computeJacobiansICP(itRef.xyz_tf, itRef.stdDevError_inv, itRef.wEstimDepth, itRef.jacobiansDepth); //, _depthRefGradX, _depthRefGradY);
+    }
+    else
+    {
+        float stdDevPhoto_inv = 1./stdDevPhoto;
+
+        float *_depthRefGradX = reinterpret_cast<float*>(ref.depthPyr_GradX[currPyrLevel].data);
+        float *_depthRefGradY = reinterpret_cast<float*>(ref.depthPyr_GradY[currPyrLevel].data);
+        float *_grayRefGradX = reinterpret_cast<float*>(ref.grayPyr_GradX[currPyrLevel].data);
+        float *_grayRefGradY = reinterpret_cast<float*>(ref.grayPyr_GradY[currPyrLevel].data);
+
+    //    float *_depthTrgGradX = reinterpret_cast<float*>(trg.depthPyr_GradX[currPyrLevel].data);
+    //    float *_depthTrgGradY = reinterpret_cast<float*>(trg.depthPyr_GradY[currPyrLevel].data);
+    //    float *_grayTrgGradX = reinterpret_cast<float*>(trg.grayPyr_GradX[currPyrLevel].data);
+    //    float *_grayTrgGradY = reinterpret_cast<float*>(trg.grayPyr_GradY[currPyrLevel].data);
+
+        // Build the aligned versions of the image derivatives, so that we can benefit from SIMD performance
+        if(use_salient_pixels)
+        {
+            if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+            {
+                _grayRefGradX = &grayGradX_sal(0);
+                _grayRefGradY = &grayGradY_sal(0);
+            }
+            if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+            {
+                _depthRefGradX = &depthGradX_sal(0);
+                _depthRefGradY = &depthGradY_sal(0);
+            }
+        }
+
+        if(compositional == FC)
+        {
+            if(method == PHOTO_DEPTH)
+                ProjModel_trg->computeJacobiansPhotoDepth(itRef.xyz_tf, stdDevPhoto_inv, itRef.stdDevError_inv, itRef.wEstimDepth, itRef.jacobiansPhoto, itRef.jacobiansDepth,
+                                                          _depthRefGradX, _depthRefGradY, _grayRefGradX, _grayRefGradY);
+            else if(method == PHOTO_CONSISTENCY)
+                ProjModel_trg->computeJacobiansPhoto(itRef.xyz_tf, stdDevPhoto_inv, itRef.wEstimPhoto, itRef.jacobiansPhoto, _grayRefGradX, _grayRefGradY);
+            else if(method == DEPTH_CONSISTENCY)
+                ProjModel_trg->computeJacobiansDepth(itRef.xyz_tf, itRef.stdDevError_inv, itRef.wEstimDepth, itRef.jacobiansDepth, _depthRefGradX, _depthRefGradY);
+        }
+        else if(compositional == ESM)
+        {
+            float *_depthWarpGradX = reinterpret_cast<float*>(ref.depthGradX.data);
+            float *_depthWarpGradY = reinterpret_cast<float*>(ref.depthGradY.data);
+            float *_grayWarpGradX = reinterpret_cast<float*>(ref.grayGradX.data);
+            float *_grayWarpGradY = reinterpret_cast<float*>(ref.grayGradY.data);
+            if(use_salient_pixels)
+            {
+                if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+                {
+                    _grayWarpGradX = &grayGradX_sal(0);
+                    _grayWarpGradY = &grayGradY_sal(0);
+                }
+                if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+                {
+                    _depthWarpGradX = &depthGradX_sal(0);
+                    _depthWarpGradY = &depthGradY_sal(0);
+                }
+            }
+
+            if(method == PHOTO_DEPTH)
+                ProjModel_trg->computeJacobiansPhotoDepthESM(itRef.xyz_tf, stdDevPhoto_inv, itRef.stdDevError_inv, itRef.wEstimDepth, itRef.jacobiansPhoto, itRef.jacobiansDepth,
+                                                          _depthRefGradX, _depthRefGradY, _grayRefGradX, _grayRefGradY, _depthWarpGradX, _depthWarpGradY, _grayWarpGradX, _grayWarpGradY);
+            else if(method == PHOTO_CONSISTENCY)
+                ProjModel_trg->computeJacobiansPhotoESM(itRef.xyz_tf, stdDevPhoto_inv, itRef.wEstimPhoto, itRef.jacobiansPhoto, _grayRefGradX, _grayRefGradY, _grayWarpGradX, _grayWarpGradY);
+            else if(method == DEPTH_CONSISTENCY)
+                ProjModel_trg->computeJacobiansDepthESM(itRef.xyz_tf, itRef.stdDevError_inv, itRef.wEstimDepth, itRef.jacobiansDepth, _depthRefGradX, _depthRefGradY, _depthWarpGradX, _depthWarpGradY);
+        }
+        else
+            ASSERT_(0);
     }
 
     if(visualize)
@@ -1422,6 +1452,10 @@ void DirectRegistration::showImgDiff()
         cv::imshow(win_name_photo_diff, imgDiff);
         //cv::imshow("warp", warped_gray);
 
+        cv::imshow("warped", warped_gray);
+        cv::imshow("ref", ref.grayPyr[currPyrLevel]);
+        cv::imshow("trg", trg.grayPyr[currPyrLevel]);
+
 //                    // Save Abs Diff image
 //                    cv::Mat imgDiff_show, img_warped;
 //                    imgDiff.convertTo(imgDiff_show, CV_8UC1, 255);
@@ -1500,6 +1534,34 @@ void DirectRegistration::extractGradSalient(Eigen::VectorXi & valid_pixels)
             depthGradY_sal(i) = _depthRefGradY[valid_pixels(i)];
         }
     }
+
+    if(compositional == ESM)
+    {
+        if(method == PHOTO_CONSISTENCY || method == PHOTO_DEPTH)
+        {
+            float *_grayWarpGradX = reinterpret_cast<float*>(warped_gray_gradX.data);
+            float *_grayWarpGradY = reinterpret_cast<float*>(warped_gray_gradY.data);
+            grayWarpGradX_sal.resize(n_pts);
+            grayWarpGradY_sal.resize(n_pts);
+            for(size_t i=0; i < n_pts; i++)
+            {
+                grayWarpGradX_sal(i) = _grayWarpGradX[valid_pixels(i)];
+                grayWarpGradY_sal(i) = _grayWarpGradY[valid_pixels(i)];
+            }
+        }
+        if(method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH)
+        {
+            float *_depthWarpGradX = reinterpret_cast<float*>(warped_depth_gradX.data);
+            float *_depthWarpGradY = reinterpret_cast<float*>(warped_depth_gradY.data);
+            depthWarpGradX_sal.resize(n_pts);
+            depthWarpGradY_sal.resize(n_pts);
+            for(size_t i=0; i < n_pts; i++)
+            {
+                depthWarpGradX_sal(i) = _depthWarpGradX[valid_pixels(i)];
+                depthWarpGradY_sal(i) = _depthWarpGradY[valid_pixels(i)];
+            }
+        }
+    }
 }
 
 /*! Only for the sensor RGBD360. Mask the joints between the different images to avoid the high gradients that are the res of using auto-shutter for each camera */
@@ -1576,22 +1638,38 @@ void DirectRegistration::doRegistration(const Matrix4f pose_guess, const costFun
         else
             error = calcHessGradError_IC(pose_estim);
 
-//        warpImage(ref.grayPyr[currPyrLevel], ref.depthPyr[currPyrLevel], trg.grayPyr[currPyrLevel], trg.depthPyr[currPyrLevel], pose_estim, warped_gray, warped_depth);
+//        if(pose_estim != Eigen::Matrix4f::Identity())
+        {
+            warpImage(ref.grayPyr[currPyrLevel], ref.depthPyr[currPyrLevel], trg.grayPyr[currPyrLevel], trg.depthPyr[currPyrLevel], pose_estim, warped_gray, warped_depth);
+            calcGradientXY(warped_gray, ref.grayGradX, ref.grayGradY);
+            calcGradientXY(warped_depth, ref.depthGradX, ref.depthGradY);
+
+            //        float residual = diff * stdDevPhoto_inv;
+            //        itRef.wEstimPhoto(i) = sqrt(weightMEstimator(residual)); // The weight computed by an M-estimator
+
+            //        cv::Mat weights;
+            //        cv::multiply(imgDiff, , weights, 1./stdDevPhoto);
+
+            //        double error2 = cv::norm(imgDiff);
+            //        cout << "Photo error " << error2 << endl;
+        }
+//        else
+//        {
+//            warped_gray = trg.grayPyr[currPyrLevel];
+//            warped_depth = trg.depthPyr[currPyrLevel];
+//            ref.grayGradX = trg.grayPyr_GradX[currPyrLevel];
+//            ref.grayGradY = trg.grayPyr_GradY[currPyrLevel];
+//            ref.depthGradX = trg.depthPyr_GradX[currPyrLevel];
+//            ref.depthGradY = trg.depthPyr_GradY[currPyrLevel];
+//        }
+
+
 //        cv::imshow("warped", warped_gray);
 //        cv::imshow("ref", ref.grayPyr[currPyrLevel]);
 //        cv::imshow("trg", trg.grayPyr[currPyrLevel]);
 //        cv::Mat imgDiff = cv::Mat::zeros(warped_gray.rows, warped_gray.cols, warped_gray.type());
 //        cv::absdiff(ref.grayPyr[currPyrLevel], warped_gray, imgDiff);
 //        cv::imshow("imgDiff", imgDiff);
-
-//        float residual = diff * stdDevPhoto_inv;
-//        itRef.wEstimPhoto(i) = sqrt(weightMEstimator(residual)); // The weight computed by an M-estimator
-
-//        cv::Mat weights;
-//        cv::multiply(imgDiff, , weights, 1./stdDevPhoto);
-
-//        double error2 = cv::norm(imgDiff);
-//        cout << "Photo error " << error2 << endl;
 //        cv::waitKey(0);
 
         double diff_error = error;
@@ -1642,20 +1720,24 @@ void DirectRegistration::doRegistration(const Matrix4f pose_guess, const costFun
             }
 
             // Compute the pose update
-            update_pose = -hessian.inverse() * gradient;
+            if(compositional == ESM)
+                update_pose = -2*(hessian.inverse() * gradient);
+            else
+                update_pose = -hessian.inverse() * gradient;
             // update_pose = -(hessian + lambda*getDiagonalMatrix(hessian)).inverse() * gradient;
             Matrix<double,6,1> update_pose_d = update_pose.cast<double>();
 
 //            if(update_pose.norm() > tol_update_)
 //                break;
 
-            if(compositional != IC)
-                pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d)).getHomogeneousMatrixVal().cast<float>() * pose_estim;
-            else
+            if(compositional == IC)
             {
                 pose_estim_temp = pose_estim * mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d)).getHomogeneousMatrixVal().cast<float>();
                 cout << "pose_estim_temp \n" << pose_estim_temp << endl;
             }
+            else
+                pose_estim_temp = mrpt::poses::CPose3D::exp(mrpt::math::CArrayNumeric<double,6>(update_pose_d)).getHomogeneousMatrixVal().cast<float>() * pose_estim;
+
             //cout << "pose_estim_temp \n" << pose_estim_temp << endl;
 
             double new_error = computeError(pose_estim_temp);

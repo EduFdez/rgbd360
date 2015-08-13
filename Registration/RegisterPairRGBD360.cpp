@@ -272,6 +272,10 @@ int main (int argc, char ** argv)
     dir_reg.useSaliency(false);
     dir_reg.setBilinearInterp(false);
     dir_reg.setCompositionalFormulation(DirectRegistration::IC);
+
+    dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::DIRECT_ICP); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    cout << "Pose Dense IC ICP \n" << dir_reg.getOptimalPose() << endl;
+
     dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     cout << "Pose Dense IC Photo \n" << dir_reg.getOptimalPose() << endl;
 
@@ -281,10 +285,19 @@ int main (int argc, char ** argv)
     dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     cout << "Pose Dense IC \n" << dir_reg.getOptimalPose() << endl;
 
-    dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::DIRECT_ICP); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-    cout << "Pose Dense IC ICP \n" << dir_reg.getOptimalPose() << endl;
+    dir_reg.setCompositionalFormulation(DirectRegistration::ESM);
+
+    dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    cout << "Pose Dense ESM Photo \n" << dir_reg.getOptimalPose() << endl;
+
+    dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    cout << "Pose Dense ESM Depth \n" << dir_reg.getOptimalPose() << endl;
+
+    dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+    cout << "Pose Dense ESM \n" << dir_reg.getOptimalPose() << endl;
 
     dir_reg.useSaliency(true);
+    dir_reg.setCompositionalFormulation(DirectRegistration::IC);
     dir_reg.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
     cout << "Pose Dense IC Photo Saliency \n" << dir_reg.getOptimalPose() << endl;
 
