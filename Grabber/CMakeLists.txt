@@ -1,5 +1,9 @@
 IF(BUILD_GRABBER)
 
+        #OpenNI2
+        LINK_DIRECTORIES(${RGBD360_SOURCE_DIR}/build)
+        LINK_DIRECTORIES(${RGBD360_SOURCE_DIR}/build/OpenNI2/Drivers)
+
 	# Declare the target (an executable)
 	ADD_EXECUTABLE(RGBD360_Grabber RGBD360_Grabber.cpp
 						../OpenNI2_Grabber/third_party/CLAMS/discrete_depth_distortion_model.cpp
@@ -18,9 +22,6 @@ IF(BUILD_GRABBER)
 						libOpenNI2.so
 						libOniFile.so
 						libPS1080.so
-						#../build/libOpenNI2.so
-						#../build/OpenNI2/Drivers/libOniFile.so
-						#../build/OpenNI2/Drivers/libPS1080.so
 					   )
 
 ENDIF(BUILD_GRABBER)

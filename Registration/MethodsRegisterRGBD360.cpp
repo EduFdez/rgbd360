@@ -484,11 +484,13 @@ int main (int argc, char ** argv)
 //    frame360_2.buildPointCloud_fromImage();
     Map.addKeyframe(&frame360_1, pose );
     Map.addKeyframe(&frame360_2, relPosePbMap );
-    Map.vOptimizedPoses = Map.vTrajectoryPoses;
     //  Map.vOptimizedPoses[1] = icpTransformation;
 //    Map.vOptimizedPoses[1] = dense_relPose;
 //    Map.vOptimizedPoses[1] = relPoseDense;
-    Map.vOptimizedPoses[1] = relPoseDenseSphere_ref;
+    vOptimizedPoses.resize(2);
+    vOptimizedPoses[1] = std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >;
+    Map.vOptimizedPoses[1][0] = Map.vOptimizedPoses[0][0];
+    Map.vOptimizedPoses[1][1] = relPoseDenseSphere_ref;
 
     Map360_Visualizer Viewer(Map, 1);
     while (!Viewer.viewer.wasStopped() )

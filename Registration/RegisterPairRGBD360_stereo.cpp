@@ -309,8 +309,10 @@ cout << "frame360_1 " << frame360_1.sphereCloud->width << " " << frame360_1.sphe
 //  pose = align360.getOptimalPose();
   pose = rigidTransf_dense_ref;
   Map.addKeyframe(&frame360_2, pose );
-  Map.vOptimizedPoses = Map.vTrajectoryPoses;
-  Map.vOptimizedPoses[1] = icpTransformation;
+  vOptimizedPoses.resize(2);
+  vOptimizedPoses[1] = std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >;
+  Map.vOptimizedPoses[1][0] = Map.vOptimizedPoses[0][0];
+  Map.vOptimizedPoses[1][1] = icpTransformation;
   Map360_Visualizer Viewer(Map, 1);
   *Viewer.globalMap += *frame360_1.sphereCloud;
   *Viewer.globalMap += *frame360_2.sphereCloud;

@@ -266,8 +266,10 @@ int main (int argc, char ** argv)
     Map.addKeyframe(frame360_1, pose );
     pose = init_guess;//.cast<double>();
     Map.addKeyframe(frame360_2, pose );
-    Map.vOptimizedPoses = Map.vTrajectoryPoses;
-    Map.vOptimizedPoses[1] = rigidTransf_dense;
+    vOptimizedPoses.resize(2);
+    vOptimizedPoses[1] = std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >;
+    Map.vOptimizedPoses[1][0] = Map.vOptimizedPoses[0][0];
+    Map.vOptimizedPoses[1][1] = rigidTransf_dense;
     Map360_Visualizer Viewer(Map,1);
     
     while (!Viewer.viewer.wasStopped() )

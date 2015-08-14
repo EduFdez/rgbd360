@@ -317,17 +317,4 @@ class SphericalModel : public ProjectionModel , MEstimator
     /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation) using the spherical camera model. */
     void computeJacobiansPhotoDepth(const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
                                     Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY);
-
-    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
-    void computeJacobiansPhotoESM ( const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians,
-                                    float *_grayGradX, float *_grayGradY, float *_grayWarpGradX, float *_grayWarpGradY);
-
-    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
-    void computeJacobiansDepthESM ( const Eigen::MatrixXf & xyz_tf, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights, Eigen::MatrixXf & jacobians,
-                                    float *_depthGradX, float *_depthGradY, float *_depthWarpGradX, float *_depthWarpGradY);
-
-    /*! Compute the Nx6 jacobian matrices of the composition (imgGrad+warping+rigidTransformation). */
-    void computeJacobiansPhotoDepthESM( const Eigen::MatrixXf & xyz_tf, const float stdDevPhoto_inv, const Eigen::VectorXf & stdDevError_inv, const Eigen::VectorXf & weights,
-                                        Eigen::MatrixXf & jacobians_photo, Eigen::MatrixXf & jacobians_depth, float *_depthGradX, float *_depthGradY, float *_grayGradX, float *_grayGradY,
-                                        float *_depthWarpGradX, float *_depthWarpGradY, float *_grayWarpGradX, float *_grayWarpGradY);
 };

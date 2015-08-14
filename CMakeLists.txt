@@ -274,10 +274,6 @@ add_definitions(-D_NUM_ASUS_SENSORS=${NUM_ASUS_SENSORS})
 SET( USE_INTRINSIC_CALIB ON CACHE BOOL "Use the intrinsic calibration of the sensor to denoise depth data")
 add_definitions(-D_USE_INTRINSIC_CALIB=${USE_INTRINSIC_CALIB})
 
-#OpenNI2
-LINK_DIRECTORIES(${CMAKE_BINARY_DIR})
-LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/OpenNI2/Drivers)
-
 # Select the "apps" to be built
 SET( BUILD_CALIBRATION OFF CACHE BOOL "Build Calibration tools")
 ADD_SUBDIRECTORY(Calibration)

@@ -498,8 +498,6 @@ void Frame360::buildPointCloud()
     const float max_depth = 20.f;
 
     const float pixel_angle_ = 2*PI / sphereDepth.cols;
-    const float step_phi = pixel_angle_;
-    const int half_height = sphereDepth.rows/2;
     const int half_width = sphereDepth.cols/2;
 
     //  Efficiency: store the values of the trigonometric functions
@@ -556,62 +554,62 @@ void Frame360::buildPointCloud()
 #endif
 }
 
-/*! Build the spherical point cloud. The reference system is the one used by the INRIA SphericalStereo sensor. Z points forward, X points to the right and Y points downwards */
-void Frame360::buildPointCloud2()
-{
-//    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
-//      return;
+///*! Build the spherical point cloud. The reference system is the one used by the INRIA SphericalStereo sensor. Z points forward, X points to the right and Y points downwards */
+//void Frame360::buildPointCloud2()
+//{
+////    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
+////      return;
 
-#if _PRINT_PROFILING
-    cout << " Frame360_stereo::buildPointCloud2... " << endl;
-    double time_start = pcl::getTime();
-#endif
+//#if _PRINT_PROFILING
+//    cout << " Frame360_stereo::buildPointCloud2... " << endl;
+//    double time_start = pcl::getTime();
+//#endif
 
-    sphereCloud->resize(sphereRGB.rows*sphereRGB.cols);
-    sphereCloud->height = sphereRGB.rows;
-    sphereCloud->width = sphereRGB.cols;
-    sphereCloud->is_dense = false;
-    size_t img_size = sphereRGB.rows * sphereRGB.cols;
+//    sphereCloud->resize(sphereRGB.rows*sphereRGB.cols);
+//    sphereCloud->height = sphereRGB.rows;
+//    sphereCloud->width = sphereRGB.cols;
+//    sphereCloud->is_dense = false;
+//    size_t img_size = sphereRGB.rows * sphereRGB.cols;
 
-    SphericalModel proj;
-    Eigen::MatrixXf xyz;
-    Eigen::VectorXi validPixels;
-    proj.reconstruct3D(sphereDepth, xyz, validPixels);
+//    SphericalModel proj;
+//    Eigen::MatrixXf xyz;
+//    Eigen::VectorXi validPixels;
+//    proj.reconstruct3D(sphereDepth, xyz, validPixels);
 
-    //float *depth = sphereDepth.ptr<float>(0);
-    cv::Vec3b *rgb = sphereRGB.ptr<cv::Vec3b>(0);
+//    //float *depth = sphereDepth.ptr<float>(0);
+//    cv::Vec3b *rgb = sphereRGB.ptr<cv::Vec3b>(0);
 
-#if _ENABLE_OPENMP
-    #pragma omp parallel for
-#endif
-    for(size_t i=0; i < img_size; i++)//, row_phi += width_SphereImg)
-    {
-        //if(validPixels(i) >= 0)
-        if(validPixels(i) != -1)
-        {
-            //cout << min_depth << " depth " << *depth << " max_depth " << max_depth << endl;
-            sphereCloud->points[i].x = xyz(i,0);
-            sphereCloud->points[i].y = xyz(i,1);
-            sphereCloud->points[i].z = xyz(i,2);
-            sphereCloud->points[i].r = (*rgb)[2];
-            sphereCloud->points[i].g = (*rgb)[1];
-            sphereCloud->points[i].b = (*rgb)[0];
-        }
-        else
-        {
-            sphereCloud->points[i].x = numeric_limits<float>::quiet_NaN ();
-            sphereCloud->points[i].y = numeric_limits<float>::quiet_NaN ();
-            sphereCloud->points[i].z = numeric_limits<float>::quiet_NaN ();
-        }
-        //++depth;
-        ++rgb;
-    }
+//#if _ENABLE_OPENMP
+//    #pragma omp parallel for
+//#endif
+//    for(size_t i=0; i < img_size; i++)//, row_phi += width_SphereImg)
+//    {
+//        //if(validPixels(i) >= 0)
+//        if(validPixels(i) != -1)
+//        {
+//            //cout << min_depth << " depth " << *depth << " max_depth " << max_depth << endl;
+//            sphereCloud->points[i].x = xyz(i,0);
+//            sphereCloud->points[i].y = xyz(i,1);
+//            sphereCloud->points[i].z = xyz(i,2);
+//            sphereCloud->points[i].r = (*rgb)[2];
+//            sphereCloud->points[i].g = (*rgb)[1];
+//            sphereCloud->points[i].b = (*rgb)[0];
+//        }
+//        else
+//        {
+//            sphereCloud->points[i].x = numeric_limits<float>::quiet_NaN ();
+//            sphereCloud->points[i].y = numeric_limits<float>::quiet_NaN ();
+//            sphereCloud->points[i].z = numeric_limits<float>::quiet_NaN ();
+//        }
+//        //++depth;
+//        ++rgb;
+//    }
 
-#if _PRINT_PROFILING
-    double time_end = pcl::getTime();
-    cout << "Frame360::buildPointCloud2() took " << double (time_end - time_start)*1000 << " ms. \n";
-#endif
-}
+//#if _PRINT_PROFILING
+//    double time_end = pcl::getTime();
+//    cout << "Frame360::buildPointCloud2() took " << double (time_end - time_start)*1000 << " ms. \n";
+//#endif
+//}
 
 /*! Create the PbMap of the spherical point cloud */
 void Frame360::segmentPlanes()

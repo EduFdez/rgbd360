@@ -45,6 +45,7 @@
 #endif
 
 #include <pcl/console/parse.h>
+#include <pcl/common/time.h>
 
 #include <RGBDGrabber_OpenNI2.h>
 
@@ -165,7 +166,7 @@ class RGBD360_Grabber
         RegisterRGBD360 registerer(mrpt::format("%s/config_files/configLocaliser_sphericalOdometry.ini", PROJECT_SOURCE_PATH));
 
         frame360_1->undistort();
-        frame360_1->buildSphereCloud_rgbd360();
+        frame360_1->buildPointCloud_rgbd360();
         frame360_1->getPlanes();
       #endif
 
@@ -209,7 +210,7 @@ class RGBD360_Grabber
         if(VISUALIZE_POINT_CLOUD || PBMAP_ODOMETRY)
         {
           frame360_2->undistort();
-          frame360_2->buildSphereCloud_rgbd360();
+          frame360_2->buildPointCloud_rgbd360();
         }
 
         #if VISUALIZE_POINT_CLOUD

@@ -48,11 +48,10 @@ struct Map360
     std::vector<Frame360*> vpSpheres;
 
     /*! Vector containing the global SE3 poses of vpSpheres (odometry) */
-    std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > vTrajectoryPoses;
+    //std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > vTrajectoryPoses;
 
     /*! Vector of the global SE3 poses optimized with graphSLAM (or pose-graph SLAM)*/
-    std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > vOptimizedPoses;
-    std::vector<std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > > vOptimizedPoses2;
+    std::vector< std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > > vOptimizedPoses;
 
     /*! Vector storing the euclidean distance between of each stored keyframe with respect to the previous one (the first element of the vector is neglected) */
     std::vector<float> vTrajectoryIncrements;
@@ -82,9 +81,8 @@ struct Map360
     Map360() //:
     //    currentArea(0)
     {
-        //    std::set<unsigned> firstArea;
-        //    firstArea.reserve(100);
-        //    vsAreas.push_back(firstArea);
+        vOptimizedPoses.resize(1);
+        vOptimizedPoses[0] = std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >();
     }
 
     /*! Add a new keyframe (sphere+pose) */
@@ -92,8 +90,9 @@ struct Map360
     {
         sphere->pose = pose;
         vpSpheres.push_back(sphere);
-        vTrajectoryPoses.push_back(pose);
-        vOptimizedPoses.push_back(pose);
+        //vTrajectoryPoses.push_back(pose);
+        for(unsigned i=0; i < vOptimizedPoses.size(); i++)
+            vOptimizedPoses[i].push_back(pose);
     }
 };
 
