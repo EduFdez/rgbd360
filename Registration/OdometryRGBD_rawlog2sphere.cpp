@@ -387,6 +387,7 @@ public:
         size_t n_RGBD = 0, n_obs = 0;
 
         bool bGoodRegistration = true;
+        std::vector<std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > > vCurrentPose(0);
         Eigen::Matrix4f currentPose = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f currentPose_photo = Eigen::Matrix4f::Identity();
         Eigen::Matrix4f currentPose_depth = Eigen::Matrix4f::Identity();
@@ -410,6 +411,30 @@ public:
         cv::Mat intensity_src, intensity_trg;
         cv::Mat depth_src, depth_trg;
         CloudRGBD frameRGBD_src, frameRGBD_trg;
+        Frame360 *frame360;
+        cout << "Load sphere \n";
+        if( fileTypeIndoor360.compare( sphere_file.substr(sphere_file.length()-4) ) == 0 )
+        {
+            frame360 = new Frame360(&calib);
+            frame360->loadFrame(sphere_file);
+            frame360->undistort();
+            frame360->stitchSphericalImage();
+            frame360->buildPointCloud_rgbd360();
+            //frame360->segmentPlanes();
+        }
+        else
+        {
+            frame360 = new Frame360;
+            frame360->loadRGB(sphere_file);
+            string depth_img = sphere_file.substr(0, sphere_file.length()-14) + "depth" + sphere_file.substr(sphere_file.length()-11, 7) + ".raw";
+            //cout << "depth_img " << depth_img << endl;
+            ASSERT_(fexists(depth_img.c_str()));
+            frame360->loadDepth(depth_img);
+            frame360->buildPointCloud();
+        }
+        cout << "frame360->sphereDepth " << frame360->sphereRGB.rows << "x" << frame360->sphereRGB.cols << " "
+                                           << frame360->sphereDepth.rows << "x" << frame360->sphereDepth.cols << endl;
+
         bool bFirstFrame = true;
 
         // Initialize Dense registration
@@ -516,7 +541,7 @@ public:
                 intensity_src = cv::Mat(obsRGBD->intensityImage.getAs<IplImage>());
                 //intensity_src = cv::cvarrToMat(obsRGBD->intensityImage.getAs<IplImage>());
                 convertRange_mrpt2cvMat(obsRGBD->rangeImage, depth_src);
-                //registerRGBD.setSourceFrame(intensity_src, depth_src);
+                //registerRGBD.setReferenceFrame(intensity_src, depth_src);
 
                 src.setRGBImage(intensity_src);
                 src.setDepthImage(depth_src);
@@ -527,7 +552,7 @@ public:
                 currentPose_photo = currentPose;
                 currentPose_depth = currentPose;
                 bFirstFrame = false;
-                continue;
+                //continue;
             }
 
             if(bGoodRegistration)
@@ -630,12 +655,29 @@ public:
 //            }
 
             cout << "DirectRegistration \n";
+            vCurrentPose.resize(vCurrentPose.size());
+            vCurrentPose.back() = std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >(3);
 
             // Forward compositional
             //registerRGBD.swapSourceTarget();
-            registerRGBD.setTargetFrame(intensity_trg, depth_trg);
-            registerRGBD.setSourceFrame(intensity_src, depth_src);
+            cout << "Registration to sphere \n";
+            registerRGBD.setReferenceFrame(intensity_src, depth_src);
             registerRGBD.setTargetFrame(frame360->sphereRGB, frame360->sphereDepth);
+
+            registerRGBD.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            vCurrentPose.back()[0] = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
+            cout << "registerRGBD Photo \n" << relativePose_photo << endl;
+
+            registerRGBD.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            relativePose_depth = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
+            cout << "registerRGBD Depth \n" << relativePose_depth << endl;
+
+            registerRGBD.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
+            relativePose = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
+            cout << "registerRGBD \n" << relativePose << endl;
+
+            cout << "Registration odometry \n";
+            registerRGBD.setTargetFrame(intensity_trg, depth_trg);
 
             registerRGBD.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             relativePose_photo = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
@@ -750,13 +792,13 @@ public:
 
 void print_help(char ** argv)
 {
-    cout << "\nThis program performs Visual-Range Odometry by direct RGBD registration using a rawlong sequence recorded by Kinect or Asus XPL.\n\n";
+    cout << "\nRegister a video sequence to a spherical image.\n\n";
 
-    cout << "Usage: " << argv[0] << " <path_to_rawlog_file_dataset> <sampling>\n";
-    cout << "    <path_to_rawlog_file_dataset> the RGBD video sequence" << endl;
-    //cout << "    <pathToResults> is the directory where results should be saved" << endl;
-    cout << "    <sampling> is the sampling step used in the dataset (e.g. 1: all the frames are used " << endl;
-    cout << "                                                              2: each other frame is used " << endl;
+//    cout << "Usage: " << argv[0] << " <path_to_rawlog_file_dataset> <sampling>\n";
+//    cout << "    <path_to_rawlog_file_dataset> the RGBD video sequence" << endl;
+//    //cout << "    <pathToResults> is the directory where results should be saved" << endl;
+//    cout << "    <sampling> is the sampling step used in the dataset (e.g. 1: all the frames are used " << endl;
+//    cout << "                                                              2: each other frame is used " << endl;
     cout << "         " << argv[0] << " -h | --help : shows this help" << endl;
 }
 
