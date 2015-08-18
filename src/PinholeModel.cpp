@@ -557,6 +557,37 @@ void PinholeModel::reconstruct3D_saliency ( const cv::Mat & depth_img, Eigen::Ma
     #endif
 }
 
+/*! Project the given 3D point cloud into a depth image. */
+float PinholeModel::warpDepth(const Eigen::MatrixXf & xyz, cv::Mat & warped_depth) // poseGuess_inv
+//float SphericalModel::warpDepth(const float* depth_trg, const Eigen::Matrix4f & poseGuess, cv::Mat & warped_depth) // poseGuess_inv
+{
+    //ASSERT_(xyz.rows() == warped_depth.rows*warped_depth.cols);
+    float *_warped_depth = warped_depth.ptr<float>(0);
+    size_t n_pts = xyz.rows();
+    size_t nRows_1 = nRows-1;
+    size_t nCols_1 = nCols-1;
+    for(size_t i=0; i < n_pts; i++)
+    {
+        Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
+        cv::Point2f warped_pixel = project2Image(pt_xyz);
+        if( isInImage(warped_pixel.x, warped_pixel.y) )
+        {
+            int r_int = floor(warped_pixel.y);
+            int c_int = floor(warped_pixel.y);
+            size_t pixel = r_int*nCols + c_int;
+            float depth_tf = pt_xyz(2);
+            _warped_depth[pixel] = depth_tf;
+            if(c_int < nCols_1)
+                _warped_depth[pixel+1] = depth_tf;
+            if(r_int < nRows_1)
+            {
+                _warped_depth[pixel+nCols] = depth_tf;
+                if(c_int < nCols_1)
+                    _warped_depth[pixel+nCols+1] = depth_tf;
+            }
+        }
+    }
+}
 
 /*! Project 3D points XYZ according to the pinhole camera model. */
 void PinholeModel::reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray, cv::Mat & warped_gray, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible)
@@ -656,8 +687,8 @@ void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels
 #endif
 
     pixels.resize(xyz.rows(),2);
-    float *_r = &pixels(0,0);
-    float *_c = &pixels(0,1);
+    float *_c = &pixels(0,0);
+    float *_r = &pixels(0,1);
     visible.resize(xyz.rows());
     float *_v = reinterpret_cast<float*>(&visible(0));
 
@@ -674,8 +705,8 @@ void PinholeModel::project(const Eigen::MatrixXf & xyz, Eigen::MatrixXf & pixels
     {
         Vector3f pt_xyz = xyz.block(i,0,1,3).transpose();
         cv::Point2f warped_pixel = project2Image(pt_xyz);
-        pixels(i,0) = warped_pixel.y;
-        pixels(i,1) = warped_pixel.x;
+        pixels(i,0) = warped_pixel.x;
+        pixels(i,1) = warped_pixel.y;
         visible(i) = isInImage(c_transf, r_transf) ? 1 : -1;
     }
 

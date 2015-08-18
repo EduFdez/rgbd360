@@ -54,27 +54,16 @@
 #include <opencv/cv.h>
 //#include <opencv2/opencv.hpp> // which one should I use?
 
-
-typedef pcl::PointXYZRGBA PointT;
+//typedef pcl::PointXYZRGBA PointT;
 
 /*! This class defines the omnidirectional RGB-D frame 'Spieye360'. It contains a serie of attributes and methods to
  *  produce the omnidirectional images, and to obtain the spherical point cloud and a the planar representation for it
  */
-class Spieye360 : public Sphere3D
+class Spieye360 : public virtual Sphere3D
 {
   public:
 
-    /*! Frame ID*/
-    size_t id;
-
-    /*! Topological node where this frame (keyframe) is located */
-    size_t node;
-
-    /*! The angular resolution of a pixel. Normally it is the same along horizontal/vertical (theta/phi) axis. */
-    float pixel_angle_;
-
-    /*! The index referring the latitude in pixels of the first row in the image (the closest to the upper part of the sphere) */
-    int phi_start_pixel_;
+    //Sphere3D *sphere3D;
 
     /*! The NUM_ASUS_SENSORS sets of planes segmented from each camera */
     std::vector<mrpt::pbmap::PbMap> local_planes_;
@@ -82,15 +71,6 @@ class Spieye360 : public Sphere3D
     /*! The NUM_ASUS_SENSORS RGB-D images captured by the omnidirectional device */
     //  FrameRGBD frameRGBD_[NUM_ASUS_SENSORS];
     CloudRGBD_Ext frameRGBD_[NUM_ASUS_SENSORS];
-
-    /*! Pose of this frame */
-    Eigen::Matrix4f pose;
-
-    /*! 3D Point cloud of the spherical frame */
-    pcl::PointCloud<PointT>::Ptr sphereCloud;
-
-    /*! PbMap of the spherical frame */
-    mrpt::pbmap::PbMap planes;
 
     /*! Calibration object */
     Calib360 *calib;
@@ -127,9 +107,6 @@ public:
     /*! Constructor for the sensor RGBD360 (NUM_ASUS_SENSORS Asus XPL)*/
     Spieye360(Calib360 *calib360);
 
-    /*! Return the total area of the planar patches from this frame */
-    float getPlanarArea();
-
     /*! Return the the point cloudgrabbed by the sensor 'id' */
     inline pcl::PointCloud<PointT>::Ptr getCloud_id(int id)
     {
@@ -144,34 +121,11 @@ public:
         return frameRGBD_[id];
     }
 
-    inline pcl::PointCloud<PointT>::Ptr & getSphereCloud()
-    {
-        return sphereCloud;
-    }
-
-    /*! Load a spherical point cloud */
-    void loadCloud(const std::string &pointCloudPath);
-
-    /*! Load a spherical PbMap */
-    void loadPbMap(std::string &pbmapPath);
-
-    /*! Load a spherical frame from its point cloud and its PbMap files */
-    void load_PbMap_Cloud(std::string &pointCloudPath, std::string &pbmapPath);
-
-    /*! Load a spherical frame from its point cloud and its PbMap files */
-    void load_PbMap_Cloud(std::string &path, unsigned &index);
-
     /*! Load a spherical RGB-D image from the raw data stored in a binary file */
     void loadFrame(std::string &binaryFile);
 
     /*! Undistort the omnidirectional depth image using the models acquired with CLAMS */
     void undistort();
-
-    /*! Save the PbMap from an omnidirectional RGB-D image */
-    void savePlanes(std::string pathPbMap);
-
-    /*! Save the pointCloud and PbMap from an omnidirectional RGB-D image */
-    void save(std::string &path, unsigned &frame);
 
     /*! Serialize the omnidirectional RGB-D image */
     void serialize(std::string &fileName);

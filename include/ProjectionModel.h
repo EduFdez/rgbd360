@@ -149,6 +149,9 @@ public:
     virtual inline void getPoint3D(const float *depth_img, const int idx, Eigen::Vector3f & xyz) = 0;
     virtual inline void getPoint3D(const cv::Mat & depth_img, const cv::Point2f warped_pixel, Eigen::Vector3f & xyz) = 0;
 
+    /*! Project the given 3D point cloud into a depth image. */
+    virtual float warpDepth(const Eigen::MatrixXf & xyz, cv::Mat & warped_depth) = 0;
+
     /*! Project 3D points XYZ. */
     virtual inline cv::Point2f project2Image(Eigen::Vector3f & xyz) = 0;
 

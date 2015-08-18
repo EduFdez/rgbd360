@@ -381,7 +381,8 @@ double DirectRegistration::computeError(const Matrix4f & poseGuess)
     const float *_depthRef = reinterpret_cast<float*>(ref.depthPyr[currPyrLevel].data);
     const float *_depthTrg = reinterpret_cast<float*>(trg.depthPyr[currPyrLevel].data);
     float *_grayRef = reinterpret_cast<float*>(ref.grayPyr[currPyrLevel].data);
-    float *_grayTrg = reinterpret_cast<float*>(trg.grayPyr[currPyrLevel].data);
+    //float *_grayTrg = reinterpret_cast<float*>(trg.grayPyr[currPyrLevel].data);
+    float *_grayTrg = trg.grayPyr[currPyrLevel].ptr<float>(0);
 
     //cout << " use_salient_pixels " << use_salient_pixels << " use_bilinear " << use_bilinear << " pts " << itRef.xyz.rows()  << endl;
 
@@ -394,7 +395,8 @@ double DirectRegistration::computeError(const Matrix4f & poseGuess)
 
     //Asign the intensity/depth value to the warped image and compute the difference between the transformed
     //pixel of the ref frame and the corresponding pixel of target frame. Compute the error function
-    if( !use_bilinear || currPyrLevel !=0 || method == DEPTH_CONSISTENCY || method == DIRECT_ICP ) // Only range registration is always performed with nearest-neighbour
+    if( !use_bilinear || method == DEPTH_CONSISTENCY || method == DIRECT_ICP ) // Only range registration is always performed with nearest-neighbour
+    //if( !use_bilinear || currPyrLevel !=0 || method == DEPTH_CONSISTENCY || method == DIRECT_ICP ) // Only range registration is always performed with nearest-neighbour
     {
         // Warp the image
         //ProjModel->projectNN(itRef.xyz_tf, itRef.validPixels, itRef.warp_pixels);
@@ -564,7 +566,16 @@ double DirectRegistration::computeError(const Matrix4f & poseGuess)
         cout << "poseGuess \n" << poseGuess << endl;
 
         // Warp the image
-        ProjModel_trg->project(itRef.xyz, itRef.warp_img, itRef.warp_pixels);
+        ProjModel_trg->project(itRef.xyz_tf, itRef.warp_img, itRef.warp_pixels);
+
+        float *_depthWarped;
+        if(method == PHOTO_DEPTH || method == DEPTH_CONSISTENCY)
+        {
+            warped_depth = cv::Mat(ref.depthPyr[currPyrLevel].rows, ref.depthPyr[currPyrLevel].cols, ref.depthPyr[currPyrLevel].type());
+            transformPts3D(itTrg.xyz, poseGuess_inv, itTrg.xyz_tf);
+            ProjModel->warpDepth(itTrg.xyz_tf, warped_depth);
+            _depthWarped = warped_depth.ptr<float>(0);
+        }
 
         if(method == PHOTO_DEPTH)
         {
@@ -595,16 +606,15 @@ double DirectRegistration::computeError(const Matrix4f & poseGuess)
                         //cout << i << " warp_pixel " << itRef.warp_pixels(i) << " weight " << itRef.wEstimPhoto(i) << " error2_photo " << error2_photo << " diff " << diff << endl;
                     }
 
-                    float depth = _depthTrg[(int)(warped_pixel.y) * ProjModel->nCols + (int)(warped_pixel.x)];
-//                    float depth = ProjModel->bilinearInterp_depth( trg.grayPyr[currPyrLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                    float depth = _depthWarped[itRef.validPixels(i)]; //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                    //float depth = ProjModel->bilinearInterp_depth( trg.grayPyr[currPyrLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
                     if(depth > ProjModel_trg->min_depth_) // if(depth > ProjModel->min_depth_) // Make sure this point has depth (not a NaN)
                     {
                         //if( fabs(_depthTrgGrad[itRef.warp_pixels(i)]) > thres_saliency_depth_ || fabs(_depthTrgGrad[itRef.warp_pixels(i)]) > thres_saliency_depth_)
                         {
                             itRef.validPixelsDepth(i) = 1;
                             itRef.stdDevError_inv(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
-                            //diff_depth(i) = _depthTrg[itRef.validPixels(i)] - ProjModel->getDepth(xyz);
-                            float diff = (this->*calcDepthError)(poseGuess, i, _depthRef, _depthTrg);
+                            float diff = depth - _depthRef[itRef.validPixels(i)];
                             //Vector3f xyz_transf = itRef.xyz_tf.block(i,0,1,3).transpose();
                             //cout << "diff " << diff << " " << (depth - ProjModel->getDepth(xyz_transf)) << endl;
                             float residual = diff * itRef.stdDevError_inv(i);
@@ -642,6 +652,37 @@ double DirectRegistration::computeError(const Matrix4f & poseGuess)
                         error2_photo += itRef.residualsPhoto(i) * itRef.residualsPhoto(i);
                         //v_AD_intensity[i] = fabs(diff);
                         //cout << i << " warp_pixel " << itRef.warp_pixels(i) << " weight " << itRef.wEstimPhoto(i) << " error2_photo " << error2_photo << " diff " << diff << endl;
+                    }
+                }
+            }
+        }
+        else if(method == DEPTH_CONSISTENCY)
+        {
+#if _ENABLE_OPENMP
+#pragma omp parallel for reduction (+:error2_photo,numVisiblePts)//,n_ptsPhoto,n_ptsDepth) // error2, n_ptsPhoto, n_ptsDepth
+#endif
+            for(size_t i=0; i < n_pts; i++)
+            {
+                if( itRef.validPixels(i) != -1 && itRef.warp_pixels(i) != -1 )
+                {
+                    ++numVisiblePts;
+                    float depth = _depthWarped[itRef.validPixels(i)]; //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                    //float depth = ProjModel->bilinearInterp_depth( trg.grayPyr[currPyrLevel], warped_pixel ); //Intensity value of the pixel(r,c) of the warped target (reference) frame
+                    if(depth > ProjModel_trg->min_depth_) // if(depth > ProjModel->min_depth_) // Make sure this point has depth (not a NaN)
+                    {
+                        //if( fabs(_depthTrgGrad[itRef.warp_pixels(i)]) > thres_saliency_depth_ || fabs(_depthTrgGrad[itRef.warp_pixels(i)]) > thres_saliency_depth_)
+                        {
+                            itRef.validPixelsDepth(i) = 1;
+                            itRef.stdDevError_inv(i) = 1 / std::max (stdDevDepth*(depth*depth), stdDevDepth);
+                            float diff = depth - _depthRef[itRef.validPixels(i)];
+                            //Vector3f xyz_transf = itRef.xyz_tf.block(i,0,1,3).transpose();
+                            //cout << "diff " << diff << " " << (depth - ProjModel->getDepth(xyz_transf)) << endl;
+                            float residual = diff * itRef.stdDevError_inv(i);
+                            itRef.wEstimDepth(i) = sqrt(weightMEstimator(residual));
+                            itRef.residualsDepth(i) = itRef.wEstimDepth(i) * residual;
+                            error2_depth += itRef.residualsDepth(i) * itRef.residualsDepth(i);
+                            // cout << i << " error2_depth " << error2_depth << " weight " << itRef.wEstimDepth(i) << " residual " << residual << " stdDevInv " << itRef.stdDevError_inv(i) << endl;
+                        }
                     }
                 }
             }
@@ -1253,7 +1294,7 @@ double DirectRegistration::calcHessGradError_IC(const Eigen::Matrix4f & poseGues
                 //if( itRef.validPixels(i) != -1 && itRef.warp_pixels(i) != -1 )
                 if( itRef.warp_pixels(i) != -1 )
                 {
-                    float depth_ref = _depthRef[itRef.validPixels(i)];
+                    //float depth_ref = _depthRef[itRef.validPixels(i)];
                     float depth = _depthTrg[itRef.warp_pixels(i)];
                     if(depth > ProjModel->min_depth_) // if(depth > ProjModel->min_depth_) // Make sure this point has depth (not a NaN)
                     {
@@ -1634,7 +1675,7 @@ void DirectRegistration::doRegistration(const Matrix4f pose_guess, const costFun
         {
             ProjModel_ref->reconstruct3D(ref.depthPyr[currPyrLevel], itRef.xyz, itRef.validPixels);
         }
-        if(method == DIRECT_ICP || (compositional == IC && (method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH) ) )
+        if( method == DIRECT_ICP || (compositional == IC && (method == DEPTH_CONSISTENCY || method == PHOTO_DEPTH) ) )
             ProjModel_trg->reconstruct3D(trg.depthPyr[currPyrLevel], itTrg.xyz, itTrg.validPixels);
 
         double error;
@@ -1708,7 +1749,7 @@ void DirectRegistration::doRegistration(const Matrix4f pose_guess, const costFun
             }
             //cout << "hessian \n" << hessian.transpose() << endl << "gradient \n" << gradient.transpose() << endl;
 
-            //                assert(hessian.rank() == 6); // Make sure that the problem is observable
+            // assert(hessian.rank() == 6); // Make sure that the problem is observable
             if( hessian.rank() != 6 )
             //if((hessian + lambda*getDiagonalMatrix(hessian)).rank() != 6)
             {

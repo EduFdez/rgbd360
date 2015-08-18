@@ -303,7 +303,7 @@ public:
 //        }
     }
 
-    void run(const string &rawlog_file, const string &sphere_file, const int &selectSample = 1) //const string &path_results,
+    void run(const string &rawlog_file, const string &sphere_file, const int &selectSample = 1, const int &first_frame = 0) //const string &path_results,
     {
         cout << "OdometryRGBD::run() " << selectSample << "\n";
 
@@ -314,6 +314,12 @@ public:
             throw std::runtime_error("\nCouldn't open dataset dataset file for input...");
 
         cout << "dataset size " << dataset.size() << "\n";
+        if(first_frame >= dataset.size())
+        {
+            cout << "First frame: " << first_frame << " is out of the dataset \n";
+            return;
+        }
+
         //dataset_count = 0;
 
         // Set external images directory:
@@ -384,7 +390,7 @@ public:
 
         mrpt::obs::CObservation3DRangeScanPtr obsRGBD;  // The RGBD observation
         //CObservation2DRangeScanPtr laserObs;    // Pointer to the laser observation
-        size_t n_RGBD = 0, n_obs = 0;
+        size_t n_RGBD = 0, n_obs = first_frame;
 
         bool bGoodRegistration = true;
         std::vector<std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > > vCurrentPose(0);
@@ -405,6 +411,11 @@ public:
         change_ref_mrpt(2,1) = -1.f;
         change_ref_mrpt(3,3) = 1.f;
 
+
+        // For the indoor sensor
+        Calib360 calib;
+        calib.loadExtrinsicCalibration();
+        calib.loadIntrinsicCalibration();
 
         //mrpt::math::CMatrix rangeImage;
         //mrpt::utils::CImage intensityImage;
@@ -482,7 +493,6 @@ public:
 //                    rawlogEntry    // Just an I/O counter
 //                    ) )
 
-        //n_obs = dataset.size() - 100; 1014;
         while ( n_obs < dataset.size() )
         {
             observation = dataset.getAsObservation(n_obs);
@@ -517,22 +527,43 @@ public:
 
             cout << "GT pose \n" << gt_pose.getHomogeneousMatrixVal() << endl;
 
-//            // Draw frame
-//            CloudRGBD_Ext cloud;
-//            cloud.setRGBImage( cv::Mat(obsRGBD->intensityImage.getAs<IplImage>()) );
-//            cv::Mat depth_mat;
-//            convertRange_mrpt2cvMat(obsRGBD->rangeImage, depth_mat);
-//            cloud.setDepthImage(depth_mat);
-//            cloud.getPointCloud();
+            // Draw frame
+            CloudRGBD_Ext cloud;
+            cloud.setRGBImage( cv::Mat(obsRGBD->intensityImage.getAs<IplImage>()) );
+            cv::Mat depth_mat;
+            convertRange_mrpt2cvMat(obsRGBD->rangeImage, depth_mat);
+            cloud.setDepthImage(depth_mat);
+            cloud.getPointCloud();
 
-//            RGBD_Visualizer cloud_viewer(cloud.getPointCloud());
-//            while (!cloud_viewer.viewer.wasStopped ())
-//                boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+            RGBD_Visualizer cloud_viewer(cloud.getPointCloud());
+            while (!cloud_viewer.viewer.wasStopped ())
+                boost::this_thread::sleep (boost::posix_time::milliseconds (10));
 
-//            cv::imshow( "img_", cloud.getRGBImage( ) );
-//            cv::imshow( "depth_", cloud.getDepthImage( ) );
-//            while (cv::waitKey(1)!='\n')
-//                boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+            cv::imshow( "img_", cloud.getRGBImage( ) );
+            cv::imshow( "depth_", cloud.getDepthImage( ) );
+            while (cv::waitKey(1)!='\n')
+                boost::this_thread::sleep (boost::posix_time::milliseconds (10));
+
+
+            //    // Visualize images
+            //    {
+            //        cv::Mat sphDepthVis1;
+            //        frame360_1->sphereDepth.convertTo( sphDepthVis1, CV_8U, 10 ); //CV_16UC1
+            //        cv::imshow( "sphereDepth1", sphDepthVis1 );
+            //        cv::imshow( "frame360_1", frame360_1->sphereRGB );
+
+            //        cv::Mat sphDepthVis2;
+            //        frame360_2->sphereDepth.convertTo( sphDepthVis2, CV_8U, 10 ); //CV_16UC1
+            //        cv::imshow( "sphereDepth2", sphDepthVis2 );
+            //        cv::imshow( "frame360_2", frame360_2->sphereRGB );
+            //        cv::waitKey(0);
+
+            //        cv::destroyWindow("sphereDepth1");
+            //        cv::destroyWindow("frame360_1");
+            //        cv::destroyWindow("sphereDepth2");
+            //        cv::destroyWindow("frame360_2");
+            //    }
+
 
             if( bFirstFrame )
             {
@@ -666,15 +697,15 @@ public:
 
             registerRGBD.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
             vCurrentPose.back()[0] = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
-            cout << "registerRGBD Photo \n" << relativePose_photo << endl;
+            cout << "registerRGBD-Sphere Photo \n" << registerRGBD.getOptimalPose() << endl;
 
             registerRGBD.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::DEPTH_CONSISTENCY); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            relativePose_depth = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
-            cout << "registerRGBD Depth \n" << relativePose_depth << endl;
+            vCurrentPose.back()[1] = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
+            cout << "registerRGBD-Sphere Depth \n" << registerRGBD.getOptimalPose() << endl;
 
             registerRGBD.doRegistration(Eigen::Matrix4f::Identity(), DirectRegistration::PHOTO_DEPTH); // PHOTO_CONSISTENCY / DEPTH_CONSISTENCY / PHOTO_DEPTH  Matrix4f relPoseDense = registerer.getPose();
-            relativePose = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
-            cout << "registerRGBD \n" << relativePose << endl;
+            vCurrentPose.back()[2] = change_ref_mrpt * registerRGBD.getOptimalPose() * change_ref_mrpt.inverse();
+            cout << "registerRGBD-Sphere \n" << registerRGBD.getOptimalPose() << endl;
 
             cout << "Registration odometry \n";
             registerRGBD.setTargetFrame(intensity_trg, depth_trg);
@@ -806,7 +837,7 @@ int main (int argc, char ** argv)
 {
     try
     {
-        if(argc < 3 || argc > 4 || pcl::console::find_switch(argc, argv, "-h") || pcl::console::find_switch(argc, argv, "--help"))
+        if(argc < 3 || argc > 5 || pcl::console::find_switch(argc, argv, "-h") || pcl::console::find_switch(argc, argv, "--help"))
         {
             print_help(argv);
             return 0;
@@ -816,12 +847,16 @@ int main (int argc, char ** argv)
         const string SPHERE_FILENAME = static_cast<string>(argv[2]);
 
         int sampling = 1;
-        if(argc > 2)
+        if(argc > 3)
             sampling = atoi(argv[3]);
+
+        int first_frame = 0;
+        if(argc > 4)
+            first_frame = atoi(argv[4]);
 
         cout << "Create OdometryRGBD object\n";
         OdometryRGBD OdometryRGBD;
-        OdometryRGBD.run(RAWLOG_FILENAME, SPHERE_FILENAME, sampling);
+        OdometryRGBD.run(RAWLOG_FILENAME, SPHERE_FILENAME, sampling, first_frame);
 
         cout << " EXIT\n";
 

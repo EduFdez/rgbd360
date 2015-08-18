@@ -30,124 +30,22 @@
  * Author: Eduardo Fernandez-Moral
  */
 
-#include <Frame360.h>
-#include <SphericalModel.h>
-#include <Miscellaneous.h>
-#include <params_plane_segmentation.h>
-
-#include <mrpt/system/os.h>
-
-#include <opencv/highgui.h>
-
-#include <pcl/io/io.h>
-#include <pcl/io/pcd_io.h> //Save global map as PCD file
-#include <pcl/features/integral_image_normal.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/ModelCoefficients.h>
-#include <pcl/segmentation/planar_region.h>
-#include <pcl/segmentation/organized_multi_plane_segmentation.h>
-#include <pcl/segmentation/organized_connected_component_segmentation.h>
-#include <pcl/filters/extract_indices.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/common/transforms.h>
-#include <pcl/common/time.h>
-#include <boost/thread/thread.hpp>
-#include <pcl/filters/fast_bilateral.h>
-#include <pcl/filters/fast_bilateral_omp.h>
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/segmentation/sac_segmentation.h>
-
-#include <DownsampleRGBD.h>
-#include <FilterPointCloud.h>
+#include <Spieye360.h>
 
 #ifdef _ENABLE_OPENMP
     #include <omp.h>
 #endif
 
-//typedef pcl::PointXYZRGBA PointT;
-
 using namespace std;
 
-/*! Constructor for the SphericalStereo sensor (outdoor sensor) */
-Frame360::Frame360() :
-    node(0),
-    sphereCloud(new pcl::PointCloud<PointT>())
-    //    bSphereCloudBuilt(false),
-{
-
-}
-
 /*! Constructor for the sensor RGBD360 (NUM_ASUS_SENSORS Asus XPL)*/
-Frame360::Frame360(Calib360 *calib360) :
-    node(0),
-    sphereCloud(new pcl::PointCloud<PointT>()),
+Spieye360::Spieye360(Calib360 *calib360) :
     calib(calib360)
-    //    bSphereCloudBuilt(false),
 {
-    local_planes_.resize(NUM_ASUS_SENSORS);
-    for(unsigned sensor_id=0; sensor_id<NUM_ASUS_SENSORS; sensor_id++)
-    {
-        cloud_[sensor_id].reset(new pcl::PointCloud<PointT>());
-    }
-}
-
-/*! Return the total area of the planar patches from this frame */
-float Frame360::getPlanarArea()
-{
-    float planarArea = 0;
-    for(unsigned i = 0; i < planes.vPlanes.size(); i++)
-        planarArea += planes.vPlanes[i].areaHull;
-
-    return planarArea;
-}
-
-/*! Load a spherical point cloud */
-void Frame360::loadCloud(const string &pointCloudPath)
-{
-    // Load pointCloud
-    sphereCloud.reset(new pcl::PointCloud<pcl::PointXYZRGBA>);
-    pcl::PCDReader reader;
-    reader.read (pointCloudPath, *sphereCloud);
-}
-
-/*! Load a spherical PbMap */
-void Frame360::loadPbMap(string &pbmapPath)
-{
-    // Load planes
-    mrpt::utils::CFileGZInputStream serialize_planes;
-    if (serialize_planes.open(pbmapPath))
-    {
-        serialize_planes >> planes;
-#if _PRINT_PROFILING
-        cout << planes.vPlanes.size() << " planes loaded\n";
-#endif
-    }
-    else
-        cout << "Error: cannot open " << pbmapPath << "\n";
-    serialize_planes.close();
-}
-
-/*! Load a spherical frame from its point cloud and its PbMap files */
-void Frame360::load_PbMap_Cloud(string &pointCloudPath, string &pbmapPath)
-{
-    // Load pointCloud
-    loadCloud(pointCloudPath);
-
-    // Load planes
-    loadPbMap(pbmapPath);
-}
-
-/*! Load a spherical frame from its point cloud and its PbMap files */
-void Frame360::load_PbMap_Cloud(string &path, unsigned &index)
-{
-    string pointCloudPath = path + mrpt::format("/sphereCloud_%u.pcd", index);
-    string pbmapPath = path + mrpt::format("/spherePlanes_%u.pbmap", index);
-    load_PbMap_Cloud(pointCloudPath, pbmapPath);
 }
 
 /*! Load a spherical RGB-D image from the raw data stored in a binary file */
-void Frame360::loadFrame(string &binaryFile)
+void Spieye360::loadFrame(string &binaryFile)
 {
 #if _PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -187,15 +85,15 @@ void Frame360::loadFrame(string &binaryFile)
 
 #if _PRINT_PROFILING
     double time_end = pcl::getTime();
-    cout << "Load Frame360 took " << double (time_end - time_start) << endl;
+    cout << "Load Spieye360 took " << double (time_end - time_start) << endl;
 #endif
 }
 
 /*! Undistort the omnidirectional depth image using the models acquired with CLAMS */
-void Frame360::undistort()
+void Spieye360::undistort()
 {
     double time_start = pcl::getTime();
-    //    cout << "Undistort Frame360\n";
+    //    cout << "Undistort Spieye360\n";
 
 #pragma omp parallel num_threads(NUM_ASUS_SENSORS)
     {
@@ -206,13 +104,13 @@ void Frame360::undistort()
 
     //#if _PRINT_PROFILING
     double time_end = pcl::getTime();
-    cout << "Undistort Frame360 took " << double (time_end - time_start) << endl;
+    cout << "Undistort Spieye360 took " << double (time_end - time_start) << endl;
     //#endif
 
 }
 
 /*! Save the PbMap from an omnidirectional RGB-D image */
-void Frame360::savePlanes(string pathPbMap)
+void Spieye360::savePlanes(string pathPbMap)
 {
     mrpt::utils::CFileGZOutputStream serialize_planesLabeled(pathPbMap);
     serialize_planesLabeled << planes;
@@ -220,7 +118,7 @@ void Frame360::savePlanes(string pathPbMap)
 }
 
 /*! Save the pointCloud and PbMap from an omnidirectional RGB-D image */
-void Frame360::save(string &path, unsigned &frame)
+void Spieye360::save(string &path, unsigned &frame)
 {
     assert(!sphereCloud->empty() && planes.vPlanes.size() > 0);
 
@@ -232,7 +130,7 @@ void Frame360::save(string &path, unsigned &frame)
 }
 
 /*! Serialize the omnidirectional RGB-D image */
-void Frame360::serialize(string &fileName)
+void Spieye360::serialize(string &fileName)
 {
     ofstream ofs_images(fileName.c_str(), ios::out | ios::binary);
     boost::archive::binary_oarchive oa_images(ofs_images);
@@ -247,7 +145,7 @@ void Frame360::serialize(string &fileName)
 }
 
 /*! Concatenate the different RGB-D images to obtain the omnidirectional one (stich images without using the spherical representation) */
-void Frame360::fastStitchImage360() // Parallelized with OpenMP
+void Spieye360::fastStitchImage360() // Parallelized with OpenMP
 {
 #if _PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -287,7 +185,7 @@ void Frame360::fastStitchImage360() // Parallelized with OpenMP
 }
 
 /*! Stitch RGB-D image using a spherical representation. The sensor 4 is looking forward in our robot platform, thus it is set in the center of the image */
-void Frame360::stitchSphericalImage(const int depth_type) // Parallelized with OpenMP
+void Spieye360::stitchSphericalImage(const int depth_type) // Parallelized with OpenMP
 {
     //        cout << "stitchSphericalImage\n";
     double time_start = pcl::getTime();
@@ -312,7 +210,7 @@ void Frame360::stitchSphericalImage(const int depth_type) // Parallelized with O
 }
 
 /*! Downsample and filter the individual point clouds from the different Asus XPL */
-void Frame360::buildCloudsDownsampleAndFilter()
+void Spieye360::buildCloudsDownsampleAndFilter()
 {
     double time_start = pcl::getTime();
 
@@ -342,7 +240,7 @@ void Frame360::buildCloudsDownsampleAndFilter()
 }
 
 /*! Build the cloud from the 'sensor_id' Asus XPL */
-void Frame360::buildCloud_id(int sensor_id)
+void Spieye360::buildCloud_id(int sensor_id)
 {
     pcl::FastBilateralFilter<pcl::PointXYZRGBA> filter;
     filter.setSigmaS (10.0);
@@ -373,7 +271,7 @@ void Frame360::buildCloud_id(int sensor_id)
 /*! Build the spherical point cloud by superimposing the NUM_ASUS_SENSORS point clouds from the NUM_ASUS_SENSORS Asus XPL
  * Z -> Forward, X -> Upwards, X -> Rightwards
  */
-void Frame360::buildPointCloud_rgbd360()
+void Spieye360::buildPointCloud_rgbd360()
 {
     //    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
     //      return;
@@ -448,7 +346,7 @@ void Frame360::buildPointCloud_rgbd360()
 }
 
 /*! Fast version of the method 'buildPointCloud'. This one performs more poorly for plane segmentation. */
-void Frame360::buildPointCloud_fast()
+void Spieye360::buildPointCloud_fast()
 {
 #if _PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -483,13 +381,13 @@ void Frame360::buildPointCloud_fast()
 }
 
 /*! Build the spherical point cloud. The reference system is the one used by the INRIA SphericalStereo sensor. Z points forward, X points to the right and Y points downwards */
-void Frame360::buildPointCloud()
+void Spieye360::buildPointCloud()
 {
 //    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
 //      return;
 
 #if _PRINT_PROFILING
-    cout << " Frame360_stereo::buildPointCloud... " << endl;
+    cout << " Spieye360_stereo::buildPointCloud... " << endl;
     double time_start = pcl::getTime();
 #endif
 
@@ -553,18 +451,18 @@ void Frame360::buildPointCloud()
 
 #if _PRINT_PROFILING
     double time_end = pcl::getTime();
-    cout << "Frame360::buildPointCloud() took " << double (time_end - time_start)*1000 << " ms. \n";
+    cout << "Spieye360::buildPointCloud() took " << double (time_end - time_start)*1000 << " ms. \n";
 #endif
 }
 
 ///*! Build the spherical point cloud. The reference system is the one used by the INRIA SphericalStereo sensor. Z points forward, X points to the right and Y points downwards */
-//void Frame360::buildPointCloud2()
+//void Spieye360::buildPointCloud2()
 //{
 ////    if(bSphereCloudBuilt) // Avoid building twice the spherical point cloud
 ////      return;
 
 //#if _PRINT_PROFILING
-//    cout << " Frame360_stereo::buildPointCloud2... " << endl;
+//    cout << " Spieye360_stereo::buildPointCloud2... " << endl;
 //    double time_start = pcl::getTime();
 //#endif
 
@@ -610,14 +508,14 @@ void Frame360::buildPointCloud()
 
 //#if _PRINT_PROFILING
 //    double time_end = pcl::getTime();
-//    cout << "Frame360::buildPointCloud2() took " << double (time_end - time_start)*1000 << " ms. \n";
+//    cout << "Spieye360::buildPointCloud2() took " << double (time_end - time_start)*1000 << " ms. \n";
 //#endif
 //}
 
 /*! Create the PbMap of the spherical point cloud */
-void Frame360::segmentPlanes()
+void Spieye360::segmentPlanes()
 {
-    cout << "Frame360.segmentPlanes()\n";
+    cout << "Spieye360.segmentPlanes()\n";
 
 #if _PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -651,7 +549,7 @@ void Frame360::segmentPlanes()
 }
 
 /*! Segment planes in each of the separate point clouds correspondint to each Asus XPL */
-void Frame360::segmentPlanesLocal()
+void Spieye360::segmentPlanesLocal()
 {
     //double time_start = pcl::getTime();
     cout << "segmentPlanesLocal() " << NUM_ASUS_SENSORS << endl;
@@ -668,7 +566,7 @@ void Frame360::segmentPlanesLocal()
 }
 
 /*! Merge the planar patches that correspond to the same surface in the sphere */
-void Frame360::mergePlanes()
+void Spieye360::mergePlanes()
 {
 #if _PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -755,7 +653,7 @@ void Frame360::mergePlanes()
 }
 
 /*! Group the planes segmented from each single sensor into the common PbMap 'planes' */
-void Frame360::groupPlanes()
+void Spieye360::groupPlanes()
 {
     //  cout << "groupPlanes...\n";
     //double time_start = pcl::getTime();
@@ -850,7 +748,7 @@ void Frame360::groupPlanes()
 /*! This function segments planes from the point cloud corresponding to the sensor 'sensor_id',
       in its local frame of reference
   */
-void Frame360::segmentPlanesLocalCam(int sensor_id)
+void Spieye360::segmentPlanesLocalCam(int sensor_id)
 {
     // Segment planes
     //cout << sensor_id << " segmentPlanesLocalCam \n";
@@ -955,7 +853,7 @@ void Frame360::segmentPlanesLocalCam(int sensor_id)
 /*! This function segments planes from the point cloud corresponding to the sensor 'sensor_id',
       in the frame of reference of the omnidirectional camera
   */
-void Frame360::segmentPlanesSensor(int sensor_id)
+void Spieye360::segmentPlanesSensor(int sensor_id)
 {
     // Segment planes
     //    cout << "extractPlaneFeatures, size " << frameRGBD_[sensor_id].getPointCloud()->size() << "\n";
@@ -1115,7 +1013,7 @@ void Frame360::segmentPlanesSensor(int sensor_id)
 }
 
 /*! Undistort the depth image corresponding to the sensor 'sensor_id' */
-void Frame360::undistortDepthSensor(int sensor_id)
+void Spieye360::undistortDepthSensor(int sensor_id)
 {
 #if _PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -1132,7 +1030,7 @@ void Frame360::undistortDepthSensor(int sensor_id)
 }
 
 /*! Stitch both the RGB and the depth images corresponding to the sensor 'sensor_id' */
-void Frame360::stitchImage(int sensor_id)
+void Spieye360::stitchImage(int sensor_id)
 {
     //The sensor 4 is looking forward in our robot platform, thus it is set in the center of the image
     Eigen::Vector3f virtualPoint, pointFromCamera;
@@ -1198,109 +1096,9 @@ void Frame360::stitchImage(int sensor_id)
     }
 }
 
-// Functions for SphereStereo images (outdoors)
-/*! Load a spherical RGB-D image from the raw data stored in a binary file */
-void Frame360::loadDepth (const string &binaryDepthFile, const cv::Mat * mask)
-{
-#if _PRINT_PROFILING
-    double time_start = pcl::getTime();
-#endif
-
-    ifstream file (binaryDepthFile.c_str(), ios::in | ios::binary);
-    if (file)
-    {
-        char *header_property = new char[2]; // Read height_ and width_
-        file.seekg (0, ios::beg);
-        file.read (header_property, 2);
-        unsigned short *height = reinterpret_cast<unsigned short*> (header_property);
-        height_ = *height;
-
-        //file.seekg (2, ios::beg);
-        file.read (header_property, 2);
-        unsigned short *width = reinterpret_cast<unsigned short*> (header_property);
-        width_ = *width;
-        //cout << "height_ " << height_ << " width_ " << width_ << endl;
-
-        cv::Mat sphereDepth_aux(width_, height_, CV_32FC1);
-        char *mem_block = reinterpret_cast<char*>(sphereDepth_aux.data);
-        streampos size = height_*width_*4; // file.tellg() - streampos(4); // Header is 4 bytes: 2 unsigned short for height and width
-        //file.seekg (4, ios::beg);
-        file.read (mem_block, size);
-
-        //            cv::Mat sphereDepth_aux2(height_, width_, CV_32FC1);
-        //            for(int i = 0; i < height_; i++)
-        //                for(int j = 0; j < width_; j++)
-        //                    sphereDepth_aux2.at<float>(i,j) = *(reinterpret_cast<float*>(mem_block + 4*(j*height_+i)));
-        //            cv::imshow( "sphereDepth", sphereDepth_aux2 );
-        //            cv::waitKey(0);
-
-        //Close the binary bile
-        file.close();
-        // sphereDepth.create(height_, width_, sphereDepth_aux.type());
-        // cv::transpose(sphereDepth_aux, sphereDepth);
-        //sphereDepth.create(640, width_, sphereDepth_aux.type());
-        //cv::Rect region_of_interest = cv::Rect(8, 0, 640, width_); // Select only a portion of the image with height = 640 to facilitate the pyramid constructions
-        sphereDepth.create(512, width_, sphereDepth_aux.type() );
-        cv::Rect region_of_interest_transp = cv::Rect(90, 0, 512, width_); // Select only a portion of the image with height = width/4 (90 deg) with the FOV centered at the equator. This increases the performance of dense registration at the cost of losing some details from the upper/lower part of the images, which generally capture the sky and the floor.
-        cv::transpose(sphereDepth_aux(region_of_interest_transp), sphereDepth); // The saved image is transposed wrt to the RGB img!
-
-        //cv::imshow( "sphereDepth", sphereDepth );
-        //cv::waitKey(0);
-
-        if (mask && sphereDepth_aux.rows == mask->cols && sphereDepth_aux.cols == mask->rows){
-            cv::Mat aux;
-            cv::Rect region_of_interest = cv::Rect(0, 90, width_, 512); // This region of interest is the transposed of the above one (depth images are saved in disk as ColMajor)
-            //cv::Rect region_of_interest = cv::Rect(0, 8, width_, 640);
-            sphereDepth.copyTo(aux, (*mask)(region_of_interest) );
-            sphereDepth = aux;
-        }
-        // cout << "height_ " << sphereDepth.rows << " width_ " << sphereDepth.cols << endl;
-        //cv::imshow( "sphereDepth", sphereDepth );
-        //cv::waitKey(0);
-    }
-    else
-        cerr << "File: " << binaryDepthFile << " does NOT EXIST.\n";
-
-    //    bSphereCloudBuilt = false; // The spherical PointCloud of the frame just loaded is not built yet
-
-#if _PRINT_PROFILING
-    double time_end = pcl::getTime();
-    cout << "loadDepth took " << double (time_end - time_start) << endl;
-#endif
-}
-
-/*! Load a spherical RGB-D image from the raw data stored in a binary file */
-void Frame360::loadRGB(string &fileNamePNG)
-{
-#if _PRINT_PROFILING
-    double time_start = pcl::getTime();
-#endif
-
-    ifstream file (fileNamePNG.c_str(), ios::in | ios::binary);
-    if (file)
-    {
-        //            sphereRGB = cv::imread (fileNamePNG.c_str(), CV_LOAD_IMAGE_COLOR); // Full size 665x2048
-
-        cv::Mat sphereRGB_aux = cv::imread (fileNamePNG.c_str(), CV_LOAD_IMAGE_COLOR);
-        width_ = sphereRGB_aux.cols;
-        sphereRGB.create(512, width_, sphereRGB_aux.type ());
-        //sphereRGB.create(640, width_, sphereRGB_aux.type () );
-        cv::Rect region_of_interest = cv::Rect(0,90, width_, 512); // Select only a portion of the image with height = width/4 (90 deg) with the FOV centered at the equator. This increases the performance of dense registration at the cost of losing some details from the upper/lower part of the images, which generally capture the sky and the floor.
-        //cv::Rect region_of_interest = cv::Rect(0, 8, width_, 640); // Select only a portion of the image with height = 640 to facilitate the pyramid constructions
-        sphereRGB = sphereRGB_aux (region_of_interest); // Size 640x2048
-    }
-    else
-        cerr << "File: " << fileNamePNG << " does NOT EXIST.\n";
-
-#if _PRINT_PROFILING
-    double time_end = pcl::getTime();
-    cout << "loadRGB took " << double (time_end - time_start) << endl;
-#endif
-}
-
 /*! Perform bilateral filtering on the point cloud
     */
-void Frame360::filterCloudBilateral_stereo()
+void Spieye360::filterCloudBilateral_stereo()
 {
 #if _PRINT_PROFILING
     double time_start = pcl::getTime();
@@ -1325,7 +1123,7 @@ void Frame360::filterCloudBilateral_stereo()
 
 /*! This function segments planes from the point cloud
     */
-void Frame360::segmentPlanesStereo()
+void Spieye360::segmentPlanesStereo()
 {
     // Segment planes
     //    cout << "extractPlaneFeatures, size " << sphereCloud->size() << "\n";
@@ -1477,7 +1275,7 @@ void Frame360::segmentPlanesStereo()
 /*! This function segments planes from the point cloud corresponding to the sensor 'sensor_id',
       in the frame of reference of the omnidirectional camera
   */
-void Frame360::segmentPlanesStereoRANSAC()
+void Spieye360::segmentPlanesStereoRANSAC()
 {
     // Segment planes
     //    cout << "extractPlaneFeatures, size " << sphereCloud->size() << "\n";
@@ -1593,7 +1391,7 @@ void Frame360::segmentPlanesStereoRANSAC()
 }
 
 /*! Compute the normalMap from an organized cloud of normal vectors. */
-void Frame360::computeNormalMap(const pcl::PointCloud<pcl::Normal>::Ptr & normal_cloud, cv::Mat & normalMap, const bool display)
+void Spieye360::computeNormalMap(const pcl::PointCloud<pcl::Normal>::Ptr & normal_cloud, cv::Mat & normalMap, const bool display)
 {
     normalMap.create(sphereCloud->height, sphereCloud->width, CV_8UC3);
     for(size_t r=0; r < sphereCloud->height; ++r)

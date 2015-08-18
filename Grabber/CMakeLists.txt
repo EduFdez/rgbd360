@@ -1,7 +1,7 @@
 IF(BUILD_GRABBER)
 
         #OpenNI2
-        LINK_DIRECTORIES(${RGBD360_SOURCE_DIR}/build)
+        #LINK_DIRECTORIES(${RGBD360_SOURCE_DIR}/build)
         LINK_DIRECTORIES(${RGBD360_SOURCE_DIR}/build/OpenNI2/Drivers)
 
 	# Declare the target (an executable)

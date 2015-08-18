@@ -1,28 +1,56 @@
 #include <stdio.h>
-#include <iostream>     // std::cout
-void my_int_func(int x)
+#include <smmintrin.h>
+#include <math.h>       /* round, floor, ceil, trunc */
+
+int main ()
 {
-    printf( "%d\n", x );
-}
+    __m128 a;
+    a[0] = 8.9375;
+    a[1] = 4.125;
+    a[2] = -7.875;
+    a[3] = 0.5;
 
+    const int cntrl = _MM_FROUND_NINT;
+    __m128 res = _mm_round_ps(a, cntrl);
 
-int main()
-{
-    void (*foo)(int);
-    foo = &my_int_func;
+    printf("Original a: %f\t%f\t%f\t%f\n",
+             a[0], a[1], a[2], a[3]);
+    printf("Result res: %f\t%f\t%f\t%f\n",
+             res[0], res[1], res[2], res[3]);
 
-    double a[5];
-    int b[5];
-    short int c[5];
-    std::cout << " Data lenght " << "a: " << sizeof(double) << " b: " << sizeof(float) << " c: " << sizeof(int) << " c: " << sizeof(short int) << " c: " << sizeof(long int) << " \n";
-
-    /* call my_int_func (note that you do not need to write (*foo)(2) ) */
-    foo( 2 );
-    /* but if you want to, you may */
-    (*foo)( 2 );
+    float b = round(0.499999f);
+    printf("b: %f\n", b);
 
     return 0;
 }
+
+//-------------------------------------------------------------------------------------------------
+
+//#include <stdio.h>
+//#include <iostream>     // std::cout
+//void my_int_func(int x)
+//{
+//    printf( "%d\n", x );
+//}
+
+
+//int main()
+//{
+//    void (*foo)(int);
+//    foo = &my_int_func;
+
+//    double a[5];
+//    int b[5];
+//    short int c[5];
+//    std::cout << " Data lenght " << "a: " << sizeof(double) << " b: " << sizeof(float) << " c: " << sizeof(int) << " c: " << sizeof(short int) << " c: " << sizeof(long int) << " \n";
+
+//    /* call my_int_func (note that you do not need to write (*foo)(2) ) */
+//    foo( 2 );
+//    /* but if you want to, you may */
+//    (*foo)( 2 );
+
+//    return 0;
+//}
 
 //#include <immintrin.h>
 //#include <iostream>

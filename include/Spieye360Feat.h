@@ -54,27 +54,16 @@
 #include <opencv/cv.h>
 //#include <opencv2/opencv.hpp> // which one should I use?
 
-
-typedef pcl::PointXYZRGBA PointT;
+//typedef pcl::PointXYZRGBA PointT;
 
 /*! This class defines the omnidirectional RGB-D frame 'Spieye360'. It contains a serie of attributes and methods to
  *  produce the omnidirectional images, and to obtain the spherical point cloud and a the planar representation for it
  */
-class Spieye360 : public Sphere3D
+class Spieye360
 {
   public:
 
-    /*! Frame ID*/
-    size_t id;
-
-    /*! Topological node where this frame (keyframe) is located */
-    size_t node;
-
-    /*! The angular resolution of a pixel. Normally it is the same along horizontal/vertical (theta/phi) axis. */
-    float pixel_angle_;
-
-    /*! The index referring the latitude in pixels of the first row in the image (the closest to the upper part of the sphere) */
-    int phi_start_pixel_;
+    Sphere3D sphere3D;
 
     /*! The NUM_ASUS_SENSORS sets of planes segmented from each camera */
     std::vector<mrpt::pbmap::PbMap> local_planes_;

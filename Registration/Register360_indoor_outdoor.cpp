@@ -71,7 +71,8 @@ int main (int argc, char ** argv)
 
 
     Eigen::Matrix4f init_guess = Eigen::Matrix4f::Identity();
-    init_guess(0,3) = -1.5f;
+    //init_guess(0,3) = -1.5f;
+    init_guess(0,3) = -0.5f;
     init_guess(1,3) = -0.5f;
     init_guess(2,3) = 0.4f;
     float angle_offset = -16.f;

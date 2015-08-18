@@ -72,8 +72,10 @@ int main (int argc, char ** argv)
     Frame360 frame360_1(&calib);
     frame360_1.loadFrame(file360_1);
     frame360_1.undistort();
-    frame360_1.stitchSphericalImage();
-    frame360_1.buildPointCloud_rgbd360();
+    //frame360_1.stitchSphericalImage();
+    frame360_1.stitchSphericalImage(CV_32FC1);
+    frame360_1.buildPointCloud();
+    //frame360_1.buildPointCloud_rgbd360();
     frame360_1.segmentPlanes();
 //    cout << "frame360_1.segmentPlanes()\n";
 //    cv::imshow( "sphereRGB", frame360_1.sphereRGB );
@@ -86,8 +88,9 @@ int main (int argc, char ** argv)
     Frame360 frame360_2(&calib);
     frame360_2.loadFrame(file360_2);
     frame360_2.undistort();
-    frame360_2.stitchSphericalImage();
-    frame360_2.buildPointCloud_rgbd360();
+    frame360_2.stitchSphericalImage(CV_32FC1);
+    frame360_2.buildPointCloud();
+    //frame360_2.buildPointCloud_rgbd360();
     frame360_2.segmentPlanes();
     cout << "frame360_2.segmentPlanes()\n";
     

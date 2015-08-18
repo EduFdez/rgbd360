@@ -114,6 +114,9 @@ class PinholeModel : public ProjectionModel
         return pixel;
     };
 
+    /*! Project the given 3D point cloud into a depth image. */
+    float warpDepth(const Eigen::MatrixXf & xyz, cv::Mat & warped_depth);
+
     /*! Re-project the warping image into the reference one. The input points 'xyz' represent the reference point cloud as seen by the target image. */
     void reproject(const Eigen::MatrixXf & xyz, const cv::Mat & gray, cv::Mat & warped_gray, Eigen::MatrixXf & pixels, Eigen::VectorXi & visible);
 
